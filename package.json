@@ -1,0 +1,30 @@
+{
+  "name": "invoice-processor",
+  "private": true,
+  "version": "0.1.0",
+  "packageManager": "yarn@4.9.2",
+  "workspaces": [
+    "backend",
+    "frontend"
+  ],
+  "scripts": {
+    "dev:backend": "yarn workspace invoice-processor-backend run dev",
+    "dev:frontend": "yarn workspace invoice-processor-frontend run dev",
+    "dev": "yarn dev:backend & yarn dev:frontend",
+    "build": "yarn workspace invoice-processor-backend run build && yarn workspace invoice-processor-frontend run build",
+    "worker:once": "yarn workspace invoice-processor-backend run worker:once",
+    "benchmark:corpus": "yarn workspace invoice-processor-backend run benchmark:corpus",
+    "docker:up": "docker compose up -d",
+    "docker:down": "docker compose down --volumes --rmi all --remove-orphans",
+    "test": "yarn workspace invoice-processor-backend run test && yarn workspace invoice-processor-frontend run test",
+    "coverage:check": "yarn workspace invoice-processor-backend run coverage && yarn workspace invoice-processor-frontend run coverage",
+    "knip": "knip --workspace backend --workspace frontend",
+    "quality:check": "yarn run knip && yarn run coverage:check",
+    "prepare": "husky",
+    "e2e:local": "bash ./scripts/e2e-local.sh"
+  },
+  "devDependencies": {
+    "husky": "^9.1.7",
+    "knip": "^5.66.1"
+  }
+}

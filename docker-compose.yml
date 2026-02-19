@@ -1,0 +1,71 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: invoice-processor-backend
+    restart: unless-stopped
+    depends_on:
+      - mongo
+    env_file:
+      - path: ./backend/.env.example
+        required: true
+      - path: ./backend/.env
+        required: false
+    ports:
+      - "4000:4000"
+    environment:
+      NODE_ENV: development
+      PORT: "4000"
+      MONGO_URI: mongodb://mongo:27017/invoice_processor
+      INGESTION_SOURCES: folder
+      FOLDER_SOURCE_KEY: local-folder
+      FOLDER_SOURCE_PATH: /app/sample-invoices/inbox
+      FOLDER_RECURSIVE: "false"
+      CONFIDENCE_EXPECTED_MAX_TOTAL: "100000"
+      CONFIDENCE_EXPECTED_MAX_DUE_DAYS: "90"
+      CONFIDENCE_AUTO_SELECT_MIN: "91"
+      TALLY_ENDPOINT: http://tally.example.local
+      TALLY_COMPANY: Demo Company
+      TALLY_PURCHASE_LEDGER: Purchase
+    volumes:
+      - ./sample-invoices/inbox:/app/sample-invoices/inbox
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+      args:
+        VITE_API_BASE_URL: http://localhost:4000/api
+    container_name: invoice-processor-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "5173:80"
+
+  mongo:
+    image: mongo:7
+    container_name: invoice-processor-mongo
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_DATABASE: invoice_processor
+    volumes:
+      - mongo_data:/data/db
+
+  mongo-express:
+    image: mongo-express:1.0.2
+    container_name: invoice-processor-mongo-express
+    restart: unless-stopped
+    depends_on:
+      - mongo
+    ports:
+      - "8081:8081"
+    environment:
+      ME_CONFIG_MONGODB_URL: mongodb://mongo:27017/
+      ME_CONFIG_BASICAUTH: "false"
+
+volumes:
+  mongo_data:

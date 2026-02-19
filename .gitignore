@@ -1,0 +1,17 @@
+node_modules
+package-lock.json
+.env
+.env.*
+dist
+build
+coverage
+.DS_Store
+.yarn/*
+backend/dist
+frontend/dist
+terraform.tfstate
+terraform.tfstate.*
+.terraform/
+.idea/
+*.iml
+*.tsbuildinfo

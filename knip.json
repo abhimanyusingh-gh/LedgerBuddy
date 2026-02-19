@@ -1,0 +1,15 @@
+{
+  "$schema": "https://unpkg.com/knip@latest/schema.json",
+  "workspaces": {
+    "backend": {
+      "entry": ["src/server.ts", "src/scripts/runWorkerOnce.ts", "src/scripts/runBenchmarkCorpus.ts"],
+      "project": ["src/**/*.ts"],
+      "ignore": ["src/**/*.test.ts", "src/types/mailparser.d.ts"]
+    },
+    "frontend": {
+      "entry": ["src/main.tsx"],
+      "project": ["src/**/*.ts", "src/**/*.tsx"],
+      "ignore": ["src/**/*.test.ts", "src/**/*.test.tsx", "src/vite-env.d.ts"]
+    }
+  }
+}
