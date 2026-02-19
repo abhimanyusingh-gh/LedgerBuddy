@@ -17,6 +17,9 @@ Implemented:
 - Terraform modules for scheduled spot workers and production DocumentDB.
 - Unit tests + local folder-based end-to-end ingestion test.
 
+Delivery timeline:
+- `docs/DELIVERY_TIMELINE.md` (7-day phased view with milestone mapping).
+
 Not yet implemented:
 - Authentication/authorization.
 - Production-ready observability/alerting.
