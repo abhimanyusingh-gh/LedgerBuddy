@@ -1,1 +1,6 @@
--r requirements.local.txt
+fastapi==0.115.6
+uvicorn==0.34.0
+pydantic==2.10.6
+mlx==0.30.6
+mlx-lm==0.30.7
+huggingface_hub==1.4.1

@@ -10,20 +10,10 @@ export interface FieldVerifierInput {
   mode: FieldVerificationMode;
   hints: {
     mimeType: string;
-    languageHint?: string;
-    documentLanguage?: string;
-    documentLanguageConfidence?: number;
-    preOcrLanguage?: string;
-    preOcrLanguageConfidence?: number;
-    postOcrLanguage?: string;
-    postOcrLanguageConfidence?: number;
     vendorNameHint?: string;
     vendorTemplateMatched: boolean;
     fieldCandidates: Record<string, string[]>;
     fieldRegions?: Record<string, OcrBlock[]>;
-    pageImages?: Array<{ page: number; mimeType: string; dataUrl: string; width?: number; height?: number; dpi?: number }>;
-    llmAssist?: boolean;
-    priorCorrections?: Array<{ field: string; hint: string; count: number }>;
   };
 }
 
@@ -32,8 +22,6 @@ export interface FieldVerifierResult {
   issues: string[];
   changedFields: string[];
   reasonCodes?: Record<string, string>;
-  invoiceType?: string;
-  tokenUsage?: { promptTokens?: number; completionTokens?: number; totalTokens?: number };
 }
 
 export interface FieldVerifier {

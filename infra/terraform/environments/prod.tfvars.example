@@ -1,19 +1,11 @@
 aws_region   = "us-east-1"
-project_name = "billforge-prod"
-environment  = "prod"
+project_name = "invoice-processor-prod"
 
 vpc_id     = "vpc-xxxxxxxx"
 subnet_ids = ["subnet-aaaaaaa", "subnet-bbbbbbb"]
 
 instance_type = "t3.small"
-app_image     = "123456789012.dkr.ecr.us-east-1.amazonaws.com/billforge-backend:prod"
-
-provision_artifact_bucket      = true
-artifact_bucket_name           = "billforge-prod-artifacts-example"
-artifact_bucket_prefix         = "invoice-artifacts"
-artifact_bucket_force_destroy  = false
-artifact_bucket_versioning_enabled = true
-artifact_bucket_expiration_days    = 0
+app_image     = "123456789012.dkr.ecr.us-east-1.amazonaws.com/invoice-processor-backend:prod"
 
 # Production path: always provision and use module-managed DocumentDB.
 provision_documentdb = true
@@ -22,7 +14,7 @@ mongo_uri            = ""
 documentdb_allowed_cidrs         = ["10.0.0.0/16"]
 documentdb_master_username       = "invoice_admin"
 documentdb_master_password       = "replace-with-strong-password"
-documentdb_db_name               = "billforge"
+documentdb_db_name               = "invoice_processor"
 documentdb_engine_version        = "5.0.0"
 documentdb_instance_class        = "db.t3.medium"
 documentdb_instance_count        = 1
@@ -72,8 +64,3 @@ app_manifest = {
     DEFAULT_WORKLOAD_TIER = "standard"
   }
 }
-
-sts_trusted_services = ["ecs-tasks.amazonaws.com"]
-sts_assume_role_arns = [
-  "arn:aws:iam::123456789012:role/platform-sts-issuer"
-]

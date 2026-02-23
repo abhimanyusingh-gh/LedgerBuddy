@@ -1,9 +1,47 @@
 import { Schema, model, type InferSchemaType, type HydratedDocument } from "mongoose";
 import { InvoiceStatuses } from "../types/invoice.js";
 import { ConfidenceTones, RiskFlags } from "../types/confidence.js";
+import { WorkloadTiers } from "../types/tenant.js";
+
+const ocrBlockSchema = new Schema(
+  {
+    text: { type: String, required: true },
+    page: { type: Number, required: true },
+    bbox: {
+      type: [Number],
+      required: true,
+      validate: {
+        validator: (value: number[]) => Array.isArray(value) && value.length === 4 && value.every(Number.isFinite),
+        message: "ocrBlocks.bbox must contain exactly four numeric values."
+      }
+    },
+    bboxNormalized: {
+      type: [Number],
+      validate: {
+        validator: (value: number[] | undefined) =>
+          value === undefined || (Array.isArray(value) && value.length === 4 && value.every(Number.isFinite)),
+        message: "ocrBlocks.bboxNormalized must contain exactly four numeric values when provided."
+      }
+    },
+    bboxModel: {
+      type: [Number],
+      validate: {
+        validator: (value: number[] | undefined) =>
+          value === undefined || (Array.isArray(value) && value.length === 4 && value.every(Number.isFinite)),
+        message: "ocrBlocks.bboxModel must contain exactly four numeric values when provided."
+      }
+    },
+    blockType: { type: String }
+  },
+  {
+    _id: false
+  }
+);
 
 const invoiceSchema = new Schema(
   {
+    tenantId: { type: String, required: true, default: "default" },
+    workloadTier: { type: String, enum: WorkloadTiers, required: true, default: "standard" },
     sourceType: { type: String, required: true },
     sourceKey: { type: String, required: true },
     sourceDocumentId: { type: String, required: true },
@@ -14,6 +52,7 @@ const invoiceSchema = new Schema(
     ocrProvider: { type: String },
     ocrText: { type: String },
     ocrConfidence: { type: Number },
+    ocrBlocks: { type: [ocrBlockSchema], default: [] },
     confidenceScore: { type: Number, default: 0 },
     confidenceTone: { type: String, enum: ConfidenceTones, default: "red" },
     autoSelectForApproval: { type: Boolean, default: false },
@@ -61,6 +100,7 @@ const invoiceSchema = new Schema(
 
 invoiceSchema.index(
   {
+    tenantId: 1,
     sourceType: 1,
     sourceKey: 1,
     sourceDocumentId: 1,

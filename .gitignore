@@ -15,3 +15,6 @@ terraform.tfstate.*
 .idea/
 *.iml
 *.tsbuildinfo
+.venv*
+__pycache__/
+*.pyc

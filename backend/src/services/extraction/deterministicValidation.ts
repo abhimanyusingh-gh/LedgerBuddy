@@ -91,7 +91,7 @@ function extractTaxAmountMinor(text?: string): number | undefined {
     .filter((line) => /\b(vat|gst|mwst|ust|tax)\b/i.test(line));
 
   const amounts = taxLines
-    .flatMap((line) => Array.from(line.matchAll(/[-+]?(?:\d{1,3}(?:[,\s.]\d{3})+|\d+)(?:[.,]\d{1,3})?/g), (match) => match[0]))
+    .flatMap((line) => [...line.matchAll(/[-+]?(?:\d{1,3}(?:[,\s.]\d{3})+|\d+)(?:[.,]\d{1,3})?/g)].map((match) => match[0]))
     .map((raw) => parseAmountMinor(raw))
     .filter((value): value is number => value !== undefined && value > 0);
 

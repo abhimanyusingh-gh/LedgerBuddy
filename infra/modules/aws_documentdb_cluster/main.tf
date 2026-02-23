@@ -35,40 +35,20 @@ resource "aws_docdb_subnet_group" "this" {
   tags = var.tags
 }
 
-resource "aws_docdb_cluster_parameter_group" "this" {
-  family      = "docdb5.0"
-  name        = "${var.name}-params"
-  description = "Parameter group for ${var.name} with audit logging"
-
-  parameter {
-    name  = "audit_logs"
-    value = "enabled"
-  }
-
-  parameter {
-    name  = "tls"
-    value = "enabled"
-  }
-
-  tags = var.tags
-}
-
 resource "aws_docdb_cluster" "this" {
-  cluster_identifier              = local.cluster_identifier
-  engine                          = "docdb"
-  engine_version                  = var.engine_version
-  master_username                 = var.master_username
-  master_password                 = var.master_password
-  db_subnet_group_name            = aws_docdb_subnet_group.this.name
-  vpc_security_group_ids          = [aws_security_group.this.id]
-  db_cluster_parameter_group_name = aws_docdb_cluster_parameter_group.this.name
-  backup_retention_period         = var.backup_retention_period
-  preferred_backup_window         = var.preferred_backup_window
-  storage_encrypted               = var.storage_encrypted
-  deletion_protection             = var.deletion_protection
-  skip_final_snapshot             = var.skip_final_snapshot
-  apply_immediately               = var.apply_immediately
-  enabled_cloudwatch_logs_exports = ["audit", "profiler"]
+  cluster_identifier      = local.cluster_identifier
+  engine                  = "docdb"
+  engine_version          = var.engine_version
+  master_username         = var.master_username
+  master_password         = var.master_password
+  db_subnet_group_name    = aws_docdb_subnet_group.this.name
+  vpc_security_group_ids  = [aws_security_group.this.id]
+  backup_retention_period = var.backup_retention_period
+  preferred_backup_window = var.preferred_backup_window
+  storage_encrypted       = var.storage_encrypted
+  deletion_protection     = var.deletion_protection
+  skip_final_snapshot     = var.skip_final_snapshot
+  apply_immediately       = var.apply_immediately
 
   tags = var.tags
 }

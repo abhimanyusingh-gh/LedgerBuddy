@@ -4,9 +4,12 @@ import { env } from "../config/env.js";
 import type { ParsedInvoiceData } from "../types/invoice.js";
 import { assessInvoiceConfidence } from "./confidenceAssessment.js";
 import { toMinorUnits } from "../utils/currency.js";
+import type { WorkloadTier } from "../types/tenant.js";
 
 interface ListInvoicesParams {
   status?: string;
+  tenantId?: string;
+  workloadTier?: WorkloadTier;
   page: number;
   limit: number;
 }
@@ -37,6 +40,12 @@ export class InvoiceService {
     const query: Record<string, unknown> = {};
     if (params.status) {
       query.status = params.status;
+    }
+    if (params.tenantId) {
+      query.tenantId = params.tenantId;
+    }
+    if (params.workloadTier) {
+      query.workloadTier = params.workloadTier;
     }
 
     const skip = (params.page - 1) * params.limit;

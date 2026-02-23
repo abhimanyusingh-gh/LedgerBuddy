@@ -1,5 +1,5 @@
 import type { FieldVerificationMode, FieldVerifier } from "../../core/interfaces/FieldVerifier.js";
-import type { OcrBlock, OcrPageImage, OcrProvider } from "../../core/interfaces/OcrProvider.js";
+import type { OcrBlock, OcrProvider } from "../../core/interfaces/OcrProvider.js";
 import type { ParsedInvoiceData } from "../../types/invoice.js";
 import { runInvoiceExtractionAgent, type ExtractionTextCandidate } from "../invoiceExtractionAgent.js";
 import { assessInvoiceConfidence, type ConfidenceAssessment } from "../confidenceAssessment.js";
@@ -7,11 +7,8 @@ import { buildLayoutGraph } from "./layoutGraph.js";
 import { validateInvoiceFields } from "./deterministicValidation.js";
 import { computeVendorFingerprint } from "./vendorFingerprint.js";
 import { templateFromParsed, type VendorTemplateSnapshot, type VendorTemplateStore } from "./vendorTemplateStore.js";
-import { buildCorrectionHint, type CorrectionEntry, type ExtractionLearningStore } from "./extractionLearningStore.js";
 import type { PipelineExtractionResult } from "./types.js";
 import { logger } from "../../utils/logger.js";
-import { detectInvoiceLanguage, detectInvoiceLanguageBeforeOcr, type DetectedInvoiceLanguage } from "./languageDetection.js";
-import { currencyBySymbol, parseAmountToken } from "../../parser/invoiceParser.js";
 
 type PipelineErrorCode = "FAILED_OCR" | "FAILED_PARSE";
 
@@ -29,8 +26,6 @@ interface ExtractionPipelineInput {
 
 interface ExtractionPipelineOptions {
   ocrHighConfidenceThreshold?: number;
-  enableOcrKeyValueGrounding?: boolean;
-  llmAssistConfidenceThreshold?: number;
 }
 
 export class ExtractionPipelineError extends Error {
@@ -45,19 +40,14 @@ export class ExtractionPipelineError extends Error {
 
 export class InvoiceExtractionPipeline {
   private readonly ocrHighConfidenceThreshold: number;
-  private readonly enableOcrKeyValueGrounding: boolean;
-  private readonly llmAssistConfidenceThreshold: number;
 
   constructor(
     private readonly ocrProvider: OcrProvider,
     private readonly fieldVerifier: FieldVerifier,
     private readonly templateStore: VendorTemplateStore,
-    private readonly learningStore: ExtractionLearningStore | undefined,
     options?: ExtractionPipelineOptions
   ) {
     this.ocrHighConfidenceThreshold = clampProbability(options?.ocrHighConfidenceThreshold ?? 0.88);
-    this.enableOcrKeyValueGrounding = options?.enableOcrKeyValueGrounding ?? true;
-    this.llmAssistConfidenceThreshold = options?.llmAssistConfidenceThreshold ?? 85;
   }
 
   async extract(input: ExtractionPipelineInput): Promise<PipelineExtractionResult> {
@@ -85,37 +75,11 @@ export class InvoiceExtractionPipeline {
     let ocrProvider = this.ocrProvider.name;
     let ocrConfidence: number | undefined;
     let ocrBlocks: OcrBlock[] = [];
-    let ocrPageImages: OcrPageImage[] = [];
-    let ocrTokensUsed = 0;
-    let slmTokensUsed = 0;
-    const preOcrLanguage = detectInvoiceLanguageBeforeOcr({
-      attachmentName: input.attachmentName,
-      sourceKey: input.sourceKey,
-      mimeType: input.mimeType,
-      fileBuffer: input.fileBuffer
-    });
-    const preOcrLanguageHintDecision = resolvePreOcrLanguageHint(preOcrLanguage, input.mimeType);
-    const preOcrLanguageHint = preOcrLanguageHintDecision.hint;
-    if (preOcrLanguageHintDecision.reason !== "detected" && preOcrLanguageHintDecision.reason !== "none" && preOcrLanguageHint) {
-      metadata.preOcrLanguageHint = preOcrLanguageHint;
-      metadata.preOcrLanguageHintReason = preOcrLanguageHintDecision.reason;
-    }
-    if (preOcrLanguage.code !== "und") {
-      metadata.preOcrLanguage = preOcrLanguage.code;
-      metadata.preOcrLanguageConfidence = formatConfidence(preOcrLanguage.confidence);
-      if (preOcrLanguage.signals.length > 0) {
-        metadata.preOcrLanguageSignals = preOcrLanguage.signals.join(",");
-      }
-    }
 
     try {
-      const ocrResult = await this.ocrProvider.extractText(input.fileBuffer, input.mimeType, {
-        languageHint: preOcrLanguageHint
-      });
+      const ocrResult = await this.ocrProvider.extractText(input.fileBuffer, input.mimeType);
       ocrProvider = ocrResult.provider || this.ocrProvider.name;
       ocrBlocks = ocrResult.blocks ?? [];
-      ocrPageImages = ocrResult.pageImages ?? [];
-      if (ocrResult.tokenUsage?.totalTokens) ocrTokensUsed += ocrResult.tokenUsage.totalTokens;
       const rawText = ocrResult.text.trim();
       const blockText = buildBlocksText(ocrBlocks);
       const calibrated = calibrateDocumentConfidence(ocrResult.confidence, rawText, blockText);
@@ -142,31 +106,6 @@ export class InvoiceExtractionPipeline {
         });
       }
 
-      const keyValueText = this.enableOcrKeyValueGrounding ? buildKeyValueGroundingText(ocrBlocks) : "";
-      if (keyValueText.length > 0 && !isNearDuplicateText(keyValueText, rawText) && !isNearDuplicateText(keyValueText, blockText)) {
-        extractionCandidates.push({
-          text: keyValueText,
-          provider: ocrProvider,
-          confidence: ocrConfidence,
-          source: "ocr-key-value-grounding"
-        });
-      }
-      const augmentedKeyValueText =
-        keyValueText.length > 0 ? buildAugmentedGroundingText(keyValueText, blockText, rawText) : "";
-      if (
-        augmentedKeyValueText.length > 0 &&
-        !isNearDuplicateText(augmentedKeyValueText, rawText) &&
-        !isNearDuplicateText(augmentedKeyValueText, blockText) &&
-        !isNearDuplicateText(augmentedKeyValueText, keyValueText)
-      ) {
-        extractionCandidates.push({
-          text: augmentedKeyValueText,
-          provider: ocrProvider,
-          confidence: ocrConfidence,
-          source: "ocr-key-value-augmented"
-        });
-      }
-
       if (rawText.length === 0 && blockText.length === 0) {
         processingIssues.push("OCR provider returned empty text.");
       }
@@ -187,19 +126,6 @@ export class InvoiceExtractionPipeline {
       throw new ExtractionPipelineError("FAILED_OCR", "No text detected from OCR.");
     }
 
-    const postOcrLanguage = detectInvoiceLanguage(extractionCandidates.map((candidate) => candidate.text));
-    const detectedLanguage = resolveDetectedLanguage(preOcrLanguage, postOcrLanguage);
-    metadata.documentLanguage = detectedLanguage.code;
-    metadata.documentLanguageConfidence = formatConfidence(detectedLanguage.confidence);
-    metadata.documentLanguageSource = postOcrLanguage.code === "und" ? "pre-ocr" : "post-ocr";
-    if (postOcrLanguage.code !== "und") {
-      metadata.postOcrLanguage = postOcrLanguage.code;
-      metadata.postOcrLanguageConfidence = formatConfidence(postOcrLanguage.confidence);
-    }
-    if (detectedLanguage.signals.length > 0) {
-      metadata.documentLanguageSignals = detectedLanguage.signals.join(",");
-    }
-
     const layoutGraph = buildLayoutGraph(ocrBlocks);
     metadata.layoutGraphNodes = String(layoutGraph.nodes.length);
     metadata.layoutGraphEdges = String(layoutGraph.edges.length);
@@ -214,7 +140,6 @@ export class InvoiceExtractionPipeline {
         expectedMaxTotal: input.expectedMaxTotal,
         expectedMaxDueDays: input.expectedMaxDueDays,
         autoSelectMin: input.autoSelectMin,
-        languageHint: detectedLanguage.code,
         referenceDate: input.referenceDate
       });
       const parsedFromTemplate = applyTemplate(template, templateResult.parseResult.parsed);
@@ -237,7 +162,6 @@ export class InvoiceExtractionPipeline {
           metadata,
           parsed: parsedFromTemplate,
           ocrBlocks,
-          fieldRegions: {},
           source: "template",
           ocrConfidence,
           validationIssues: templateValidation.issues,
@@ -258,11 +182,8 @@ export class InvoiceExtractionPipeline {
           confidenceAssessment: templateConfidence,
           attempts: templateResult.attempts,
           ocrBlocks,
-          ocrPageImages,
           processingIssues: uniqueIssues(processingIssues),
-          metadata,
-          ocrTokens: ocrTokensUsed || undefined,
-          slmTokens: slmTokensUsed || undefined
+          metadata
         };
       }
 
@@ -271,39 +192,13 @@ export class InvoiceExtractionPipeline {
       );
     }
 
-    let heuristicResult: ReturnType<typeof runInvoiceExtractionAgent>;
-    let heuristicFailed = false;
-    try {
-      heuristicResult = runInvoiceExtractionAgent({
-        candidates: extractionCandidates,
-        expectedMaxTotal: input.expectedMaxTotal,
-        expectedMaxDueDays: input.expectedMaxDueDays,
-        autoSelectMin: input.autoSelectMin,
-        languageHint: detectedLanguage.code,
-        referenceDate: input.referenceDate
-      });
-    } catch (heuristicError) {
-      heuristicFailed = true;
-      processingIssues.push(
-        `Heuristic parser failed: ${heuristicError instanceof Error ? heuristicError.message : String(heuristicError)}. Falling back to SLM-only extraction.`
-      );
-      logger.warn("pipeline.heuristic.failed.slm_fallback", {
-        tenantId: input.tenantId,
-        attachmentName: input.attachmentName,
-        error: heuristicError instanceof Error ? heuristicError.message : String(heuristicError)
-      });
-      const bestCandidate = extractionCandidates[0];
-      heuristicResult = {
-        provider: bestCandidate.provider ?? ocrProvider,
-        text: bestCandidate.text,
-        confidence: bestCandidate.confidence,
-        source: "slm-fallback",
-        strategy: "slm-only",
-        parseResult: { parsed: {} as ParsedInvoiceData, warnings: ["Heuristic parser failed; fields extracted by SLM only."] },
-        confidenceAssessment: this.assessConfidence(input, {} as ParsedInvoiceData, ["Heuristic parser failed"], ocrConfidence),
-        attempts: [{ provider: bestCandidate.provider ?? "unknown", source: bestCandidate.source, strategy: "slm-fallback", score: 0, confidenceScore: 0, warningCount: 1, hasTotalAmountMinor: false, textLength: bestCandidate.text.length }]
-      };
-    }
+    const heuristicResult = runInvoiceExtractionAgent({
+      candidates: extractionCandidates,
+      expectedMaxTotal: input.expectedMaxTotal,
+      expectedMaxDueDays: input.expectedMaxDueDays,
+      autoSelectMin: input.autoSelectMin,
+      referenceDate: input.referenceDate
+    });
 
     let parsed = heuristicResult.parseResult.parsed;
     let warnings = uniqueIssues(heuristicResult.parseResult.warnings);
@@ -319,27 +214,12 @@ export class InvoiceExtractionPipeline {
       referenceDate: input.referenceDate
     });
 
-    const fieldCandidates = buildFieldCandidates(heuristicResult.text, parsed, template);
-    const fieldRegions = buildFieldRegions(ocrBlocks, fieldCandidates);
-
-    const shouldVerify = this.fieldVerifier.name !== "noop";
+    const shouldVerify = !ocrGateHigh || !validation.valid;
     const verifierChangedFields: string[] = [];
-    let invoiceType = "other";
     if (shouldVerify) {
-      let priorCorrections: CorrectionEntry[] | undefined;
-      try {
-        if (this.learningStore) {
-          priorCorrections = await this.learningStore.findCorrections(
-            input.tenantId,
-            metadata.invoiceType ?? "other",
-            fingerprint.key
-          );
-        }
-      } catch (err) {
-        logger.warn("extraction.learning.lookup.failed", { error: err instanceof Error ? err.message : String(err), tenantId: input.tenantId });
-      }
-
-      const mode: FieldVerificationMode = "relaxed";
+      const mode: FieldVerificationMode = ocrGateHigh ? "strict" : "relaxed";
+      const fieldCandidates = buildFieldCandidates(heuristicResult.text, parsed, template);
+      const fieldRegions = buildFieldRegions(ocrBlocks, fieldCandidates);
       const verifierOutput = await this.fieldVerifier.verify({
         parsed,
         ocrText: heuristicResult.text,
@@ -347,34 +227,12 @@ export class InvoiceExtractionPipeline {
         mode,
         hints: {
           mimeType: input.mimeType,
-          languageHint: detectedLanguage.code,
-          documentLanguage: detectedLanguage.code,
-          documentLanguageConfidence: detectedLanguage.confidence,
-          ...(preOcrLanguage.code !== "und"
-            ? {
-                preOcrLanguage: preOcrLanguage.code,
-                preOcrLanguageConfidence: preOcrLanguage.confidence
-              }
-            : {}),
-          ...(postOcrLanguage.code !== "und"
-            ? {
-                postOcrLanguage: postOcrLanguage.code,
-                postOcrLanguageConfidence: postOcrLanguage.confidence
-              }
-            : {}),
           vendorNameHint: template?.vendorName,
           vendorTemplateMatched: Boolean(template),
           fieldCandidates,
-          fieldRegions,
-          priorCorrections: priorCorrections?.length
-            ? priorCorrections.map((c) => ({ field: c.field, hint: c.hint, count: c.count }))
-            : undefined
+          fieldRegions
         }
       });
-
-      if (verifierOutput.tokenUsage?.totalTokens) slmTokensUsed += verifierOutput.tokenUsage.totalTokens;
-      invoiceType = verifierOutput.invoiceType ?? "other";
-      metadata.invoiceType = invoiceType;
 
       const mergedParsed = mergeParsedWithVerification(parsed, verifierOutput.parsed, mode);
       const changedFields = detectChangedFields(parsed, mergedParsed);
@@ -404,86 +262,6 @@ export class InvoiceExtractionPipeline {
         referenceDate: input.referenceDate
       });
       metadata.verifierApplied = "true";
-
-      const essentialFieldsMissing =
-        !parsed.invoiceNumber?.trim() ||
-        !parsed.invoiceDate?.trim() ||
-        parsed.totalAmountMinor == null ||
-        parsed.totalAmountMinor === 0;
-
-      const shouldRunLlmAssist =
-        ocrPageImages.length > 0 &&
-        (essentialFieldsMissing || (this.llmAssistConfidenceThreshold > 0 && confidence.score < this.llmAssistConfidenceThreshold));
-
-      if (shouldRunLlmAssist) {
-        try {
-          const preLlmParsed = { ...parsed };
-          const llmPageImages = ocrPageImages.slice(0, 3);
-          const llmVerifierOutput = await this.fieldVerifier.verify({
-            parsed,
-            ocrText: heuristicResult.text,
-            ocrBlocks,
-            mode: "strict",
-            hints: {
-              mimeType: input.mimeType,
-              languageHint: detectedLanguage.code,
-              documentLanguage: detectedLanguage.code,
-              vendorTemplateMatched: Boolean(template),
-              fieldCandidates,
-              fieldRegions,
-              pageImages: llmPageImages,
-              llmAssist: true,
-              priorCorrections: priorCorrections?.length
-                ? priorCorrections.map((c) => ({ field: c.field, hint: c.hint, count: c.count }))
-                : undefined
-            }
-          });
-
-          if (llmVerifierOutput.tokenUsage?.totalTokens) slmTokensUsed += llmVerifierOutput.tokenUsage.totalTokens;
-          const llmMerged = mergeParsedWithVerification(parsed, llmVerifierOutput.parsed, "strict");
-          const llmChangedFields = detectChangedFields(parsed, llmMerged);
-          if (llmChangedFields.length > 0) {
-            parsed = llmMerged;
-            strategy = `${strategy}+llm-assist`;
-            metadata.llmAssistChangedFields = llmChangedFields.join(",");
-
-            const effectiveOcrConfidence = Math.max(ocrConfidence ?? 0.6, 0.88);
-            confidence = this.assessConfidence(input, parsed, warnings, effectiveOcrConfidence);
-            validation = validateInvoiceFields({
-              parsed,
-              ocrText: heuristicResult.text,
-              expectedMaxTotal: input.expectedMaxTotal,
-              expectedMaxDueDays: input.expectedMaxDueDays,
-              referenceDate: input.referenceDate
-            });
-
-            if (this.learningStore) {
-              const corrections = llmChangedFields.map((field) => ({
-                field,
-                hint: buildCorrectionHint(
-                  field,
-                  preLlmParsed[field as keyof ParsedInvoiceData],
-                  parsed[field as keyof ParsedInvoiceData]
-                ),
-                count: 1,
-                lastSeen: new Date()
-              }));
-              await Promise.all([
-                this.learningStore.recordCorrections(input.tenantId, invoiceType, "invoice-type", corrections),
-                this.learningStore.recordCorrections(input.tenantId, fingerprint.key, "vendor", corrections)
-              ]);
-            }
-          }
-          metadata.llmAssistApplied = "true";
-        } catch (error) {
-          metadata.llmAssistApplied = "false";
-          metadata.llmAssistError = error instanceof Error ? error.message : String(error);
-          logger.warn("pipeline.llm_assist.failed", {
-            tenantId: input.tenantId,
-            error: error instanceof Error ? error.message : String(error)
-          });
-        }
-      }
     }
 
     if (!validation.valid) {
@@ -503,8 +281,7 @@ export class InvoiceExtractionPipeline {
       validationIssues: validation.issues,
       warnings,
       templateAppliedFields,
-      verifierChangedFields,
-      fieldRegions
+      verifierChangedFields
     });
 
     await this.cacheTemplate(input, fingerprint.key, fingerprint.layoutSignature, parsed, confidence);
@@ -522,11 +299,8 @@ export class InvoiceExtractionPipeline {
       confidenceAssessment: confidence,
       attempts: heuristicResult.attempts,
       ocrBlocks,
-      ocrPageImages,
       processingIssues: uniqueIssues(processingIssues),
-      metadata,
-      ocrTokens: ocrTokensUsed || undefined,
-      slmTokens: slmTokensUsed || undefined
+      metadata
     };
   }
 
@@ -616,13 +390,13 @@ function mergeParsedWithVerification(
     }
 
     if (mode === "relaxed") {
-      assignParsedField(merged, field, candidateValue);
+      merged[field] = candidateValue as never;
       continue;
     }
 
     const currentValue = merged[field];
     if (currentValue === undefined) {
-      assignParsedField(merged, field, candidateValue);
+      merged[field] = candidateValue as never;
       continue;
     }
 
@@ -642,14 +416,6 @@ function mergeParsedWithVerification(
   return merged;
 }
 
-function assignParsedField<K extends keyof ParsedInvoiceData>(
-  target: ParsedInvoiceData,
-  field: K,
-  value: ParsedInvoiceData[K]
-): void {
-  target[field] = value;
-}
-
 function detectChangedFields(before: ParsedInvoiceData, after: ParsedInvoiceData): string[] {
   const changed: string[] = [];
   for (const key of Object.keys(after) as Array<keyof ParsedInvoiceData>) {
@@ -662,26 +428,20 @@ function detectChangedFields(before: ParsedInvoiceData, after: ParsedInvoiceData
 
 function isSameValue(left: unknown, right: unknown): boolean {
   if (Array.isArray(left) || Array.isArray(right)) {
-    const a = Array.isArray(left) ? left : [];
-    const b = Array.isArray(right) ? right : [];
-    if (a.length !== b.length) return false;
-    for (let i = 0; i < a.length; i++) {
-      if (a[i] !== b[i]) return false;
-    }
-    return true;
+    return JSON.stringify(left ?? []) === JSON.stringify(right ?? []);
   }
   return left === right;
 }
 
-const ADDRESS_RE = /\b(address|warehouse|village|road|street|taluk|district|postal|zip)\b/i;
-const WEAK_VENDOR_RE = /\b(currency|invoice|total|amount|date|due|tax|gst|vat|number)\b/i;
-
 function looksLikeAddress(value: string): boolean {
-  return ADDRESS_RE.test(value);
+  return /\b(address|warehouse|village|road|street|taluk|district|postal|zip)\b/i.test(value);
 }
 
 function isWeakVendorValue(value: string): boolean {
-  return looksLikeAddress(value) || WEAK_VENDOR_RE.test(value);
+  return (
+    looksLikeAddress(value) ||
+    /\b(currency|invoice|total|amount|date|due|tax|gst|vat|number)\b/i.test(value)
+  );
 }
 
 function buildFieldCandidates(
@@ -708,7 +468,7 @@ function buildFieldCandidates(
     ...collectMatches(text, /\b(USD|EUR|GBP|INR|AUD|CAD|JPY|AED|SGD|CHF|CNY)\b/gi).map((entry) =>
       entry.toUpperCase()
     ),
-    ...collectMatches(text, /([$€£₹])/g).map((symbol) => currencyBySymbol[symbol] ?? "")
+    ...collectMatches(text, /([$€£₹])/g).map((symbol) => symbolToCurrency(symbol))
   ]);
 
   const totalMatches = uniqueStrings([
@@ -717,9 +477,8 @@ function buildFieldCandidates(
       text,
       /(?:grand\s*total|invoice\s*total|amount\s*due|balance\s*due|total\s*due|amount\s*payable)\s*[:\-]?\s*([-+]?(?:\d{1,3}(?:[,\s.]\d{3})+|\d+)(?:[.,]\d{1,2})?)/gi
     ).map((value) => {
-      const major = parseAmountToken(value);
-      if (major === null || major <= 0) return "";
-      return String(Math.round(major * 100));
+      const minor = parseAmountToMinorUnits(value);
+      return minor !== undefined ? String(minor) : "";
     })
   ]);
 
@@ -793,16 +552,9 @@ function candidateTerms(field: string, value: string): string[] {
   const majorNoDecimals = Number.isInteger(minor / 100) ? String(Math.round(minor / 100)) : "";
   const normalizedMajor = major.replace(/\.00$/, "");
 
-  const terms: string[] = [];
-  const seen = new Set<string>();
-  for (const raw of [base, major, normalizedMajor, majorNoDecimals]) {
-    const entry = raw.trim().toLowerCase();
-    if (entry.length > 0 && !seen.has(entry)) {
-      seen.add(entry);
-      terms.push(entry);
-    }
-  }
-  return terms;
+  return [base, major, normalizedMajor, majorNoDecimals]
+    .map((entry) => entry.trim().toLowerCase())
+    .filter((entry, index, all) => entry.length > 0 && all.indexOf(entry) === index);
 }
 
 function collectMatches(text: string, pattern: RegExp): string[] {
@@ -818,6 +570,55 @@ function collectMatches(text: string, pattern: RegExp): string[] {
 
 function uniqueStrings(values: Array<string | undefined>): string[] {
   return [...new Set(values.map((value) => value?.trim() ?? "").filter((value) => value.length > 0))];
+}
+
+function symbolToCurrency(symbol: string): string {
+  if (symbol === "$") {
+    return "USD";
+  }
+  if (symbol === "€") {
+    return "EUR";
+  }
+  if (symbol === "£") {
+    return "GBP";
+  }
+  if (symbol === "₹") {
+    return "INR";
+  }
+  return "";
+}
+
+function parseAmountToMinorUnits(value: string): number | undefined {
+  const cleaned = value.replace(/\s+/g, "");
+  if (!cleaned) {
+    return undefined;
+  }
+
+  let normalized = cleaned.replace(/[^0-9,.\-+]/g, "");
+  if (!normalized) {
+    return undefined;
+  }
+
+  const negative = normalized.startsWith("-");
+  normalized = normalized.replace(/^[+-]/, "");
+  if (normalized.includes(",") && normalized.includes(".")) {
+    if (normalized.lastIndexOf(",") > normalized.lastIndexOf(".")) {
+      normalized = normalized.replace(/\./g, "").replace(",", ".");
+    } else {
+      normalized = normalized.replace(/,/g, "");
+    }
+  } else if (normalized.includes(",")) {
+    const fractionalDigits = normalized.split(",").at(-1)?.length ?? 0;
+    normalized = fractionalDigits <= 2 ? normalized.replace(",", ".") : normalized.replace(/,/g, "");
+  }
+
+  const parsed = Number(normalized);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return undefined;
+  }
+
+  const minor = Math.round(parsed * 100);
+  return negative ? -minor : minor;
 }
 
 function calibrateDocumentConfidence(
@@ -875,7 +676,6 @@ function addFieldDiagnosticsToMetadata(params: {
   metadata: Record<string, string>;
   parsed: ParsedInvoiceData;
   ocrBlocks: OcrBlock[];
-  fieldRegions: Record<string, OcrBlock[]>;
   source: string;
   ocrConfidence?: number;
   validationIssues: string[];
@@ -898,17 +698,7 @@ function addFieldDiagnosticsToMetadata(params: {
   const changedByVerifier = new Set(params.verifierChangedFields);
 
   const fieldConfidence: Record<string, number> = {};
-  const fieldProvenance: Record<
-    string,
-    {
-      source: string;
-      page: number;
-      bbox: [number, number, number, number];
-      bboxNormalized?: [number, number, number, number];
-      bboxModel?: [number, number, number, number];
-      blockIndex?: number;
-    }
-  > = {};
+  const fieldProvenance: Record<string, { source: string; page: number; bbox: [number, number, number, number] }> = {};
 
   for (const field of fieldNames) {
     const value = params.parsed[field];
@@ -928,20 +718,11 @@ function addFieldDiagnosticsToMetadata(params: {
         : params.source.includes("template")
           ? "template"
           : "heuristic";
-    const matched = findBlockForField(
-      field,
-      value,
-      params.ocrBlocks,
-      params.fieldRegions[field] ?? []
-    );
-    const block = matched?.block;
+    const block = findBlockForField(field, value, params.ocrBlocks);
     fieldProvenance[field] = {
       source: provenanceSource,
       page: block?.page ?? 1,
-      bbox: block?.bbox ?? [0, 0, 0, 0],
-      ...(block?.bboxNormalized ? { bboxNormalized: block.bboxNormalized } : {}),
-      ...(block?.bboxModel ? { bboxModel: block.bboxModel } : {}),
-      ...(typeof matched?.index === "number" ? { blockIndex: matched.index } : {})
+      bbox: block?.bbox ?? [0, 0, 0, 0]
     };
   }
 
@@ -974,344 +755,46 @@ function inferHeuristicConfidence(field: keyof ParsedInvoiceData, value: unknown
   return 0.82;
 }
 
-const VALIDATION_KEY_BY_FIELD: Record<string, string> = {
-  totalAmountMinor: "total amount",
-  vendorName: "vendor",
-  invoiceNumber: "invoice number",
-  currency: "currency",
-  dueDate: "due date",
-  invoiceDate: "invoice date"
-};
-
 function inferValidationBonus(field: keyof ParsedInvoiceData, validationText: string): number {
-  const key = VALIDATION_KEY_BY_FIELD[field] ?? field;
+  const key =
+    field === "totalAmountMinor"
+      ? "total amount"
+      : field === "vendorName"
+        ? "vendor"
+        : field === "invoiceNumber"
+          ? "invoice number"
+          : field === "currency"
+            ? "currency"
+            : field === "dueDate"
+              ? "due date"
+              : "invoice date";
   return validationText.includes(key) ? 0.7 : 1;
 }
 
 function findBlockForField(
   field: keyof ParsedInvoiceData,
   value: unknown,
-  blocks: OcrBlock[],
-  preferredBlocks: OcrBlock[]
-): { block: OcrBlock; index: number } | undefined {
+  blocks: OcrBlock[]
+): OcrBlock | undefined {
   if (blocks.length === 0) {
     return undefined;
   }
 
-  const candidate = normalizeFieldValue(field, value);
-  if (!candidate) {
+  let needle = "";
+  if (typeof value === "number") {
+    needle = String(Math.round(value / 100));
+  } else if (typeof value === "string") {
+    needle = value.trim();
+  }
+  if (!needle) {
     return undefined;
   }
-
-  const terms = candidateTerms(field, candidate);
-  if (terms.length === 0) {
-    return undefined;
+  if (field === "currency" && typeof value === "string") {
+    needle = value.toUpperCase();
   }
 
-  const preferredSet = new Set(preferredBlocks.map((block) => block.text.trim().toLowerCase()).filter(Boolean));
-  let best: { block: OcrBlock; index: number; score: number } | undefined;
-
-  for (let index = 0; index < blocks.length; index += 1) {
-    const block = blocks[index];
-    const normalizedText = block.text.trim().toLowerCase();
-    if (!normalizedText) {
-      continue;
-    }
-
-    const keywordBonus = fieldKeywordBonus(field, normalizedText);
-    let score = keywordBonus;
-    let matchedTerms = 0;
-    for (const term of terms) {
-      if (!containsTerm(normalizedText, term)) {
-        continue;
-      }
-      score += term.length >= 4 ? 4 : 2;
-      if (normalizedText === term) {
-        score += 2;
-      }
-      matchedTerms += 1;
-    }
-
-    if (preferredSet.has(normalizedText)) {
-      score += 4;
-    }
-
-    score -= blockShapePenalty(field, normalizedText);
-
-    if (score <= 0) {
-      continue;
-    }
-
-    if (field === "totalAmountMinor") {
-      if (matchedTerms === 0) {
-        continue;
-      }
-      const hasTotalKeyword = /\b(grand total|invoice total|amount due|balance due|total due|amount payable|total)\b/i.test(
-        normalizedText
-      );
-      if (!hasTotalKeyword && keywordBonus <= 0 && matchedTerms < 2) {
-        continue;
-      }
-    }
-
-    if (!best || score > best.score) {
-      best = { block, index, score };
-    }
-  }
-
-  if (!best) {
-    return undefined;
-  }
-
-  return { block: best.block, index: best.index };
-}
-
-function normalizeFieldValue(field: keyof ParsedInvoiceData, value: unknown): string {
-  if (field === "totalAmountMinor") {
-    if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
-      return "";
-    }
-    return String(Math.round(value));
-  }
-
-  if (typeof value !== "string") {
-    return "";
-  }
-
-  const trimmed = value.trim();
-  if (!trimmed) {
-    return "";
-  }
-
-  return field === "currency" ? trimmed.toUpperCase() : trimmed;
-}
-
-function fieldKeywordBonus(field: keyof ParsedInvoiceData, text: string): number {
-  if (field === "totalAmountMinor") {
-    if (/\b(grand total|invoice total|amount due|balance due|total due|amount payable|total)\b/i.test(text)) {
-      return 6;
-    }
-    if (/\b(subtotal|tax|vat|gst|charges|credit|discount)\b/i.test(text)) {
-      return -3;
-    }
-    return 0;
-  }
-
-  if (field === "invoiceNumber") {
-    return /\b(invoice|inv|bill).*(number|no|#)?\b/i.test(text) ? 4 : 0;
-  }
-
-  if (field === "vendorName") {
-    if (/\b(vendor|supplier|sold by|bill from|from)\b/i.test(text)) {
-      return 3;
-    }
-    if (looksLikeAddress(text)) {
-      return -5;
-    }
-    return 0;
-  }
-
-  if (field === "currency") {
-    return /\b(currency)\b/i.test(text) ? 2 : 0;
-  }
-
-  if (field === "invoiceDate") {
-    return /\b(invoice date|date)\b/i.test(text) ? 2 : 0;
-  }
-
-  if (field === "dueDate") {
-    return /\b(due date|payment terms)\b/i.test(text) ? 2 : 0;
-  }
-
-  return 0;
-}
-
-function containsTerm(haystack: string, term: string): boolean {
-  if (!term.trim()) {
-    return false;
-  }
-
-  if (/\d/.test(term)) {
-    const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    return new RegExp(`(^|[^\\d])${escaped}([^\\d]|$)`, "i").test(haystack);
-  }
-
-  return haystack.includes(term);
-}
-
-function blockShapePenalty(field: keyof ParsedInvoiceData, text: string): number {
-  const lineCount = text
-    .split(/\n+/)
-    .map((entry) => entry.trim())
-    .filter((entry) => entry.length > 0).length;
-  const lengthPenalty = Math.floor(text.length / 160);
-  const linePenalty = lineCount > 1 ? Math.min(6, lineCount - 1) : 0;
-
-  if (field === "totalAmountMinor") {
-    if (/\b(summary|description|quantity|rate|amount|subtotal|charges)\b/i.test(text) && lineCount > 2) {
-      return linePenalty + lengthPenalty + 3;
-    }
-    return linePenalty + lengthPenalty;
-  }
-
-  if (field === "invoiceNumber" || field === "currency" || field === "invoiceDate" || field === "dueDate") {
-    return linePenalty + lengthPenalty;
-  }
-
-  if (field === "vendorName") {
-    if (looksLikeAddress(text)) {
-      return linePenalty + lengthPenalty + 4;
-    }
-    return linePenalty + lengthPenalty;
-  }
-
-  return linePenalty + lengthPenalty;
-}
-
-function buildKeyValueGroundingText(blocks: OcrBlock[]): string {
-  if (blocks.length < 2) {
-    return "";
-  }
-
-  const labelPattern =
-    /\b(invoice(?:\s*number)?|facture|factuurnummer|rechnungsnummer|vendor|supplier|fournisseur|due(?:\s*date)?|date|total|amount|currency|betrag|montant|numero)\b/i;
-
-  const normalizedBlocks = blocks
-    .map((block) => ({
-      block,
-      bbox: block.bboxNormalized ?? block.bboxModel ?? block.bbox,
-      text: block.text.trim()
-    }))
-    .filter((entry) => entry.text.length > 0)
-    .sort((left, right) => {
-      if (left.block.page !== right.block.page) {
-        return left.block.page - right.block.page;
-      }
-      return left.bbox[1] - right.bbox[1];
-    });
-
-  const lines: string[] = [];
-  for (const entry of normalizedBlocks) {
-    const labelText = entry.text.replace(/[:\-]+$/, "").trim();
-    if (!labelPattern.test(labelText)) {
-      continue;
-    }
-
-    const scale = inferBlockScale(entry.bbox);
-    const maxYDrift = scale === "normalized" ? 0.06 : 42;
-    const minXDrift = scale === "normalized" ? -0.03 : -24;
-    const labelRight = entry.bbox[2];
-    const labelCenterY = (entry.bbox[1] + entry.bbox[3]) / 2;
-    const candidate = normalizedBlocks
-      .filter((blockEntry) => blockEntry.block.page === entry.block.page && blockEntry.block !== entry.block)
-      .map((blockEntry) => {
-        const valueCenterY = (blockEntry.bbox[1] + blockEntry.bbox[3]) / 2;
-        const yDrift = Math.abs(valueCenterY - labelCenterY);
-        const xDrift = blockEntry.bbox[0] - labelRight;
-        return {
-          ...blockEntry,
-          yDrift,
-          xDrift
-        };
-      })
-      .filter((blockEntry) => blockEntry.xDrift >= minXDrift && blockEntry.yDrift <= maxYDrift)
-      .sort((left, right) => {
-        if (left.yDrift !== right.yDrift) {
-          return left.yDrift - right.yDrift;
-        }
-        return left.xDrift - right.xDrift;
-      })[0];
-
-    if (!candidate) {
-      continue;
-    }
-
-    const valueText = candidate.text.replace(/\s+/g, " ").trim();
-    if (!valueText || labelPattern.test(valueText) || valueText.length > 100) {
-      continue;
-    }
-
-    lines.push(`${labelText}: ${valueText}`);
-  }
-
-  return [...new Set(lines)].join("\n");
-}
-
-function buildAugmentedGroundingText(keyValueText: string, blockText: string, rawText: string): string {
-  const sections = [keyValueText, blockText, rawText]
-    .map((entry) => entry.trim())
-    .filter((entry) => entry.length > 0);
-  if (sections.length < 2) {
-    return "";
-  }
-
-  return sections.join("\n\n");
-}
-
-function inferBlockScale(bbox: [number, number, number, number]): "normalized" | "pixel" {
-  if (bbox.every((value) => Number.isFinite(value) && Math.abs(value) <= 2.5)) {
-    return "normalized";
-  }
-  return "pixel";
-}
-
-function shouldUseLanguageHint(language: DetectedInvoiceLanguage): boolean {
-  return language.code !== "und" && language.confidence >= 0.4;
-}
-
-function resolvePreOcrLanguageHint(
-  language: DetectedInvoiceLanguage,
-  mimeType: string
-): { hint?: string; reason: "detected" | "low-confidence-detected" | "default-en" | "none" } {
-  if (language.code !== "und") {
-    return {
-      hint: language.code,
-      reason: shouldUseLanguageHint(language) ? "detected" : "low-confidence-detected"
-    };
-  }
-
-  if (isDocumentMimeType(mimeType)) {
-    return {
-      hint: "en",
-      reason: "default-en"
-    };
-  }
-
-  return {
-    reason: "none"
-  };
-}
-
-function isDocumentMimeType(mimeType: string): boolean {
-  const normalized = mimeType.trim().toLowerCase();
-  return normalized.startsWith("image/") || normalized === "application/pdf";
-}
-
-function resolveDetectedLanguage(
-  preOcrLanguage: DetectedInvoiceLanguage,
-  postOcrLanguage: DetectedInvoiceLanguage
-): DetectedInvoiceLanguage {
-  if (postOcrLanguage.code === "und") {
-    return preOcrLanguage;
-  }
-
-  if (preOcrLanguage.code === "und") {
-    return postOcrLanguage;
-  }
-
-  if (postOcrLanguage.code === preOcrLanguage.code) {
-    return {
-      code: postOcrLanguage.code,
-      confidence: clampProbability(Math.max(postOcrLanguage.confidence, preOcrLanguage.confidence)),
-      signals: uniqueIssues([...postOcrLanguage.signals, ...preOcrLanguage.signals])
-    };
-  }
-
-  if (postOcrLanguage.confidence >= preOcrLanguage.confidence - 0.12) {
-    return postOcrLanguage;
-  }
-
-  return preOcrLanguage;
+  const normalizedNeedle = needle.toLowerCase();
+  return blocks.find((block) => block.text.toLowerCase().includes(normalizedNeedle));
 }
 
 function formatConfidence(value: number): string {
@@ -1352,6 +835,7 @@ function isNearDuplicateText(left: string, right: string): boolean {
     value
       .toLowerCase()
       .replace(/\s+/g, " ")
+      .replace(/[^a-z0-9 ]+/g, "")
       .trim();
 
   const normalizedLeft = normalize(left);
@@ -1359,5 +843,5 @@ function isNearDuplicateText(left: string, right: string): boolean {
   if (!normalizedLeft || !normalizedRight) {
     return false;
   }
-  return normalizedLeft === normalizedRight;
+  return normalizedLeft === normalizedRight || normalizedRight.includes(normalizedLeft);
 }

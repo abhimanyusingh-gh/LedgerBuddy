@@ -15,6 +15,6 @@ cleanup() {
 }
 trap cleanup EXIT
 
-"${COMPOSE_CMD[@]}" up -d mongo mongo-express
+"${COMPOSE_CMD[@]}" up -d --remove-orphans mongo mongo-express
 
 yarn workspace invoice-processor-backend run test:e2e

@@ -3,17 +3,22 @@
   "defaultWorkloadTier": "standard",
   "database": {
     "provider": "mongo",
-    "uri": "mongodb://billforge_app:billforge_local_pass@mongo:27017/billforge?authSource=billforge"
+    "uri": "mongodb://mongo:27017/invoice_processor"
   },
   "ocr": {
     "provider": "deepseek",
     "deepseek": {
-      "model": "mlx-community/DeepSeek-OCR-4bit"
+      "baseUrl": "http://host.docker.internal:8000/v1",
+      "model": "deepseek-ai/DeepSeek-OCR",
+      "timeoutMs": 3600000
     }
   },
   "verifier": {
     "provider": "http",
-    "http": {}
+    "http": {
+      "baseUrl": "http://host.docker.internal:8100/v1",
+      "timeoutMs": 20000
+    }
   },
   "extraction": {
     "ocrHighConfidenceThreshold": 0.92

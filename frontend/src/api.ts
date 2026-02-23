@@ -149,6 +149,7 @@ function sanitizeIngestionStatus(value: unknown): IngestionJobStatus {
     startedAt: typeof data.startedAt === "string" ? data.startedAt : undefined,
     completedAt: typeof data.completedAt === "string" ? data.completedAt : undefined,
     error: typeof data.error === "string" ? data.error : undefined,
+    correlationId: typeof data.correlationId === "string" ? data.correlationId : undefined,
     lastUpdatedAt: typeof data.lastUpdatedAt === "string" ? data.lastUpdatedAt : new Date(0).toISOString()
   };
 }

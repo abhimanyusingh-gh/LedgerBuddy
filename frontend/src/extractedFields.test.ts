@@ -3,6 +3,8 @@ import type { Invoice } from "./types.ts";
 
 const baseInvoice: Invoice = {
   _id: "invoice-1",
+  tenantId: "tenant-a",
+  workloadTier: "standard",
   sourceType: "email",
   sourceKey: "inbox",
   sourceDocumentId: "10",
@@ -24,7 +26,7 @@ describe("extracted field helpers", () => {
   it("builds clear labeled rows for extracted values", () => {
     const invoice: Invoice = {
       ...baseInvoice,
-      ocrProvider: "google-vision",
+      ocrProvider: "deepseek",
       ocrConfidence: 0.93,
       metadata: {
         extractionSource: "ocr-provider",
@@ -47,7 +49,7 @@ describe("extracted field helpers", () => {
         expect.objectContaining({ label: "Invoice Number", value: "INV-42" }),
         expect.objectContaining({ label: "Vendor Name", value: "Acme Corp" }),
         expect.objectContaining({ label: "Total Amount", value: "USD 1200.50" }),
-        expect.objectContaining({ label: "OCR Engine", value: "google-vision" }),
+        expect.objectContaining({ label: "OCR Engine", value: "deepseek" }),
         expect.objectContaining({ label: "Extraction Source", value: "ocr-provider" }),
         expect.objectContaining({ label: "Extraction Strategy", value: "best-candidate" }),
         expect.objectContaining({ label: "OCR Confidence", value: "93%" })

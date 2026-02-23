@@ -2,8 +2,11 @@ const mockEnv = {
   NODE_ENV: "test",
   PORT: 4000,
   MONGO_URI: "mongodb://127.0.0.1:27017/test",
+  APP_MANIFEST_PATH: undefined as string | undefined,
   INGESTION_SOURCES: "folder",
   ingestionSources: ["folder"],
+  DEFAULT_TENANT_ID: "default",
+  DEFAULT_WORKLOAD_TIER: "standard" as "standard" | "heavy",
   EMAIL_SOURCE_KEY: "email-inbox",
   EMAIL_HOST: undefined,
   EMAIL_PORT: 993,
@@ -15,11 +18,10 @@ const mockEnv = {
   FOLDER_SOURCE_KEY: "folder-local",
   FOLDER_SOURCE_PATH: "/tmp",
   FOLDER_RECURSIVE: false,
-  OCR_PROVIDER: "auto" as "auto" | "google-vision" | "tesseract" | "deepseek" | "mock",
-  GOOGLE_APPLICATION_CREDENTIALS: undefined as string | undefined,
+  OCR_PROVIDER: "auto" as "auto" | "deepseek" | "mock",
   DEEPSEEK_API_KEY: undefined as string | undefined,
-  DEEPSEEK_BASE_URL: "https://api.deepseek.com/v1",
-  DEEPSEEK_OCR_MODEL: "deepseek-chat",
+  DEEPSEEK_BASE_URL: "http://localhost:8000/v1",
+  DEEPSEEK_OCR_MODEL: "deepseek-ai/DeepSeek-OCR",
   DEEPSEEK_TIMEOUT_MS: 45000,
   MOCK_OCR_TEXT: undefined as string | undefined,
   MOCK_OCR_CONFIDENCE: undefined as number | undefined,
@@ -33,18 +35,11 @@ const mockEnv = {
 };
 
 const axiosGetMock = jest.fn();
-const accessMock = jest.fn();
-const getProjectIdMock = jest.fn();
 
 const mockProviderInstance = { name: "mock" };
-const tesseractProviderInstance = { name: "tesseract" };
 const deepSeekProviderInstance = { name: "deepseek" };
-const googleProviderInstance = { name: "google-vision" };
-
 const MockOcrProviderCtorMock = jest.fn(() => mockProviderInstance);
-const TesseractOcrProviderCtorMock = jest.fn(() => tesseractProviderInstance);
 const DeepSeekOcrProviderCtorMock = jest.fn(() => deepSeekProviderInstance);
-const GoogleVisionOcrProviderCtorMock = jest.fn(() => googleProviderInstance);
 
 jest.mock("../config/env.js", () => ({
   env: mockEnv
@@ -53,34 +48,18 @@ jest.mock("../config/env.js", () => ({
 jest.mock("axios", () => ({
   __esModule: true,
   default: {
-    get: (...args: unknown[]) => axiosGetMock(...args)
+    get: (...args: unknown[]) => axiosGetMock(...args),
+    isAxiosError: (value: unknown) =>
+      typeof value === "object" && value !== null && (value as { isAxiosError?: unknown }).isAxiosError === true
   }
-}));
-
-jest.mock("node:fs/promises", () => ({
-  access: (...args: unknown[]) => accessMock(...args)
-}));
-
-jest.mock("@google-cloud/vision", () => ({
-  ImageAnnotatorClient: jest.fn(() => ({
-    getProjectId: (...args: unknown[]) => getProjectIdMock(...args)
-  }))
 }));
 
 jest.mock("../ocr/MockOcrProvider.js", () => ({
   MockOcrProvider: jest.fn().mockImplementation(() => MockOcrProviderCtorMock())
 }));
 
-jest.mock("../ocr/TesseractOcrProvider.js", () => ({
-  TesseractOcrProvider: jest.fn().mockImplementation(() => TesseractOcrProviderCtorMock())
-}));
-
 jest.mock("../ocr/DeepSeekOcrProvider.js", () => ({
   DeepSeekOcrProvider: jest.fn().mockImplementation(() => DeepSeekOcrProviderCtorMock())
-}));
-
-jest.mock("../ocr/GoogleVisionOcrProvider.js", () => ({
-  GoogleVisionOcrProvider: jest.fn().mockImplementation(() => GoogleVisionOcrProviderCtorMock())
 }));
 
 jest.mock("../utils/logger.js", () => ({
@@ -97,14 +76,10 @@ describe("resolveOcrProvider", () => {
   beforeEach(() => {
     mockEnv.OCR_PROVIDER = "auto";
     mockEnv.DEEPSEEK_API_KEY = undefined;
-    mockEnv.GOOGLE_APPLICATION_CREDENTIALS = undefined;
+    mockEnv.DEEPSEEK_OCR_MODEL = "deepseek-ai/DeepSeek-OCR";
     axiosGetMock.mockReset();
-    accessMock.mockReset();
-    getProjectIdMock.mockReset();
     MockOcrProviderCtorMock.mockClear();
-    TesseractOcrProviderCtorMock.mockClear();
     DeepSeekOcrProviderCtorMock.mockClear();
-    GoogleVisionOcrProviderCtorMock.mockClear();
   });
 
   it("uses mock provider when explicitly configured", async () => {
@@ -114,39 +89,84 @@ describe("resolveOcrProvider", () => {
     expect(provider).toBe(mockProviderInstance);
   });
 
-  it("prefers deepseek when deepseek key validates", async () => {
-    mockEnv.DEEPSEEK_API_KEY = "valid-key";
-    axiosGetMock.mockResolvedValue({ data: { data: [] } });
+  it("uses deepseek provider when explicitly configured and model validates", async () => {
+    mockEnv.OCR_PROVIDER = "deepseek";
+    mockEnv.DEEPSEEK_API_KEY = undefined;
+    axiosGetMock.mockResolvedValue({
+      data: { data: [{ id: "deepseek-ai/DeepSeek-OCR" }] }
+    });
 
     const provider = await resolveOcrProvider();
 
     expect(provider).toBe(deepSeekProviderInstance);
     expect(axiosGetMock).toHaveBeenCalledTimes(1);
-    expect(GoogleVisionOcrProviderCtorMock).not.toHaveBeenCalled();
   });
 
-  it("falls back to google vision when deepseek validation fails", async () => {
-    mockEnv.DEEPSEEK_API_KEY = "invalid-key";
-    axiosGetMock.mockRejectedValue(new Error("401 Unauthorized"));
-    getProjectIdMock.mockResolvedValue("demo-project");
+  it("throws a clear error when deepseek model is not listed", async () => {
+    mockEnv.OCR_PROVIDER = "deepseek";
+    mockEnv.DEEPSEEK_API_KEY = undefined;
+    axiosGetMock.mockResolvedValue({
+      data: { data: [{ id: "deepseek-chat" }, { id: "deepseek-reasoner" }] }
+    });
 
-    const provider = await resolveOcrProvider();
-
-    expect(provider).toBe(googleProviderInstance);
+    await expect(resolveOcrProvider()).rejects.toThrow(
+      "Configured model 'deepseek-ai/DeepSeek-OCR' is not listed"
+    );
     expect(DeepSeekOcrProviderCtorMock).not.toHaveBeenCalled();
-    expect(GoogleVisionOcrProviderCtorMock).toHaveBeenCalledTimes(1);
   });
 
-  it("falls back to tesseract when deepseek and google are unavailable", async () => {
-    mockEnv.DEEPSEEK_API_KEY = "invalid-key";
-    mockEnv.GOOGLE_APPLICATION_CREDENTIALS = "/bad/path.json";
-    axiosGetMock.mockRejectedValue(new Error("network failure"));
-    accessMock.mockRejectedValue(new Error("ENOENT"));
-    getProjectIdMock.mockRejectedValue(new Error("missing credentials"));
+  it("uses deepseek in auto mode when key and model validate", async () => {
+    mockEnv.OCR_PROVIDER = "auto";
+    mockEnv.DEEPSEEK_API_KEY = undefined;
+    axiosGetMock.mockResolvedValue({
+      data: { data: [{ id: "deepseek-ai/DeepSeek-OCR" }] }
+    });
 
     const provider = await resolveOcrProvider();
 
-    expect(provider).toBe(tesseractProviderInstance);
-    expect(TesseractOcrProviderCtorMock).toHaveBeenCalledTimes(1);
+    expect(provider).toBe(deepSeekProviderInstance);
+    expect(axiosGetMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("uses deepseek in auto mode without api key when model endpoint is open", async () => {
+    mockEnv.OCR_PROVIDER = "auto";
+    mockEnv.DEEPSEEK_API_KEY = undefined;
+    axiosGetMock.mockResolvedValue({
+      data: { data: [{ id: "deepseek-ai/DeepSeek-OCR" }] }
+    });
+
+    const provider = await resolveOcrProvider();
+    expect(provider).toBe(deepSeekProviderInstance);
+  });
+
+  it("sends authorization header during model bootstrap when api key is provided", async () => {
+    mockEnv.OCR_PROVIDER = "deepseek";
+    mockEnv.DEEPSEEK_API_KEY = "token-123";
+    axiosGetMock.mockResolvedValue({
+      data: { data: [{ id: "deepseek-ai/DeepSeek-OCR" }] }
+    });
+
+    await resolveOcrProvider();
+
+    expect(axiosGetMock).toHaveBeenCalledWith(
+      expect.stringContaining("/models"),
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          Authorization: "Bearer token-123"
+        })
+      })
+    );
+  });
+
+  it("accepts model id matches that differ only by case and :latest suffix", async () => {
+    mockEnv.OCR_PROVIDER = "deepseek";
+    mockEnv.DEEPSEEK_API_KEY = undefined;
+    mockEnv.DEEPSEEK_OCR_MODEL = "deepseek-ai/deepseek-ocr:latest";
+    axiosGetMock.mockResolvedValue({
+      data: { data: [{ id: "deepseek-ai/DeepSeek-OCR" }] }
+    });
+
+    const provider = await resolveOcrProvider();
+    expect(provider).toBe(deepSeekProviderInstance);
   });
 });

@@ -2,6 +2,7 @@ import axios from "axios";
 import type { AccountingExporter, ExportResultItem } from "../core/interfaces/AccountingExporter.js";
 import type { InvoiceDocument } from "../models/Invoice.js";
 import { extractTotalAmount } from "../parser/invoiceParser.js";
+import { logger } from "../utils/logger.js";
 import {
   isPositiveMinorUnits,
   minorUnitsToMajorString,
@@ -46,6 +47,7 @@ export class TallyExporter implements AccountingExporter {
 
   async exportInvoices(invoices: InvoiceDocument[]): Promise<ExportResultItem[]> {
     const results: ExportResultItem[] = [];
+    logger.info("tally.export.batch.start", { totalInvoices: invoices.length });
 
     for (const invoice of invoices) {
       const invoiceId = String(invoice._id);
@@ -57,6 +59,10 @@ export class TallyExporter implements AccountingExporter {
           invoice.ocrText
         );
         if (resolvedTotalAmountMinor === null) {
+          logger.warn("tally.export.invoice.invalid_amount", {
+            invoiceId,
+            invoiceNumber: invoice.parsed?.invoiceNumber ?? null
+          });
           results.push({
             invoiceId,
             success: false,
@@ -99,6 +105,7 @@ export class TallyExporter implements AccountingExporter {
         const summary = parseTallyImportResponse(String(response.data ?? ""));
         if (!isSuccessfulImport(summary)) {
           const detail = summary.lineErrors[0] ?? `Import failed with ERRORS=${summary.errors}`;
+          logger.warn("tally.export.invoice.failed", { invoiceId, error: detail });
           results.push({
             invoiceId,
             success: false,
@@ -107,12 +114,14 @@ export class TallyExporter implements AccountingExporter {
           continue;
         }
 
+        logger.info("tally.export.invoice.success", { invoiceId, reference: summary.lastVchId ?? null });
         results.push({
           invoiceId,
           success: true,
           externalReference: summary.lastVchId ?? `CREATED-${summary.created}`
         });
       } catch (error) {
+        logger.error("tally.export.invoice.error", { invoiceId, error: extractTallyError(error) });
         results.push({
           invoiceId,
           success: false,
@@ -121,6 +130,11 @@ export class TallyExporter implements AccountingExporter {
       }
     }
 
+    logger.info("tally.export.batch.complete", {
+      totalInvoices: invoices.length,
+      successCount: results.filter((item) => item.success).length,
+      failureCount: results.filter((item) => !item.success).length
+    });
     return results;
   }
 }

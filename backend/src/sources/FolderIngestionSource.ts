@@ -1,9 +1,12 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import type { IngestedFile, IngestionSource } from "../core/interfaces/IngestionSource.js";
+import type { WorkloadTier } from "../types/tenant.js";
 
 interface FolderSourceConfig {
   key: string;
+  tenantId?: string;
+  workloadTier?: WorkloadTier;
   folderPath: string;
   recursive?: boolean;
 }
@@ -27,6 +30,8 @@ export class FolderIngestionSource implements IngestionSource {
   readonly type = "folder";
 
   readonly key: string;
+  readonly tenantId: string;
+  readonly workloadTier: WorkloadTier;
 
   private readonly folderPath: string;
 
@@ -34,6 +39,8 @@ export class FolderIngestionSource implements IngestionSource {
 
   constructor(config: FolderSourceConfig) {
     this.key = config.key;
+    this.tenantId = config.tenantId ?? "default";
+    this.workloadTier = config.workloadTier ?? "standard";
     this.folderPath = path.resolve(config.folderPath);
     this.recursive = config.recursive ?? false;
   }
@@ -58,6 +65,8 @@ export class FolderIngestionSource implements IngestionSource {
     for (const entry of entries) {
       const buffer = await fs.readFile(entry.absolutePath);
       files.push({
+        tenantId: this.tenantId,
+        workloadTier: this.workloadTier,
         sourceKey: this.key,
         sourceType: this.type,
         sourceDocumentId: entry.relativePath,

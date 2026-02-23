@@ -104,7 +104,6 @@ export function templateFromParsed(
   };
 }
 
-const INVOICE_PREFIX_REGEX = /^[A-Z]+/i;
 function buildInvoicePrefix(invoiceNumber?: string): string | undefined {
   if (!invoiceNumber) {
     return undefined;
@@ -115,7 +114,7 @@ function buildInvoicePrefix(invoiceNumber?: string): string | undefined {
     return undefined;
   }
 
-  const prefix = normalized.match(INVOICE_PREFIX_REGEX)?.[0];
+  const prefix = normalized.match(/^[A-Z]+/i)?.[0];
   if (prefix && prefix.length >= 2) {
     return prefix.toUpperCase();
   }

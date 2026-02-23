@@ -2,6 +2,7 @@ import { Types } from "mongoose";
 import type { AccountingExporter } from "../core/interfaces/AccountingExporter.js";
 import { ExportBatchModel } from "../models/ExportBatch.js";
 import { InvoiceModel } from "../models/Invoice.js";
+import { logger } from "../utils/logger.js";
 
 interface ExportRequest {
   ids?: string[];
@@ -12,6 +13,11 @@ export class ExportService {
   constructor(private readonly exporter: AccountingExporter) {}
 
   async exportApprovedInvoices(request: ExportRequest) {
+    logger.info("export.run.start", {
+      targetSystem: this.exporter.system,
+      requestedBy: request.requestedBy,
+      requestedIds: request.ids?.length ?? 0
+    });
     const query: Record<string, unknown> = {
       status: "APPROVED"
     };
@@ -24,6 +30,12 @@ export class ExportService {
 
     const invoices = await InvoiceModel.find(query);
     if (invoices.length === 0) {
+      logger.info("export.run.complete", {
+        targetSystem: this.exporter.system,
+        total: 0,
+        successCount: 0,
+        failureCount: 0
+      });
       return {
         batchId: undefined,
         total: 0,
@@ -78,12 +90,20 @@ export class ExportService {
       })
     );
 
-    return {
+    const summary = {
       batchId: String(batch._id),
       total: results.length,
       successCount,
       failureCount,
       items: results
     };
+    logger.info("export.run.complete", {
+      targetSystem: this.exporter.system,
+      batchId: summary.batchId,
+      total: summary.total,
+      successCount: summary.successCount,
+      failureCount: summary.failureCount
+    });
+    return summary;
   }
 }

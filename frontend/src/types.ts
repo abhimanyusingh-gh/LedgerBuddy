@@ -8,6 +8,8 @@ export type InvoiceStatus =
 
 export interface Invoice {
   _id: string;
+  tenantId: string;
+  workloadTier: "standard" | "heavy";
   sourceType: string;
   sourceKey: string;
   sourceDocumentId: string;
@@ -17,6 +19,14 @@ export interface Invoice {
   ocrProvider?: string;
   ocrText?: string;
   ocrConfidence?: number;
+  ocrBlocks?: Array<{
+    text: string;
+    page: number;
+    bbox: [number, number, number, number];
+    bboxNormalized?: [number, number, number, number];
+    bboxModel?: [number, number, number, number];
+    blockType?: string;
+  }>;
   confidenceScore: number;
   confidenceTone: "red" | "yellow" | "green";
   autoSelectForApproval: boolean;
@@ -82,5 +92,6 @@ export interface IngestionJobStatus {
   startedAt?: string;
   completedAt?: string;
   error?: string;
+  correlationId?: string;
   lastUpdatedAt: string;
 }

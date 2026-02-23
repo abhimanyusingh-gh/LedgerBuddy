@@ -208,7 +208,7 @@ describe("runInvoiceExtractionAgent branch coverage", () => {
     expect(result.provider).toBe("long");
   });
 
-  it("expands normalized/ocr-repair variants and dedupes identical candidates", () => {
+  it("expands grounding-text variants and dedupes identical candidates", () => {
     parseInvoiceTextMock.mockReturnValue({
       parsed: {
         totalAmountMinor: 1000
@@ -219,13 +219,13 @@ describe("runInvoiceExtractionAgent branch coverage", () => {
     const result = runInvoiceExtractionAgent({
       candidates: [
         {
-          text: "lnvoice Number: INV-1   \nGrand T0tal: 100.00",
+          text: "<|ref|>text<|/ref|><|det|>[[1,1,2,2]]<|/det|>\nInvoice Number: INV-1\n<|ref|>text<|/ref|><|det|>[[1,1,2,2]]<|/det|>\nGrand Total: 100.00",
           provider: "p1",
           source: "s1",
           confidence: 40
         },
         {
-          text: "lnvoice Number: INV-1   \nGrand T0tal: 100.00",
+          text: "<|ref|>text<|/ref|><|det|>[[1,1,2,2]]<|/det|>\nInvoice Number: INV-1\n<|ref|>text<|/ref|><|det|>[[1,1,2,2]]<|/det|>\nGrand Total: 100.00",
           provider: "p1",
           source: "s1",
           confidence: 40
@@ -236,8 +236,7 @@ describe("runInvoiceExtractionAgent branch coverage", () => {
       autoSelectMin: 91
     });
 
-    expect(result.attempts.length).toBeGreaterThanOrEqual(2);
-    expect(result.attempts.length).toBeLessThan(6);
+    expect(result.attempts.length).toBe(2);
   });
 
   it("covers compareAttempts total and warning tie-break branches directly", () => {

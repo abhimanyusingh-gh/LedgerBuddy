@@ -1,5 +1,6 @@
 import { Router } from "express";
 import type { IngestionService } from "../services/ingestionService.js";
+import { getCorrelationId, logger, runWithLogContext } from "../utils/logger.js";
 
 type IngestionJobState = "idle" | "running" | "completed" | "failed";
 
@@ -14,6 +15,7 @@ interface IngestionJobStatus {
   startedAt?: string;
   completedAt?: string;
   error?: string;
+  correlationId?: string;
   lastUpdatedAt: string;
 }
 
@@ -34,6 +36,7 @@ export function createJobsRouter(ingestionService: IngestionService) {
 
     try {
       const startedAt = new Date().toISOString();
+      const correlationId = getCorrelationId();
       currentJobStatus = {
         state: "running",
         running: true,
@@ -43,11 +46,13 @@ export function createJobsRouter(ingestionService: IngestionService) {
         duplicates: 0,
         failures: 0,
         startedAt,
-        lastUpdatedAt: startedAt
+        lastUpdatedAt: startedAt,
+        ...(correlationId ? { correlationId } : {})
       };
+      logger.info("ingestion.job.start", { correlationId: correlationId ?? null });
 
-      void ingestionService
-        .runOnce({
+      const runJob = () =>
+        ingestionService.runOnce({
           onProgress: async (progress) => {
             currentJobStatus = {
               ...currentJobStatus,
@@ -56,7 +61,9 @@ export function createJobsRouter(ingestionService: IngestionService) {
               running: progress.running
             };
           }
-        })
+        });
+
+      void (correlationId ? runWithLogContext(correlationId, runJob) : runJob())
         .then((summary) => {
           const completedAt = new Date().toISOString();
           currentJobStatus = {
@@ -69,6 +76,7 @@ export function createJobsRouter(ingestionService: IngestionService) {
             error: undefined,
             lastUpdatedAt: completedAt
           };
+          logger.info("ingestion.job.complete", { ...summary, correlationId: correlationId ?? null });
         })
         .catch((error) => {
           const completedAt = new Date().toISOString();
@@ -80,6 +88,10 @@ export function createJobsRouter(ingestionService: IngestionService) {
             error: error instanceof Error ? error.message : String(error),
             lastUpdatedAt: completedAt
           };
+          logger.error("ingestion.job.failed", {
+            error: error instanceof Error ? error.message : String(error),
+            correlationId: correlationId ?? null
+          });
         });
 
       res.status(202).json(currentJobStatus);

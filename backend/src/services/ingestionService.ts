@@ -1,12 +1,15 @@
 import type { IngestionSource, IngestedFile } from "../core/interfaces/IngestionSource.js";
-import type { OcrProvider } from "../core/interfaces/OcrProvider.js";
+import type { OcrBlock, OcrProvider } from "../core/interfaces/OcrProvider.js";
 import { CheckpointModel } from "../models/Checkpoint.js";
 import { InvoiceModel } from "../models/Invoice.js";
-import { extractNativePdfText } from "./pdfTextExtractor.js";
 import { logger } from "../utils/logger.js";
 import type { InvoiceStatus } from "../types/invoice.js";
 import { env } from "../config/env.js";
-import { runInvoiceExtractionAgent, type ExtractionTextCandidate } from "./invoiceExtractionAgent.js";
+import { normalizeInvoiceMimeType } from "../utils/mime.js";
+import type { WorkloadTier } from "../types/tenant.js";
+import { InvoiceExtractionPipeline, ExtractionPipelineError } from "./extraction/InvoiceExtractionPipeline.js";
+import { NoopFieldVerifier } from "../verifier/NoopFieldVerifier.js";
+import { MongoVendorTemplateStore } from "./extraction/vendorTemplateStore.js";
 
 interface IngestionRunSummary {
   totalFiles: number;
@@ -23,10 +26,13 @@ interface IngestionRunProgress extends IngestionRunSummary {
 
 interface IngestionServiceOptions {
   afterFileProcessed?: (params: {
+    tenantId: string;
+    workloadTier: WorkloadTier;
     sourceKey: string;
     checkpointValue: string;
     result: "created" | "duplicate" | "failed";
   }) => Promise<void> | void;
+  pipeline?: InvoiceExtractionPipeline;
 }
 
 interface RunOnceRuntimeOptions {
@@ -35,6 +41,7 @@ interface RunOnceRuntimeOptions {
 
 export class IngestionService {
   private readonly afterFileProcessed?: IngestionServiceOptions["afterFileProcessed"];
+  private readonly pipeline: InvoiceExtractionPipeline;
 
   constructor(
     private readonly sources: IngestionSource[],
@@ -42,6 +49,9 @@ export class IngestionService {
     options?: IngestionServiceOptions
   ) {
     this.afterFileProcessed = options?.afterFileProcessed;
+    this.pipeline =
+      options?.pipeline ??
+      new InvoiceExtractionPipeline(this.ocrProvider, new NoopFieldVerifier(), new MongoVendorTemplateStore());
   }
 
   async runOnce(runtimeOptions?: RunOnceRuntimeOptions): Promise<IngestionRunSummary> {
@@ -52,6 +62,7 @@ export class IngestionService {
       failures: 0
     };
     let processedFiles = 0;
+    logger.info("ingestion.run.start", { sourceCount: this.sources.length });
 
     const emitProgress = async (running = true) => {
       if (!runtimeOptions?.onProgress) {
@@ -68,10 +79,20 @@ export class IngestionService {
 
     await emitProgress(true);
 
-    for (const source of this.sources) {
-      const checkpoint = await CheckpointModel.findOne({ sourceKey: source.key }).lean();
+    const prioritizedSources = [...this.sources].sort(compareSourcePriority);
+    for (const source of prioritizedSources) {
+      const checkpoint = await CheckpointModel.findOne({ sourceKey: source.key, tenantId: source.tenantId }).lean();
       const sourceFiles = await source.fetchNewFiles(checkpoint?.marker ?? null);
       const files = await this.filterAlreadyProcessedFiles(source, sourceFiles);
+      logger.info("ingestion.source.scan", {
+        tenantId: source.tenantId,
+        workloadTier: source.workloadTier,
+        sourceType: source.type,
+        sourceKey: source.key,
+        fetchedFiles: sourceFiles.length,
+        queuedFiles: files.length,
+        checkpoint: checkpoint?.marker ?? null
+      });
 
       summary.totalFiles += files.length;
       await emitProgress(true);
@@ -79,6 +100,12 @@ export class IngestionService {
       let nextMarker = checkpoint?.marker ?? null;
       for (const file of files) {
         const processed = await this.processFile(file);
+        logger.info("ingestion.file.result", {
+          sourceKey: file.sourceKey,
+          sourceDocumentId: file.sourceDocumentId,
+          attachmentName: file.attachmentName,
+          result: processed
+        });
         if (processed === "created") {
           summary.newInvoices += 1;
         }
@@ -95,8 +122,8 @@ export class IngestionService {
 
         if (file.checkpointValue !== nextMarker) {
           await CheckpointModel.findOneAndUpdate(
-            { sourceKey: source.key },
-            { marker: file.checkpointValue },
+            { sourceKey: source.key, tenantId: source.tenantId },
+            { sourceKey: source.key, tenantId: source.tenantId, marker: file.checkpointValue },
             { upsert: true, new: true }
           );
           nextMarker = file.checkpointValue;
@@ -104,6 +131,8 @@ export class IngestionService {
 
         if (this.afterFileProcessed) {
           await this.afterFileProcessed({
+            tenantId: file.tenantId,
+            workloadTier: file.workloadTier,
             sourceKey: source.key,
             checkpointValue: file.checkpointValue,
             result: processed
@@ -112,6 +141,7 @@ export class IngestionService {
       }
     }
 
+    logger.info("ingestion.run.complete", { ...summary, processedFiles });
     await emitProgress(false);
     return summary;
   }
@@ -123,6 +153,7 @@ export class IngestionService {
 
     const existingDocs = await InvoiceModel.find({
       sourceType: source.type,
+      tenantId: source.tenantId,
       sourceKey: source.key,
       sourceDocumentId: { $in: files.map((file) => file.sourceDocumentId) }
     })
@@ -140,6 +171,7 @@ export class IngestionService {
 
   private async processFile(file: IngestedFile): Promise<"created" | "duplicate" | "failed"> {
     const duplicate = await InvoiceModel.findOne({
+      tenantId: file.tenantId,
       sourceType: file.sourceType,
       sourceKey: file.sourceKey,
       sourceDocumentId: file.sourceDocumentId,
@@ -150,92 +182,32 @@ export class IngestionService {
       return "duplicate";
     }
 
+    const normalizedMimeType = normalizeInvoiceMimeType(file.mimeType);
     let ocrProvider = this.ocrProvider.name;
     let ocrText = "";
     let ocrConfidence: number | undefined;
-    const processingIssues: string[] = [];
+    let ocrBlocks: OcrBlock[] = [];
     let status: InvoiceStatus;
 
     try {
-      const extractionCandidates: ExtractionTextCandidate[] = [];
-
-      if (file.mimeType === "application/pdf") {
-        try {
-          const nativePdfText = await extractNativePdfText(file.buffer);
-          if (nativePdfText.trim().length > 24) {
-            extractionCandidates.push({
-              text: nativePdfText,
-              provider: "pdf-native",
-              confidence: 1,
-              source: "pdf-native"
-            });
-          }
-        } catch {
-          processingIssues.push("Native PDF text extraction failed. Falling back to OCR provider.");
-        }
-      }
-
-      try {
-        const ocrResult = await this.ocrProvider.extractText(file.buffer, file.mimeType);
-        ocrProvider = ocrResult.provider || this.ocrProvider.name;
-        if (ocrResult.text.trim().length > 0) {
-          extractionCandidates.push({
-            text: ocrResult.text,
-            provider: ocrResult.provider,
-            confidence: ocrResult.confidence,
-            source: "ocr-provider"
-          });
-        } else {
-          processingIssues.push("OCR provider returned empty text.");
-        }
-      } catch (ocrError) {
-        if (extractionCandidates.length === 0) {
-          throw ocrError;
-        }
-
-        processingIssues.push(
-          `OCR provider failed; using fallback extracted text. ${
-            ocrError instanceof Error ? ocrError.message : String(ocrError)
-          }`
-        );
-      }
-
-      if (extractionCandidates.length === 0) {
-        status = "FAILED_OCR";
-        processingIssues.push("No text detected from OCR.");
-        await InvoiceModel.create({
-          sourceType: file.sourceType,
-          sourceKey: file.sourceKey,
-          sourceDocumentId: file.sourceDocumentId,
-          attachmentName: file.attachmentName,
-          mimeType: file.mimeType,
-          receivedAt: file.receivedAt,
-          status,
-          processingIssues,
-          metadata: file.metadata,
-          ocrProvider,
-          ocrText,
-          ocrConfidence,
-          confidenceScore: 0,
-          confidenceTone: "red",
-          autoSelectForApproval: false,
-          riskFlags: [],
-          riskMessages: []
-        });
-        return "failed";
-      }
-
-      const extraction = runInvoiceExtractionAgent({
-        candidates: extractionCandidates,
+      const extraction = await this.pipeline.extract({
+        tenantId: file.tenantId,
+        sourceKey: file.sourceKey,
+        attachmentName: file.attachmentName,
+        fileBuffer: file.buffer,
+        mimeType: normalizedMimeType,
         expectedMaxTotal: env.CONFIDENCE_EXPECTED_MAX_TOTAL,
         expectedMaxDueDays: env.CONFIDENCE_EXPECTED_MAX_DUE_DAYS,
         autoSelectMin: env.CONFIDENCE_AUTO_SELECT_MIN
       });
+      ocrProvider = extraction.provider;
       ocrText = extraction.text;
       ocrConfidence = extraction.confidence;
+      ocrBlocks = extraction.ocrBlocks;
 
       const parsedResult = extraction.parseResult;
       const confidence = extraction.confidenceAssessment;
+      const processingIssues = [...extraction.processingIssues];
 
       if (extraction.attempts.length > 1) {
         processingIssues.push(
@@ -250,7 +222,9 @@ export class IngestionService {
         ...file.metadata,
         extractionSource: extraction.source,
         extractionStrategy: extraction.strategy,
-        extractionCandidates: String(extraction.attempts.length)
+        extractionCandidates: String(extraction.attempts.length),
+        ocrBlocksCount: String(ocrBlocks.length),
+        ...extraction.metadata
       };
 
       const mergedProcessingIssues = uniqueIssues([
@@ -261,16 +235,19 @@ export class IngestionService {
 
       await InvoiceModel.create({
         sourceType: file.sourceType,
+        tenantId: file.tenantId,
+        workloadTier: file.workloadTier,
         sourceKey: file.sourceKey,
         sourceDocumentId: file.sourceDocumentId,
         attachmentName: file.attachmentName,
-        mimeType: file.mimeType,
+        mimeType: normalizedMimeType,
         receivedAt: file.receivedAt,
         status,
         metadata,
         ocrProvider,
         ocrText,
         ocrConfidence,
+        ocrBlocks,
         parsed: parsedResult.parsed,
         confidenceScore: confidence.score,
         confidenceTone: confidence.tone,
@@ -286,6 +263,32 @@ export class IngestionService {
         return "duplicate";
       }
 
+      if (error instanceof ExtractionPipelineError && error.code === "FAILED_OCR") {
+        await InvoiceModel.create({
+          sourceType: file.sourceType,
+          tenantId: file.tenantId,
+          workloadTier: file.workloadTier,
+          sourceKey: file.sourceKey,
+          sourceDocumentId: file.sourceDocumentId,
+          attachmentName: file.attachmentName,
+          mimeType: normalizedMimeType,
+          receivedAt: file.receivedAt,
+          status: "FAILED_OCR",
+          processingIssues: [error.message],
+          metadata: file.metadata,
+          ocrProvider,
+          ocrText,
+          ocrConfidence,
+          ocrBlocks,
+          confidenceScore: 0,
+          confidenceTone: "red",
+          autoSelectForApproval: false,
+          riskFlags: [],
+          riskMessages: []
+        });
+        return "failed";
+      }
+
       logger.error("Failed to process ingested file", {
         sourceKey: file.sourceKey,
         sourceDocumentId: file.sourceDocumentId,
@@ -296,10 +299,12 @@ export class IngestionService {
       try {
         await InvoiceModel.create({
           sourceType: file.sourceType,
+          tenantId: file.tenantId,
+          workloadTier: file.workloadTier,
           sourceKey: file.sourceKey,
           sourceDocumentId: file.sourceDocumentId,
           attachmentName: file.attachmentName,
-          mimeType: file.mimeType,
+          mimeType: normalizedMimeType,
           receivedAt: file.receivedAt,
           status: "FAILED_PARSE",
           processingIssues: [error instanceof Error ? error.message : "Unknown processing error"],
@@ -307,6 +312,7 @@ export class IngestionService {
           ocrProvider,
           ocrText,
           ocrConfidence,
+          ocrBlocks,
           confidenceScore: 0,
           confidenceTone: "red",
           autoSelectForApproval: false,
@@ -339,4 +345,12 @@ function isDuplicateKeyError(error: unknown): boolean {
 
 function uniqueIssues(issues: string[]): string[] {
   return [...new Set(issues.filter((issue) => issue.trim().length > 0))];
+}
+
+function compareSourcePriority(left: IngestionSource, right: IngestionSource): number {
+  return priorityForTier(left.workloadTier) - priorityForTier(right.workloadTier);
+}
+
+function priorityForTier(tier: WorkloadTier): number {
+  return tier === "standard" ? 0 : 1;
 }

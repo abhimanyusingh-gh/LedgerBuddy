@@ -167,8 +167,7 @@ function scoreCandidate(text: string, parseResult: ParseResult, confidence: Conf
 
 function expandCandidate(candidate: ExtractionTextCandidate): ExpandedExtractionCandidate[] {
   const rawText = normalizeLineEndings(candidate.text);
-  const normalizedWhitespace = normalizeWhitespace(rawText);
-  const repairedText = repairCommonOcrConfusions(normalizedWhitespace);
+  const groundingText = extractGroundingPayload(rawText);
 
   const variants: ExpandedExtractionCandidate[] = [
     {
@@ -178,19 +177,11 @@ function expandCandidate(candidate: ExtractionTextCandidate): ExpandedExtraction
     }
   ];
 
-  if (normalizedWhitespace !== rawText) {
+  if (groundingText && groundingText !== rawText) {
     variants.push({
       ...candidate,
-      text: normalizedWhitespace,
-      strategy: "normalized-whitespace"
-    });
-  }
-
-  if (repairedText !== rawText) {
-    variants.push({
-      ...candidate,
-      text: repairedText,
-      strategy: "ocr-repair"
+      text: groundingText,
+      strategy: "grounding-text"
     });
   }
 
@@ -218,43 +209,22 @@ function normalizeLineEndings(text: string): string {
   return text.replace(/\r\n?/g, "\n");
 }
 
-function normalizeWhitespace(text: string): string {
-  return text
+function extractGroundingPayload(text: string): string {
+  if (!text.includes("<|ref|>") || !text.includes("<|det|>")) {
+    return "";
+  }
+
+  const lines = text
+    .replace(/<\|ref\|>.*?<\|\/ref\|>/g, "")
+    .replace(/<\|det\|>.*?<\|\/det\|>/g, "\n")
+    .replace(/<\/?(table|thead|tbody|tr)>/gi, "\n")
+    .replace(/<\/?td>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
     .split("\n")
-    .map((line) => line.replace(/[ \t]+/g, " ").trim())
-    .filter(Boolean)
-    .join("\n");
-}
+    .map((line) => line.replace(/\*\*/g, " ").replace(/\s+/g, " ").trim())
+    .filter((line) => line.length > 0);
 
-function repairCommonOcrConfusions(text: string): string {
-  const repaired = text
-    .replace(/\blnvoice\b/gi, "Invoice")
-    .replace(/\bT0tal\b/gi, "Total")
-    .replace(/\bAm0unt\b/gi, "Amount")
-    .replace(/\bCurrencv\b/gi, "Currency")
-    .split("\n")
-    .map((line) => (isFinancialLine(line) ? repairNumericTokens(line) : line))
-    .join("\n");
-
-  return repaired;
-}
-
-function isFinancialLine(line: string): boolean {
-  return /(grand\s*total|amount|payable|balance|subtotal|tax|vat|gst|discount|total\s*due)/i.test(line);
-}
-
-function repairNumericTokens(line: string): string {
-  return line.replace(/\b[0-9A-Za-z,.\-]+\b/g, (token) => {
-    if (!/\d/.test(token) || !/[A-Za-z]/.test(token)) {
-      return token;
-    }
-
-    return token
-      .replace(/[oO]/g, "0")
-      .replace(/[lI]/g, "1")
-      .replace(/[sS]/g, "5")
-      .replace(/[bB]/g, "8");
-  });
+  return lines.join("\n");
 }
 
 export const __testables = {

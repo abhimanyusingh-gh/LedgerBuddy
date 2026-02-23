@@ -9,8 +9,8 @@ module.exports = {
     'src/services/invoiceExtractionAgent.ts',
     'src/services/tallyExporter.ts',
     'src/utils/currency.ts',
-    'src/ocr/TesseractOcrProvider.ts',
-    'src/ocr/DeepSeekOcrProvider.ts'
+    'src/ocr/DeepSeekOcrProvider.ts',
+    'src/utils/mime.ts'
   ],
   coverageThreshold: {
     global: {

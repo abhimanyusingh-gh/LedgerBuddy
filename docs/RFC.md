@@ -19,11 +19,15 @@ The system must ingest invoices from configurable sources, extract data from mix
 2. Ingestion Extensibility
 - Use an `IngestionSource` abstraction.
 - Current implementations: email source and folder source.
+- Sources carry `tenantId` + `workloadTier` (`standard`, `heavy`) for partition-aware processing.
 - Reason: new sources can be added without changing core pipeline logic.
 
 3. OCR Extensibility + Agentic Selection
 - Use `OcrProvider` abstraction.
-- Current providers: DeepSeek, Google Vision, Tesseract, Mock.
+- Current providers: `deepseek` and `mock`.
+- Local OCR uses MLX DeepSeek OCR (`invoice-ocr`) with `POST /v1/ocr/document`.
+- Production OCR uses the same interface via external OpenAI-compatible OCR endpoint.
+- No Tesseract fallback in runtime.
 - Agent evaluates multiple text candidates/strategies and chooses best parse.
 - Persist OCR engine and extraction source separately (`ocrProvider` and `metadata.extractionSource`).
 - Reason: better resilience across invoice layouts and OCR quality variation.
@@ -60,23 +64,40 @@ The system must ingest invoices from configurable sources, extract data from mix
 9. AWS Runtime Pattern
 - Terraform provisions:
   - Spot-backed worker via Launch Template + ASG schedules.
+  - Reusable worker IAM module.
   - Optional production DocumentDB module.
 - When DocumentDB provisioning is enabled, worker `MONGO_URI` is auto-resolved from module output.
 - Worker pulls container image, runs once, updates DB, and shuts down.
 - Reason: low-cost periodic processing model with managed production database support.
 
-10. Quality Gate
+10. Runtime Composition Manifest
+- Backend supports `APP_MANIFEST_PATH` to load runtime composition from JSON:
+  - database adapter config
+  - OCR adapter config
+  - field verifier adapter config
+  - ingestion source adapter list
+  - export defaults
+  - tenant/workload defaults
+- Env vars remain fallback defaults.
+- Reason: local/prod adapter switching without code changes.
+
+11. Quality Gate
 - Pre-commit hook runs dead-code analysis (`knip`) and coverage checks.
 - Backend and frontend logic modules are enforced at 100% branch coverage.
 - Reason: prevent regressions and test drift as extraction/export logic evolves.
 
-11. Dashboard Data Loading
+12. Dashboard Data Loading
 - Frontend fetches invoice lists page-by-page until backend `total` is reached.
 - Reason: prevent hidden data caused by backend max page size.
 
-12. Detail Panel Layout
+13. Detail Panel Layout
 - UI supports hiding the right-side Invoice Details panel so the Invoice list occupies full width.
 - Reason: improve review throughput when operators focus on list-level actions.
+
+14. Tenant Isolation Groundwork
+- Invoices, checkpoints, and ingestion sources carry `tenantId`.
+- Sources also carry `workloadTier` (`standard`, `heavy`), and ingestion prioritizes `standard` tier first.
+- Reason: establish a clean path to tenant-level isolation and predictable performance as usage scales.
 
 ## 4. Consequences
 

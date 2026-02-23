@@ -119,6 +119,87 @@ describe("parseInvoiceText", () => {
     expect(result.parsed.vendorName).toBe("ZENITH INDUSTRIES LTD");
   });
 
+  it("extracts vendor from sold-by labels and skips guest-name lines", () => {
+    const text = [
+      "Guest Name: Sanjay",
+      "Sold By: WS Retail Services Pvt. Ltd.,",
+      "Invoice Number: INV-900",
+      "Grand Total: 100.00"
+    ].join("\n");
+
+    const result = parseInvoiceText(text);
+    expect(result.parsed.vendorName).toBe("WS Retail Services Pvt. Ltd");
+  });
+
+  it("extracts invoice number when label and value are on separate lines", () => {
+    const text = ["N° de facture", "INV/01/2015/074320", "Grand Total: EUR 100.00"].join("\n");
+    const result = parseInvoiceText(text);
+
+    expect(result.parsed.invoiceNumber).toBe("INV/01/2015/074320");
+  });
+
+  it("extracts invoice number from fallback inline hint patterns", () => {
+    const text = [
+      "Document Header",
+      "Invoice ref INV-ALPHA-77",
+      "Vendor: ACME LTD",
+      "Grand Total: 10.00"
+    ].join("\n");
+    const result = parseInvoiceText(text);
+
+    expect(result.parsed.invoiceNumber).toBe("ALPHA-77");
+  });
+
+  it("extracts invoice number from line after hint and continues past unrelated lines", () => {
+    const text = [
+      "Document Header",
+      "Reference block",
+      "invoice reference",
+      "INV/99/2026/4455",
+      "Vendor: ACME LTD",
+      "Grand Total: 10.00"
+    ].join("\n");
+    const result = parseInvoiceText(text);
+
+    expect(result.parsed.invoiceNumber).toBe("INV/99/2026/4455");
+  });
+
+  it("uses hotel details as vendor when explicit vendor labels are absent", () => {
+    const text = [
+      "Guest Name: Sanjay",
+      "Hotel Details OYO, Line 1, Line 2, Line 3, Line 4",
+      "Invoice Date: 31/12/2017",
+      "Grand Total: Rs 896.00"
+    ].join("\n");
+    const result = parseInvoiceText(text);
+
+    expect(result.parsed.vendorName).toBe("OYO");
+  });
+
+  it("skips hotel detail lines without alphabetic brand tokens", () => {
+    const text = [
+      "OMEGA INDUSTRIES LTD",
+      "Hotel Details 12345",
+      "Invoice Number: INV-902",
+      "Grand Total: 10.00"
+    ].join("\n");
+    const result = parseInvoiceText(text);
+
+    expect(result.parsed.vendorName).toBe("OMEGA INDUSTRIES LTD");
+  });
+
+  it("falls back to header vendor when explicit vendor label is empty at file end", () => {
+    const text = [
+      "OMEGA INDUSTRIES LTD",
+      "Invoice Number: INV-901",
+      "Grand Total: 10.00",
+      "Vendor:"
+    ].join("\n");
+    const result = parseInvoiceText(text);
+
+    expect(result.parsed.vendorName).toBe("OMEGA INDUSTRIES LTD");
+  });
+
   it("falls back to raw date text when date token cannot be normalized", () => {
     const text = [
       "Invoice Number: INV-445",
@@ -212,6 +293,9 @@ describe("parseInvoiceText", () => {
   it("evaluates vendor scores across all index bands and scoring penalties", () => {
     const text = [
       "ALPHA TRADING LLC",
+      "LTD",
+      "CHARGES LTD",
+      "INVOICE COMPANY LTD",
       "BETA PARTNERS LLC",
       "GAMMA GROUP LLC",
       "DELTA SERVICES LLC",
@@ -219,6 +303,7 @@ describe("parseInvoiceText", () => {
       "ZETA INDUSTRIES 1234 LLC",
       "ETA INDUSTRIES 123456 LLC",
       "THETA, INDUSTRIES LLC",
+      `${"ALPHA".repeat(14)} LTD`,
       `${"LONGNAME".repeat(12)} LLC`,
       "IOTA WHOLESALE LTD",
       "KAPPA RETAIL LTD",

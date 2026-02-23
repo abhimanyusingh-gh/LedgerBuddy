@@ -59,6 +59,7 @@ export function App() {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [popupInvoiceId, setPopupInvoiceId] = useState<string | null>(null);
   const [detailsPanelVisible, setDetailsPanelVisible] = useState(true);
+  const [detailsPanelCollapsed, setDetailsPanelCollapsed] = useState(false);
   const [detailsExpanded, setDetailsExpanded] = useState(false);
   const [editingParsedFields, setEditingParsedFields] = useState(false);
   const [savingParsedFields, setSavingParsedFields] = useState(false);
@@ -159,6 +160,14 @@ export function App() {
     const selectedIdSet = new Set(selectedIds);
     return selectableVisibleIds.every((id) => selectedIdSet.has(id));
   }, [selectableVisibleIds, selectedIds]);
+
+  const contentClassName = useMemo(() => {
+    if (!detailsPanelVisible) {
+      return "content content-list-expanded";
+    }
+
+    return detailsPanelCollapsed ? "content content-details-collapsed" : "content";
+  }, [detailsPanelVisible, detailsPanelCollapsed]);
 
   useEffect(() => {
     if (!popupInvoiceId) {
@@ -469,7 +478,7 @@ export function App() {
 
       {error ? <p className="error">{error}</p> : null}
 
-      <main className={detailsPanelVisible ? "content" : "content content-list-expanded"}>
+      <main className={contentClassName}>
         <section className="panel list-panel">
           <div className="panel-title">
             <h2>Invoices</h2>
@@ -547,19 +556,23 @@ export function App() {
         </section>
 
         {detailsPanelVisible ? (
-          <section className="panel detail-panel">
+          <section className={`panel detail-panel ${detailsPanelCollapsed ? "detail-panel-collapsed" : ""}`}>
             <div className="panel-title">
               <h2>Invoice Details</h2>
               <button
                 type="button"
                 className="collapse-button"
-                onClick={() => setDetailsExpanded((currentValue) => !currentValue)}
+                onClick={() => setDetailsPanelCollapsed((currentValue) => !currentValue)}
               >
-                {detailsExpanded ? "Collapse" : "Expand"}
+                {detailsPanelCollapsed ? "Expand" : "Collapse"}
               </button>
             </div>
 
-            {activeInvoice ? (
+            {detailsPanelCollapsed ? (
+              <div className="detail-panel-collapsed-body">
+                <p className="muted detail-panel-collapsed-hint">Details panel collapsed.</p>
+              </div>
+            ) : activeInvoice ? (
               <div className="detail-scroll">
                 <div className="detail-content">
                   <div className="detail-grid">
@@ -576,6 +589,10 @@ export function App() {
                       <strong>{activeInvoice.sourceType}:{activeInvoice.sourceKey}</strong>
                     </p>
                     <p>
+                      <span>Tenant / Tier</span>
+                      <strong>{activeInvoice.tenantId}:{activeInvoice.workloadTier}</strong>
+                    </p>
+                    <p>
                       <span>OCR Engine</span>
                       <strong>{activeInvoice.ocrProvider ?? "-"}</strong>
                     </p>
@@ -586,6 +603,10 @@ export function App() {
                     <p>
                       <span>OCR Confidence</span>
                       <strong>{formatOcrConfidenceLabel(activeInvoice.ocrConfidence)}</strong>
+                    </p>
+                    <p>
+                      <span>OCR Blocks</span>
+                      <strong>{activeInvoice.ocrBlocks?.length ?? 0}</strong>
                     </p>
                     <p>
                       <span>Confidence</span>
@@ -675,6 +696,14 @@ export function App() {
                     )}
                   </div>
 
+                  <button
+                    type="button"
+                    className="detail-sections-toggle"
+                    onClick={() => setDetailsExpanded((currentValue) => !currentValue)}
+                  >
+                    {detailsExpanded ? "Hide Detail Sections" : "Show Detail Sections"}
+                  </button>
+
                   {detailsExpanded ? (
                     <>
                       <div>
@@ -746,7 +775,8 @@ export function App() {
               </button>
             </div>
             <p className="muted popup-meta">
-              Status: <strong>{popupInvoice.status}</strong> | Source: {popupInvoice.sourceType}:{popupInvoice.sourceKey}
+              Status: <strong>{popupInvoice.status}</strong> | Source: {popupInvoice.sourceType}:{popupInvoice.sourceKey} |
+              Tenant: {popupInvoice.tenantId} | Tier: {popupInvoice.workloadTier}
             </p>
             <div className="popup-content">
               <div>

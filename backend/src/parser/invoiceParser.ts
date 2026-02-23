@@ -7,20 +7,31 @@ export interface ParseResult {
 }
 
 const invoiceNumberPatterns = [
-  /invoice\s*(?:number|no\.?|#)\s*[:\-]?\s*([A-Z0-9][A-Z0-9_\-/]{2,})/i,
-  /bill\s*(?:number|no\.?|#)\s*[:\-]?\s*([A-Z0-9][A-Z0-9_\-/]{2,})/i,
-  /inv(?:oice)?\s*(?:number|no\.?|#)\s*[:\-]?\s*([A-Z0-9][A-Z0-9_\-/]{2,})/i,
-  /(?:invoice|factuur|facture)\s*(?:number|nummer|no\.?|#|n[°o])\s*[:\-]?\s*#?\s*([A-Z0-9][A-Z0-9_\-/]{2,})/i
+  /invoice\s*(?:number|no\.?|#)\s*[:\-]?\s*#?\s*([A-Z0-9][A-Z0-9_\-/]{2,})/i,
+  /invoice\s*(?:n[o°]\.?|nr)\s*[:\-]?\s*#?\s*([A-Z0-9][A-Z0-9_\-/]{2,})/i,
+  /bill\s*(?:number|no\.?|#)\s*[:\-]?\s*#?\s*([A-Z0-9][A-Z0-9_\-/]{2,})/i,
+  /inv(?:oice)?\s*(?:number|no\.?|#)\s*[:\-]?\s*#?\s*([A-Z0-9][A-Z0-9_\-/]{2,})/i,
+  /(?:invoice|factuur|facture)\s*(?:number|nummer|no\.?|#|n[°o])\s*[:\-]?\s*#?\s*([A-Z0-9][A-Z0-9_\-/]{2,})/i,
+  /n[°o]\s*de\s*facture\s*[:\-]?\s*#?\s*([A-Z0-9][A-Z0-9_\-/]{2,})/i
 ];
 
-const vendorPattern = /(?:vendor|supplier|from|bill\s*from|sold\s*by)\s*[:\-]?\s*([^\n\r]+)/i;
-const vendorRefinementPattern = /^(?:vendor|supplier|from|bill\s*from|sold\s*by)\s*[:\-]?\s*/i;
+const invoiceNumberHintPattern =
+  /\b(invoice|facture|factuur|bill|inv(?:oice)?|n[°o]\s*de\s*facture)\b.*\b(no\.?|number|#|n[°o]|nummer)?\b/i;
+const invoiceNumberTokenPattern = /([A-Z0-9][A-Z0-9_\-/]{2,})/;
+
+const explicitVendorLinePattern =
+  /^(vendor|supplier|sold\s*by|bill\s*from|from|company|merchant|hotel\s*details)\s*[:\-]?\s*(.*)$/i;
+const vendorRefinementPattern = /^(?:vendor|supplier|sold\s*by|bill\s*from|from|company|merchant)\s*[:\-]?\s*/i;
 const legalEntityPattern =
   /\b(ltd|limited|pvt|private|llc|inc|corp|corporation|gmbh|s\.?a\.?r\.?l\.?|plc|pte|company|co\.?)\b/i;
+const genericVendorStopPattern =
+  /\b(facture|factuur|invoice|receipt|payment|statement|description|charges|summary|account|customer)\b/i;
+const blockedVendorPrefixPattern =
+  /^(guest\s*name|billing\s*address|shipping\s*address|warehouse\s*address|order\s*id|order\s*date|booking\s*id|payment\s*mode|invoice\s*date|due\s*date|date)\b/i;
 const addressSignalPattern =
   /\b(address|warehouse|village|road|street|st\.|avenue|ave\.|taluk|district|state|country|india|karnataka|hobli|zip|zipcode|postal|pin|near)\b/i;
 const nonVendorSignalPattern =
-  /\b(invoice|bill|date|total|tax|amount|qty|quantity|gst|vat|phone|email|mobile|bank|ifsc|swift|branch)\b/i;
+  /\b(invoice|bill|date|total|tax|amount|qty|quantity|gst|vat|phone|email|mobile|bank|ifsc|swift|branch|guest|customer|booking|description|payment|receipt)\b/i;
 
 const currencyPatterns = [
   /\b(USD|EUR|GBP|INR|AUD|CAD|JPY|AED|SGD|CHF|CNY)\b/i,
@@ -44,10 +55,10 @@ const dueDatePatterns = [
 ];
 
 const strongTotalPattern =
-  /(grand\s*total|amount\s*payable|amount\s*due|balance\s*due|total\s*due|invoice\s*total|net\s*payable|total\s*payable)/i;
-const weakTotalPattern = /\b(total|payable|balance)\b/i;
+  /(grand\s*total|amount\s*payable|amount\s*due|balance\s*due|total\s*due|invoice\s*total|net\s*payable|total\s*payable|amt\s*due|betrag)/i;
+const weakTotalPattern = /\b(total|payable|balance|amount\s*due|amt\s*due)\b/i;
 const negativeTotalPattern =
-  /(sub\s*total|subtotal|tax(?:able)?|vat|gst|cgst|sgst|igst|discount|round(?:ing)?\s*off|shipping|freight|delivery|paid|payment\s*received|advance|credit\s*note)/i;
+  /(sub\s*total|subtotal|tax(?:able)?|vat|gst|cgst|sgst|igst|mwst|u\s*st|ust|discount|round(?:ing)?\s*off|shipping|freight|delivery|paid|payment\s*received|advance|credit\s*note)/i;
 const amountTokenPattern = /[-+]?(?:\d{1,3}(?:[,\s.]\d{3})+|\d+)(?:[.,]\d{1,2})?/g;
 
 export function parseInvoiceText(text: string): ParseResult {
@@ -56,9 +67,9 @@ export function parseInvoiceText(text: string): ParseResult {
     notes: []
   };
 
-  const compactText = text.replace(/\r/g, "\n");
+  const compactText = normalizeForParsing(text);
 
-  parsed.invoiceNumber = findFirstMatch(compactText, invoiceNumberPatterns);
+  parsed.invoiceNumber = extractInvoiceNumber(compactText);
   if (!parsed.invoiceNumber) {
     warnings.push("Could not confidently detect invoice number.");
   }
@@ -156,6 +167,57 @@ export function extractTotalAmount(text: string): number | undefined {
   return pickBestAmountCandidate(fallbackCandidates)?.amount;
 }
 
+function extractInvoiceNumber(text: string): string | undefined {
+  const direct = findFirstMatch(text, invoiceNumberPatterns);
+  if (direct) {
+    return direct;
+  }
+
+  const lines = text
+    .split(/\n+/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index];
+    if (!invoiceNumberHintPattern.test(line)) {
+      continue;
+    }
+
+    const inlineValue = line
+      .replace(/invoice|facture|factuur|bill|inv(?:oice)?|n[°o]\s*de\s*facture/gi, " ")
+      .match(invoiceNumberTokenPattern)?.[1];
+    if (inlineValue) {
+      return inlineValue;
+    }
+
+    const nextLine = lines[index + 1];
+    if (!nextLine) {
+      continue;
+    }
+
+    const nextValue = nextLine.match(invoiceNumberTokenPattern)?.[1];
+    if (nextValue) {
+      return nextValue;
+    }
+  }
+
+  return undefined;
+}
+
+function normalizeForParsing(text: string): string {
+  return text
+    .replace(/\r\n?/g, "\n")
+    .replace(/<\|ref\|>.*?<\|\/ref\|>/g, " ")
+    .replace(/<\|det\|>.*?<\|\/det\|>/g, "\n")
+    .replace(/<\/?(table|thead|tbody|tr)>/gi, "\n")
+    .replace(/<\/?td>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\*\*/g, " ")
+    .replace(/[ \t]+/g, " ")
+    .replace(/\n{3,}/g, "\n\n");
+}
+
 function findFirstMatch(text: string, patterns: RegExp[]): string | undefined {
   for (const pattern of patterns) {
     const match = text.match(pattern);
@@ -168,22 +230,76 @@ function findFirstMatch(text: string, patterns: RegExp[]): string | undefined {
 }
 
 function resolveVendorName(text: string): string | undefined {
-  const explicitMatch = findFirstMatch(text, [vendorPattern]);
-  const explicitCandidate = sanitizeVendorCandidate(explicitMatch);
-  if (explicitCandidate) {
-    return explicitCandidate;
-  }
-
-  return pickLikelyVendorLine(text);
-}
-
-function pickLikelyVendorLine(text: string): string | undefined {
   const lines = text
     .split(/\n+/)
     .map((line) => line.trim())
     .filter((line) => line.length > 2);
 
-  const scopedLines = lines.slice(0, 16);
+  const explicit = extractExplicitVendor(lines);
+  if (explicit) {
+    return explicit;
+  }
+
+  const hotelCandidate = extractHotelVendor(lines);
+  if (hotelCandidate) {
+    return hotelCandidate;
+  }
+
+  return pickLikelyVendorLine(lines);
+}
+
+function extractExplicitVendor(lines: string[]): string | undefined {
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index];
+    const match = line.match(explicitVendorLinePattern);
+    if (!match) {
+      continue;
+    }
+
+    const candidate = sanitizeVendorCandidate(match[2], { allowSingleWord: true });
+    if (candidate) {
+      return candidate;
+    }
+
+    const nextLine = lines[index + 1];
+    if (!nextLine) {
+      continue;
+    }
+
+    const nextCandidate = sanitizeVendorCandidate(nextLine, { allowSingleWord: true });
+    if (nextCandidate) {
+      return nextCandidate;
+    }
+  }
+
+  return undefined;
+}
+
+function extractHotelVendor(lines: string[]): string | undefined {
+  for (const line of lines.slice(0, 20)) {
+    const match = line.match(/hotel\s*details\s*[:\-]?\s*([A-Za-z0-9&'().\-\s]{2,})/i);
+    if (!match?.[1]) {
+      continue;
+    }
+
+    const normalized = match[1].split(",")[0].trim();
+    const brandToken = normalized.match(/([A-Za-z][A-Za-z0-9&'().-]{1,})/)?.[1];
+    if (!brandToken) {
+      continue;
+    }
+
+    const candidate = sanitizeVendorCandidate(brandToken, { allowSingleWord: true });
+    if (candidate) {
+      return candidate;
+    }
+  }
+
+  return undefined;
+}
+
+function pickLikelyVendorLine(lines: string[]): string | undefined {
+  const scopedLines = lines.slice(0, 18);
+
   let bestCandidate: { value: string; score: number } | null = null;
 
   for (const [index, rawLine] of scopedLines.entries()) {
@@ -212,6 +328,8 @@ function pickLikelyVendorLine(text: string): string | undefined {
     const wordCount = candidate.split(/\s+/).length;
     if (wordCount >= 2 && wordCount <= 8) {
       score += 8;
+    } else if (wordCount === 1) {
+      score -= 10;
     }
 
     if (candidate.includes(",")) {
@@ -229,6 +347,14 @@ function pickLikelyVendorLine(text: string): string | undefined {
       score -= 14;
     }
 
+    if (genericVendorStopPattern.test(candidate)) {
+      score -= 28;
+    }
+
+    if (candidate.includes(":")) {
+      score -= 20;
+    }
+
     if (bestCandidate === null || score > bestCandidate.score) {
       bestCandidate = { value: candidate, score };
     }
@@ -241,19 +367,23 @@ function pickLikelyVendorLine(text: string): string | undefined {
   return bestCandidate.value;
 }
 
-function sanitizeVendorCandidate(rawValue?: string): string | undefined {
-  if (!rawValue) {
-    return undefined;
-  }
-
+function sanitizeVendorCandidate(rawValue: string, options?: { allowSingleWord?: boolean }): string | undefined {
   const normalized = rawValue
     .replace(vendorRefinementPattern, "")
+    .replace(/^[^:]+:\s*/g, (prefix) => (blockedVendorPrefixPattern.test(prefix) ? "" : prefix))
+    .replace(/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi, " ")
+    .replace(/\(.*?\)/g, " ")
+    .replace(/[#*|`]/g, " ")
     .replace(/\s+/g, " ")
     .replace(/^[^A-Za-z]+/, "")
     .replace(/[,:;.\-–|]+$/, "")
     .trim();
 
   if (normalized.length < 3) {
+    return undefined;
+  }
+
+  if (blockedVendorPrefixPattern.test(normalized)) {
     return undefined;
   }
 
@@ -265,7 +395,19 @@ function sanitizeVendorCandidate(rawValue?: string): string | undefined {
     return undefined;
   }
 
+  if (genericVendorStopPattern.test(normalized) && !legalEntityPattern.test(normalized)) {
+    return undefined;
+  }
+
   if (normalized.split(",").length > 3) {
+    return undefined;
+  }
+
+  if (normalized.length > 80) {
+    return undefined;
+  }
+
+  if (!options?.allowSingleWord && normalized.split(/\s+/).length === 1 && !legalEntityPattern.test(normalized)) {
     return undefined;
   }
 

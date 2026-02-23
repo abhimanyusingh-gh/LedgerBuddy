@@ -6,15 +6,17 @@ Invoice ingestion and review platform built with Node.js (backend), React (front
 
 Implemented:
 - Configurable ingestion source interface (`email`, `folder` currently).
-- OCR provider interface (`google-vision`, `tesseract`, `deepseek`, `mock`).
+- OCR provider interface (`deepseek`, `mock`).
+- Runtime composition manifest support (`APP_MANIFEST_PATH`) for database/OCR/source/export wiring with env fallback.
 - OCR engine display is separated from extraction source (`ocrProvider` vs `metadata.extractionSource`).
 - Parser + confidence/risk scoring.
 - Currency amounts persisted and transmitted as integer minor units (`parsed.totalAmountMinor`) to avoid floating-point drift.
-- Agentic extraction workflow that evaluates multiple OCR/text candidates and selects the best parse.
-- MongoDB persistence with per-file source checkpointing and folder idempotency filtering by `sourceDocumentId`.
+- Staged extraction pipeline: vendor fingerprint -> template path (known vendors) -> OCR confidence gate -> layout graph + heuristics -> deterministic validation -> SLM field verifier fallback.
+- MongoDB persistence with per-file source+tenant checkpointing and folder idempotency filtering by `sourceDocumentId`.
+- Tenant/workload partition keys (`tenantId`, `workloadTier`) across sources, checkpoints, and invoices.
 - Review dashboard with failed/parsed visibility, confidence badges, batch approval/export, and full invoice list paging.
 - Tally exporter using XML import envelope and purchase voucher structure.
-- Terraform modules for scheduled spot workers and production DocumentDB.
+- Terraform modules for scheduled spot workers, reusable worker IAM, and production DocumentDB.
 - Unit tests + local folder-based end-to-end ingestion test.
 
 Delivery timeline:
@@ -29,16 +31,20 @@ Not yet implemented:
 
 - `backend/` Node.js API + worker + ingestion pipeline.
 - `frontend/` React review dashboard.
-- `infra/terraform/` AWS Terraform with reusable `spot_worker` and `documentdb` modules.
+- `invoice-ocr/` local MLX DeepSeek OCR FastAPI service.
+- `invoice-slm/` local MLX field-verifier FastAPI service.
+- `infra/modules/` copy-first reusable Terraform module catalog.
+- `infra/terraform/` Invoice Processor stack composition using local modules (`environments/prod.tfvars.example` included).
 - `sample-invoices/inbox/` local folder source for manual and e2e runs.
-- `sample-invoices/benchmark/` 31-file mixed PDF/PNG/JPEG benchmark corpus with source manifest.
-- `docker-compose.yml` local MongoDB + Mongo Express.
+- `docker-compose.yml` local backend, frontend, MongoDB, and Mongo Express services.
 
 ## Local Prerequisites
 
 - Node.js 20+
 - Yarn 4+
-- Docker + Docker Compose
+- Docker Desktop
+- Docker Compose v2
+- Apple Silicon Mac for local MLX OCR/SLM services
 
 ## Local Setup
 
@@ -47,7 +53,24 @@ Not yet implemented:
 yarn install
 ```
 
-2. Start full local stack with Docker Compose:
+2. Create MLX venv and install Python dependencies:
+```bash
+python3.12 -m venv .venv-ml
+./.venv-ml/bin/pip install --upgrade pip
+./.venv-ml/bin/pip install -r invoice-ocr/requirements.txt -r invoice-slm/requirements.txt
+```
+
+3. Start local MLX OCR service:
+```bash
+yarn ocr:dev
+```
+
+4. Start local MLX SLM verifier service:
+```bash
+yarn slm:dev
+```
+
+5. Start local app stack with Docker Compose:
 ```bash
 docker compose up -d
 ```
@@ -58,7 +81,7 @@ This brings up:
 - MongoDB: `localhost:27017`
 - Mongo Express: `http://localhost:8081`
 
-3. Create env files:
+6. Create env files:
 ```bash
 cp backend/.env.example backend/.env
 cp frontend/.env.example frontend/.env
@@ -67,8 +90,35 @@ cp frontend/.env.example frontend/.env
 Notes:
 - `docker compose` can boot without `backend/.env`; it always loads `backend/.env.example` and treats `backend/.env` as optional override.
 - Create `backend/.env` when you need local secrets or non-default config.
+- For local MLX OCR, no `DEEPSEEK_API_KEY` is required.
+- MLX OCR/SLM run on host (Apple Silicon) and are called from Compose backend via `host.docker.internal`.
+- `yarn ocr:dev`, `yarn slm:dev`, and `yarn benchmark:ml` auto-use `./.venv-ml/bin/python` when available.
+- Compose uses `APP_MANIFEST_PATH=/app/backend/runtime-manifest.local.json` by default, so local runtime wiring is explicit and composable.
+- Use `backend/runtime-manifest.prod.example.json` as a production template and set `APP_MANIFEST_PATH` for host runs.
+- Compose defaults backend OCR to `DEEPSEEK_BASE_URL=http://host.docker.internal:8000/v1` and `DEEPSEEK_OCR_MODEL=deepseek-ai/DeepSeek-OCR`.
+- Compose defaults field verifier to `FIELD_VERIFIER_BASE_URL=http://host.docker.internal:8100/v1`.
+- OCR path is direct inference via `POST /v1/ocr/document` (no `/v1/chat/completions` usage).
+- OCR/SLM API layers are engine-agnostic and selected by env:
+  - OCR: `OCR_ENGINE=local_mlx|remote_http`
+  - SLM: `SLM_ENGINE=local_mlx|remote_http`
+- Optional OCR service tuning via `yarn ocr:dev` env variables:
+  - `OCR_ENGINE` (`local_mlx` default, or `remote_http`)
+  - `OCR_MODEL_ID` (default `deepseek-ai/DeepSeek-OCR`)
+  - `OCR_MODEL_PATH` (optional local snapshot path)
+  - `OCR_REMOTE_BASE_URL` (required for `OCR_ENGINE=remote_http`)
+  - `OCR_REMOTE_API_KEY` (optional bearer token for remote OCR)
+  - `OCR_REMOTE_TIMEOUT_MS` (default `300000`)
+  - `OCR_MAX_NEW_TOKENS` (default `256`)
+  - `OCR_DYNAMIC_CROPS` (default `true`)
+  - `OCR_LOAD_ON_STARTUP` (`false` by default for faster boot)
+- Optional SLM tuning via `yarn slm:dev` env variables:
+  - `SLM_ENGINE` (`local_mlx` default, or `remote_http`)
+  - `SLM_MODEL_ID` (default `mlx-community/Qwen2.5-3B-Instruct-4bit`)
+  - `SLM_REMOTE_BASE_URL` (required for `SLM_ENGINE=remote_http`)
+  - `SLM_REMOTE_SELECT_PATH` (default `/v1/verify/invoice`)
+  - `SLM_REMOTE_API_KEY` (optional bearer token)
 
-4. Optional host-based dev mode (instead of Compose backend/frontend):
+7. Optional host-based dev mode (instead of Compose backend/frontend):
 ```bash
 yarn dev
 ```
@@ -79,6 +129,36 @@ Pristine teardown (containers + Mongo volume + compose images):
 ```bash
 yarn docker:down
 ```
+
+Tail backend + OCR logs in one stream:
+```bash
+yarn logs:local
+```
+Then run OCR and SLM logs in separate terminals:
+```bash
+yarn ocr:dev
+yarn slm:dev
+```
+All services emit JSON logs with a shared `correlationId` so one id traces a request from API ingress to OCR and export.
+
+## Runtime Composition Manifest
+
+Backend runtime supports an optional manifest file (`APP_MANIFEST_PATH`) that composes adapters without code changes:
+- database adapter (`mongo` URI)
+- OCR adapter (`deepseek` / `mock`)
+- field verifier adapter (`http` / `none`)
+- ingestion source adapters (`email` / `folder`)
+- export adapter defaults (Tally endpoint/company/ledger)
+- tenant + workload defaults (`tenantId`, `workloadTier`)
+- extraction gate tuning (`extraction.ocrHighConfidenceThreshold`)
+
+Example files:
+- `backend/runtime-manifest.local.json`
+- `backend/runtime-manifest.prod.example.json`
+
+This keeps local and production wiring pluggable:
+- local: Docker Mongo + host MLX `invoice-ocr` + host MLX `invoice-slm`
+- production: provisioned DB + remote OCR endpoint + remote SLM verifier endpoint (for example Modal)
 
 ## Local Ingestion Modes
 
@@ -129,30 +209,25 @@ Run ingestion:
 yarn worker:once
 ```
 
-For local real OCR on images without cloud credentials:
-- `OCR_PROVIDER=tesseract`
-
-For LLM OCR with field-aware extraction:
-- `OCR_PROVIDER=auto` (or `deepseek`)
-- `DEEPSEEK_API_KEY=...`
-- `DEEPSEEK_BASE_URL=https://api.deepseek.com/v1`
-- `DEEPSEEK_OCR_MODEL=deepseek-chat`
-- `DEEPSEEK_TIMEOUT_MS=45000`
-
-Recommended automatic OCR bootstrap:
+OCR runtime:
 - `OCR_PROVIDER=auto`
-- Boot order is:
-  - DeepSeek (valid API key check)
-  - Google Vision (valid credential check)
-  - Tesseract fallback
+- `auto` resolves to DeepSeek OCR and validates model availability at startup.
+- No Tesseract fallback is used.
+- Configure `DEEPSEEK_BASE_URL` to an endpoint that serves `/v1/ocr/document` and `/v1/models`.
+- Local default model is `deepseek-ai/DeepSeek-OCR`.
+- Startup checks `/models` and fails fast if the configured model is unavailable.
+- First OCR call downloads model weights and can take several minutes.
+- OCR results now include block-level bounding boxes (`ocrBlocks`) for later overlay rendering.
+- Field verification supports local MLX endpoint (`FIELD_VERIFIER_PROVIDER=http`, `FIELD_VERIFIER_BASE_URL=http://localhost:8100/v1`) or can be disabled (`FIELD_VERIFIER_PROVIDER=none`).
 - Forced providers:
   - `OCR_PROVIDER=mock` forces mock OCR.
-  - `OCR_PROVIDER=tesseract` forces Tesseract OCR.
 
 ## Manual End-to-End Local Run (Folder -> Dashboard)
 
 1. Start stack:
 ```bash
+yarn ocr:dev
+yarn slm:dev
 docker compose up -d
 ```
 
@@ -191,12 +266,25 @@ What it verifies:
 - Crash-resume behavior: after a simulated worker crash, next run resumes from checkpoint.
 - Subsequent run behavior: already processed files are skipped by `sourceDocumentId`.
 - New files are still ingested even when copied with older `mtime`.
-- OCR engine remains accurate in persisted data even when extraction source is `pdf-native`.
+- PDF/JPG/PNG ingestion uses OCR extraction source (`ocr-provider`) with block metadata retained.
 - Invoice list data is ready for dashboard review.
+
+## Infra Composition
+
+Terraform is split into reusable modules:
+- `infra/modules/aws_iam_instance_profile` for EC2 role/profile
+- `infra/modules/aws_scheduled_ec2_service` for scheduled compute runtime (`spot` or `on-demand`)
+- `infra/modules/aws_documentdb_cluster` for production DB provisioning
+
+For app-specific overrides, use `app_manifest` in tfvars:
+- override ingestion/OCR/confidence/tally settings
+- inject app-specific environment values via `app_manifest.env`
+- reuse the same worker/DB/IAM modules across future apps with only tfvars changes
+- future registry migration is mechanical (replace module `source` addresses only)
 
 ## Checkpoint Behavior
 
-Checkpoint markers are stored per source key in MongoDB (`checkpoints` collection).
+Checkpoint markers are stored per tenant + source key in MongoDB (`checkpoints` collection).
 
 Behavior:
 - After each file is processed, checkpoint is persisted immediately.
@@ -234,37 +322,17 @@ Backend e2e only:
 yarn workspace invoice-processor-backend run test:e2e
 ```
 
+Benchmark local and prod endpoints:
+```bash
+yarn benchmark:ml
+```
+Optional prod benchmark targets:
+- `OCR_PROD_URL` (example `https://your-ocr-endpoint/v1`)
+- `SLM_PROD_URL` (example `https://your-slm-endpoint/v1`)
+
 Commit gate:
 - Husky pre-commit hook runs `yarn quality:check`.
 - Commits fail unless Knip is clean and coverage thresholds pass.
-
-## Benchmark Corpus (31 files)
-
-Public benchmark samples were collected from web-searched sources:
-- `invoice2data` compare set (mixed vendors/countries): `tests/compare`
-- `mouadhamri/invoice_dataset` (layout-diverse JPEG invoices)
-
-Corpus details:
-- Files: 31
-- Types: 11 PDF, 4 PNG, 16 JPEG
-- Input folder: `sample-invoices/benchmark/inbox`
-- Source manifest: `sample-invoices/benchmark/SOURCES.csv`
-
-Run benchmark:
-```bash
-docker compose up -d mongo
-OCR_PROVIDER=tesseract \
-INGESTION_SOURCES=folder \
-FOLDER_SOURCE_PATH="$(pwd)/sample-invoices/benchmark/inbox" \
-MONGO_URI="mongodb://127.0.0.1:27017/invoice_processor" \
-yarn benchmark:corpus
-```
-
-Current benchmark snapshot after extraction tuning:
-- Invoice2data amount exact-match accuracy: `66.67%` (`10/15`)
-- Currency match accuracy: `86.67%` (`13/15`)
-- Invoice-number match accuracy: `40.00%` (`6/15`)
-- Corpus average confidence: `74.65`
 
 ## Build
 
@@ -281,17 +349,17 @@ cd infra/terraform
 
 2. Configure variables:
 ```bash
-cp terraform.tfvars.example terraform.tfvars
+cp environments/prod.tfvars.example terraform.tfvars
 ```
 
 3. Fill required values in `terraform.tfvars` (VPC/subnets, image URI, source settings, Tally settings).
-For production, set `provision_documentdb=true` and provide `documentdb_*` values.
+The production template already sets `provision_documentdb=true` and expects `documentdb_*` values so worker runtime uses module-managed DB output.
 
 4. Deploy:
 ```bash
 terraform init
-terraform plan
-terraform apply
+terraform plan -var-file=terraform.tfvars
+terraform apply -var-file=terraform.tfvars
 ```
 
 The deployment provisions scheduled spot workers and (optionally) a production DocumentDB cluster.
@@ -301,7 +369,7 @@ When `provision_documentdb=true`, worker `MONGO_URI` is auto-wired from the prov
 
 Backend env variables:
 - Ingestion: `INGESTION_SOURCES`, `EMAIL_*`, `FOLDER_*`
-- OCR: `OCR_PROVIDER`, `GOOGLE_APPLICATION_CREDENTIALS`, `DEEPSEEK_API_KEY`, `DEEPSEEK_BASE_URL`, `DEEPSEEK_OCR_MODEL`, `DEEPSEEK_TIMEOUT_MS`, `MOCK_OCR_*`
+- OCR: `OCR_PROVIDER`, `DEEPSEEK_BASE_URL`, `DEEPSEEK_OCR_MODEL`, `DEEPSEEK_TIMEOUT_MS`, `MOCK_OCR_*` (`DEEPSEEK_API_KEY` optional)
 - Confidence: `CONFIDENCE_EXPECTED_MAX_TOTAL`, `CONFIDENCE_EXPECTED_MAX_DUE_DAYS`, `CONFIDENCE_AUTO_SELECT_MIN`
   - `CONFIDENCE_EXPECTED_MAX_TOTAL` is configured in major units (for readability), then converted internally to minor units using detected currency.
 - Export: `TALLY_ENDPOINT`, `TALLY_COMPANY`, `TALLY_PURCHASE_LEDGER`
@@ -318,5 +386,6 @@ DocumentDB-specific variables: `provision_documentdb`, `documentdb_allowed_cidrs
 ## Additional Docs
 
 - AWS deployment guide: `docs/AWS_DEPLOYMENT_GUIDE.md`
+- Local OCR setup: `docs/LOCAL_DEEPSEEK_OCR_SETUP.md`
 - Product requirements (PRD): `docs/PRD.md`
 - Architecture and design decisions (RFC): `docs/RFC.md`

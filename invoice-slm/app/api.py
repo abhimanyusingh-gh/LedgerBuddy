@@ -4,13 +4,12 @@ from typing import Any
 
 from fastapi import FastAPI, Request
 
-from .engine import normalize_blocks, normalize_candidate_map, normalize_field_regions, select_with_fallback, extract_invoice_type
-from .providers import create_llm_provider
+from .engine import create_slm_engine, normalize_blocks, normalize_candidate_map, normalize_field_regions, select_with_fallback
 from .logging import log_error, log_info, reset_correlation_id, set_correlation_id
 from .schemas import VerifyInvoiceRequest, VerifyInvoiceResponse
 
 app = FastAPI(title="Invoice SLM Service", version="2.0.0")
-provider = create_llm_provider()
+engine = create_slm_engine()
 
 
 @app.middleware("http")
@@ -41,17 +40,17 @@ async def correlation_middleware(request: Request, call_next):
 
 @app.on_event("startup")
 def on_startup() -> None:
-  provider.startup()
+  engine.startup()
 
 
 @app.get("/health")
 def health() -> dict[str, Any]:
-  return provider.health()
+  return engine.health()
 
 
-@app.get("/ping")
-def ping() -> dict[str, Any]:
-  return {"pong": True}
+@app.get("/v1/health")
+def health_v1() -> dict[str, Any]:
+  return health()
 
 
 @app.post("/v1/verify/invoice", response_model=VerifyInvoiceResponse)
@@ -70,18 +69,12 @@ def verify_invoice(request: VerifyInvoiceRequest) -> VerifyInvoiceResponse:
     "fieldCandidates": candidate_map,
     "fieldRegions": field_regions,
     "ocrBlocks": blocks,
-    "documentContext": request.hints.get("documentContext"),
     "vendorNameHint": request.hints.get("vendorNameHint"),
-    "vendorTemplateMatched": bool(request.hints.get("vendorTemplateMatched")),
-    "pageImages": request.hints.get("pageImages"),
-    "llmAssist": bool(request.hints.get("llmAssist")),
-    "languageHint": request.hints.get("languageHint"),
-    "documentLanguage": request.hints.get("documentLanguage"),
-    "priorCorrections": request.hints.get("priorCorrections")
+    "vendorTemplateMatched": bool(request.hints.get("vendorTemplateMatched"))
   }
 
   try:
-    slm_payload = provider.select_fields(inference_payload)
+    slm_payload = engine.select_fields(inference_payload)
   except Exception as error:
     slm_error = str(error)
     log_error("slm.infer.failed", error=slm_error)
@@ -111,15 +104,9 @@ def verify_invoice(request: VerifyInvoiceRequest) -> VerifyInvoiceResponse:
 
   deduped_issues = sorted({issue.strip() for issue in issues if issue.strip()})
 
-  invoice_type = extract_invoice_type(slm_payload)
-
-  usage = slm_payload.pop("_usage", None) if isinstance(slm_payload, dict) else None
-
   return VerifyInvoiceResponse(
     parsed=merged,
     issues=deduped_issues,
     changedFields=changed_fields,
-    reasonCodes=reason_codes,
-    invoiceType=invoice_type,
-    usage=usage if isinstance(usage, dict) else None
+    reasonCodes=reason_codes
   )

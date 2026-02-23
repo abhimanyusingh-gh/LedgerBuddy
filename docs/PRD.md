@@ -21,11 +21,14 @@ Build a minimal, modular application that ingests invoices, extracts structured 
 - Use configurable, extensible ingestion interface.
 - Initial source: email inbox integration.
 - Local/test source: folder ingestion.
+- Assign each source to a tenant and workload tier (`standard` or `heavy`) for operational isolation.
 - For folder ingestion, process all supported files and skip already processed records by source identity to avoid duplicate work.
 
 2. OCR and Extraction
 - OCR provider abstraction with reliable handwriting-capable provider support.
-- Initial cloud OCR baseline: DeepSeek OCR (`deepseek`) with optional Google Vision/Tesseract fallback.
+- Local OCR runtime: MLX-based DeepSeek OCR service with default model `deepseek-ai/DeepSeek-OCR`.
+- Production OCR runtime: external OCR endpoint through the same OCR interface.
+- No Tesseract fallback in runtime.
 - Agentic extraction flow: evaluate multiple text candidates and select best parse.
 - Extract core fields: invoice number, vendor, dates, currency, total amount.
 - Store amount as integer minor currency unit only (`totalAmountMinor`).
@@ -57,7 +60,7 @@ Build a minimal, modular application that ingests invoices, extracts structured 
 - Keep approved selection behavior stable for export flow.
 
 6. Checkpointing and Idempotency
-- Store per-source checkpoint marker in MongoDB.
+- Store per-tenant + per-source checkpoint marker in MongoDB.
 - Update checkpoint after each processed file.
 - Crash-safe resume from last checkpoint.
 - Avoid duplicate processing across runs.
@@ -66,6 +69,7 @@ Build a minimal, modular application that ingests invoices, extracts structured 
 - Terraform-based AWS provisioning.
 - Spot-instance worker pattern for periodic processing.
 - Provision a production Mongo-compatible DB module (DocumentDB) and use that connection for worker runtime in deployed environments.
+- Use reusable IAM, worker, and DB modules with app-level manifest overrides (`app_manifest`) for future app onboarding.
 - Use `tfvars` for deploy-time configuration and credentials.
 
 8. Testing
@@ -80,6 +84,8 @@ Build a minimal, modular application that ingests invoices, extracts structured 
 - Database: MongoDB
 - Infra: Terraform (modular, extensible)
 - Keep code minimal and maintainable.
+- Runtime wiring must be composable through a manifest file (`APP_MANIFEST_PATH`) with env fallback.
+- Prepare for multitenancy by partitioning data and ingestion workload lanes (`standard` vs `heavy`) to protect low-usage tenants from heavy-usage impact.
 
 ## 6. Out of Scope (Current Phase)
 

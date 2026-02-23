@@ -214,7 +214,7 @@ describe("folder ingestion e2e", () => {
     expect(list.total).toBe(3);
   });
 
-  it("keeps OCR engine as provider when extraction source is pdf-native", async () => {
+  it("routes PDF files through OCR provider extraction path", async () => {
     const source = new FolderIngestionSource({
       key: "e2e-folder",
       folderPath: fixtureDir,
@@ -228,15 +228,24 @@ describe("folder ingestion e2e", () => {
       "inbox",
       "invoice2data__AmazonWebServices.pdf"
     );
+    await fs.rm(path.join(fixtureDir, "invoice-1.jpg"));
+    await fs.rm(path.join(fixtureDir, "invoice-2.png"));
     await fs.copyFile(samplePdfPath, path.join(fixtureDir, "invoice-source.pdf"));
 
-    process.env.MOCK_OCR_TEXT = "   ";
-    process.env.MOCK_OCR_CONFIDENCE = "0.11";
+    process.env.MOCK_OCR_TEXT = [
+      "Invoice Number: PDF-901",
+      "Vendor: PDF Vendor Pvt Ltd",
+      "Invoice Date: 2026-02-10",
+      "Due Date: 2026-02-20",
+      "Currency: USD",
+      "Grand Total: 10.00"
+    ].join("\n");
+    process.env.MOCK_OCR_CONFIDENCE = "0.92";
 
     const ingestionService = new IngestionService([source], new MockOcrProvider());
     const result = await ingestionService.runOnce();
     expect(result.newInvoices).toBe(1);
-    expect(result.failures).toBe(2);
+    expect(result.failures).toBe(0);
 
     const invoiceService = new InvoiceService();
     const list = await invoiceService.listInvoices({ page: 1, limit: 20 });
@@ -245,7 +254,7 @@ describe("folder ingestion e2e", () => {
     expect(pdfInvoice).toBeTruthy();
     expect(pdfInvoice?.ocrProvider).toBe("mock");
     expect((pdfInvoice?.metadata as Record<string, string | undefined> | undefined)?.extractionSource).toBe(
-      "pdf-native"
+      "ocr-provider"
     );
   });
 });

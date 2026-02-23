@@ -1,25 +1,25 @@
 import axios from "axios";
-import type { OcrProvider, OcrResult } from "../core/interfaces/OcrProvider.js";
+import type { OcrBlock, OcrProvider, OcrResult } from "../core/interfaces/OcrProvider.js";
+import { getCorrelationId, logger } from "../utils/logger.js";
 
-const SUPPORTED_MIME_TYPES = new Set(["image/jpeg", "image/png", "application/pdf"]);
+const SUPPORTED_MIME_TYPES = new Set([
+  "image/jpeg",
+  "image/jpg",
+  "image/pjpeg",
+  "image/png",
+  "image/x-png",
+  "application/pdf"
+]);
+const RETRYABLE_NETWORK_ERROR_CODES = new Set(["ECONNREFUSED", "ECONNRESET", "ETIMEDOUT", "EHOSTUNREACH"]);
+const DEFAULT_PROMPT = "<image>\n<|grounding|>Convert page to markdown.";
+const DEFAULT_MAX_TOKENS = 512;
+const DEFAULT_TIMEOUT_MS = 3_600_000;
 
-interface DeepSeekChatCompletionResponse {
-  choices?: Array<{
-    message?: {
-      content?: string | Array<{ type?: string; text?: string }>;
-    };
-  }>;
-}
-
-interface DeepSeekOcrPayload {
-  rawText: string;
-  invoiceNumber?: string;
-  vendorName?: string;
-  invoiceDate?: string;
-  dueDate?: string;
-  currency?: string;
-  totalAmount?: string | number;
-  confidence?: number;
+interface OcrDocumentApiResponse {
+  rawText?: unknown;
+  raw_text?: unknown;
+  confidence?: unknown;
+  blocks?: unknown;
 }
 
 interface DeepSeekHttpClient {
@@ -35,6 +35,8 @@ interface DeepSeekOcrProviderOptions {
   model?: string;
   baseUrl?: string;
   timeoutMs?: number;
+  prompt?: string;
+  maxTokens?: number;
   httpClient?: DeepSeekHttpClient;
 }
 
@@ -44,18 +46,18 @@ export class DeepSeekOcrProvider implements OcrProvider {
   private readonly apiKey: string;
   private readonly model: string;
   private readonly timeoutMs: number;
+  private readonly prompt: string;
+  private readonly maxTokens: number;
   private readonly httpClient: DeepSeekHttpClient;
 
   constructor(options?: DeepSeekOcrProviderOptions) {
     this.apiKey = options?.apiKey ?? process.env.DEEPSEEK_API_KEY ?? "";
-    this.model = options?.model ?? process.env.DEEPSEEK_OCR_MODEL ?? "deepseek-chat";
+    this.model = options?.model ?? process.env.DEEPSEEK_OCR_MODEL ?? "deepseek-ai/DeepSeek-OCR";
     this.timeoutMs = options?.timeoutMs ?? readTimeoutMsFromEnv();
-    const baseUrl = options?.baseUrl ?? process.env.DEEPSEEK_BASE_URL ?? "https://api.deepseek.com/v1";
-    this.httpClient =
-      options?.httpClient ??
-      axios.create({
-        baseURL: baseUrl
-      });
+    this.prompt = normalizePrompt(options?.prompt ?? process.env.DEEPSEEK_OCR_PROMPT ?? DEFAULT_PROMPT);
+    this.maxTokens = normalizeMaxTokens(options?.maxTokens ?? readMaxTokensFromEnv());
+    const baseUrl = options?.baseUrl ?? process.env.DEEPSEEK_BASE_URL ?? "http://localhost:8000/v1";
+    this.httpClient = options?.httpClient ?? axios.create({ baseURL: baseUrl });
   }
 
   async extractText(buffer: Buffer, mimeType: string): Promise<OcrResult> {
@@ -67,219 +69,252 @@ export class DeepSeekOcrProvider implements OcrProvider {
       };
     }
 
-    if (!this.apiKey) {
-      throw new Error("DEEPSEEK_API_KEY is required when OCR_PROVIDER=deepseek.");
+    const correlationId = getCorrelationId();
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json"
+    };
+    if (this.apiKey.trim().length > 0) {
+      headers.Authorization = `Bearer ${this.apiKey}`;
+    }
+    if (correlationId) {
+      headers["x-correlation-id"] = correlationId;
     }
 
-    const response = await this.httpClient.post(
-      "/chat/completions",
-      {
-        model: this.model,
-        temperature: 0,
-        response_format: { type: "json_object" },
-        messages: [
-          {
-            role: "system",
-            content:
-              "You are an OCR extractor for invoices. Return strict JSON with keys: rawText, confidence, invoiceNumber, vendorName, invoiceDate, dueDate, currency, totalAmount."
-          },
-          {
-            role: "user",
-            content: [
-              {
-                type: "text",
-                text: "Extract the invoice OCR text and important fields from this file."
-              },
-              {
-                type: "image_url",
-                image_url: {
-                  url: `data:${mimeType};base64,${buffer.toString("base64")}`
-                }
-              }
-            ]
-          }
-        ]
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${this.apiKey}`,
-          "Content-Type": "application/json"
-        },
-        timeout: this.timeoutMs
-      }
-    );
-
-    const rawContent = readDeepSeekContent(response.data as DeepSeekChatCompletionResponse);
-    const parsedPayload = parseDeepSeekPayload(rawContent);
-    const normalizedText = buildParserFriendlyText(parsedPayload);
-
-    return {
-      text: normalizedText,
-      confidence: normalizeConfidence(parsedPayload.confidence),
-      provider: this.name
+    const requestBody = {
+      model: this.model,
+      document: `data:${mimeType};base64,${buffer.toString("base64")}`,
+      includeLayout: true,
+      prompt: this.prompt,
+      maxTokens: this.maxTokens
     };
+
+    const startedAt = Date.now();
+    logger.info("ocr.request.start", {
+      provider: this.name,
+      mimeType,
+      model: this.model,
+      payloadBytes: buffer.length
+    });
+
+    try {
+      const response = await postWithRetry(this.httpClient, "/ocr/document", requestBody, headers, this.timeoutMs);
+      const payload = parseOcrDocumentResponse(response.data);
+      logger.info("ocr.request.end", {
+        provider: this.name,
+        mimeType,
+        latencyMs: Date.now() - startedAt,
+        blockCount: payload.blocks?.length ?? 0
+      });
+
+      return {
+        text: payload.rawText,
+        confidence: normalizeConfidence(payload.confidence),
+        provider: this.name,
+        blocks: payload.blocks
+      };
+    } catch (error) {
+      logger.error("ocr.request.failed", {
+        provider: this.name,
+        mimeType,
+        latencyMs: Date.now() - startedAt,
+        error: buildDeepSeekRequestError(error)
+      });
+      throw new Error(buildDeepSeekRequestError(error));
+    }
   }
 }
 
-function readTimeoutMsFromEnv(): number {
-  const rawValue = process.env.DEEPSEEK_TIMEOUT_MS;
-  if (!rawValue) {
-    return 45_000;
+async function postWithRetry(
+  httpClient: DeepSeekHttpClient,
+  endpoint: string,
+  body: unknown,
+  headers: Record<string, string>,
+  timeoutMs: number
+): Promise<{ data: unknown }> {
+  let attempt = 0;
+  while (true) {
+    attempt += 1;
+    try {
+      return await httpClient.post(endpoint, body, { headers, timeout: timeoutMs });
+    } catch (error) {
+      if (attempt >= 3 || !isRetryableRequestError(error)) {
+        throw error;
+      }
+      await sleepBeforeRetry(attempt);
+    }
   }
-
-  const parsed = Number(rawValue);
-  if (!Number.isFinite(parsed) || parsed <= 0) {
-    return 45_000;
-  }
-
-  return parsed;
 }
 
-function readDeepSeekContent(response: DeepSeekChatCompletionResponse): string {
-  const content = response.choices?.[0]?.message?.content;
-  if (typeof content === "string") {
-    return content.trim();
+function isRetryableRequestError(error: unknown): boolean {
+  if (!axios.isAxiosError(error)) {
+    return false;
   }
 
-  if (Array.isArray(content)) {
-    return content
-      .map((segment) => segment.text ?? "")
-      .join("\n")
-      .trim();
+  const status = error.response?.status;
+  if (typeof status === "number" && status >= 500) {
+    return true;
   }
 
-  return "";
+  return typeof error.code === "string" && RETRYABLE_NETWORK_ERROR_CODES.has(error.code);
 }
 
-function parseDeepSeekPayload(rawContent: string): DeepSeekOcrPayload {
-  const cleanedContent = stripJsonFence(rawContent);
-  if (!cleanedContent) {
+async function sleepBeforeRetry(attempt: number): Promise<void> {
+  if (process.env.NODE_ENV === "test") {
+    return;
+  }
+  await new Promise<void>((resolve) => setTimeout(resolve, 500 * attempt));
+}
+
+function parseOcrDocumentResponse(data: unknown): { rawText: string; confidence?: number; blocks?: OcrBlock[] } {
+  if (!isRecord(data)) {
     return { rawText: "" };
   }
 
-  try {
-    const parsed = JSON.parse(cleanedContent) as unknown;
-    if (isRecord(parsed)) {
-      return {
-        rawText: normalizeText(parsed.rawText) ?? normalizeText(parsed.raw_text) ?? rawContent,
-        invoiceNumber: normalizeText(parsed.invoiceNumber) ?? normalizeText(parsed.invoice_number),
-        vendorName: normalizeText(parsed.vendorName) ?? normalizeText(parsed.vendor_name),
-        invoiceDate: normalizeText(parsed.invoiceDate) ?? normalizeText(parsed.invoice_date),
-        dueDate: normalizeText(parsed.dueDate) ?? normalizeText(parsed.due_date),
-        currency: normalizeCurrency(parsed.currency),
-        totalAmount: normalizeAmount(parsed.totalAmount) ?? normalizeAmount(parsed.total_amount),
-        confidence: normalizeNumber(parsed.confidence)
-      };
-    }
-  } catch {
-    return {
-      rawText: rawContent
-    };
-  }
-
+  const payload = data as OcrDocumentApiResponse;
   return {
-    rawText: rawContent
+    rawText: normalizeText(payload.rawText) ?? normalizeText(payload.raw_text) ?? "",
+    confidence: normalizeNumber(payload.confidence),
+    blocks: normalizeBlocks(payload.blocks)
   };
-}
-
-function buildParserFriendlyText(payload: DeepSeekOcrPayload): string {
-  const lines: string[] = [];
-
-  if (payload.invoiceNumber) {
-    lines.push(`Invoice Number: ${payload.invoiceNumber}`);
-  }
-
-  if (payload.vendorName) {
-    lines.push(`Vendor: ${payload.vendorName}`);
-  }
-
-  if (payload.invoiceDate) {
-    lines.push(`Invoice Date: ${payload.invoiceDate}`);
-  }
-
-  if (payload.dueDate) {
-    lines.push(`Due Date: ${payload.dueDate}`);
-  }
-
-  if (payload.currency) {
-    lines.push(`Currency: ${payload.currency}`);
-  }
-
-  if (payload.totalAmount !== undefined) {
-    lines.push(`Grand Total: ${payload.totalAmount}`);
-  }
-
-  if (payload.rawText) {
-    lines.push(payload.rawText);
-  }
-
-  return lines.join("\n").trim();
-}
-
-function stripJsonFence(value: string): string {
-  const trimmed = value.trim();
-  if (!trimmed.startsWith("```")) {
-    return trimmed;
-  }
-
-  return trimmed.replace(/^```(?:json)?/i, "").replace(/```$/, "").trim();
 }
 
 function normalizeConfidence(value?: number): number | undefined {
   if (value === undefined || Number.isNaN(value)) {
     return undefined;
   }
-
   if (value > 1) {
     return Math.max(0, Math.min(1, Number((value / 100).toFixed(4))));
   }
-
   return Math.max(0, Math.min(1, Number(value.toFixed(4))));
+}
+
+function buildDeepSeekRequestError(error: unknown): string {
+  if (!axios.isAxiosError(error)) {
+    return `DeepSeek OCR request failed: ${error instanceof Error ? error.message : String(error)}`;
+  }
+
+  const status = error.response?.status;
+  const responseData = error.response?.data;
+  let message = error.message;
+
+  if (isRecord(responseData)) {
+    const nestedError = responseData.error;
+    const nestedErrorMessage =
+      isRecord(nestedError) && typeof nestedError.message === "string" ? nestedError.message : undefined;
+    const topLevelMessage = typeof responseData.message === "string" ? responseData.message : undefined;
+    const detailMessage = typeof responseData.detail === "string" ? responseData.detail : undefined;
+    message = nestedErrorMessage ?? topLevelMessage ?? detailMessage ?? message;
+  }
+
+  return `DeepSeek OCR request failed${status ? ` (${status})` : ""}: ${message}`;
+}
+
+function readTimeoutMsFromEnv(): number {
+  const rawValue = process.env.DEEPSEEK_TIMEOUT_MS;
+  if (!rawValue) {
+    return DEFAULT_TIMEOUT_MS;
+  }
+  const parsed = Number(rawValue);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return DEFAULT_TIMEOUT_MS;
+  }
+  return parsed;
+}
+
+function readMaxTokensFromEnv(): number {
+  const rawValue = process.env.DEEPSEEK_OCR_MAX_TOKENS;
+  if (!rawValue) {
+    return DEFAULT_MAX_TOKENS;
+  }
+  const parsed = Number(rawValue);
+  return Number.isFinite(parsed) ? parsed : DEFAULT_MAX_TOKENS;
+}
+
+function normalizePrompt(value: string): string {
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : DEFAULT_PROMPT;
+}
+
+function normalizeMaxTokens(value: number): number {
+  if (!Number.isFinite(value) || value <= 0) {
+    return DEFAULT_MAX_TOKENS;
+  }
+  return Math.max(64, Math.min(4096, Math.round(value)));
 }
 
 function normalizeText(value: unknown): string | undefined {
   if (typeof value !== "string") {
     return undefined;
   }
-
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : undefined;
-}
-
-function normalizeCurrency(value: unknown): string | undefined {
-  const text = normalizeText(value);
-  return text ? text.toUpperCase() : undefined;
-}
-
-function normalizeAmount(value: unknown): string | number | undefined {
-  if (typeof value === "number" && Number.isFinite(value)) {
-    return value;
-  }
-
-  const text = normalizeText(value);
-  if (!text) {
-    return undefined;
-  }
-
-  const parsed = Number(text.replace(/,/g, ""));
-  if (Number.isFinite(parsed)) {
-    return parsed;
-  }
-
-  return text;
 }
 
 function normalizeNumber(value: unknown): number | undefined {
   if (typeof value === "number" && Number.isFinite(value)) {
     return value;
   }
-
   if (typeof value !== "string") {
     return undefined;
   }
-
   const parsed = Number(value.trim());
   return Number.isFinite(parsed) ? parsed : undefined;
+}
+
+function normalizeBlocks(value: unknown): OcrBlock[] | undefined {
+  if (!Array.isArray(value)) {
+    return undefined;
+  }
+
+  const blocks: OcrBlock[] = [];
+  for (const entry of value) {
+    if (!isRecord(entry)) {
+      continue;
+    }
+
+    const text = normalizeText(entry.text) ?? normalizeText(entry.label);
+    const bbox = normalizeBox(entry.bbox) ?? normalizeBox([entry.x1, entry.y1, entry.x2, entry.y2]);
+    if (!text || !bbox) {
+      continue;
+    }
+
+    const bboxNormalized =
+      normalizeBox(entry.bboxNormalized) ?? normalizeBox(entry.bbox_normalized) ?? normalizeBox(entry.bboxNorm);
+    const bboxModel = normalizeBox(entry.bboxModel) ?? normalizeBox(entry.bbox_model);
+    const blockType = normalizeText(entry.blockType) ?? normalizeText(entry.type);
+    const page = normalizePageNumber(entry.page);
+
+    blocks.push({
+      text,
+      page,
+      bbox,
+      ...(bboxNormalized ? { bboxNormalized } : {}),
+      ...(bboxModel ? { bboxModel } : {}),
+      ...(blockType ? { blockType } : {})
+    });
+  }
+
+  return blocks.length > 0 ? blocks : undefined;
+}
+
+function normalizeBox(value: unknown): [number, number, number, number] | undefined {
+  if (!Array.isArray(value) || value.length !== 4) {
+    return undefined;
+  }
+  const numbers = value.map((entry) => Number(entry));
+  if (!numbers.every((entry) => Number.isFinite(entry))) {
+    return undefined;
+  }
+  return [numbers[0], numbers[1], numbers[2], numbers[3]];
+}
+
+function normalizePageNumber(value: unknown): number {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) {
+    return 1;
+  }
+  const rounded = Math.round(parsed);
+  return rounded > 0 ? rounded : 1;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

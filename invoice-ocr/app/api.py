@@ -4,12 +4,11 @@ from typing import Any
 
 from fastapi import FastAPI, HTTPException, Request
 
-from .engine import estimate_confidence, parse_data_url
-from .providers import create_ocr_provider
+from .engine import create_ocr_engine, estimate_confidence, parse_data_url
 from .logging import log_error, log_info, reset_correlation_id, set_correlation_id
 from .schemas import OcrDocumentRequest
 
-provider = create_ocr_provider()
+engine = create_ocr_engine()
 app = FastAPI(title="Invoice OCR Service", version="2.0.0")
 
 
@@ -42,24 +41,24 @@ async def correlation_middleware(request: Request, call_next):
 
 @app.on_event("startup")
 def on_startup() -> None:
-  provider.startup()
+  engine.startup()
 
 
 @app.get("/health")
 def health() -> dict[str, Any]:
-  return provider.health()
+  return engine.health()
 
 
-@app.get("/ping")
-def ping() -> dict[str, Any]:
-  return {"pong": True}
+@app.get("/v1/health")
+def health_v1() -> dict[str, Any]:
+  return health()
 
 
 @app.get("/v1/models")
 def list_models() -> dict[str, Any]:
   return {
     "object": "list",
-    "data": provider.list_models()
+    "data": engine.list_models()
   }
 
 
@@ -74,7 +73,7 @@ def ocr_document(request: OcrDocumentRequest) -> dict[str, Any]:
   started_at = time.perf_counter()
 
   try:
-    extraction = provider.extract_document(
+    extraction = engine.extract_document(
       image_bytes=document_bytes,
       mime_type=mime_type,
       prompt=request.prompt,
@@ -89,7 +88,6 @@ def ocr_document(request: OcrDocumentRequest) -> dict[str, Any]:
 
   raw_text = str(extraction.get("rawText", ""))
   blocks = extraction["blocks"] if isinstance(extraction.get("blocks"), list) else []
-  page_images = extraction["pageImages"] if isinstance(extraction.get("pageImages"), list) else []
   confidence = normalize_confidence(extraction.get("confidence"))
   if confidence is None:
     confidence = estimate_confidence(raw_text, blocks)
@@ -103,24 +101,19 @@ def ocr_document(request: OcrDocumentRequest) -> dict[str, Any]:
     latencyMs=elapsed_ms
   )
 
-  response: dict[str, Any] = {
+  return {
     "id": f"ocr-{uuid.uuid4().hex}",
     "object": "ocr.document",
     "created": int(time.time()),
     "model": request.model or extraction.get("model", ""),
-    "provider": extraction.get("provider", "ocr-provider"),
+    "provider": extraction.get("provider", "ocr-engine"),
     "mimeType": mime_type,
     "rawText": raw_text,
     "confidence": int(round(confidence * 100)),
     "blocks": blocks,
-    "pageImages": page_images,
     "engineMode": extraction.get("mode", "unknown"),
     "latencyMs": elapsed_ms
   }
-  usage = extraction.get("usage")
-  if isinstance(usage, dict):
-    response["usage"] = usage
-  return response
 
 
 def normalize_confidence(value: Any) -> float | None:

@@ -1,11 +1,21 @@
 output "worker_asg_name" {
-  value       = module.spot_worker.worker_asg_name
-  description = "Auto Scaling Group name for spot invoice workers."
+  value       = module.scheduled_service.asg_name
+  description = "Auto Scaling Group name for scheduled invoice workers."
 }
 
 output "worker_security_group_id" {
-  value       = module.spot_worker.worker_security_group_id
+  value       = module.scheduled_service.security_group_id
   description = "Security group attached to worker instances."
+}
+
+output "worker_iam_role_name" {
+  value       = module.worker_iam.role_name
+  description = "IAM role used by worker instances."
+}
+
+output "worker_instance_profile_name" {
+  value       = module.worker_iam.instance_profile_name
+  description = "IAM instance profile attached to worker launch template."
 }
 
 output "effective_mongo_uri" {

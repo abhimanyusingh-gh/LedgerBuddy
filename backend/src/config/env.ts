@@ -7,8 +7,11 @@ const envSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   PORT: z.coerce.number().default(4000),
   MONGO_URI: z.string().min(1),
+  APP_MANIFEST_PATH: z.string().optional(),
 
   INGESTION_SOURCES: z.string().default("email"),
+  DEFAULT_TENANT_ID: z.string().default("default"),
+  DEFAULT_WORKLOAD_TIER: z.enum(["standard", "heavy"]).default("standard"),
 
   EMAIL_SOURCE_KEY: z.string().default("email-inbox"),
   EMAIL_HOST: z.string().optional(),
@@ -29,14 +32,19 @@ const envSchema = z.object({
     .default("false")
     .transform((value) => value === "true"),
 
-  OCR_PROVIDER: z.enum(["auto", "google-vision", "tesseract", "deepseek", "mock"]).default("auto"),
-  GOOGLE_APPLICATION_CREDENTIALS: z.string().optional(),
+  OCR_PROVIDER: z.enum(["auto", "deepseek", "mock"]).default("auto"),
   DEEPSEEK_API_KEY: z.string().optional(),
-  DEEPSEEK_BASE_URL: z.string().default("https://api.deepseek.com/v1"),
-  DEEPSEEK_OCR_MODEL: z.string().default("deepseek-chat"),
-  DEEPSEEK_TIMEOUT_MS: z.coerce.number().default(45000),
+  DEEPSEEK_BASE_URL: z.string().default("http://localhost:8000/v1"),
+  DEEPSEEK_OCR_MODEL: z.string().default("deepseek-ai/DeepSeek-OCR"),
+  DEEPSEEK_TIMEOUT_MS: z.coerce.number().default(3600000),
   MOCK_OCR_TEXT: z.string().optional(),
   MOCK_OCR_CONFIDENCE: z.coerce.number().optional(),
+  OCR_HIGH_CONFIDENCE_THRESHOLD: z.coerce.number().default(0.88),
+
+  FIELD_VERIFIER_PROVIDER: z.enum(["none", "http"]).default("http"),
+  FIELD_VERIFIER_BASE_URL: z.string().default("http://localhost:8100/v1"),
+  FIELD_VERIFIER_TIMEOUT_MS: z.coerce.number().default(20000),
+  FIELD_VERIFIER_API_KEY: z.string().optional(),
 
   CONFIDENCE_EXPECTED_MAX_TOTAL: z.coerce.number().default(100000),
   CONFIDENCE_EXPECTED_MAX_DUE_DAYS: z.coerce.number().default(90),

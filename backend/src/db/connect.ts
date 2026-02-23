@@ -1,5 +1,5 @@
 import mongoose from "mongoose";
-import { env } from "../config/env.js";
+import { loadRuntimeManifest } from "../core/runtimeManifest.js";
 
 let connected = false;
 
@@ -8,6 +8,7 @@ export async function connectToDatabase() {
     return;
   }
 
-  await mongoose.connect(env.MONGO_URI);
+  const runtimeManifest = loadRuntimeManifest();
+  await mongoose.connect(runtimeManifest.database.uri);
   connected = true;
 }

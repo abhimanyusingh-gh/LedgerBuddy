@@ -198,6 +198,31 @@ describe("TallyExporter.exportInvoices", () => {
     expect(axiosPostMock).not.toHaveBeenCalled();
   });
 
+  it("marks invoice as failed when total amount is invalid and invoice number is missing", async () => {
+    const exporter = new TallyExporter({
+      endpoint: "http://example.test/tally",
+      companyName: "Demo",
+      purchaseLedgerName: "Purchase"
+    });
+    const invoice = createInvoiceStub({
+      _id: "inv-1b",
+      parsed: {
+        vendorName: "Vendor"
+      },
+      ocrText: "no amount here"
+    });
+
+    const result = await exporter.exportInvoices([invoice]);
+    expect(result).toEqual([
+      {
+        invoiceId: "inv-1b",
+        success: false,
+        error: "Invalid invoice total amount for Tally export."
+      }
+    ]);
+    expect(axiosPostMock).not.toHaveBeenCalled();
+  });
+
   it("exports successfully and recovers amount from OCR when parsed amount is missing", async () => {
     axiosPostMock.mockResolvedValue({
       data: "<ENVELOPE><HEADER><STATUS>1</STATUS></HEADER><BODY><DATA><IMPORTRESULT><CREATED>1</CREATED><ALTERED>0</ALTERED><ERRORS>0</ERRORS><LASTVCHID>77</LASTVCHID></IMPORTRESULT></DATA></BODY></ENVELOPE>"

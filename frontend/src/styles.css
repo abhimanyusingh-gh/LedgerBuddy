@@ -251,7 +251,7 @@ h1 {
 
 .content {
   display: grid;
-  grid-template-columns: 1.4fr 1fr;
+  grid-template-columns: minmax(0, 1.4fr) minmax(360px, 1fr);
   gap: 1rem;
   flex: 1;
   min-height: 0;
@@ -259,6 +259,10 @@ h1 {
 
 .content-list-expanded {
   grid-template-columns: 1fr;
+}
+
+.content-details-collapsed {
+  grid-template-columns: minmax(0, 1fr) 92px;
 }
 
 .panel {
@@ -419,6 +423,29 @@ tr:hover {
   padding-bottom: 1rem;
 }
 
+.detail-panel-collapsed {
+  padding-bottom: 0;
+}
+
+.detail-panel-collapsed .panel-title {
+  align-items: center;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.5rem;
+  border-bottom: 0;
+}
+
+.detail-panel-collapsed .panel-title h2 {
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  margin: 0;
+}
+
+.detail-panel-collapsed .collapse-button {
+  padding: 0.3rem 0.45rem;
+  width: 100%;
+}
+
 .export-selection {
   margin: 0;
   font-size: 0.86rem;
@@ -428,6 +455,22 @@ tr:hover {
   display: grid;
   gap: 1rem;
   padding: 0.8rem 1rem;
+}
+
+.detail-panel-collapsed-body {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  padding: 0.5rem;
+}
+
+.detail-panel-collapsed-hint {
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  text-align: center;
+  font-size: 0.78rem;
+  margin: 0;
 }
 
 .editor-card {
@@ -499,6 +542,16 @@ tr:hover {
   font-size: 0.76rem;
   text-transform: uppercase;
   letter-spacing: 0.06em;
+}
+
+.detail-sections-toggle {
+  border: 1px solid var(--line);
+  background: var(--bg-panel);
+  color: var(--ink);
+  border-radius: 8px;
+  padding: 0.45rem 0.7rem;
+  cursor: pointer;
+  justify-self: start;
 }
 
 h3 {
@@ -652,6 +705,10 @@ pre {
     min-height: auto;
   }
 
+  .content-details-collapsed {
+    grid-template-columns: 1fr;
+  }
+
   .topbar {
     align-items: start;
     flex-direction: column;
@@ -659,6 +716,23 @@ pre {
 
   .detail-grid {
     grid-template-columns: 1fr;
+  }
+
+  .detail-panel-collapsed .panel-title {
+    flex-direction: row;
+    height: auto;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .detail-panel-collapsed .panel-title h2 {
+    writing-mode: horizontal-tb;
+    transform: none;
+  }
+
+  .detail-panel-collapsed-body,
+  .detail-panel-collapsed-hint {
+    writing-mode: horizontal-tb;
+    transform: none;
   }
 
   .list-scroll,

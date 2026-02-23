@@ -1,19 +1,20 @@
-import { access } from "node:fs/promises";
 import axios from "axios";
-import { ImageAnnotatorClient } from "@google-cloud/vision";
-import { env } from "../config/env.js";
 import type { AccountingExporter } from "./interfaces/AccountingExporter.js";
+import type { FieldVerifier } from "./interfaces/FieldVerifier.js";
 import type { OcrProvider } from "./interfaces/OcrProvider.js";
-import { GoogleVisionOcrProvider } from "../ocr/GoogleVisionOcrProvider.js";
 import { MockOcrProvider } from "../ocr/MockOcrProvider.js";
-import { TesseractOcrProvider } from "../ocr/TesseractOcrProvider.js";
 import { DeepSeekOcrProvider } from "../ocr/DeepSeekOcrProvider.js";
 import { buildIngestionSources } from "./sourceRegistry.js";
 import { IngestionService } from "../services/ingestionService.js";
+import { InvoiceExtractionPipeline } from "../services/extraction/InvoiceExtractionPipeline.js";
+import { MongoVendorTemplateStore } from "../services/extraction/vendorTemplateStore.js";
 import { InvoiceService } from "../services/invoiceService.js";
 import { ExportService } from "../services/exportService.js";
 import { TallyExporter } from "../services/tallyExporter.js";
 import { logger } from "../utils/logger.js";
+import { loadRuntimeManifest, type RuntimeManifest } from "./runtimeManifest.js";
+import { NoopFieldVerifier } from "../verifier/NoopFieldVerifier.js";
+import { HttpFieldVerifier } from "../verifier/HttpFieldVerifier.js";
 
 const OCR_BOOTSTRAP_TIMEOUT_MS = 5_000;
 
@@ -24,12 +25,24 @@ interface Dependencies {
 }
 
 export async function buildDependencies(): Promise<Dependencies> {
-  const ocrProvider = await resolveOcrProvider();
-  const sources = buildIngestionSources();
-  const ingestionService = new IngestionService(sources, ocrProvider);
+  const manifest = loadRuntimeManifest();
+  const ocrProvider = await resolveOcrProvider(manifest);
+  const fieldVerifier = resolveFieldVerifier(manifest);
+  const extractionPipeline = new InvoiceExtractionPipeline(
+    ocrProvider,
+    fieldVerifier,
+    new MongoVendorTemplateStore(),
+    {
+      ocrHighConfidenceThreshold: manifest.extraction.ocrHighConfidenceThreshold
+    }
+  );
+  const sources = buildIngestionSources(manifest.sources);
+  const ingestionService = new IngestionService(sources, ocrProvider, {
+    pipeline: extractionPipeline
+  });
   const invoiceService = new InvoiceService();
 
-  const exporter = buildExporter();
+  const exporter = buildExporter(manifest);
   const exportService = exporter ? new ExportService(exporter) : null;
 
   return {
@@ -39,85 +52,141 @@ export async function buildDependencies(): Promise<Dependencies> {
   };
 }
 
-export async function resolveOcrProvider(): Promise<OcrProvider> {
-  if (env.OCR_PROVIDER === "mock") {
-    logger.info("Using OCR provider", { provider: "mock" });
-    return new MockOcrProvider();
-  }
-  if (env.OCR_PROVIDER === "tesseract") {
-    logger.info("Using OCR provider", { provider: "tesseract" });
-    return new TesseractOcrProvider();
+function resolveFieldVerifier(runtimeManifest = loadRuntimeManifest()): FieldVerifier {
+  if (runtimeManifest.verifier.provider === "none") {
+    logger.info("Using field verifier", { provider: "none" });
+    return new NoopFieldVerifier();
   }
 
-  if (await hasValidDeepSeekCredentials()) {
-    logger.info("Using OCR provider", { provider: "deepseek" });
-    return new DeepSeekOcrProvider();
-  }
-
-  if (await hasValidGoogleVisionCredentials()) {
-    logger.info("Using OCR provider", { provider: "google-vision" });
-    return new GoogleVisionOcrProvider();
-  }
-
-  logger.warn("Falling back to OCR provider", {
-    provider: "tesseract",
-    reason: "DeepSeek key and Google Vision credentials are unavailable or invalid."
+  logger.info("Using field verifier", {
+    provider: "http",
+    baseUrl: runtimeManifest.verifier.http.baseUrl
   });
-  return new TesseractOcrProvider();
+  return new HttpFieldVerifier({
+    baseUrl: runtimeManifest.verifier.http.baseUrl,
+    timeoutMs: runtimeManifest.verifier.http.timeoutMs,
+    apiKey: runtimeManifest.verifier.http.apiKey
+  });
 }
 
-function buildExporter(): AccountingExporter | null {
-  if (!env.TALLY_ENDPOINT || !env.TALLY_COMPANY) {
+export async function resolveOcrProvider(runtimeManifest = loadRuntimeManifest()): Promise<OcrProvider> {
+  if (runtimeManifest.ocr.provider === "mock") {
+    logger.info("Using OCR provider", { provider: "mock" });
+    return new MockOcrProvider({
+      text: runtimeManifest.ocr.mock.text,
+      confidence: runtimeManifest.ocr.mock.confidence
+    });
+  }
+  if (runtimeManifest.ocr.provider === "deepseek") {
+    await assertDeepSeekConfigIsValid(runtimeManifest);
+    logger.info("Using OCR provider", { provider: "deepseek", model: runtimeManifest.ocr.deepseek.model });
+    return new DeepSeekOcrProvider({
+      apiKey: runtimeManifest.ocr.deepseek.apiKey,
+      baseUrl: runtimeManifest.ocr.deepseek.baseUrl,
+      model: runtimeManifest.ocr.deepseek.model,
+      timeoutMs: runtimeManifest.ocr.deepseek.timeoutMs
+    });
+  }
+
+  if (runtimeManifest.ocr.provider === "auto") {
+    await assertDeepSeekConfigIsValid(runtimeManifest);
+    logger.info("Using OCR provider", { provider: "deepseek", model: runtimeManifest.ocr.deepseek.model });
+    return new DeepSeekOcrProvider({
+      apiKey: runtimeManifest.ocr.deepseek.apiKey,
+      baseUrl: runtimeManifest.ocr.deepseek.baseUrl,
+      model: runtimeManifest.ocr.deepseek.model,
+      timeoutMs: runtimeManifest.ocr.deepseek.timeoutMs
+    });
+  }
+
+  throw new Error(`Unsupported OCR provider '${runtimeManifest.ocr.provider}'.`);
+}
+
+function buildExporter(runtimeManifest: RuntimeManifest): AccountingExporter | null {
+  if (!runtimeManifest.export.tallyEndpoint || !runtimeManifest.export.tallyCompany) {
     return null;
   }
 
   return new TallyExporter({
-    endpoint: env.TALLY_ENDPOINT,
-    companyName: env.TALLY_COMPANY,
-    purchaseLedgerName: env.TALLY_PURCHASE_LEDGER
+    endpoint: runtimeManifest.export.tallyEndpoint,
+    companyName: runtimeManifest.export.tallyCompany,
+    purchaseLedgerName: runtimeManifest.export.tallyPurchaseLedger
   });
 }
 
-async function hasValidDeepSeekCredentials(): Promise<boolean> {
-  const apiKey = env.DEEPSEEK_API_KEY?.trim();
-  if (!apiKey) {
-    return false;
-  }
-
-  const baseUrl = env.DEEPSEEK_BASE_URL.replace(/\/+$/, "");
+async function assertDeepSeekConfigIsValid(runtimeManifest: RuntimeManifest): Promise<void> {
+  const baseUrl = runtimeManifest.ocr.deepseek.baseUrl.replace(/\/+$/, "");
+  const configuredModel = runtimeManifest.ocr.deepseek.model;
+  const apiKey = runtimeManifest.ocr.deepseek.apiKey.trim();
   try {
-    await withTimeout(
+    const headers: Record<string, string> = {};
+    if (apiKey.length > 0) {
+      headers.Authorization = `Bearer ${apiKey}`;
+    }
+
+    const response = await withTimeout(
       axios.get(`${baseUrl}/models`, {
-        headers: {
-          Authorization: `Bearer ${apiKey}`
-        },
+        headers,
         timeout: OCR_BOOTSTRAP_TIMEOUT_MS
       }),
       OCR_BOOTSTRAP_TIMEOUT_MS
     );
-    return true;
+
+    const modelIds: string[] = Array.isArray(response?.data?.data)
+      ? response.data.data
+          .map((model: unknown) => (typeof model === "object" && model !== null ? (model as { id?: unknown }).id : ""))
+          .filter((modelId: unknown): modelId is string => typeof modelId === "string" && modelId.trim().length > 0)
+      : [];
+
+    const configuredModelId = normalizeModelIdentifier(configuredModel);
+    const hasConfiguredModel =
+      modelIds.length === 0 ||
+      modelIds.some((modelId) => normalizeModelIdentifier(modelId) === configuredModelId);
+
+    if (!hasConfiguredModel) {
+      throw new Error(
+        `Configured model '${configuredModel}' is not listed by '${baseUrl}/models'. Available models: ${modelIds.join(
+          ", "
+        )}. Start local OCR with 'yarn ocr:dev' or configure an endpoint that serves this model.`
+      );
+    }
   } catch (error) {
-    logger.warn("DeepSeek OCR bootstrap validation failed", {
-      error: error instanceof Error ? error.message : String(error)
-    });
-    return false;
+    const reason = describeDependencyError(error);
+    throw new Error(
+      `DeepSeek OCR bootstrap validation failed. Configure an endpoint that serves '${configuredModel}' at '${baseUrl}'. Cause: ${reason}`
+    );
   }
 }
 
-async function hasValidGoogleVisionCredentials(): Promise<boolean> {
-  try {
-    if (env.GOOGLE_APPLICATION_CREDENTIALS) {
-      await withTimeout(access(env.GOOGLE_APPLICATION_CREDENTIALS), OCR_BOOTSTRAP_TIMEOUT_MS);
+function normalizeModelIdentifier(value: string): string {
+  const normalizedValue = value.trim().toLowerCase();
+  return normalizedValue.endsWith(":latest") ? normalizedValue.slice(0, -7) : normalizedValue;
+}
+
+function describeDependencyError(error: unknown): string {
+  if (axios.isAxiosError(error)) {
+    const status = error.response?.status;
+    const data = error.response?.data;
+    if (typeof data === "object" && data !== null) {
+      const message = (data as { error?: { message?: string }; message?: string }).error?.message;
+      const fallbackMessage = (data as { message?: string }).message;
+      if (typeof message === "string" && message.trim().length > 0) {
+        return status ? `${message} (status ${status})` : message;
+      }
+      if (typeof fallbackMessage === "string" && fallbackMessage.trim().length > 0) {
+        return status ? `${fallbackMessage} (status ${status})` : fallbackMessage;
+      }
     }
-    const client = new ImageAnnotatorClient();
-    const projectId = await withTimeout(client.getProjectId(), OCR_BOOTSTRAP_TIMEOUT_MS);
-    return typeof projectId === "string" && projectId.trim().length > 0;
-  } catch (error) {
-    logger.warn("Google Vision OCR bootstrap validation failed", {
-      error: error instanceof Error ? error.message : String(error)
-    });
-    return false;
+    if (status) {
+      return error.message ? `${error.message} (status ${status})` : `Request failed with status ${status}`;
+    }
+    if (error.code) {
+      return error.message ? `${error.message} (${error.code})` : error.code;
+    }
+    return error.message || "Unknown HTTP client error";
   }
+
+  return error instanceof Error ? error.message : String(error);
 }
 
 function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {

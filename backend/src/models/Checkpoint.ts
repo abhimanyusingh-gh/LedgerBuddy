@@ -2,7 +2,8 @@ import { Schema, model, type InferSchemaType } from "mongoose";
 
 const checkpointSchema = new Schema(
   {
-    sourceKey: { type: String, required: true, unique: true },
+    tenantId: { type: String, required: true, default: "default" },
+    sourceKey: { type: String, required: true },
     marker: { type: String, required: true },
     metadata: { type: Map, of: String, default: {} }
   },
@@ -10,6 +11,8 @@ const checkpointSchema = new Schema(
     timestamps: true
   }
 );
+
+checkpointSchema.index({ tenantId: 1, sourceKey: 1 }, { unique: true });
 
 type Checkpoint = InferSchemaType<typeof checkpointSchema>;
 

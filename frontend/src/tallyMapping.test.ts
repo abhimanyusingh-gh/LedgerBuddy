@@ -3,6 +3,8 @@ import type { Invoice } from "./types.ts";
 
 const baseInvoice: Invoice = {
   _id: "invoice-1",
+  tenantId: "tenant-a",
+  workloadTier: "standard",
   sourceType: "email",
   sourceKey: "inbox",
   sourceDocumentId: "10",

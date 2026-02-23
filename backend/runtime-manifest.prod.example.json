@@ -9,7 +9,7 @@
     "provider": "deepseek",
     "deepseek": {
       "baseUrl": "http://invoice-ocr.modal.internal/v1",
-      "model": "invoice-ocr-model",
+      "model": "deepseek-ai/DeepSeek-OCR",
       "timeoutMs": 3600000
     }
   },
@@ -30,26 +30,11 @@
       "key": "ap-inbox",
       "tenantId": "tenant-default",
       "workloadTier": "standard",
-      "oauthUserId": "tenant-default-user",
-      "transport": "imap",
-      "mailhogApiBaseUrl": "",
       "host": "imap.gmail.com",
       "port": 993,
       "secure": true,
-      "smtpHost": "smtp.gmail.com",
-      "smtpPort": 465,
-      "smtpSecure": true,
-      "smtpTimeoutMs": 15000,
       "username": "replace-with-username",
-      "authMode": "oauth2",
-      "password": "",
-      "oauth2": {
-        "clientId": "",
-        "clientSecret": "",
-        "refreshToken": "",
-        "accessToken": "",
-        "tokenEndpoint": "https://oauth2.googleapis.com/token"
-      },
+      "password": "replace-with-password",
       "mailbox": "INBOX",
       "fromFilter": ""
     }

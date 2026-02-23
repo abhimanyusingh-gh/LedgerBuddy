@@ -9,6 +9,8 @@ import {
 
 const baseInvoice: Invoice = {
   _id: "1",
+  tenantId: "tenant-a",
+  workloadTier: "standard",
   sourceType: "email",
   sourceKey: "inbox",
   sourceDocumentId: "10",

@@ -40,19 +40,9 @@ export function buildLayoutGraph(blocks: OcrBlock[]): LayoutGraph {
     .filter((node): node is LayoutGraphNode => node !== undefined)
     .sort((left, right) => compareNodes(left, right));
 
-  const nodesByPage = new Map<number, LayoutGraphNode[]>();
-  for (const node of nodes) {
-    let group = nodesByPage.get(node.page);
-    if (!group) {
-      group = [];
-      nodesByPage.set(node.page, group);
-    }
-    group.push(node);
-  }
-
   const edges: LayoutGraphEdge[] = [];
   for (const node of nodes) {
-    const samePage = nodesByPage.get(node.page) ?? [];
+    const samePage = nodes.filter((candidate) => candidate.page === node.page && candidate.id !== node.id);
     const rightNode = findClosestRightNode(node, samePage);
     if (rightNode) {
       edges.push({ from: node.id, to: rightNode.id, relation: "right" });

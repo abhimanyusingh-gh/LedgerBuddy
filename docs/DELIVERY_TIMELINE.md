@@ -49,8 +49,9 @@ Git commit timestamps are preserved as-is and are not rewritten.
 ### 2026-02-23 (Day 5)
 
 - Infrastructure module work:
-  - Terraform `spot_worker` module
-  - Terraform `documentdb` module
+  - Terraform `aws_scheduled_ec2_service` module
+  - Terraform `aws_iam_instance_profile` module
+  - Terraform `aws_documentdb_cluster` module
   - production-oriented outputs and tfvars usage
 - Add deploy runbook for junior developers:
   - `docs/AWS_DEPLOYMENT_GUIDE.md`

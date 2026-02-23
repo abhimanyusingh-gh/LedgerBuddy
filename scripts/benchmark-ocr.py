@@ -9,9 +9,9 @@ import time
 import urllib.request
 
 DEFAULT_SAMPLES = [
-  ("sample-invoices/inbox/invoice2data__AmazonWebServices.pdf", "application/pdf"),
-  ("sample-invoices/inbox/invoice2data__AmazonWebServices.png", "image/png"),
-  ("sample-invoices/inbox/invoice_dataset_model_3__FACTU2015010038.jpg", "image/jpeg")
+  ("sample-invoices/benchmark/inbox/invoice2data__AmazonWebServices.pdf", "application/pdf"),
+  ("sample-invoices/benchmark/inbox/invoice2data__AmazonWebServices.png", "image/png"),
+  ("sample-invoices/benchmark/inbox/invoice_dataset_model_3__FACTU2015010038.jpg", "image/jpeg")
 ]
 
 
@@ -39,15 +39,6 @@ def post_json(url: str, payload: dict, timeout_seconds: int) -> dict:
     return json.loads(response.read().decode("utf-8"))
 
 
-def is_valid_bbox_order(bbox: list) -> bool:
-  if not isinstance(bbox, list) or len(bbox) != 4:
-    return False
-  try:
-    return float(bbox[0]) < float(bbox[2]) and float(bbox[1]) < float(bbox[3])
-  except (ValueError, TypeError):
-    return False
-
-
 def parse_sample(entry: str) -> tuple[str, str]:
   parts = entry.split("|", 1)
   if len(parts) != 2:
@@ -58,7 +49,7 @@ def parse_sample(entry: str) -> tuple[str, str]:
 def main() -> int:
   parser = argparse.ArgumentParser(description="Benchmark OCR endpoint latency")
   parser.add_argument("--label", required=True)
-  parser.add_argument("--base-url", required=True, help="OCR base URL, e.g. http://127.0.0.1:8200/v1")
+  parser.add_argument("--base-url", required=True, help="OCR base URL, e.g. http://127.0.0.1:8000/v1")
   parser.add_argument("--model", default="deepseek-ai/DeepSeek-OCR")
   parser.add_argument("--max-tokens", type=int, default=192)
   parser.add_argument("--timeout-seconds", type=int, default=1800)
@@ -87,12 +78,6 @@ def main() -> int:
     latency_ms = (time.perf_counter() - started) * 1000.0
     latencies.append(latency_ms)
 
-    blocks = response.get("blocks") or []
-    valid_order = sum(1 for b in blocks if is_valid_bbox_order(b.get("bbox", [])))
-    has_normalized = sum(1 for b in blocks if len(b.get("bboxNormalized") or []) == 4)
-    has_model = sum(1 for b in blocks if len(b.get("bboxModel") or []) == 4)
-    block_count = len(blocks)
-
     print(
       json.dumps(
         {
@@ -101,12 +86,9 @@ def main() -> int:
           "file": pathlib.Path(path).name,
           "latencyMs": round(latency_ms, 1),
           "textLength": len(str(response.get("rawText", ""))),
-          "blockCount": block_count,
+          "blockCount": len(response.get("blocks") or []),
           "provider": response.get("provider"),
-          "engineMode": response.get("engineMode"),
-          "validOrderPct": round(valid_order / block_count * 100, 1) if block_count else 0,
-          "normalizedPresentPct": round(has_normalized / block_count * 100, 1) if block_count else 0,
-          "modelPresentPct": round(has_model / block_count * 100, 1) if block_count else 0
+          "engineMode": response.get("engineMode")
         }
       )
     )

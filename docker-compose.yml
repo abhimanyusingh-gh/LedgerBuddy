@@ -6,7 +6,8 @@ services:
     container_name: invoice-processor-backend
     restart: unless-stopped
     depends_on:
-      - mongo
+      mongo:
+        condition: service_started
     env_file:
       - path: ./backend/.env.example
         required: true
@@ -17,11 +18,20 @@ services:
     environment:
       NODE_ENV: development
       PORT: "4000"
+      APP_MANIFEST_PATH: /app/backend/runtime-manifest.local.json
       MONGO_URI: mongodb://mongo:27017/invoice_processor
       INGESTION_SOURCES: folder
       FOLDER_SOURCE_KEY: local-folder
       FOLDER_SOURCE_PATH: /app/sample-invoices/inbox
       FOLDER_RECURSIVE: "false"
+      DEEPSEEK_BASE_URL: ${DEEPSEEK_BASE_URL:-http://host.docker.internal:8000/v1}
+      DEEPSEEK_OCR_MODEL: deepseek-ai/DeepSeek-OCR
+      DEEPSEEK_OCR_MAX_TOKENS: "256"
+      DEEPSEEK_TIMEOUT_MS: "3600000"
+      OCR_HIGH_CONFIDENCE_THRESHOLD: "0.92"
+      FIELD_VERIFIER_PROVIDER: http
+      FIELD_VERIFIER_BASE_URL: ${FIELD_VERIFIER_BASE_URL:-http://host.docker.internal:8100/v1}
+      FIELD_VERIFIER_TIMEOUT_MS: "20000"
       CONFIDENCE_EXPECTED_MAX_TOTAL: "100000"
       CONFIDENCE_EXPECTED_MAX_DUE_DAYS: "90"
       CONFIDENCE_AUTO_SELECT_MIN: "91"
@@ -30,6 +40,8 @@ services:
       TALLY_PURCHASE_LEDGER: Purchase
     volumes:
       - ./sample-invoices/inbox:/app/sample-invoices/inbox
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
   frontend:
     build:

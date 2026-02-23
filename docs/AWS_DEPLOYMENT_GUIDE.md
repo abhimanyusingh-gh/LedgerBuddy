@@ -37,35 +37,60 @@ docker push <ACCOUNT_ID>.dkr.ecr.<AWS_REGION>.amazonaws.com/invoice-processor-ba
 cd infra/terraform
 ```
 
-2. Copy sample vars:
+Reusable module catalog lives in:
+- `infra/modules/aws_iam_instance_profile`
+- `infra/modules/aws_scheduled_ec2_service`
+- `infra/modules/aws_documentdb_cluster`
+
+2. Copy production vars template:
 ```bash
-cp terraform.tfvars.example terraform.tfvars
+cp environments/prod.tfvars.example terraform.tfvars
 ```
 
 3. Edit `terraform.tfvars`:
 - `aws_region`, `vpc_id`, `subnet_ids`
 - `app_image` (your ECR image URI)
 - Database mode:
-  - Recommended for production: `provision_documentdb=true` and `documentdb_*` values
-  - Optional external DB: `provision_documentdb=false` and `mongo_uri`
+  - Production standard: `provision_documentdb=true` and `documentdb_*` values (module-managed DB)
+  - Worker runtime uses the module output (`effective_mongo_uri`) automatically.
 - Email source values (`email_host`, `email_username`, `email_password`, etc.)
 - Keep email variables populated even if your current run mode is folder-only (the current Terraform input schema requires these fields).
 - OCR provider mode (`ocr_provider`) and credentials:
-  - `ocr_provider="auto"` is recommended (bootstrap checks: DeepSeek key -> Google credentials -> Tesseract fallback)
-  - `ocr_provider="tesseract"` forces Tesseract
+  - `ocr_provider="auto"` or `ocr_provider="deepseek"` routes OCR through DeepSeek-OCR
   - `ocr_provider="mock"` forces Mock OCR
-  - Google Vision credential JSON goes in `google_credentials_json` (optional)
   - DeepSeek values are passed via `extra_env` (see snippet below)
 - Tally connection values (`tally_endpoint`, `tally_company`, `tally_purchase_ledger`)
 - Scale schedule cron values
+- Optional composable overrides:
+  - set `app_manifest` object in tfvars to define app-level runtime overrides without changing reusable module wiring
 
 Minimal `extra_env` example for DeepSeek:
 ```hcl
 extra_env = {
-  DEEPSEEK_API_KEY   = "replace-me"
-  DEEPSEEK_BASE_URL  = "https://api.deepseek.com/v1"
-  DEEPSEEK_OCR_MODEL = "deepseek-chat"
-  DEEPSEEK_TIMEOUT_MS = "45000"
+  DEEPSEEK_BASE_URL  = "http://your-invoice-ocr-endpoint:8000/v1"
+  DEEPSEEK_OCR_MODEL = "deepseek-ai/DeepSeek-OCR"
+  DEEPSEEK_TIMEOUT_MS = "3600000"
+  # DEEPSEEK_API_KEY = "set-only-if-endpoint-requires-auth"
+  FIELD_VERIFIER_BASE_URL = "http://your-invoice-slm-endpoint:8100/v1"
+}
+```
+
+Optional `app_manifest` block:
+```hcl
+app_manifest = {
+  ingestion_sources = "email"
+  ocr_provider      = "deepseek"
+  env = {
+    DEFAULT_TENANT_ID     = "tenant-default"
+    DEFAULT_WORKLOAD_TIER = "standard"
+  }
+}
+```
+
+If you want backend runtime manifest composition, bake a JSON file into the image (for example `/app/backend/runtime-manifest.prod.json`) and pass:
+```hcl
+extra_env = {
+  APP_MANIFEST_PATH = "/app/backend/runtime-manifest.prod.json"
 }
 ```
 
@@ -93,8 +118,8 @@ This must pass before image build/push.
 
 ```bash
 terraform init
-terraform plan
-terraform apply
+terraform plan -var-file=terraform.tfvars
+terraform apply -var-file=terraform.tfvars
 ```
 
 ## 5. Verify Deployment
@@ -102,7 +127,7 @@ terraform apply
 1. In AWS Console, confirm these resources exist:
 - Launch template
 - Auto Scaling Group (desired capacity 0 by default)
-- IAM role + instance profile
+- IAM role + instance profile (from reusable `aws_iam_instance_profile` module)
 - Worker security group
 - DocumentDB cluster
 - DocumentDB subnet group
@@ -132,7 +157,7 @@ terraform output worker_asg_name
 terraform output documentdb_cluster_endpoint
 terraform output -raw effective_mongo_uri
 ```
-When `provision_documentdb=true`, `effective_mongo_uri` points to the provisioned DocumentDB cluster.
+With the production template, `provision_documentdb=true` by default and `effective_mongo_uri` points to the provisioned DocumentDB cluster.
 
 ## 6. Day-2 Operations
 
