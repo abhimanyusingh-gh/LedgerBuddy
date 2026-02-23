@@ -1,0 +1,25 @@
+#!/bin/bash
+set -euo pipefail
+
+yum update -y
+yum install -y docker
+
+systemctl enable docker
+systemctl start docker
+
+mkdir -p /opt/service
+
+cat > /opt/service/env.list <<'ENVEOF'
+%{ for key, value in container_env ~}
+${key}=${replace(value, "\n", "")}
+%{ endfor ~}
+ENVEOF
+
+docker pull ${container_image}
+if [ -n "${container_command}" ]; then
+  docker run --rm --env-file /opt/service/env.list ${container_image} ${container_command}
+else
+  docker run --rm --env-file /opt/service/env.list ${container_image}
+fi
+
+shutdown -h now

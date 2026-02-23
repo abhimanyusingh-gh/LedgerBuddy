@@ -25,6 +25,17 @@ variable "instance_type" {
   default     = "t3.small"
 }
 
+variable "worker_market_type" {
+  type        = string
+  description = "EC2 market type for worker compute: 'spot' or 'on-demand'."
+  default     = "spot"
+
+  validation {
+    condition     = contains(["spot", "on-demand"], var.worker_market_type)
+    error_message = "worker_market_type must be either 'spot' or 'on-demand'."
+  }
+}
+
 variable "ami_id" {
   type        = string
   description = "Optional AMI id override. Leave blank to use latest Amazon Linux 2023."
@@ -109,7 +120,7 @@ variable "email_from_filter" {
 variable "ocr_provider" {
   type        = string
   description = "OCR provider selected by backend."
-  default     = "google-vision"
+  default     = "deepseek"
 }
 
 variable "confidence_expected_max_total" {
@@ -128,13 +139,6 @@ variable "confidence_auto_select_min" {
   type        = number
   description = "Confidence score threshold used to auto-select invoices for approval."
   default     = 91
-}
-
-variable "google_credentials_json" {
-  type        = string
-  description = "Optional Google service account JSON content for OCR provider."
-  default     = ""
-  sensitive   = true
 }
 
 variable "tally_endpoint" {
@@ -174,6 +178,22 @@ variable "api_ingress_cidrs" {
 variable "extra_env" {
   type        = map(string)
   description = "Additional environment variables injected into the worker container."
+  default     = {}
+}
+
+variable "app_manifest" {
+  type = object({
+    ingestion_sources                = optional(string)
+    ocr_provider                     = optional(string)
+    confidence_expected_max_total    = optional(number)
+    confidence_expected_max_due_days = optional(number)
+    confidence_auto_select_min       = optional(number)
+    tally_endpoint                   = optional(string)
+    tally_company                    = optional(string)
+    tally_purchase_ledger            = optional(string)
+    env                              = optional(map(string))
+  })
+  description = "Optional app-level manifest overrides for reusable module wiring."
   default     = {}
 }
 

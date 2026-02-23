@@ -1,11 +1,11 @@
-variable "project_name" {
+variable "name" {
   type        = string
-  description = "Project name used for naming/tagging resources."
+  description = "DocumentDB cluster base name."
 }
 
 variable "vpc_id" {
   type        = string
-  description = "VPC ID where DocumentDB resources should be created."
+  description = "VPC where DocumentDB resources are created."
 }
 
 variable "subnet_ids" {
@@ -32,7 +32,7 @@ variable "master_password" {
 
 variable "db_name" {
   type        = string
-  description = "Logical database name included in the generated connection URI."
+  description = "Logical database name included in generated connection URI."
   default     = "invoice_processor"
 }
 
@@ -80,7 +80,7 @@ variable "deletion_protection" {
 
 variable "skip_final_snapshot" {
   type        = bool
-  description = "Whether to skip final snapshot when destroying the cluster."
+  description = "Whether to skip final snapshot when destroying cluster."
   default     = false
 }
 
@@ -88,4 +88,10 @@ variable "apply_immediately" {
   type        = bool
   description = "Whether modifications should be applied immediately."
   default     = true
+}
+
+variable "tags" {
+  type        = map(string)
+  description = "Tags applied to DocumentDB resources."
+  default     = {}
 }

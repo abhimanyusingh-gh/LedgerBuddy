@@ -1,13 +1,10 @@
 locals {
-  cluster_identifier = "${var.project_name}-docdb"
-  tags = {
-    Project = var.project_name
-  }
+  cluster_identifier = var.name
 }
 
-resource "aws_security_group" "documentdb" {
-  name        = "${var.project_name}-docdb-sg"
-  description = "Security group for DocumentDB cluster"
+resource "aws_security_group" "this" {
+  name        = "${var.name}-sg"
+  description = "Security group for DocumentDB cluster ${var.name}"
   vpc_id      = var.vpc_id
 
   dynamic "ingress" {
@@ -27,25 +24,25 @@ resource "aws_security_group" "documentdb" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  tags = local.tags
+  tags = var.tags
 }
 
-resource "aws_docdb_subnet_group" "documentdb" {
-  name        = "${var.project_name}-docdb-subnets"
-  description = "Subnet group for ${var.project_name} DocumentDB"
+resource "aws_docdb_subnet_group" "this" {
+  name        = "${var.name}-subnets"
+  description = "Subnet group for DocumentDB ${var.name}"
   subnet_ids  = var.subnet_ids
 
-  tags = local.tags
+  tags = var.tags
 }
 
-resource "aws_docdb_cluster" "documentdb" {
+resource "aws_docdb_cluster" "this" {
   cluster_identifier      = local.cluster_identifier
   engine                  = "docdb"
   engine_version          = var.engine_version
   master_username         = var.master_username
   master_password         = var.master_password
-  db_subnet_group_name    = aws_docdb_subnet_group.documentdb.name
-  vpc_security_group_ids  = [aws_security_group.documentdb.id]
+  db_subnet_group_name    = aws_docdb_subnet_group.this.name
+  vpc_security_group_ids  = [aws_security_group.this.id]
   backup_retention_period = var.backup_retention_period
   preferred_backup_window = var.preferred_backup_window
   storage_encrypted       = var.storage_encrypted
@@ -53,16 +50,16 @@ resource "aws_docdb_cluster" "documentdb" {
   skip_final_snapshot     = var.skip_final_snapshot
   apply_immediately       = var.apply_immediately
 
-  tags = local.tags
+  tags = var.tags
 }
 
-resource "aws_docdb_cluster_instance" "documentdb" {
+resource "aws_docdb_cluster_instance" "this" {
   count = var.instance_count
 
-  identifier         = "${var.project_name}-docdb-${count.index + 1}"
-  cluster_identifier = aws_docdb_cluster.documentdb.id
+  identifier         = "${var.name}-${count.index + 1}"
+  cluster_identifier = aws_docdb_cluster.this.id
   instance_class     = var.instance_class
   apply_immediately  = var.apply_immediately
 
-  tags = local.tags
+  tags = var.tags
 }
