@@ -35,7 +35,6 @@ Not yet implemented:
 - `infra/modules/` copy-first reusable Terraform module catalog.
 - `infra/terraform/` Invoice Processor stack composition using local modules (`environments/prod.tfvars.example` included).
 - `sample-invoices/inbox/` local folder source for manual and e2e runs.
-- `sample-invoices/benchmark/` 31-file mixed PDF/PNG/JPEG benchmark corpus with source manifest.
 - `docker-compose.yml` local backend, frontend, MongoDB, Mongo Express, DeepSeek OCR, and SLM verifier services.
 
 ## Local Prerequisites
@@ -287,36 +286,6 @@ yarn workspace invoice-processor-backend run test:e2e
 Commit gate:
 - Husky pre-commit hook runs `yarn quality:check`.
 - Commits fail unless Knip is clean and coverage thresholds pass.
-
-## Benchmark Corpus (31 files)
-
-Public benchmark samples were collected from web-searched sources:
-- `invoice2data` compare set (mixed vendors/countries): `tests/compare`
-- `mouadhamri/invoice_dataset` (layout-diverse JPEG invoices)
-
-Corpus details:
-- Files: 31
-- Types: 11 PDF, 4 PNG, 16 JPEG
-- Input folder: `sample-invoices/benchmark/inbox`
-- Source manifest: `sample-invoices/benchmark/SOURCES.csv`
-
-Run benchmark:
-```bash
-docker compose up -d mongo deepseek-ocr
-OCR_PROVIDER=deepseek \
-INGESTION_SOURCES=folder \
-FOLDER_SOURCE_PATH="$(pwd)/sample-invoices/benchmark/inbox" \
-MONGO_URI="mongodb://127.0.0.1:27017/invoice_processor" \
-DEEPSEEK_BASE_URL="http://localhost:8000/v1" \
-DEEPSEEK_OCR_MODEL="deepseek-ai/DeepSeek-OCR" \
-yarn benchmark:corpus
-```
-
-Current benchmark snapshot after extraction tuning:
-- Invoice2data amount exact-match accuracy: `66.67%` (`10/15`)
-- Currency match accuracy: `86.67%` (`13/15`)
-- Invoice-number match accuracy: `40.00%` (`6/15`)
-- Corpus average confidence: `74.65`
 
 ## Build
 

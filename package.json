@@ -13,7 +13,6 @@
     "dev": "yarn dev:backend & yarn dev:frontend",
     "build": "yarn workspace invoice-processor-backend run build && yarn workspace invoice-processor-frontend run build",
     "worker:once": "yarn workspace invoice-processor-backend run worker:once",
-    "benchmark:corpus": "yarn workspace invoice-processor-backend run benchmark:corpus",
     "docker:up": "docker compose up -d",
     "docker:down": "docker compose down --volumes --rmi all --remove-orphans",
     "logs:local": "docker compose logs -f backend deepseek-ocr slm-verifier",
