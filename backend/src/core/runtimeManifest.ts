@@ -6,6 +6,7 @@ import { logger } from "../utils/logger.js";
 import type { WorkloadTier } from "../types/tenant.js";
 
 type OcrProviderType = "auto" | "deepseek" | "mock";
+type VerifierProviderType = "none" | "http";
 type SourceType = "email" | "folder";
 
 interface SourceBaseManifest {
@@ -55,6 +56,17 @@ export interface RuntimeManifest {
       confidence: number | undefined;
     };
   };
+  verifier: {
+    provider: VerifierProviderType;
+    http: {
+      baseUrl: string;
+      timeoutMs: number;
+      apiKey: string;
+    };
+  };
+  extraction: {
+    ocrHighConfidenceThreshold: number;
+  };
   export: {
     tallyEndpoint: string;
     tallyCompany: string;
@@ -82,6 +94,23 @@ const runtimeManifestSchema = z.object({
           confidence: z.coerce.number().min(0).max(1).optional()
         })
         .optional()
+    })
+    .optional(),
+  verifier: z
+    .object({
+      provider: z.enum(["none", "http"]).optional(),
+      http: z
+        .object({
+          baseUrl: z.string().min(1).optional(),
+          timeoutMs: z.coerce.number().int().positive().optional(),
+          apiKey: z.string().optional()
+        })
+        .optional()
+    })
+    .optional(),
+  extraction: z
+    .object({
+      ocrHighConfidenceThreshold: z.coerce.number().min(0).max(1).optional()
     })
     .optional(),
   database: z
@@ -161,6 +190,18 @@ export function loadRuntimeManifest(): RuntimeManifest {
         confidence: parsed.ocr?.mock?.confidence ?? defaults.ocr.mock.confidence
       }
     },
+    verifier: {
+      provider: parsed.verifier?.provider ?? defaults.verifier.provider,
+      http: {
+        baseUrl: parsed.verifier?.http?.baseUrl ?? defaults.verifier.http.baseUrl,
+        timeoutMs: parsed.verifier?.http?.timeoutMs ?? defaults.verifier.http.timeoutMs,
+        apiKey: parsed.verifier?.http?.apiKey ?? defaults.verifier.http.apiKey
+      }
+    },
+    extraction: {
+      ocrHighConfidenceThreshold:
+        parsed.extraction?.ocrHighConfidenceThreshold ?? defaults.extraction.ocrHighConfidenceThreshold
+    },
     export: {
       tallyEndpoint: parsed.export?.tallyEndpoint ?? defaults.export.tallyEndpoint,
       tallyCompany: parsed.export?.tallyCompany ?? defaults.export.tallyCompany,
@@ -213,6 +254,17 @@ function createDefaultManifest(): RuntimeManifest {
         text: env.MOCK_OCR_TEXT ?? "",
         confidence: env.MOCK_OCR_CONFIDENCE
       }
+    },
+    verifier: {
+      provider: env.FIELD_VERIFIER_PROVIDER,
+      http: {
+        baseUrl: env.FIELD_VERIFIER_BASE_URL,
+        timeoutMs: env.FIELD_VERIFIER_TIMEOUT_MS,
+        apiKey: env.FIELD_VERIFIER_API_KEY?.trim() ?? ""
+      }
+    },
+    extraction: {
+      ocrHighConfidenceThreshold: env.OCR_HIGH_CONFIDENCE_THRESHOLD
     },
     export: {
       tallyEndpoint: env.TALLY_ENDPOINT ?? "",

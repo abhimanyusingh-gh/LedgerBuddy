@@ -10,6 +10,8 @@ services:
         condition: service_started
       deepseek-ocr:
         condition: service_healthy
+      slm-verifier:
+        condition: service_healthy
     env_file:
       - path: ./backend/.env.example
         required: true
@@ -29,6 +31,10 @@ services:
       DEEPSEEK_BASE_URL: http://deepseek-ocr:8000/v1
       DEEPSEEK_OCR_MODEL: deepseek-ai/DeepSeek-OCR
       DEEPSEEK_TIMEOUT_MS: "3600000"
+      OCR_HIGH_CONFIDENCE_THRESHOLD: "0.88"
+      FIELD_VERIFIER_PROVIDER: http
+      FIELD_VERIFIER_BASE_URL: http://slm-verifier:8100/v1
+      FIELD_VERIFIER_TIMEOUT_MS: "20000"
       CONFIDENCE_EXPECTED_MAX_TOTAL: "100000"
       CONFIDENCE_EXPECTED_MAX_DUE_DAYS: "90"
       CONFIDENCE_AUTO_SELECT_MIN: "91"
@@ -60,6 +66,21 @@ services:
       timeout: 5s
       retries: 12
       start_period: 20s
+
+  slm-verifier:
+    build:
+      context: .
+      dockerfile: slm-verifier/Dockerfile
+    container_name: invoice-processor-slm-verifier
+    restart: unless-stopped
+    ports:
+      - "8100:8100"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8100/health', timeout=2).read()"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
 
   frontend:
     build:

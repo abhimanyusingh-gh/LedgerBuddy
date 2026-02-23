@@ -11,7 +11,7 @@ Implemented:
 - OCR engine display is separated from extraction source (`ocrProvider` vs `metadata.extractionSource`).
 - Parser + confidence/risk scoring.
 - Currency amounts persisted and transmitted as integer minor units (`parsed.totalAmountMinor`) to avoid floating-point drift.
-- Agentic extraction workflow that evaluates multiple OCR/text candidates and selects the best parse.
+- Staged extraction pipeline: vendor fingerprint -> template path (known vendors) -> OCR confidence gate -> layout graph + heuristics -> deterministic validation -> SLM field verifier fallback.
 - MongoDB persistence with per-file source+tenant checkpointing and folder idempotency filtering by `sourceDocumentId`.
 - Tenant/workload partition keys (`tenantId`, `workloadTier`) across sources, checkpoints, and invoices.
 - Review dashboard with failed/parsed visibility, confidence badges, batch approval/export, and full invoice list paging.
@@ -31,11 +31,12 @@ Not yet implemented:
 
 - `backend/` Node.js API + worker + ingestion pipeline.
 - `frontend/` React review dashboard.
+- `slm-verifier/` local lightweight field-verifier service (Dockerized, pluggable to remote endpoints).
 - `infra/modules/` copy-first reusable Terraform module catalog.
 - `infra/terraform/` Invoice Processor stack composition using local modules (`environments/prod.tfvars.example` included).
 - `sample-invoices/inbox/` local folder source for manual and e2e runs.
 - `sample-invoices/benchmark/` 31-file mixed PDF/PNG/JPEG benchmark corpus with source manifest.
-- `docker-compose.yml` local backend, frontend, MongoDB, Mongo Express, and DeepSeek OCR service.
+- `docker-compose.yml` local backend, frontend, MongoDB, Mongo Express, DeepSeek OCR, and SLM verifier services.
 
 ## Local Prerequisites
 
@@ -63,6 +64,7 @@ This brings up:
 - MongoDB: `localhost:27017`
 - Mongo Express: `http://localhost:8081`
 - Local DeepSeek OCR service: `http://localhost:8000`
+- Local SLM verifier service: `http://localhost:8100`
 
 3. Create env files:
 ```bash
@@ -107,17 +109,19 @@ Both services emit JSON logs with a shared `correlationId` so one id traces a re
 Backend runtime supports an optional manifest file (`APP_MANIFEST_PATH`) that composes adapters without code changes:
 - database adapter (`mongo` URI)
 - OCR adapter (`deepseek` / `mock`)
+- field verifier adapter (`http` / `none`)
 - ingestion source adapters (`email` / `folder`)
 - export adapter defaults (Tally endpoint/company/ledger)
 - tenant + workload defaults (`tenantId`, `workloadTier`)
+- extraction gate tuning (`extraction.ocrHighConfidenceThreshold`)
 
 Example files:
 - `backend/runtime-manifest.local.json`
 - `backend/runtime-manifest.prod.example.json`
 
 This keeps local and production wiring pluggable:
-- local: Docker Mongo + local DeepSeek OCR container
-- production: provisioned DB + remote OCR endpoint (for example Modal)
+- local: Docker Mongo + local DeepSeek OCR container + local SLM verifier container
+- production: provisioned DB + remote OCR endpoint + remote SLM verifier endpoint (for example Modal)
 
 ## Local Ingestion Modes
 
@@ -177,6 +181,7 @@ Container OCR runtime:
 - Startup checks `/models` and fails fast if the configured model is unavailable.
 - First OCR call downloads model weights and can take several minutes.
 - OCR results now include block-level bounding boxes (`ocrBlocks`) for later overlay rendering.
+- Field verification supports local Docker endpoint (`FIELD_VERIFIER_PROVIDER=http`, `FIELD_VERIFIER_BASE_URL=http://slm-verifier:8100/v1`) or can be disabled (`FIELD_VERIFIER_PROVIDER=none`).
 - For CPU-only local runs, lower `DEEPSEEK_OCR_MAX_TOKENS` (for example `128` to `256`) to reduce OCR latency.
 - Forced providers:
   - `OCR_PROVIDER=mock` forces mock OCR.

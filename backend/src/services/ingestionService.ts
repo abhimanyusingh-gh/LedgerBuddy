@@ -2,13 +2,14 @@ import type { IngestionSource, IngestedFile } from "../core/interfaces/Ingestion
 import type { OcrBlock, OcrProvider } from "../core/interfaces/OcrProvider.js";
 import { CheckpointModel } from "../models/Checkpoint.js";
 import { InvoiceModel } from "../models/Invoice.js";
-import { extractNativePdfText } from "./pdfTextExtractor.js";
 import { logger } from "../utils/logger.js";
 import type { InvoiceStatus } from "../types/invoice.js";
 import { env } from "../config/env.js";
-import { runInvoiceExtractionAgent, type ExtractionTextCandidate } from "./invoiceExtractionAgent.js";
 import { normalizeInvoiceMimeType } from "../utils/mime.js";
 import type { WorkloadTier } from "../types/tenant.js";
+import { InvoiceExtractionPipeline, ExtractionPipelineError } from "./extraction/InvoiceExtractionPipeline.js";
+import { NoopFieldVerifier } from "../verifier/NoopFieldVerifier.js";
+import { MongoVendorTemplateStore } from "./extraction/vendorTemplateStore.js";
 
 interface IngestionRunSummary {
   totalFiles: number;
@@ -31,6 +32,7 @@ interface IngestionServiceOptions {
     checkpointValue: string;
     result: "created" | "duplicate" | "failed";
   }) => Promise<void> | void;
+  pipeline?: InvoiceExtractionPipeline;
 }
 
 interface RunOnceRuntimeOptions {
@@ -39,6 +41,7 @@ interface RunOnceRuntimeOptions {
 
 export class IngestionService {
   private readonly afterFileProcessed?: IngestionServiceOptions["afterFileProcessed"];
+  private readonly pipeline: InvoiceExtractionPipeline;
 
   constructor(
     private readonly sources: IngestionSource[],
@@ -46,6 +49,9 @@ export class IngestionService {
     options?: IngestionServiceOptions
   ) {
     this.afterFileProcessed = options?.afterFileProcessed;
+    this.pipeline =
+      options?.pipeline ??
+      new InvoiceExtractionPipeline(this.ocrProvider, new NoopFieldVerifier(), new MongoVendorTemplateStore());
   }
 
   async runOnce(runtimeOptions?: RunOnceRuntimeOptions): Promise<IngestionRunSummary> {
@@ -181,107 +187,27 @@ export class IngestionService {
     let ocrText = "";
     let ocrConfidence: number | undefined;
     let ocrBlocks: OcrBlock[] = [];
-    const processingIssues: string[] = [];
     let status: InvoiceStatus;
 
     try {
-      const extractionCandidates: ExtractionTextCandidate[] = [];
-
-      if (normalizedMimeType === "application/pdf") {
-        try {
-          const nativePdfText = await extractNativePdfText(file.buffer);
-          if (nativePdfText.trim().length > 24) {
-            extractionCandidates.push({
-              text: nativePdfText,
-              provider: "pdf-native",
-              confidence: 1,
-              source: "pdf-native"
-            });
-          }
-        } catch {
-          processingIssues.push("Native PDF text extraction failed. Falling back to OCR provider.");
-        }
-      }
-
-      try {
-        const ocrResult = await this.ocrProvider.extractText(file.buffer, normalizedMimeType);
-        ocrProvider = ocrResult.provider || this.ocrProvider.name;
-        ocrBlocks = ocrResult.blocks ?? [];
-        const rawText = ocrResult.text.trim();
-        const blockText = buildBlocksText(ocrBlocks);
-
-        if (rawText.length > 0) {
-          extractionCandidates.push({
-            text: rawText,
-            provider: ocrResult.provider,
-            confidence: ocrResult.confidence,
-            source: "ocr-provider"
-          });
-        }
-
-        if (blockText.length > 0 && !isNearDuplicateText(blockText, rawText)) {
-          extractionCandidates.push({
-            text: blockText,
-            provider: ocrResult.provider,
-            confidence: ocrResult.confidence,
-            source: "ocr-blocks"
-          });
-        }
-
-        if (rawText.length === 0 && blockText.length === 0) {
-          processingIssues.push("OCR provider returned empty text.");
-        }
-      } catch (ocrError) {
-        if (extractionCandidates.length === 0) {
-          throw ocrError;
-        }
-
-        processingIssues.push(
-          `OCR provider failed; using fallback extracted text. ${
-            ocrError instanceof Error ? ocrError.message : String(ocrError)
-          }`
-        );
-      }
-
-      if (extractionCandidates.length === 0) {
-        status = "FAILED_OCR";
-        processingIssues.push("No text detected from OCR.");
-        await InvoiceModel.create({
-          sourceType: file.sourceType,
-          tenantId: file.tenantId,
-          workloadTier: file.workloadTier,
-          sourceKey: file.sourceKey,
-          sourceDocumentId: file.sourceDocumentId,
-          attachmentName: file.attachmentName,
-          mimeType: normalizedMimeType,
-          receivedAt: file.receivedAt,
-          status,
-          processingIssues,
-          metadata: file.metadata,
-          ocrProvider,
-          ocrText,
-          ocrConfidence,
-          ocrBlocks,
-          confidenceScore: 0,
-          confidenceTone: "red",
-          autoSelectForApproval: false,
-          riskFlags: [],
-          riskMessages: []
-        });
-        return "failed";
-      }
-
-      const extraction = runInvoiceExtractionAgent({
-        candidates: extractionCandidates,
+      const extraction = await this.pipeline.extract({
+        tenantId: file.tenantId,
+        sourceKey: file.sourceKey,
+        attachmentName: file.attachmentName,
+        fileBuffer: file.buffer,
+        mimeType: normalizedMimeType,
         expectedMaxTotal: env.CONFIDENCE_EXPECTED_MAX_TOTAL,
         expectedMaxDueDays: env.CONFIDENCE_EXPECTED_MAX_DUE_DAYS,
         autoSelectMin: env.CONFIDENCE_AUTO_SELECT_MIN
       });
+      ocrProvider = extraction.provider;
       ocrText = extraction.text;
       ocrConfidence = extraction.confidence;
+      ocrBlocks = extraction.ocrBlocks;
 
       const parsedResult = extraction.parseResult;
       const confidence = extraction.confidenceAssessment;
+      const processingIssues = [...extraction.processingIssues];
 
       if (extraction.attempts.length > 1) {
         processingIssues.push(
@@ -297,7 +223,8 @@ export class IngestionService {
         extractionSource: extraction.source,
         extractionStrategy: extraction.strategy,
         extractionCandidates: String(extraction.attempts.length),
-        ocrBlocksCount: String(ocrBlocks.length)
+        ocrBlocksCount: String(ocrBlocks.length),
+        ...extraction.metadata
       };
 
       const mergedProcessingIssues = uniqueIssues([
@@ -334,6 +261,32 @@ export class IngestionService {
     } catch (error) {
       if (isDuplicateKeyError(error)) {
         return "duplicate";
+      }
+
+      if (error instanceof ExtractionPipelineError && error.code === "FAILED_OCR") {
+        await InvoiceModel.create({
+          sourceType: file.sourceType,
+          tenantId: file.tenantId,
+          workloadTier: file.workloadTier,
+          sourceKey: file.sourceKey,
+          sourceDocumentId: file.sourceDocumentId,
+          attachmentName: file.attachmentName,
+          mimeType: normalizedMimeType,
+          receivedAt: file.receivedAt,
+          status: "FAILED_OCR",
+          processingIssues: [error.message],
+          metadata: file.metadata,
+          ocrProvider,
+          ocrText,
+          ocrConfidence,
+          ocrBlocks,
+          confidenceScore: 0,
+          confidenceTone: "red",
+          autoSelectForApproval: false,
+          riskFlags: [],
+          riskMessages: []
+        });
+        return "failed";
       }
 
       logger.error("Failed to process ingested file", {
@@ -392,37 +345,6 @@ function isDuplicateKeyError(error: unknown): boolean {
 
 function uniqueIssues(issues: string[]): string[] {
   return [...new Set(issues.filter((issue) => issue.trim().length > 0))];
-}
-
-function buildBlocksText(blocks: OcrBlock[]): string {
-  if (blocks.length === 0) {
-    return "";
-  }
-
-  const lines = blocks
-    .map((block) => block.text.trim())
-    .filter((line) => line.length > 0)
-    .filter((line) => !/^(text|table|title|line|image)$/i.test(line));
-
-  return lines.join("\n");
-}
-
-function isNearDuplicateText(left: string, right: string): boolean {
-  const normalize = (value: string) =>
-    value
-      .toLowerCase()
-      .replace(/\s+/g, " ")
-      .replace(/[^a-z0-9 ]+/g, "")
-      .trim();
-
-  const normalizedLeft = normalize(left);
-  const normalizedRight = normalize(right);
-
-  if (!normalizedLeft || !normalizedRight) {
-    return false;
-  }
-
-  return normalizedLeft === normalizedRight || normalizedRight.includes(normalizedLeft);
 }
 
 function compareSourcePriority(left: IngestionSource, right: IngestionSource): number {

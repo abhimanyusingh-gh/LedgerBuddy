@@ -13,6 +13,16 @@
       "timeoutMs": 3600000
     }
   },
+  "verifier": {
+    "provider": "http",
+    "http": {
+      "baseUrl": "http://slm-verifier:8100/v1",
+      "timeoutMs": 20000
+    }
+  },
+  "extraction": {
+    "ocrHighConfidenceThreshold": 0.88
+  },
   "sources": [
     {
       "type": "folder",

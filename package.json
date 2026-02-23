@@ -16,7 +16,7 @@
     "benchmark:corpus": "yarn workspace invoice-processor-backend run benchmark:corpus",
     "docker:up": "docker compose up -d",
     "docker:down": "docker compose down --volumes --rmi all --remove-orphans",
-    "logs:local": "docker compose logs -f backend deepseek-ocr",
+    "logs:local": "docker compose logs -f backend deepseek-ocr slm-verifier",
     "test": "yarn workspace invoice-processor-backend run test && yarn workspace invoice-processor-frontend run test",
     "coverage:check": "yarn workspace invoice-processor-backend run coverage && yarn workspace invoice-processor-frontend run coverage",
     "knip": "knip --workspace backend --workspace frontend",

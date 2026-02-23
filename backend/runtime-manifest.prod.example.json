@@ -13,6 +13,17 @@
       "timeoutMs": 3600000
     }
   },
+  "verifier": {
+    "provider": "http",
+    "http": {
+      "baseUrl": "http://slm-verifier.modal.internal/v1",
+      "timeoutMs": 20000,
+      "apiKey": "replace-with-token"
+    }
+  },
+  "extraction": {
+    "ocrHighConfidenceThreshold": 0.88
+  },
   "sources": [
     {
       "type": "email",

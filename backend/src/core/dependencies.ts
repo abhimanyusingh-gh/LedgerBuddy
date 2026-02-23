@@ -1,15 +1,20 @@
 import axios from "axios";
 import type { AccountingExporter } from "./interfaces/AccountingExporter.js";
+import type { FieldVerifier } from "./interfaces/FieldVerifier.js";
 import type { OcrProvider } from "./interfaces/OcrProvider.js";
 import { MockOcrProvider } from "../ocr/MockOcrProvider.js";
 import { DeepSeekOcrProvider } from "../ocr/DeepSeekOcrProvider.js";
 import { buildIngestionSources } from "./sourceRegistry.js";
 import { IngestionService } from "../services/ingestionService.js";
+import { InvoiceExtractionPipeline } from "../services/extraction/InvoiceExtractionPipeline.js";
+import { MongoVendorTemplateStore } from "../services/extraction/vendorTemplateStore.js";
 import { InvoiceService } from "../services/invoiceService.js";
 import { ExportService } from "../services/exportService.js";
 import { TallyExporter } from "../services/tallyExporter.js";
 import { logger } from "../utils/logger.js";
 import { loadRuntimeManifest, type RuntimeManifest } from "./runtimeManifest.js";
+import { NoopFieldVerifier } from "../verifier/NoopFieldVerifier.js";
+import { HttpFieldVerifier } from "../verifier/HttpFieldVerifier.js";
 
 const OCR_BOOTSTRAP_TIMEOUT_MS = 5_000;
 
@@ -22,8 +27,19 @@ interface Dependencies {
 export async function buildDependencies(): Promise<Dependencies> {
   const manifest = loadRuntimeManifest();
   const ocrProvider = await resolveOcrProvider(manifest);
+  const fieldVerifier = resolveFieldVerifier(manifest);
+  const extractionPipeline = new InvoiceExtractionPipeline(
+    ocrProvider,
+    fieldVerifier,
+    new MongoVendorTemplateStore(),
+    {
+      ocrHighConfidenceThreshold: manifest.extraction.ocrHighConfidenceThreshold
+    }
+  );
   const sources = buildIngestionSources(manifest.sources);
-  const ingestionService = new IngestionService(sources, ocrProvider);
+  const ingestionService = new IngestionService(sources, ocrProvider, {
+    pipeline: extractionPipeline
+  });
   const invoiceService = new InvoiceService();
 
   const exporter = buildExporter(manifest);
@@ -34,6 +50,23 @@ export async function buildDependencies(): Promise<Dependencies> {
     invoiceService,
     exportService
   };
+}
+
+function resolveFieldVerifier(runtimeManifest = loadRuntimeManifest()): FieldVerifier {
+  if (runtimeManifest.verifier.provider === "none") {
+    logger.info("Using field verifier", { provider: "none" });
+    return new NoopFieldVerifier();
+  }
+
+  logger.info("Using field verifier", {
+    provider: "http",
+    baseUrl: runtimeManifest.verifier.http.baseUrl
+  });
+  return new HttpFieldVerifier({
+    baseUrl: runtimeManifest.verifier.http.baseUrl,
+    timeoutMs: runtimeManifest.verifier.http.timeoutMs,
+    apiKey: runtimeManifest.verifier.http.apiKey
+  });
 }
 
 export async function resolveOcrProvider(runtimeManifest = loadRuntimeManifest()): Promise<OcrProvider> {

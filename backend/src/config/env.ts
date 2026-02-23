@@ -39,6 +39,12 @@ const envSchema = z.object({
   DEEPSEEK_TIMEOUT_MS: z.coerce.number().default(3600000),
   MOCK_OCR_TEXT: z.string().optional(),
   MOCK_OCR_CONFIDENCE: z.coerce.number().optional(),
+  OCR_HIGH_CONFIDENCE_THRESHOLD: z.coerce.number().default(0.88),
+
+  FIELD_VERIFIER_PROVIDER: z.enum(["none", "http"]).default("http"),
+  FIELD_VERIFIER_BASE_URL: z.string().default("http://localhost:8100/v1"),
+  FIELD_VERIFIER_TIMEOUT_MS: z.coerce.number().default(20000),
+  FIELD_VERIFIER_API_KEY: z.string().optional(),
 
   CONFIDENCE_EXPECTED_MAX_TOTAL: z.coerce.number().default(100000),
   CONFIDENCE_EXPECTED_MAX_DUE_DAYS: z.coerce.number().default(90),
