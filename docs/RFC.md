@@ -25,7 +25,8 @@ The system must ingest invoices from configurable sources, extract data from mix
 3. OCR Extensibility + Agentic Selection
 - Use `OcrProvider` abstraction.
 - Current providers: `deepseek` and `mock`.
-- Local OCR uses MLX DeepSeek OCR (`invoice-ocr`) with `POST /v1/ocr/document`.
+- Local OCR uses host-run MLX DeepSeek OCR (`invoice-ocr`) with `POST /v1/ocr/document`.
+- Local SLM uses MLX verifier (`invoice-slm`) with default `mlx-community/DeepSeek-R1-Distill-Qwen-1.5B-4bit`.
 - Production OCR uses the same interface via external OpenAI-compatible OCR endpoint.
 - No Tesseract fallback in runtime.
 - Agent evaluates multiple text candidates/strategies and chooses best parse.
@@ -81,20 +82,31 @@ The system must ingest invoices from configurable sources, extract data from mix
 - Env vars remain fallback defaults.
 - Reason: local/prod adapter switching without code changes.
 
-11. Quality Gate
+11. Runtime Environment Switch
+- Introduce `ENV=local|prod`.
+- `ENV=local`: OCR/SLM run as host macOS MLX services, while compose runs backend/frontend/db.
+- `ENV=prod`: backend routes to remote OCR/SLM providers using the same abstraction contracts.
+- Reason: one-switch operational mode without caller/API changes.
+
+12. Startup Readiness Guarantees
+- Backend startup validates OCR `/v1/models` + `/health` and verifier `/health`.
+- Backend is considered ready only after required ML capabilities are reachable and healthy.
+- Reason: prevent ingest/export endpoints from becoming available before ML dependencies are ready.
+
+13. Quality Gate
 - Pre-commit hook runs dead-code analysis (`knip`) and coverage checks.
 - Backend and frontend logic modules are enforced at 100% branch coverage.
 - Reason: prevent regressions and test drift as extraction/export logic evolves.
 
-12. Dashboard Data Loading
+14. Dashboard Data Loading
 - Frontend fetches invoice lists page-by-page until backend `total` is reached.
 - Reason: prevent hidden data caused by backend max page size.
 
-13. Detail Panel Layout
+15. Detail Panel Layout
 - UI supports hiding the right-side Invoice Details panel so the Invoice list occupies full width.
 - Reason: improve review throughput when operators focus on list-level actions.
 
-14. Tenant Isolation Groundwork
+16. Tenant Isolation Groundwork
 - Invoices, checkpoints, and ingestion sources carry `tenantId`.
 - Sources also carry `workloadTier` (`standard`, `heavy`), and ingestion prioritizes `standard` tier first.
 - Reason: establish a clean path to tenant-level isolation and predictable performance as usage scales.

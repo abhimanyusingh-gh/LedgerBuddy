@@ -26,7 +26,8 @@ Build a minimal, modular application that ingests invoices, extracts structured 
 
 2. OCR and Extraction
 - OCR provider abstraction with reliable handwriting-capable provider support.
-- Local OCR runtime: MLX-based DeepSeek OCR service with default model `deepseek-ai/DeepSeek-OCR`.
+- Local OCR runtime: host macOS MLX service with default model `mlx-community/DeepSeek-OCR-4bit`.
+- Local SLM runtime: MLX-based verifier with default model `mlx-community/DeepSeek-R1-Distill-Qwen-1.5B-4bit`.
 - Production OCR runtime: external OCR endpoint through the same OCR interface.
 - No Tesseract fallback in runtime.
 - Agentic extraction flow: evaluate multiple text candidates and select best parse.
@@ -85,6 +86,9 @@ Build a minimal, modular application that ingests invoices, extracts structured 
 - Infra: Terraform (modular, extensible)
 - Keep code minimal and maintainable.
 - Runtime wiring must be composable through a manifest file (`APP_MANIFEST_PATH`) with env fallback.
+- Runtime mode switch must be a single variable: `ENV=local|prod`.
+- In `ENV=local`, run OCR/SLM locally on host macOS and use `docker compose up` for backend, frontend, and database.
+- Backend readiness must be blocked until required OCR + SLM capabilities are healthy.
 - Prepare for multitenancy by partitioning data and ingestion workload lanes (`standard` vs `heavy`) to protect low-usage tenants from heavy-usage impact.
 
 ## 6. Out of Scope (Current Phase)
