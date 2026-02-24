@@ -2,3 +2,7 @@
 mlx==0.30.6
 mlx-lm==0.30.7
 mlx-vlm==0.3.12
+pyobjc-core==11.1
+pyobjc-framework-Cocoa==11.1
+pyobjc-framework-Quartz==11.1
+pyobjc-framework-Vision==11.1
