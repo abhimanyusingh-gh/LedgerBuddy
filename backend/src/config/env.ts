@@ -3,7 +3,10 @@ import { z } from "zod";
 
 dotenv.config();
 
+const runtimeEnv = process.env.ENV?.trim().toLowerCase() === "prod" ? "prod" : "local";
+
 const envSchema = z.object({
+  ENV: z.enum(["local", "prod"]).default(runtimeEnv),
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   PORT: z.coerce.number().default(4000),
   MONGO_URI: z.string().min(1),
@@ -35,7 +38,7 @@ const envSchema = z.object({
   OCR_PROVIDER: z.enum(["auto", "deepseek", "mock"]).default("auto"),
   DEEPSEEK_API_KEY: z.string().optional(),
   DEEPSEEK_BASE_URL: z.string().default("http://localhost:8000/v1"),
-  DEEPSEEK_OCR_MODEL: z.string().default("deepseek-ai/DeepSeek-OCR"),
+  DEEPSEEK_OCR_MODEL: z.string().default("mlx-community/DeepSeek-OCR-4bit"),
   DEEPSEEK_TIMEOUT_MS: z.coerce.number().default(3600000),
   MOCK_OCR_TEXT: z.string().optional(),
   MOCK_OCR_CONFIDENCE: z.coerce.number().optional(),

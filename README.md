@@ -8,19 +8,20 @@ Implemented:
 - Configurable ingestion source interface (`email`, `folder` currently).
 - OCR provider interface (`deepseek`, `mock`).
 - Runtime composition manifest support (`APP_MANIFEST_PATH`) for database/OCR/source/export wiring with env fallback.
-- OCR engine display is separated from extraction source (`ocrProvider` vs `metadata.extractionSource`).
 - Parser + confidence/risk scoring.
 - Currency amounts persisted and transmitted as integer minor units (`parsed.totalAmountMinor`) to avoid floating-point drift.
 - Staged extraction pipeline: vendor fingerprint -> template path (known vendors) -> OCR confidence gate -> layout graph + heuristics -> deterministic validation -> SLM field verifier fallback.
 - MongoDB persistence with per-file source+tenant checkpointing and folder idempotency filtering by `sourceDocumentId`.
+- OCR block crop artifacts persisted per bounding box with file-store abstraction:
+  - `ENV=local` -> local disk
+  - `ENV=prod` -> S3
 - Tenant/workload partition keys (`tenantId`, `workloadTier`) across sources, checkpoints, and invoices.
 - Review dashboard with failed/parsed visibility, confidence badges, batch approval/export, and full invoice list paging.
+- Review dashboard includes value-source highlighting with OCR bounding-box overlays and per-field crop inspect actions.
 - Tally exporter using XML import envelope and purchase voucher structure.
 - Terraform modules for scheduled spot workers, reusable worker IAM, and production DocumentDB.
-- Unit tests + local folder-based end-to-end ingestion test.
-
-Delivery timeline:
-- `docs/DELIVERY_TIMELINE.md` (7-day phased view with milestone mapping).
+- Terraform module for reusable S3 artifact storage used by the backend file-store abstraction in production.
+- Unit tests + true full-stack local end-to-end test (no mock OCR/SLM path).
 
 Not yet implemented:
 - Authentication/authorization.
@@ -31,7 +32,7 @@ Not yet implemented:
 
 - `backend/` Node.js API + worker + ingestion pipeline.
 - `frontend/` React review dashboard.
-- `invoice-ocr/` local MLX DeepSeek OCR FastAPI service.
+- `invoice-ocr/` local OCR FastAPI service with pluggable engines (DeepSeek MLX, Apple Vision, hybrid, prod HTTP).
 - `invoice-slm/` local MLX field-verifier FastAPI service.
 - `infra/modules/` copy-first reusable Terraform module catalog.
 - `infra/terraform/` Invoice Processor stack composition using local modules (`environments/prod.tfvars.example` included).
@@ -53,26 +54,21 @@ Not yet implemented:
 yarn install
 ```
 
-2. Create MLX venv and install Python dependencies:
+2. Set runtime mode (defaults to local if not set):
 ```bash
-python3.12 -m venv .venv-ml
+export ENV=local
+```
+
+3. Create a local Python environment for MLX services:
+```bash
+python3 -m venv .venv-ml
 ./.venv-ml/bin/pip install --upgrade pip
-./.venv-ml/bin/pip install -r invoice-ocr/requirements.txt -r invoice-slm/requirements.txt
+./.venv-ml/bin/pip install -r invoice-ocr/requirements.local.txt -r invoice-slm/requirements.local.txt
 ```
 
-3. Start local MLX OCR service:
+4. Start full local stack:
 ```bash
-yarn ocr:dev
-```
-
-4. Start local MLX SLM verifier service:
-```bash
-yarn slm:dev
-```
-
-5. Start local app stack with Docker Compose:
-```bash
-docker compose up -d
+yarn docker:up
 ```
 
 This brings up:
@@ -80,8 +76,12 @@ This brings up:
 - Frontend dashboard: `http://localhost:5173`
 - MongoDB: `localhost:27017`
 - Mongo Express: `http://localhost:8081`
+- OCR service: `http://localhost:8000`
+- SLM service: `http://localhost:8100`
 
-6. Create env files:
+`yarn docker:up` starts local OCR/SLM services on host macOS (for `ENV=local`) and then starts compose services.
+
+5. Create env files (optional overrides):
 ```bash
 cp backend/.env.example backend/.env
 cp frontend/.env.example frontend/.env
@@ -90,56 +90,70 @@ cp frontend/.env.example frontend/.env
 Notes:
 - `docker compose` can boot without `backend/.env`; it always loads `backend/.env.example` and treats `backend/.env` as optional override.
 - Create `backend/.env` when you need local secrets or non-default config.
-- For local MLX OCR, no `DEEPSEEK_API_KEY` is required.
-- MLX OCR/SLM run on host (Apple Silicon) and are called from Compose backend via `host.docker.internal`.
-- `yarn ocr:dev`, `yarn slm:dev`, and `yarn benchmark:ml` auto-use `./.venv-ml/bin/python` when available.
-- Compose uses `APP_MANIFEST_PATH=/app/backend/runtime-manifest.local.json` by default, so local runtime wiring is explicit and composable.
-- Use `backend/runtime-manifest.prod.example.json` as a production template and set `APP_MANIFEST_PATH` for host runs.
-- Compose defaults backend OCR to `DEEPSEEK_BASE_URL=http://host.docker.internal:8000/v1` and `DEEPSEEK_OCR_MODEL=deepseek-ai/DeepSeek-OCR`.
-- Compose defaults field verifier to `FIELD_VERIFIER_BASE_URL=http://host.docker.internal:8100/v1`.
+- For local MLX OCR/SLM, no API key is required.
+- MLX services run on host macOS, not inside Docker.
+- Backend blocks startup until both ML capabilities are reachable and healthy.
+- Runtime mode switch: `ENV=local|prod`.
+- `ENV=local`: run host OCR/SLM services (`SLM_ENGINE=local_mlx`, `OCR_ENGINE=local_hybrid` by default).
+- `ENV=prod`: use production-safe HTTP engines (`SLM_ENGINE=prod_http`, `OCR_ENGINE=prod_http`).
+- Artifact storage is also env-driven:
+  - `ENV=local` uses `LOCAL_FILE_STORE_ROOT` (default `.local-run/artifacts`, gitignored)
+  - `ENV=prod` uses `S3_FILE_STORE_BUCKET` + `S3_FILE_STORE_REGION` + `S3_FILE_STORE_PREFIX`
 - OCR path is direct inference via `POST /v1/ocr/document` (no `/v1/chat/completions` usage).
 - OCR/SLM API layers are engine-agnostic and selected by env:
-  - OCR: `OCR_ENGINE=local_mlx|remote_http`
-  - SLM: `SLM_ENGINE=local_mlx|remote_http`
+  - OCR: `OCR_ENGINE=local_hybrid|local_mlx|local_apple_vision|prod_http`
+  - SLM: `SLM_ENGINE=local_mlx|prod_http`
+- Production Docker dependencies exclude MLX packages entirely.
 - Optional OCR service tuning via `yarn ocr:dev` env variables:
-  - `OCR_ENGINE` (`local_mlx` default, or `remote_http`)
-  - `OCR_MODEL_ID` (default `deepseek-ai/DeepSeek-OCR`)
+  - `OCR_ENGINE` (`local_hybrid` default, or `local_mlx|local_apple_vision|prod_http`)
+  - `OCR_MODEL_ID` (default `mlx-community/DeepSeek-OCR-4bit`)
   - `OCR_MODEL_PATH` (optional local snapshot path)
-  - `OCR_REMOTE_BASE_URL` (required for `OCR_ENGINE=remote_http`)
+  - `OCR_HYBRID_APPLE_ACCEPT_SCORE` (default `0.9`; DeepSeek confidence gate before Apple second pass)
+  - `OCR_REMOTE_BASE_URL` (required for `OCR_ENGINE=prod_http`)
   - `OCR_REMOTE_API_KEY` (optional bearer token for remote OCR)
   - `OCR_REMOTE_TIMEOUT_MS` (default `300000`)
-  - `OCR_MAX_NEW_TOKENS` (default `256`)
-  - `OCR_DYNAMIC_CROPS` (default `true`)
-  - `OCR_LOAD_ON_STARTUP` (`false` by default for faster boot)
+  - `OCR_MAX_NEW_TOKENS` (default `512`)
+  - `OCR_LOAD_ON_STARTUP` (`true` by default)
 - Optional SLM tuning via `yarn slm:dev` env variables:
-  - `SLM_ENGINE` (`local_mlx` default, or `remote_http`)
-  - `SLM_MODEL_ID` (default `mlx-community/Qwen2.5-3B-Instruct-4bit`)
-  - `SLM_REMOTE_BASE_URL` (required for `SLM_ENGINE=remote_http`)
+  - `SLM_ENGINE` (`local_mlx` default, or `prod_http`)
+  - `SLM_MODEL_ID` (default `mlx-community/DeepSeek-R1-Distill-Qwen-1.5B-4bit`)
+  - `SLM_REMOTE_BASE_URL` (required for `SLM_ENGINE=prod_http`)
   - `SLM_REMOTE_SELECT_PATH` (default `/v1/verify/invoice`)
   - `SLM_REMOTE_API_KEY` (optional bearer token)
-
-7. Optional host-based dev mode (instead of Compose backend/frontend):
-```bash
-yarn dev
-```
-
-Compose-first workflow is recommended for cross-OS consistency.
 
 Pristine teardown (containers + Mongo volume + compose images):
 ```bash
 yarn docker:down
 ```
 
-Tail backend + OCR logs in one stream:
+Tail backend/frontend/mongo plus local OCR/SLM logs in one stream:
 ```bash
 yarn logs:local
 ```
-Then run OCR and SLM logs in separate terminals:
-```bash
-yarn ocr:dev
-yarn slm:dev
-```
-All services emit JSON logs with a shared `correlationId` so one id traces a request from API ingress to OCR and export.
+Backend + OCR + SLM emit JSON logs with a shared `correlationId` so one id traces a request from API ingress to OCR and export.
+
+## ML Engine Boundaries
+
+Python ML services use strict engine interfaces with explicit factory selection:
+
+- SLM:
+  - `invoice-slm/app/engines/base.py` (`LLMEngine`)
+  - `invoice-slm/app/engines/local_mlx.py` (MLX only)
+  - `invoice-slm/app/engines/prod_http.py` (Docker/Linux safe)
+  - `invoice-slm/app/engines/factory.py`
+- OCR:
+  - `invoice-ocr/app/engines/base.py` (`OCREngine`)
+  - `invoice-ocr/app/engines/local_mlx.py` (DeepSeek OCR MLX, `mlx_vlm`)
+  - `invoice-ocr/app/engines/local_apple_vision.py` (Apple Vision OCR)
+  - `invoice-ocr/app/engines/local_hybrid.py` (DeepSeek + Apple arbitration)
+  - `invoice-ocr/app/engines/prod_http.py` (Docker/Linux safe)
+  - `invoice-ocr/app/engines/factory.py`
+
+Why MLX cannot leak into production:
+- MLX imports exist only in `local_mlx.py` modules.
+- Docker images install `requirements.prod.txt` only (no MLX packages).
+- Dockerfiles default to `*_ENGINE=prod_http`.
+- Engine selection is explicit (`*_ENGINE`) and has no fallback.
 
 ## Runtime Composition Manifest
 
@@ -157,7 +171,7 @@ Example files:
 - `backend/runtime-manifest.prod.example.json`
 
 This keeps local and production wiring pluggable:
-- local: Docker Mongo + host MLX `invoice-ocr` + host MLX `invoice-slm`
+- local: Docker Mongo + host-run MLX OCR + host-run MLX SLM
 - production: provisioned DB + remote OCR endpoint + remote SLM verifier endpoint (for example Modal)
 
 ## Local Ingestion Modes
@@ -214,9 +228,9 @@ OCR runtime:
 - `auto` resolves to DeepSeek OCR and validates model availability at startup.
 - No Tesseract fallback is used.
 - Configure `DEEPSEEK_BASE_URL` to an endpoint that serves `/v1/ocr/document` and `/v1/models`.
-- Local default model is `deepseek-ai/DeepSeek-OCR`.
+- Local default OCR model is `mlx-community/DeepSeek-OCR-4bit`.
 - Startup checks `/models` and fails fast if the configured model is unavailable.
-- First OCR call downloads model weights and can take several minutes.
+- First local startup downloads model weights and can take several minutes.
 - OCR results now include block-level bounding boxes (`ocrBlocks`) for later overlay rendering.
 - Field verification supports local MLX endpoint (`FIELD_VERIFIER_PROVIDER=http`, `FIELD_VERIFIER_BASE_URL=http://localhost:8100/v1`) or can be disabled (`FIELD_VERIFIER_PROVIDER=none`).
 - Forced providers:
@@ -224,11 +238,9 @@ OCR runtime:
 
 ## Manual End-to-End Local Run (Folder -> Dashboard)
 
-1. Start stack:
+1. Start local stack:
 ```bash
-yarn ocr:dev
-yarn slm:dev
-docker compose up -d
+yarn docker:up
 ```
 
 2. Backend in Compose loads `backend/.env` and mounts `sample-invoices/inbox` into the container.
@@ -253,21 +265,31 @@ Use `Hide Details Panel` to collapse the right-side invoice details section and 
 
 ## Automated End-to-End Test
 
-Runs with Dockerized local dependencies and ingests fixture invoices from a temporary folder.
+Runs against the live stack: backend, frontend, MongoDB, local OCR, and local SLM.
 
 ```bash
 yarn e2e:local
 ```
 
 What it verifies:
-- Folder source picks up supported invoice files.
-- Ingestion writes invoices to MongoDB.
-- Checkpoint is updated after each processed file.
-- Crash-resume behavior: after a simulated worker crash, next run resumes from checkpoint.
-- Subsequent run behavior: already processed files are skipped by `sourceDocumentId`.
-- New files are still ingested even when copied with older `mtime`.
-- PDF/JPG/PNG ingestion uses OCR extraction source (`ocr-provider`) with block metadata retained.
-- Invoice list data is ready for dashboard review.
+- Local OCR and SLM health/readiness before backend test run.
+- Full app startup (`backend`, `frontend`, `mongo`, `mongo-express`) with `docker compose`.
+- Real ingestion run through `/api/jobs/ingest` for `pdf/png/jpg` files.
+- Invoice persistence and listing through `/api/invoices`.
+- Checkpoint behavior on rerun (second run processes `0` files).
+- Approval endpoint behavior for `NEEDS_REVIEW` invoices (when present).
+- No mock OCR provider in E2E assertions.
+
+Frontend-only user-flow E2E (single `jpg` + `png` + `pdf`, ingest + UI bbox overlay verification):
+```bash
+yarn e2e:frontend:local
+```
+This verifies from the UI that:
+- one file per type ingestion completes,
+- value-source chips are shown,
+- image preview is visible,
+- selected-field bounding-box overlay is rendered in details and popup view,
+- extracted-field inspect icon opens the persisted crop preview modal.
 
 ## Infra Composition
 
@@ -275,6 +297,7 @@ Terraform is split into reusable modules:
 - `infra/modules/aws_iam_instance_profile` for EC2 role/profile
 - `infra/modules/aws_scheduled_ec2_service` for scheduled compute runtime (`spot` or `on-demand`)
 - `infra/modules/aws_documentdb_cluster` for production DB provisioning
+- `infra/modules/aws_s3_bucket` for production artifact storage (OCR previews/crops)
 
 For app-specific overrides, use `app_manifest` in tfvars:
 - override ingestion/OCR/confidence/tally settings
@@ -377,7 +400,7 @@ Backend env variables:
 Confidence/UI behavior:
 - Tone bands are `red` (`0-79`), `yellow` (`80-90`), `green` (`91+`).
 - Auto-select applies when confidence score is `>= CONFIDENCE_AUTO_SELECT_MIN` (default `91`).
-- Extracted details show both `OCR Engine` and `Extraction Source`.
+- Extracted details focus on parsed values, tally mappings, and source-highlight overlays instead of OCR implementation labels.
 
 Terraform variables mirror core runtime settings, including confidence and Tally ledger config.
 Use Terraform `extra_env` for backend variables that are not first-class inputs (for example `DEEPSEEK_*` values).

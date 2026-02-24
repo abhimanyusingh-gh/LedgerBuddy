@@ -17,6 +17,7 @@ import { NoopFieldVerifier } from "../verifier/NoopFieldVerifier.js";
 import { HttpFieldVerifier } from "../verifier/HttpFieldVerifier.js";
 
 const OCR_BOOTSTRAP_TIMEOUT_MS = 5_000;
+const VERIFIER_BOOTSTRAP_TIMEOUT_MS = 5_000;
 
 interface Dependencies {
   ingestionService: IngestionService;
@@ -27,7 +28,7 @@ interface Dependencies {
 export async function buildDependencies(): Promise<Dependencies> {
   const manifest = loadRuntimeManifest();
   const ocrProvider = await resolveOcrProvider(manifest);
-  const fieldVerifier = resolveFieldVerifier(manifest);
+  const fieldVerifier = await resolveFieldVerifier(manifest);
   const extractionPipeline = new InvoiceExtractionPipeline(
     ocrProvider,
     fieldVerifier,
@@ -52,12 +53,13 @@ export async function buildDependencies(): Promise<Dependencies> {
   };
 }
 
-function resolveFieldVerifier(runtimeManifest = loadRuntimeManifest()): FieldVerifier {
+async function resolveFieldVerifier(runtimeManifest = loadRuntimeManifest()): Promise<FieldVerifier> {
   if (runtimeManifest.verifier.provider === "none") {
     logger.info("Using field verifier", { provider: "none" });
     return new NoopFieldVerifier();
   }
 
+  await assertFieldVerifierConfigIsValid(runtimeManifest);
   logger.info("Using field verifier", {
     provider: "http",
     baseUrl: runtimeManifest.verifier.http.baseUrl
@@ -150,11 +152,61 @@ async function assertDeepSeekConfigIsValid(runtimeManifest: RuntimeManifest): Pr
         )}. Start local OCR with 'yarn ocr:dev' or configure an endpoint that serves this model.`
       );
     }
+
+    const healthResponse = await withTimeout(
+      axios.get(`${baseUrl}/health`, {
+        headers,
+        timeout: OCR_BOOTSTRAP_TIMEOUT_MS
+      }),
+      OCR_BOOTSTRAP_TIMEOUT_MS
+    );
+    const payload = healthResponse?.data;
+    if (isRecord(payload)) {
+      const statusValue = payload.status;
+      if (typeof statusValue === "string" && !["ok", "healthy", "ready"].includes(statusValue.toLowerCase())) {
+        throw new Error(`OCR service health status '${statusValue}' is not ready.`);
+      }
+      if (typeof payload.modelLoaded === "boolean" && !payload.modelLoaded) {
+        throw new Error("OCR service reported modelLoaded=false.");
+      }
+    }
   } catch (error) {
     const reason = describeDependencyError(error);
     throw new Error(
       `DeepSeek OCR bootstrap validation failed. Configure an endpoint that serves '${configuredModel}' at '${baseUrl}'. Cause: ${reason}`
     );
+  }
+}
+
+async function assertFieldVerifierConfigIsValid(runtimeManifest: RuntimeManifest): Promise<void> {
+  const baseUrl = runtimeManifest.verifier.http.baseUrl.replace(/\/+$/, "");
+  const apiKey = runtimeManifest.verifier.http.apiKey.trim();
+  try {
+    const headers: Record<string, string> = {};
+    if (apiKey.length > 0) {
+      headers.Authorization = `Bearer ${apiKey}`;
+    }
+
+    const response = await withTimeout(
+      axios.get(`${baseUrl}/health`, {
+        headers,
+        timeout: VERIFIER_BOOTSTRAP_TIMEOUT_MS
+      }),
+      VERIFIER_BOOTSTRAP_TIMEOUT_MS
+    );
+    const payload = response?.data;
+    if (isRecord(payload)) {
+      const statusValue = payload.status;
+      if (typeof statusValue === "string" && !["ok", "healthy", "ready"].includes(statusValue.toLowerCase())) {
+        throw new Error(`Field verifier health status '${statusValue}' is not ready.`);
+      }
+      if (typeof payload.modelLoaded === "boolean" && !payload.modelLoaded) {
+        throw new Error("Field verifier reported modelLoaded=false.");
+      }
+    }
+  } catch (error) {
+    const reason = describeDependencyError(error);
+    throw new Error(`Field verifier bootstrap validation failed at '${baseUrl}'. Cause: ${reason}`);
   }
 }
 
@@ -187,6 +239,10 @@ function describeDependencyError(error: unknown): string {
   }
 
   return error instanceof Error ? error.message : String(error);
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {

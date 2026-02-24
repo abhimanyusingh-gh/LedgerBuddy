@@ -19,7 +19,8 @@ const ocrBlockSchema = new Schema(
       type: [Number],
       validate: {
         validator: (value: number[] | undefined) =>
-          value === undefined || (Array.isArray(value) && value.length === 4 && value.every(Number.isFinite)),
+          value === undefined ||
+          (Array.isArray(value) && (value.length === 0 || (value.length === 4 && value.every(Number.isFinite)))),
         message: "ocrBlocks.bboxNormalized must contain exactly four numeric values when provided."
       }
     },
@@ -27,10 +28,12 @@ const ocrBlockSchema = new Schema(
       type: [Number],
       validate: {
         validator: (value: number[] | undefined) =>
-          value === undefined || (Array.isArray(value) && value.length === 4 && value.every(Number.isFinite)),
+          value === undefined ||
+          (Array.isArray(value) && (value.length === 0 || (value.length === 4 && value.every(Number.isFinite)))),
         message: "ocrBlocks.bboxModel must contain exactly four numeric values when provided."
       }
     },
+    cropPath: { type: String },
     blockType: { type: String }
   },
   {

@@ -36,7 +36,7 @@ prefix_stream() {
   "$@" 2>&1 | awk -v p="$prefix" '{ print "[" p "] " $0; fflush(); }'
 }
 
-prefix_stream "compose" "${COMPOSE_CMD[@]}" logs -f backend frontend mongo mongo-express mailhog mailhog-oauth &
+prefix_stream "compose" "${COMPOSE_CMD[@]}" logs -f backend frontend mongo mongo-express &
 PIDS+=("$!")
 
 prefix_stream "ocr" tail -n 200 -F "$OCR_LOG" &

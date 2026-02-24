@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { z } from "zod";
 import { env } from "../config/env.js";
@@ -160,11 +160,11 @@ type RuntimeSourceInput = NonNullable<RuntimeManifestInput["sources"]>[number];
 
 export function loadRuntimeManifest(): RuntimeManifest {
   const defaults = createDefaultManifest();
-  if (!env.APP_MANIFEST_PATH || env.APP_MANIFEST_PATH.trim().length === 0) {
+  const manifestPath = resolveConfiguredManifestPath();
+  if (!manifestPath) {
     return defaults;
   }
 
-  const manifestPath = resolveManifestPath(env.APP_MANIFEST_PATH);
   const fileBody = readFileSync(manifestPath, "utf-8");
   const parsed = runtimeManifestSchema.parse(JSON.parse(fileBody));
 
@@ -223,6 +223,25 @@ export function loadRuntimeManifest(): RuntimeManifest {
   });
 
   return merged;
+}
+
+function resolveConfiguredManifestPath(): string | null {
+  if (env.APP_MANIFEST_PATH && env.APP_MANIFEST_PATH.trim().length > 0) {
+    return resolveManifestPath(env.APP_MANIFEST_PATH);
+  }
+
+  if (env.ENV !== "local" || env.NODE_ENV === "test") {
+    return null;
+  }
+
+  const candidates = [
+    path.resolve(process.cwd(), "backend/runtime-manifest.local.json"),
+    path.resolve(process.cwd(), "runtime-manifest.local.json"),
+    "/app/backend/runtime-manifest.local.json"
+  ];
+
+  const existingPath = candidates.find((candidatePath) => existsSync(candidatePath));
+  return existingPath ?? null;
 }
 
 function createDefaultManifest(): RuntimeManifest {

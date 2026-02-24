@@ -15,18 +15,20 @@ services:
         required: false
     ports:
       - "4000:4000"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     environment:
+      ENV: ${ENV:-local}
       NODE_ENV: development
       PORT: "4000"
-      APP_MANIFEST_PATH: /app/backend/runtime-manifest.local.json
       MONGO_URI: mongodb://mongo:27017/invoice_processor
       INGESTION_SOURCES: folder
       FOLDER_SOURCE_KEY: local-folder
       FOLDER_SOURCE_PATH: /app/sample-invoices/inbox
       FOLDER_RECURSIVE: "false"
       DEEPSEEK_BASE_URL: ${DEEPSEEK_BASE_URL:-http://host.docker.internal:8000/v1}
-      DEEPSEEK_OCR_MODEL: deepseek-ai/DeepSeek-OCR
-      DEEPSEEK_OCR_MAX_TOKENS: "256"
+      DEEPSEEK_OCR_MODEL: ${DEEPSEEK_OCR_MODEL:-mlx-community/DeepSeek-OCR-4bit}
+      DEEPSEEK_OCR_MAX_TOKENS: "768"
       DEEPSEEK_TIMEOUT_MS: "3600000"
       OCR_HIGH_CONFIDENCE_THRESHOLD: "0.92"
       FIELD_VERIFIER_PROVIDER: http
@@ -39,9 +41,7 @@ services:
       TALLY_COMPANY: Demo Company
       TALLY_PURCHASE_LEDGER: Purchase
     volumes:
-      - ./sample-invoices/inbox:/app/sample-invoices/inbox
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
+      - ${INVOICE_INBOX_PATH:-./sample-invoices/inbox}:/app/sample-invoices/inbox:ro
 
   frontend:
     build:

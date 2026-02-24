@@ -14,17 +14,11 @@ else
 fi
 
 ENV_MODE="${ENV:-local}"
-BACKEND_HEALTH_URL="${BACKEND_HEALTH_URL:-http://127.0.0.1:4100/health}"
-FRONTEND_URL="${FRONTEND_URL:-http://127.0.0.1:5177}"
-OCR_HEALTH_URL="${OCR_HEALTH_URL:-http://127.0.0.1:8200/health}"
-SLM_HEALTH_URL="${SLM_HEALTH_URL:-http://127.0.0.1:8300/health}"
-DEFAULT_DEMO_INBOX_PATH="$ROOT_DIR/.local-run/demo-inbox"
-INVOICE_INBOX_PATH="${INVOICE_INBOX_PATH:-$DEFAULT_DEMO_INBOX_PATH}"
-DEFAULT_LOCAL_MANIFEST_PATH="backend/runtime-manifest.local.demo.json"
-APP_MANIFEST_PATH_VALUE="${APP_MANIFEST_PATH:-}"
-LOCAL_DEMO_SEED_VALUE="${LOCAL_DEMO_SEED:-}"
-AUTH_AUTO_PROVISION_USERS_VALUE="${AUTH_AUTO_PROVISION_USERS:-}"
-LOCAL_DEMO_CONFIG_PATH_VALUE="${LOCAL_DEMO_CONFIG_PATH:-config/local-demo-users.json}"
+BACKEND_HEALTH_URL="${BACKEND_HEALTH_URL:-http://127.0.0.1:4000/health}"
+FRONTEND_URL="${FRONTEND_URL:-http://127.0.0.1:5173}"
+OCR_HEALTH_URL="${OCR_HEALTH_URL:-http://127.0.0.1:8000/v1/health}"
+SLM_HEALTH_URL="${SLM_HEALTH_URL:-http://127.0.0.1:8100/v1/health}"
+INVOICE_INBOX_PATH="${INVOICE_INBOX_PATH:-$ROOT_DIR/sample-invoices/inbox}"
 
 RUN_DIR="$ROOT_DIR/.local-run"
 OCR_PID_FILE="$RUN_DIR/ocr.pid"
@@ -33,31 +27,6 @@ OCR_LOG_FILE="$RUN_DIR/ocr.log"
 SLM_LOG_FILE="$RUN_DIR/slm.log"
 
 mkdir -p "$RUN_DIR"
-
-prepare_local_demo_inbox() {
-  local source_dir="$1"
-  local destination_root="$2"
-  local tenant_a_dir="$destination_root/tenant-alpha"
-  local tenant_b_dir="$destination_root/tenant-beta"
-  local -a files=()
-
-  mkdir -p "$tenant_a_dir" "$tenant_b_dir"
-  rm -f "$tenant_a_dir"/* "$tenant_b_dir"/*
-
-  while IFS= read -r file; do
-    files+=("$file")
-  done < <(find "$source_dir" -maxdepth 1 -type f \( -name "*.pdf" -o -name "*.png" -o -name "*.jpg" -o -name "*.jpeg" \) | sort)
-
-  local index=0
-  for file_path in "${files[@]}"; do
-    if (( index % 2 == 0 )); then
-      cp "$file_path" "$tenant_a_dir/"
-    else
-      cp "$file_path" "$tenant_b_dir/"
-    fi
-    index=$((index + 1))
-  done
-}
 
 resolve_python_bin() {
   if [[ -x "$ROOT_DIR/.venv-ml/bin/python" ]]; then
@@ -83,6 +52,27 @@ import sys
 if sys.version_info < (3, 10):
   raise SystemExit(f"Python 3.10+ required, found {sys.version.split()[0]}")
 PY
+}
+
+wait_for_http_contains() {
+  local url="$1"
+  local needle="$2"
+  local name="$3"
+  local timeout_seconds="$4"
+  local started_at body
+  started_at="$(date +%s)"
+  body=""
+
+  while (( "$(date +%s)" - started_at < timeout_seconds )); do
+    body="$(curl -fsSL "$url" 2>/dev/null || true)"
+    if [[ "$body" == *"$needle"* ]]; then
+      return 0
+    fi
+    sleep 2
+  done
+
+  echo "Timed out waiting for $name at $url. Expected '$needle'. Last payload: $body" >&2
+  return 1
 }
 
 is_model_ready() {
@@ -130,27 +120,6 @@ wait_for_model_ready() {
   return 1
 }
 
-wait_for_http_contains() {
-  local url="$1"
-  local needle="$2"
-  local name="$3"
-  local timeout_seconds="$4"
-  local started_at body
-  started_at="$(date +%s)"
-  body=""
-
-  while (( "$(date +%s)" - started_at < timeout_seconds )); do
-    body="$(curl -fsSL "$url" 2>/dev/null || true)"
-    if [[ "$body" == *"$needle"* ]]; then
-      return 0
-    fi
-    sleep 2
-  done
-
-  echo "Timed out waiting for $name at $url. Expected '$needle'. Last payload: $body" >&2
-  return 1
-}
-
 start_local_service_if_needed() {
   local name="$1"
   local health_url="$2"
@@ -182,32 +151,7 @@ start_local_service_if_needed() {
   wait_for_model_ready "$health_url" "$name" 1800 "$pid_file" "$log_file"
 }
 
-if [[ "$ENV_MODE" == "local" || "$ENV_MODE" == "dev" ]]; then
-  local_demo_mode="false"
-  if [[ "$INVOICE_INBOX_PATH" == "$DEFAULT_DEMO_INBOX_PATH" ]]; then
-    local_demo_mode="true"
-  fi
-  if [[ -z "$APP_MANIFEST_PATH_VALUE" && "$local_demo_mode" == "true" ]]; then
-    APP_MANIFEST_PATH_VALUE="$DEFAULT_LOCAL_MANIFEST_PATH"
-  fi
-  if [[ -z "$LOCAL_DEMO_SEED_VALUE" ]]; then
-    if [[ "$local_demo_mode" == "true" ]]; then
-      LOCAL_DEMO_SEED_VALUE="true"
-    else
-      LOCAL_DEMO_SEED_VALUE="false"
-    fi
-  fi
-  if [[ -z "$AUTH_AUTO_PROVISION_USERS_VALUE" ]]; then
-    if [[ "$local_demo_mode" == "true" ]]; then
-      AUTH_AUTO_PROVISION_USERS_VALUE="true"
-    else
-      AUTH_AUTO_PROVISION_USERS_VALUE="false"
-    fi
-  fi
-  if [[ "$INVOICE_INBOX_PATH" == "$DEFAULT_DEMO_INBOX_PATH" ]]; then
-    prepare_local_demo_inbox "$ROOT_DIR/sample-invoices/inbox" "$INVOICE_INBOX_PATH"
-  fi
-
+if [[ "$ENV_MODE" == "local" ]]; then
   PYTHON_BIN="$(resolve_python_bin)"
   assert_python_version "$PYTHON_BIN"
 
@@ -216,25 +160,17 @@ if [[ "$ENV_MODE" == "local" || "$ENV_MODE" == "dev" ]]; then
     "$OCR_HEALTH_URL" \
     "$OCR_PID_FILE" \
     "$OCR_LOG_FILE" \
-    "$PYTHON_BIN" -m uvicorn app.api:app --app-dir invoice-ocr --host 0.0.0.0 --port 8200
+    "$PYTHON_BIN" -m uvicorn app.api:app --app-dir invoice-ocr --host 0.0.0.0 --port 8000
 
   start_local_service_if_needed \
     "SLM" \
     "$SLM_HEALTH_URL" \
     "$SLM_PID_FILE" \
     "$SLM_LOG_FILE" \
-    "$PYTHON_BIN" -m uvicorn app.api:app --app-dir invoice-slm --host 0.0.0.0 --port 8300
+    "$PYTHON_BIN" -m uvicorn app.api:app --app-dir invoice-slm --host 0.0.0.0 --port 8100
 fi
 
-INVOICE_INBOX_PATH="$INVOICE_INBOX_PATH" \
-APP_MANIFEST_PATH="$APP_MANIFEST_PATH_VALUE" \
-LOCAL_DEMO_SEED="$LOCAL_DEMO_SEED_VALUE" \
-AUTH_AUTO_PROVISION_USERS="$AUTH_AUTO_PROVISION_USERS_VALUE" \
-LOCAL_DEMO_CONFIG_PATH="$LOCAL_DEMO_CONFIG_PATH_VALUE" \
-ENV="$ENV_MODE" \
-"${COMPOSE_CMD[@]}" up -d --build --remove-orphans \
-  backend frontend mongo mongo-express mailhog mailhog-oauth minio-init invoice-ocr invoice-slm
-
+INVOICE_INBOX_PATH="$INVOICE_INBOX_PATH" ENV="$ENV_MODE" "${COMPOSE_CMD[@]}" up -d --build --remove-orphans backend frontend mongo mongo-express
 wait_for_http_contains "$BACKEND_HEALTH_URL" "\"ready\":true" "backend" 600
 wait_for_http_contains "$FRONTEND_URL" "<html" "frontend" 300
 

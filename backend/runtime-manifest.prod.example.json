@@ -9,7 +9,7 @@
     "provider": "deepseek",
     "deepseek": {
       "baseUrl": "http://invoice-ocr.modal.internal/v1",
-      "model": "deepseek-ai/DeepSeek-OCR",
+      "model": "invoice-ocr-model",
       "timeoutMs": 3600000
     }
   },

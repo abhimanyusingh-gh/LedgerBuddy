@@ -150,6 +150,17 @@ describe("parseInvoiceText", () => {
     expect(result.parsed.invoiceNumber).toBe("ALPHA-77");
   });
 
+  it("does not accept short alpha-only invoice tokens from weak OCR", () => {
+    const text = [
+      "Invoice Number: AWS",
+      "Vendor: Blue River Ltd",
+      "Grand Total: 10.00"
+    ].join("\n");
+    const result = parseInvoiceText(text);
+
+    expect(result.parsed.invoiceNumber).toBeUndefined();
+  });
+
   it("extracts invoice number from line after hint and continues past unrelated lines", () => {
     const text = [
       "Document Header",
@@ -337,8 +348,13 @@ describe("extractTotalAmount additional branch paths", () => {
   });
 
   it("uses fallback position bonus when ranking unlabeled totals", () => {
-    const text = ["Fee line 101", "Description", "Notes", "Fee line 99"].join("\n");
+    const text = ["Fee line 101.00", "Description", "Notes", "Fee line 99.00"].join("\n");
     expect(extractTotalAmount(text)).toBe(99);
+  });
+
+  it("ignores unlabeled integer identifiers without monetary context", () => {
+    const text = ["Customer Number 47774", "Order Number 365146"].join("\n");
+    expect(extractTotalAmount(text)).toBeUndefined();
   });
 
   it("handles weak total labels with percentage noise penalty", () => {

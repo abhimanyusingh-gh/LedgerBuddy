@@ -11,7 +11,7 @@ const SUPPORTED_MIME_TYPES = new Set([
   "application/pdf"
 ]);
 const RETRYABLE_NETWORK_ERROR_CODES = new Set(["ECONNREFUSED", "ECONNRESET", "ETIMEDOUT", "EHOSTUNREACH"]);
-const DEFAULT_PROMPT = "<image>\n<|grounding|>Convert page to markdown.";
+const DEFAULT_PROMPT = "<|grounding|>Convert page to markdown.";
 const DEFAULT_MAX_TOKENS = 512;
 const DEFAULT_TIMEOUT_MS = 3_600_000;
 
@@ -52,7 +52,7 @@ export class DeepSeekOcrProvider implements OcrProvider {
 
   constructor(options?: DeepSeekOcrProviderOptions) {
     this.apiKey = options?.apiKey ?? process.env.DEEPSEEK_API_KEY ?? "";
-    this.model = options?.model ?? process.env.DEEPSEEK_OCR_MODEL ?? "deepseek-ai/DeepSeek-OCR";
+    this.model = options?.model ?? process.env.DEEPSEEK_OCR_MODEL ?? "mlx-community/DeepSeek-OCR-4bit";
     this.timeoutMs = options?.timeoutMs ?? readTimeoutMsFromEnv();
     this.prompt = normalizePrompt(options?.prompt ?? process.env.DEEPSEEK_OCR_PROMPT ?? DEFAULT_PROMPT);
     this.maxTokens = normalizeMaxTokens(options?.maxTokens ?? readMaxTokensFromEnv());
@@ -231,8 +231,19 @@ function readMaxTokensFromEnv(): number {
 }
 
 function normalizePrompt(value: string): string {
-  const trimmed = value.trim();
+  const trimmed = stripVisionPromptTokens(value);
   return trimmed.length > 0 ? trimmed : DEFAULT_PROMPT;
+}
+
+function stripVisionPromptTokens(value: string): string {
+  return value
+    .replace(/<\|image_\d+\|>/gi, "")
+    .replace(/<image>/gi, "")
+    .replace(/[ \t]+\n/g, "")
+    .replace(/\n[ \t]+/g, "")
+    .replace(/[ \t]{2,}/g, "")
+    .replace(/\n{3,}/g, "")
+    .trim();
 }
 
 function normalizeMaxTokens(value: number): number {

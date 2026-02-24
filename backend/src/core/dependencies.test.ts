@@ -1,4 +1,5 @@
 const mockEnv = {
+  ENV: "local" as "local" | "prod",
   NODE_ENV: "test",
   PORT: 4000,
   MONGO_URI: "mongodb://127.0.0.1:27017/test",
@@ -25,6 +26,11 @@ const mockEnv = {
   DEEPSEEK_TIMEOUT_MS: 45000,
   MOCK_OCR_TEXT: undefined as string | undefined,
   MOCK_OCR_CONFIDENCE: undefined as number | undefined,
+  FIELD_VERIFIER_PROVIDER: "none" as "none" | "http",
+  FIELD_VERIFIER_BASE_URL: "http://localhost:8100/v1",
+  FIELD_VERIFIER_TIMEOUT_MS: 20000,
+  FIELD_VERIFIER_API_KEY: undefined as string | undefined,
+  OCR_HIGH_CONFIDENCE_THRESHOLD: 0.92,
   CONFIDENCE_EXPECTED_MAX_TOTAL: 100000,
   CONFIDENCE_EXPECTED_MAX_DUE_DAYS: 90,
   CONFIDENCE_AUTO_SELECT_MIN: 91,
@@ -78,6 +84,19 @@ describe("resolveOcrProvider", () => {
     mockEnv.DEEPSEEK_API_KEY = undefined;
     mockEnv.DEEPSEEK_OCR_MODEL = "deepseek-ai/DeepSeek-OCR";
     axiosGetMock.mockReset();
+    axiosGetMock.mockImplementation((url: string) => {
+      if (url.includes("/models")) {
+        return Promise.resolve({
+          data: { data: [{ id: "deepseek-ai/DeepSeek-OCR" }] }
+        });
+      }
+      if (url.includes("/health")) {
+        return Promise.resolve({
+          data: { status: "ok", modelLoaded: true }
+        });
+      }
+      return Promise.resolve({ data: {} });
+    });
     MockOcrProviderCtorMock.mockClear();
     DeepSeekOcrProviderCtorMock.mockClear();
   });
@@ -92,21 +111,28 @@ describe("resolveOcrProvider", () => {
   it("uses deepseek provider when explicitly configured and model validates", async () => {
     mockEnv.OCR_PROVIDER = "deepseek";
     mockEnv.DEEPSEEK_API_KEY = undefined;
-    axiosGetMock.mockResolvedValue({
-      data: { data: [{ id: "deepseek-ai/DeepSeek-OCR" }] }
-    });
 
     const provider = await resolveOcrProvider();
 
     expect(provider).toBe(deepSeekProviderInstance);
-    expect(axiosGetMock).toHaveBeenCalledTimes(1);
+    expect(axiosGetMock).toHaveBeenCalledTimes(2);
   });
 
   it("throws a clear error when deepseek model is not listed", async () => {
     mockEnv.OCR_PROVIDER = "deepseek";
     mockEnv.DEEPSEEK_API_KEY = undefined;
-    axiosGetMock.mockResolvedValue({
-      data: { data: [{ id: "deepseek-chat" }, { id: "deepseek-reasoner" }] }
+    axiosGetMock.mockImplementation((url: string) => {
+      if (url.includes("/models")) {
+        return Promise.resolve({
+          data: { data: [{ id: "deepseek-chat" }, { id: "deepseek-reasoner" }] }
+        });
+      }
+      if (url.includes("/health")) {
+        return Promise.resolve({
+          data: { status: "ok", modelLoaded: true }
+        });
+      }
+      return Promise.resolve({ data: {} });
     });
 
     await expect(resolveOcrProvider()).rejects.toThrow(
@@ -118,22 +144,16 @@ describe("resolveOcrProvider", () => {
   it("uses deepseek in auto mode when key and model validate", async () => {
     mockEnv.OCR_PROVIDER = "auto";
     mockEnv.DEEPSEEK_API_KEY = undefined;
-    axiosGetMock.mockResolvedValue({
-      data: { data: [{ id: "deepseek-ai/DeepSeek-OCR" }] }
-    });
 
     const provider = await resolveOcrProvider();
 
     expect(provider).toBe(deepSeekProviderInstance);
-    expect(axiosGetMock).toHaveBeenCalledTimes(1);
+    expect(axiosGetMock).toHaveBeenCalledTimes(2);
   });
 
   it("uses deepseek in auto mode without api key when model endpoint is open", async () => {
     mockEnv.OCR_PROVIDER = "auto";
     mockEnv.DEEPSEEK_API_KEY = undefined;
-    axiosGetMock.mockResolvedValue({
-      data: { data: [{ id: "deepseek-ai/DeepSeek-OCR" }] }
-    });
 
     const provider = await resolveOcrProvider();
     expect(provider).toBe(deepSeekProviderInstance);
@@ -142,9 +162,6 @@ describe("resolveOcrProvider", () => {
   it("sends authorization header during model bootstrap when api key is provided", async () => {
     mockEnv.OCR_PROVIDER = "deepseek";
     mockEnv.DEEPSEEK_API_KEY = "token-123";
-    axiosGetMock.mockResolvedValue({
-      data: { data: [{ id: "deepseek-ai/DeepSeek-OCR" }] }
-    });
 
     await resolveOcrProvider();
 
@@ -162,9 +179,6 @@ describe("resolveOcrProvider", () => {
     mockEnv.OCR_PROVIDER = "deepseek";
     mockEnv.DEEPSEEK_API_KEY = undefined;
     mockEnv.DEEPSEEK_OCR_MODEL = "deepseek-ai/deepseek-ocr:latest";
-    axiosGetMock.mockResolvedValue({
-      data: { data: [{ id: "deepseek-ai/DeepSeek-OCR" }] }
-    });
 
     const provider = await resolveOcrProvider();
     expect(provider).toBe(deepSeekProviderInstance);

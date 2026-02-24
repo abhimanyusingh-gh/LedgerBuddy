@@ -18,6 +18,7 @@ const invoiceNumberPatterns = [
 const invoiceNumberHintPattern =
   /\b(invoice|facture|factuur|bill|inv(?:oice)?|n[°o]\s*de\s*facture)\b.*\b(no\.?|number|#|n[°o]|nummer)?\b/i;
 const invoiceNumberTokenPattern = /([A-Z0-9][A-Z0-9_\-/]{2,})/;
+const invoiceNumberBlockedValuePattern = /^(invoice|number|page|aws)$/i;
 
 const explicitVendorLinePattern =
   /^(vendor|supplier|sold\s*by|bill\s*from|from|company|merchant|hotel\s*details)\s*[:\-]?\s*(.*)$/i;
@@ -120,6 +121,10 @@ export function extractTotalAmount(text: string): number | undefined {
 
   const labeledCandidates: AmountCandidate[] = [];
   for (const [index, line] of lines.entries()) {
+    if (!strongTotalPattern.test(line) && !weakTotalPattern.test(line)) {
+      continue;
+    }
+
     const values = extractAmountValuesFromLine(line);
     if (values.length === 0) {
       continue;
@@ -154,6 +159,10 @@ export function extractTotalAmount(text: string): number | undefined {
       continue;
     }
 
+    if (!weakTotalPattern.test(line) && !hasMonetaryContext(line, values)) {
+      continue;
+    }
+
     const positionBonus = [0, 8][Number(index >= Math.floor(lines.length * 0.6))];
     for (const value of values) {
       fallbackCandidates.push({
@@ -169,7 +178,7 @@ export function extractTotalAmount(text: string): number | undefined {
 
 function extractInvoiceNumber(text: string): string | undefined {
   const direct = findFirstMatch(text, invoiceNumberPatterns);
-  if (direct) {
+  if (direct && isLikelyInvoiceNumber(direct)) {
     return direct;
   }
 
@@ -187,7 +196,7 @@ function extractInvoiceNumber(text: string): string | undefined {
     const inlineValue = line
       .replace(/invoice|facture|factuur|bill|inv(?:oice)?|n[°o]\s*de\s*facture/gi, " ")
       .match(invoiceNumberTokenPattern)?.[1];
-    if (inlineValue) {
+    if (inlineValue && isLikelyInvoiceNumber(inlineValue)) {
       return inlineValue;
     }
 
@@ -197,7 +206,7 @@ function extractInvoiceNumber(text: string): string | undefined {
     }
 
     const nextValue = nextLine.match(invoiceNumberTokenPattern)?.[1];
-    if (nextValue) {
+    if (nextValue && isLikelyInvoiceNumber(nextValue)) {
       return nextValue;
     }
   }
@@ -208,6 +217,7 @@ function extractInvoiceNumber(text: string): string | undefined {
 function normalizeForParsing(text: string): string {
   return text
     .replace(/\r\n?/g, "\n")
+    .replace(/\[\s*page\s+\d+\s*\]/gi, "\n")
     .replace(/<\|ref\|>.*?<\|\/ref\|>/g, " ")
     .replace(/<\|det\|>.*?<\|\/det\|>/g, "\n")
     .replace(/<\/?(table|thead|tbody|tr)>/gi, "\n")
@@ -609,4 +619,29 @@ function scoreAmountMagnitude(amount: number): number {
   }
 
   return score;
+}
+
+function hasMonetaryContext(line: string, values: number[]): boolean {
+  if (/[€£$₹]|(?:\bUSD\b|\bEUR\b|\bGBP\b|\bINR\b|\bAUD\b|\bCAD\b|\bJPY\b|\bAED\b|\bSGD\b|\bCHF\b|\bCNY\b)/i.test(line)) {
+    return true;
+  }
+
+  if (/[.,]\d{1,2}\b/.test(line)) {
+    return true;
+  }
+
+  return values.some((value) => !Number.isInteger(value));
+}
+
+function isLikelyInvoiceNumber(value: string): boolean {
+  const normalized = value.trim();
+  if (normalized.length < 3 || invoiceNumberBlockedValuePattern.test(normalized)) {
+    return false;
+  }
+
+  if (/[0-9]/.test(normalized) || /[-_/]/.test(normalized)) {
+    return true;
+  }
+
+  return normalized.length >= 6;
 }

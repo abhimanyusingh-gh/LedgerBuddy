@@ -8,17 +8,12 @@
   "ocr": {
     "provider": "deepseek",
     "deepseek": {
-      "baseUrl": "http://host.docker.internal:8000/v1",
-      "model": "deepseek-ai/DeepSeek-OCR",
-      "timeoutMs": 3600000
+      "model": "mlx-community/DeepSeek-OCR-4bit"
     }
   },
   "verifier": {
     "provider": "http",
-    "http": {
-      "baseUrl": "http://host.docker.internal:8100/v1",
-      "timeoutMs": 20000
-    }
+    "http": {}
   },
   "extraction": {
     "ocrHighConfidenceThreshold": 0.92

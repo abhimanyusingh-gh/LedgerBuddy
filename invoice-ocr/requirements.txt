@@ -1,10 +1,1 @@
-fastapi==0.115.6
-uvicorn==0.34.0
-pydantic==2.10.6
-pillow==10.4.0
-pypdfium2==4.30.0
-numpy==2.4.2
-mlx==0.30.6
-mlx-vlm==0.3.3
-mlx-lm==0.30.7
-huggingface_hub==1.4.1
+-r requirements.local.txt

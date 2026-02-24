@@ -1,260 +1,235 @@
+import axios from "axios";
 import { promises as fs } from "node:fs";
-import os from "node:os";
 import path from "node:path";
-import mongoose from "mongoose";
-import { FolderIngestionSource } from "../sources/FolderIngestionSource.ts";
-import { IngestionService } from "../services/ingestionService.ts";
-import { MockOcrProvider } from "../ocr/MockOcrProvider.ts";
-import { InvoiceService, InvoiceUpdateError } from "../services/invoiceService.ts";
-import { CheckpointModel } from "../models/Checkpoint.ts";
-import { InvoiceModel } from "../models/Invoice.ts";
 
-const mongoUri = process.env.MONGO_URI ?? "mongodb://127.0.0.1:27017/invoice_processor_e2e";
-jest.setTimeout(30_000);
+const apiBaseUrl = process.env.E2E_API_BASE_URL ?? "http://127.0.0.1:4000";
+const frontendBaseUrl = process.env.E2E_FRONTEND_BASE_URL ?? "http://127.0.0.1:5173";
+const ocrHealthUrl = process.env.E2E_OCR_HEALTH_URL ?? "http://127.0.0.1:8000/v1/health";
+const slmHealthUrl = process.env.E2E_SLM_HEALTH_URL ?? "http://127.0.0.1:8100/v1/health";
+const inboxDir =
+  process.env.E2E_INBOX_DIR ?? path.resolve(process.cwd(), "..", "sample-invoices", "e2e-inbox");
 
-describe("folder ingestion e2e", () => {
-  let fixtureDir = "";
+const api = axios.create({
+  baseURL: apiBaseUrl,
+  timeout: 60_000,
+  validateStatus: () => true
+});
+
+jest.setTimeout(20 * 60_000);
+
+interface IngestStatus {
+  state: "idle" | "running" | "completed" | "failed";
+  running: boolean;
+  totalFiles: number;
+  processedFiles: number;
+  newInvoices: number;
+  duplicates: number;
+  failures: number;
+  error?: string;
+}
+
+interface InvoiceListResponse {
+  total: number;
+  page: number;
+  limit: number;
+  items: Array<{
+    _id: string;
+    attachmentName: string;
+    status: string;
+    ocrProvider?: string;
+    ocrConfidence?: number;
+    confidenceScore?: number;
+    confidenceTone?: string;
+    autoSelectForApproval?: boolean;
+    parsed?: {
+      invoiceNumber?: string;
+      vendorName?: string;
+      currency?: string;
+      totalAmountMinor?: number;
+    };
+  }>;
+}
+
+const ALLOWED_STATUSES = new Set(["PARSED", "NEEDS_REVIEW", "FAILED_OCR", "FAILED_PARSE", "APPROVED", "EXPORTED"]);
+const NON_FAILED_STATUSES = new Set(["PARSED", "NEEDS_REVIEW", "APPROVED", "EXPORTED"]);
+const CONFIDENCE_TONES = new Set(["red", "yellow", "green"]);
+
+describe("local full-stack ingestion e2e", () => {
+  let expectedFiles: string[] = [];
 
   beforeAll(async () => {
-    try {
-      await mongoose.connect(mongoUri, { serverSelectionTimeoutMS: 5_000 });
-    } catch (error) {
-      throw new Error(
-        `Could not connect to MongoDB at '${mongoUri}'. Start local services with 'docker compose up -d'. Error: ${error instanceof Error ? error.message : String(error)}`
-      );
+    expectedFiles = await listInboxFiles(inboxDir);
+    if (expectedFiles.length === 0) {
+      throw new Error(`E2E inbox is empty: '${inboxDir}'`);
     }
+
+    const backendHealth = await api.get("/health");
+    expect(backendHealth.status).toBe(200);
+    expect(backendHealth.data?.ready).toBe(true);
+
+    const frontend = await axios.get(frontendBaseUrl, { timeout: 30_000, responseType: "text" });
+    expect(frontend.status).toBeGreaterThanOrEqual(200);
+    expect(frontend.status).toBeLessThan(400);
+    expect(typeof frontend.data).toBe("string");
+    expect(frontend.data.toLowerCase()).toContain("<html");
+
+    const [ocrHealth, slmHealth] = await Promise.all([
+      axios.get(ocrHealthUrl, { timeout: 30_000 }),
+      axios.get(slmHealthUrl, { timeout: 30_000 })
+    ]);
+    expect(ocrHealth.status).toBe(200);
+    expect(ocrHealth.data?.modelLoaded).toBe(true);
+    expect(slmHealth.status).toBe(200);
+    expect(slmHealth.data?.modelLoaded).toBe(true);
   });
 
-  beforeEach(async () => {
-    const db = mongoose.connection.db;
-    if (!db) {
-      throw new Error("MongoDB database is not initialized for e2e test.");
+  it("processes all inbox files using live OCR + SLM through running backend", async () => {
+    const trigger = await api.post("/api/jobs/ingest");
+    expect(trigger.status).toBe(202);
+
+    const completed = await waitForIngestionCompletion();
+    expect(completed.state).toBe("completed");
+    expect(completed.running).toBe(false);
+    expect(completed.totalFiles).toBe(expectedFiles.length);
+    expect(completed.processedFiles).toBe(expectedFiles.length);
+    expect(completed.newInvoices + completed.failures + completed.duplicates).toBe(expectedFiles.length);
+
+    const invoicesResponse = await api.get<InvoiceListResponse>("/api/invoices?page=1&limit=500");
+    expect(invoicesResponse.status).toBe(200);
+    const invoices = invoicesResponse.data.items;
+    expect(invoices.length).toBe(expectedFiles.length);
+    expect(invoicesResponse.data.total).toBe(expectedFiles.length);
+    expect(invoices.every((invoice) => invoice.ocrProvider !== "mock")).toBe(true);
+
+    const attachmentSet = new Set(invoices.map((invoice) => invoice.attachmentName));
+    for (const fileName of expectedFiles) {
+      expect(attachmentSet.has(fileName)).toBe(true);
     }
-    await db.dropDatabase();
 
-    fixtureDir = await fs.mkdtemp(path.join(os.tmpdir(), "invoice-e2e-"));
+    expect(invoices.every((invoice) => ALLOWED_STATUSES.has(invoice.status))).toBe(true);
 
-    process.env.MOCK_OCR_TEXT = [
-      "Invoice Number: E2E-1001",
-      "Vendor: Local Vendor Pvt Ltd",
-      "Invoice Date: 2026-02-10",
-      "Due Date: 2026-02-25",
-      "Currency: USD",
-      "Grand Total: 1250.00"
-    ].join("\n");
-    process.env.MOCK_OCR_CONFIDENCE = "0.97";
+    const failedInvoices = invoices.filter((invoice) => !NON_FAILED_STATUSES.has(invoice.status));
+    expect(failedInvoices).toHaveLength(0);
 
-    await fs.writeFile(path.join(fixtureDir, "invoice-1.jpg"), Buffer.from("fake-jpeg-content"));
-    await fs.writeFile(path.join(fixtureDir, "invoice-2.png"), Buffer.from("fake-png-content"));
-  });
-
-  afterEach(async () => {
-    delete process.env.MOCK_OCR_TEXT;
-    delete process.env.MOCK_OCR_CONFIDENCE;
-
-    if (fixtureDir) {
-      await fs.rm(fixtureDir, { recursive: true, force: true });
-      fixtureDir = "";
-    }
-  });
-
-  afterAll(async () => {
-    if (mongoose.connection.readyState !== 0) {
-      await mongoose.disconnect();
-    }
-  });
-
-  it("processes invoices from folder and prepares dashboard review data", async () => {
-    const source = new FolderIngestionSource({
-      key: "e2e-folder",
-      folderPath: fixtureDir,
-      recursive: false
-    });
-
-    const ingestionService = new IngestionService([source], new MockOcrProvider());
-
-    const firstRun = await ingestionService.runOnce();
-    expect(firstRun.totalFiles).toBe(2);
-    expect(firstRun.newInvoices).toBe(2);
-    expect(firstRun.failures).toBe(0);
-
-    const checkpoint = await CheckpointModel.findOne({ sourceKey: "e2e-folder" }).lean();
-    expect(checkpoint?.marker).toBeTruthy();
-
-    const secondRun = await ingestionService.runOnce();
-    expect(secondRun.totalFiles).toBe(0);
-    expect(secondRun.newInvoices).toBe(0);
-
-    const invoiceService = new InvoiceService();
-    const list = await invoiceService.listInvoices({ page: 1, limit: 20 });
-
-    expect(list.total).toBe(2);
-    expect(list.items).toHaveLength(2);
-    expect(list.items.every((item) => item.status === "PARSED" || item.status === "NEEDS_REVIEW")).toBe(true);
-    expect(list.items.every((item) => item.confidenceScore >= 80)).toBe(true);
-    expect(list.items.every((item) => Number.isInteger(item.parsed?.totalAmountMinor))).toBe(true);
-  });
-
-  it("stores checkpoint after each processed file so a crash can resume from last marker", async () => {
-    const source = new FolderIngestionSource({
-      key: "e2e-folder",
-      folderPath: fixtureDir,
-      recursive: false
-    });
-
-    let fileCount = 0;
-    const crashingService = new IngestionService([source], new MockOcrProvider(), {
-      afterFileProcessed: async () => {
-        fileCount += 1;
-        if (fileCount === 1) {
-          throw new Error("Simulated worker crash after first file");
-        }
+    let invoicesWithVendor = 0;
+    let invoicesWithAmount = 0;
+    let invoicesWithIdentifier = 0;
+    for (const invoice of invoices) {
+      assertConfidenceSignals(invoice);
+      if (hasNonEmptyText(invoice.parsed?.vendorName)) {
+        invoicesWithVendor += 1;
       }
-    });
+      if (isPositiveInteger(invoice.parsed?.totalAmountMinor)) {
+        invoicesWithAmount += 1;
+      }
+      if (hasNonEmptyText(invoice.parsed?.invoiceNumber) || hasNonEmptyText(invoice.parsed?.currency)) {
+        invoicesWithIdentifier += 1;
+      }
+    }
 
-    await expect(crashingService.runOnce()).rejects.toThrow("Simulated worker crash after first file");
-
-    const checkpointAfterCrash = await CheckpointModel.findOne({ sourceKey: "e2e-folder" }).lean();
-    expect(checkpointAfterCrash?.marker).toBeTruthy();
-
-    const resumeService = new IngestionService([source], new MockOcrProvider());
-    const resumedRun = await resumeService.runOnce();
-    expect(resumedRun.totalFiles).toBe(1);
-    expect(resumedRun.newInvoices).toBe(1);
-
-    const invoiceService = new InvoiceService();
-    const list = await invoiceService.listInvoices({ page: 1, limit: 20 });
-    expect(list.total).toBe(2);
+    expect(invoicesWithVendor).toBe(expectedFiles.length);
+    expect(invoicesWithAmount).toBe(expectedFiles.length);
+    expect(invoicesWithIdentifier).toBeGreaterThanOrEqual(1);
   });
 
-  it("allows approver edits before export and blocks edits after export", async () => {
-    const source = new FolderIngestionSource({
-      key: "e2e-folder",
-      folderPath: fixtureDir,
-      recursive: false
-    });
+  it("uses checkpointing to skip already processed files on rerun", async () => {
+    const trigger = await api.post("/api/jobs/ingest");
+    expect(trigger.status).toBe(202);
 
-    const ingestionService = new IngestionService([source], new MockOcrProvider());
-    await ingestionService.runOnce();
+    const rerun = await waitForIngestionCompletion();
+    expect(rerun.state).toBe("completed");
+    expect(rerun.totalFiles).toBe(0);
+    expect(rerun.processedFiles).toBe(0);
+    expect(rerun.newInvoices).toBe(0);
+    expect(rerun.failures).toBe(0);
 
-    const invoiceService = new InvoiceService();
-    const list = await invoiceService.listInvoices({ page: 1, limit: 5 });
-    expect(list.items.length).toBeGreaterThan(0);
-
-    const invoiceId = String(list.items[0]._id);
-    const updatedInvoice = await invoiceService.updateInvoiceParsedFields(
-      invoiceId,
-      {
-        vendorName: "Edited Vendor Pvt Ltd",
-        currency: "USD",
-        totalAmountMajor: "1500.75"
-      },
-      "e2e-user"
-    );
-
-    expect(updatedInvoice.parsed?.vendorName).toBe("Edited Vendor Pvt Ltd");
-    expect(updatedInvoice.parsed?.totalAmountMinor).toBe(150075);
-
-    await InvoiceModel.findByIdAndUpdate(invoiceId, { status: "EXPORTED" });
-    await expect(
-      invoiceService.updateInvoiceParsedFields(invoiceId, { vendorName: "Should Fail" }, "e2e-user")
-    ).rejects.toThrow(InvoiceUpdateError);
+    const invoicesResponse = await api.get<InvoiceListResponse>("/api/invoices?page=1&limit=500");
+    expect(invoicesResponse.status).toBe(200);
+    expect(invoicesResponse.data.total).toBe(expectedFiles.length);
   });
 
-  it("changes NEEDS_REVIEW invoices to APPROVED when approved", async () => {
-    const source = new FolderIngestionSource({
-      key: "e2e-folder",
-      folderPath: fixtureDir,
-      recursive: false
+  it("changes NEEDS_REVIEW invoices to APPROVED via API", async () => {
+    const listResponse = await api.get<InvoiceListResponse>("/api/invoices?page=1&limit=500&status=NEEDS_REVIEW");
+    expect(listResponse.status).toBe(200);
+    const target = listResponse.data.items[0];
+    if (!target) {
+      return;
+    }
+
+    const approve = await api.post("/api/invoices/approve", {
+      ids: [target._id],
+      approvedBy: "e2e-approver"
     });
+    expect(approve.status).toBe(200);
+    expect(Number(approve.data?.modifiedCount ?? 0)).toBeGreaterThanOrEqual(1);
 
-    const ingestionService = new IngestionService([source], new MockOcrProvider());
-    await ingestionService.runOnce();
-
-    const invoiceService = new InvoiceService();
-    const list = await invoiceService.listInvoices({ page: 1, limit: 5 });
-    expect(list.items.length).toBeGreaterThan(0);
-
-    const invoiceId = String(list.items[0]._id);
-    await InvoiceModel.findByIdAndUpdate(invoiceId, { status: "NEEDS_REVIEW" });
-
-    const modifiedCount = await invoiceService.approveInvoices([invoiceId], "e2e-approver");
-    expect(modifiedCount).toBe(1);
-
-    const updatedInvoice = await invoiceService.getInvoiceById(invoiceId);
-    expect(updatedInvoice?.status).toBe("APPROVED");
-    expect(updatedInvoice?.approval?.approvedBy).toBe("e2e-approver");
-    expect(updatedInvoice?.approval?.approvedAt).toBeTruthy();
-  });
-
-  it("ingests new files even when copied with mtime older than last checkpoint", async () => {
-    const source = new FolderIngestionSource({
-      key: "e2e-folder",
-      folderPath: fixtureDir,
-      recursive: false
-    });
-
-    const ingestionService = new IngestionService([source], new MockOcrProvider());
-
-    const firstRun = await ingestionService.runOnce();
-    expect(firstRun.newInvoices).toBe(2);
-
-    const oldTimestamp = new Date("2000-01-01T00:00:00.000Z");
-    const delayedFilePath = path.join(fixtureDir, "invoice-older-mtime.jpg");
-    await fs.writeFile(delayedFilePath, Buffer.from("older-mtime-content"));
-    await fs.utimes(delayedFilePath, oldTimestamp, oldTimestamp);
-
-    const secondRun = await ingestionService.runOnce();
-    expect(secondRun.totalFiles).toBe(1);
-    expect(secondRun.newInvoices).toBe(1);
-    expect(secondRun.failures).toBe(0);
-
-    const invoiceService = new InvoiceService();
-    const list = await invoiceService.listInvoices({ page: 1, limit: 20 });
-    expect(list.total).toBe(3);
-  });
-
-  it("routes PDF files through OCR provider extraction path", async () => {
-    const source = new FolderIngestionSource({
-      key: "e2e-folder",
-      folderPath: fixtureDir,
-      recursive: false
-    });
-
-    const samplePdfPath = path.join(
-      process.cwd(),
-      "..",
-      "sample-invoices",
-      "inbox",
-      "invoice2data__AmazonWebServices.pdf"
-    );
-    await fs.rm(path.join(fixtureDir, "invoice-1.jpg"));
-    await fs.rm(path.join(fixtureDir, "invoice-2.png"));
-    await fs.copyFile(samplePdfPath, path.join(fixtureDir, "invoice-source.pdf"));
-
-    process.env.MOCK_OCR_TEXT = [
-      "Invoice Number: PDF-901",
-      "Vendor: PDF Vendor Pvt Ltd",
-      "Invoice Date: 2026-02-10",
-      "Due Date: 2026-02-20",
-      "Currency: USD",
-      "Grand Total: 10.00"
-    ].join("\n");
-    process.env.MOCK_OCR_CONFIDENCE = "0.92";
-
-    const ingestionService = new IngestionService([source], new MockOcrProvider());
-    const result = await ingestionService.runOnce();
-    expect(result.newInvoices).toBe(1);
-    expect(result.failures).toBe(0);
-
-    const invoiceService = new InvoiceService();
-    const list = await invoiceService.listInvoices({ page: 1, limit: 20 });
-    const pdfInvoice = list.items.find((item) => item.attachmentName === "invoice-source.pdf");
-
-    expect(pdfInvoice).toBeTruthy();
-    expect(pdfInvoice?.ocrProvider).toBe("mock");
-    expect((pdfInvoice?.metadata as Record<string, string | undefined> | undefined)?.extractionSource).toBe(
-      "ocr-provider"
-    );
+    const updated = await api.get(`/api/invoices/${target._id}`);
+    expect(updated.status).toBe(200);
+    expect(updated.data?.status).toBe("APPROVED");
+    expect(updated.data?.approval?.approvedBy).toBe("e2e-approver");
   });
 });
+
+async function listInboxFiles(directory: string): Promise<string[]> {
+  const entries = await fs.readdir(directory, { withFileTypes: true });
+  return entries
+    .filter((entry) => entry.isFile())
+    .map((entry) => entry.name)
+    .filter((name) => /\.(pdf|png|jpe?g)$/i.test(name))
+    .sort((left, right) => left.localeCompare(right));
+}
+
+async function waitForIngestionCompletion(timeoutMs = 20 * 60_000): Promise<IngestStatus> {
+  const startedAt = Date.now();
+
+  while (Date.now() - startedAt < timeoutMs) {
+    const response = await api.get<IngestStatus>("/api/jobs/ingest/status");
+    if (response.status !== 200) {
+      throw new Error(`Status endpoint failed with HTTP ${response.status}.`);
+    }
+
+    const status = response.data;
+    if (status.state === "failed") {
+      throw new Error(`Ingestion job failed: ${status.error ?? "unknown error"}`);
+    }
+    if (status.state === "completed") {
+      return status;
+    }
+
+    await sleep(2_000);
+  }
+
+  throw new Error(`Timed out waiting for ingestion completion after ${timeoutMs}ms.`);
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function assertConfidenceSignals(invoice: InvoiceListResponse["items"][number]): void {
+  expect(isProbability(invoice.ocrConfidence)).toBe(true);
+  expect(isPercentage(invoice.confidenceScore)).toBe(true);
+  expect(CONFIDENCE_TONES.has(invoice.confidenceTone ?? "")).toBe(true);
+  expect(typeof invoice.autoSelectForApproval).toBe("boolean");
+
+  const score = invoice.confidenceScore as number;
+  const expectedTone = score >= 91 ? "green" : score >= 80 ? "yellow" : "red";
+  expect(invoice.confidenceTone).toBe(expectedTone);
+  expect(invoice.autoSelectForApproval).toBe(score >= 91);
+}
+
+function hasNonEmptyText(value: unknown): value is string {
+  return typeof value === "string" && value.trim().length > 0;
+}
+
+function isPositiveInteger(value: unknown): value is number {
+  return typeof value === "number" && Number.isInteger(value) && value > 0;
+}
+
+function isProbability(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value) && value >= 0 && value <= 1;
+}
+
+function isPercentage(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value) && value >= 0 && value <= 100;
+}

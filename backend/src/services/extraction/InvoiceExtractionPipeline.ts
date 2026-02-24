@@ -1,5 +1,5 @@
 import type { FieldVerificationMode, FieldVerifier } from "../../core/interfaces/FieldVerifier.js";
-import type { OcrBlock, OcrProvider } from "../../core/interfaces/OcrProvider.js";
+import type { OcrBlock, OcrPageImage, OcrProvider } from "../../core/interfaces/OcrProvider.js";
 import type { ParsedInvoiceData } from "../../types/invoice.js";
 import { runInvoiceExtractionAgent, type ExtractionTextCandidate } from "../invoiceExtractionAgent.js";
 import { assessInvoiceConfidence, type ConfidenceAssessment } from "../confidenceAssessment.js";
@@ -75,11 +75,13 @@ export class InvoiceExtractionPipeline {
     let ocrProvider = this.ocrProvider.name;
     let ocrConfidence: number | undefined;
     let ocrBlocks: OcrBlock[] = [];
+    let ocrPageImages: OcrPageImage[] = [];
 
     try {
       const ocrResult = await this.ocrProvider.extractText(input.fileBuffer, input.mimeType);
       ocrProvider = ocrResult.provider || this.ocrProvider.name;
       ocrBlocks = ocrResult.blocks ?? [];
+      ocrPageImages = ocrResult.pageImages ?? [];
       const rawText = ocrResult.text.trim();
       const blockText = buildBlocksText(ocrBlocks);
       const calibrated = calibrateDocumentConfidence(ocrResult.confidence, rawText, blockText);
@@ -162,6 +164,7 @@ export class InvoiceExtractionPipeline {
           metadata,
           parsed: parsedFromTemplate,
           ocrBlocks,
+          fieldRegions: {},
           source: "template",
           ocrConfidence,
           validationIssues: templateValidation.issues,
@@ -182,6 +185,7 @@ export class InvoiceExtractionPipeline {
           confidenceAssessment: templateConfidence,
           attempts: templateResult.attempts,
           ocrBlocks,
+          ocrPageImages,
           processingIssues: uniqueIssues(processingIssues),
           metadata
         };
@@ -214,12 +218,13 @@ export class InvoiceExtractionPipeline {
       referenceDate: input.referenceDate
     });
 
+    const fieldCandidates = buildFieldCandidates(heuristicResult.text, parsed, template);
+    const fieldRegions = buildFieldRegions(ocrBlocks, fieldCandidates);
+
     const shouldVerify = !ocrGateHigh || !validation.valid;
     const verifierChangedFields: string[] = [];
     if (shouldVerify) {
       const mode: FieldVerificationMode = ocrGateHigh ? "strict" : "relaxed";
-      const fieldCandidates = buildFieldCandidates(heuristicResult.text, parsed, template);
-      const fieldRegions = buildFieldRegions(ocrBlocks, fieldCandidates);
       const verifierOutput = await this.fieldVerifier.verify({
         parsed,
         ocrText: heuristicResult.text,
@@ -281,7 +286,8 @@ export class InvoiceExtractionPipeline {
       validationIssues: validation.issues,
       warnings,
       templateAppliedFields,
-      verifierChangedFields
+      verifierChangedFields,
+      fieldRegions
     });
 
     await this.cacheTemplate(input, fingerprint.key, fingerprint.layoutSignature, parsed, confidence);
@@ -299,6 +305,7 @@ export class InvoiceExtractionPipeline {
       confidenceAssessment: confidence,
       attempts: heuristicResult.attempts,
       ocrBlocks,
+      ocrPageImages,
       processingIssues: uniqueIssues(processingIssues),
       metadata
     };
@@ -676,6 +683,7 @@ function addFieldDiagnosticsToMetadata(params: {
   metadata: Record<string, string>;
   parsed: ParsedInvoiceData;
   ocrBlocks: OcrBlock[];
+  fieldRegions: Record<string, OcrBlock[]>;
   source: string;
   ocrConfidence?: number;
   validationIssues: string[];
@@ -698,7 +706,16 @@ function addFieldDiagnosticsToMetadata(params: {
   const changedByVerifier = new Set(params.verifierChangedFields);
 
   const fieldConfidence: Record<string, number> = {};
-  const fieldProvenance: Record<string, { source: string; page: number; bbox: [number, number, number, number] }> = {};
+  const fieldProvenance: Record<
+    string,
+    {
+      source: string;
+      page: number;
+      bbox: [number, number, number, number];
+      bboxNormalized?: [number, number, number, number];
+      blockIndex?: number;
+    }
+  > = {};
 
   for (const field of fieldNames) {
     const value = params.parsed[field];
@@ -718,11 +735,19 @@ function addFieldDiagnosticsToMetadata(params: {
         : params.source.includes("template")
           ? "template"
           : "heuristic";
-    const block = findBlockForField(field, value, params.ocrBlocks);
+    const matched = findBlockForField(
+      field,
+      value,
+      params.ocrBlocks,
+      params.fieldRegions[field] ?? []
+    );
+    const block = matched?.block;
     fieldProvenance[field] = {
       source: provenanceSource,
       page: block?.page ?? 1,
-      bbox: block?.bbox ?? [0, 0, 0, 0]
+      bbox: block?.bbox ?? [0, 0, 0, 0],
+      ...(block?.bboxNormalized ? { bboxNormalized: block.bboxNormalized } : {}),
+      ...(typeof matched?.index === "number" ? { blockIndex: matched.index } : {})
     };
   }
 
@@ -774,27 +799,181 @@ function inferValidationBonus(field: keyof ParsedInvoiceData, validationText: st
 function findBlockForField(
   field: keyof ParsedInvoiceData,
   value: unknown,
-  blocks: OcrBlock[]
-): OcrBlock | undefined {
+  blocks: OcrBlock[],
+  preferredBlocks: OcrBlock[]
+): { block: OcrBlock; index: number } | undefined {
   if (blocks.length === 0) {
     return undefined;
   }
 
-  let needle = "";
-  if (typeof value === "number") {
-    needle = String(Math.round(value / 100));
-  } else if (typeof value === "string") {
-    needle = value.trim();
-  }
-  if (!needle) {
+  const candidate = normalizeFieldValue(field, value);
+  if (!candidate) {
     return undefined;
   }
-  if (field === "currency" && typeof value === "string") {
-    needle = value.toUpperCase();
+
+  const terms = candidateTerms(field, candidate);
+  if (terms.length === 0) {
+    return undefined;
   }
 
-  const normalizedNeedle = needle.toLowerCase();
-  return blocks.find((block) => block.text.toLowerCase().includes(normalizedNeedle));
+  const preferredSet = new Set(preferredBlocks.map((block) => block.text.trim().toLowerCase()).filter(Boolean));
+  let best: { block: OcrBlock; index: number; score: number } | undefined;
+
+  for (let index = 0; index < blocks.length; index += 1) {
+    const block = blocks[index];
+    const normalizedText = block.text.trim().toLowerCase();
+    if (!normalizedText) {
+      continue;
+    }
+
+    const keywordBonus = fieldKeywordBonus(field, normalizedText);
+    let score = keywordBonus;
+    let matchedTerms = 0;
+    for (const term of terms) {
+      if (!containsTerm(normalizedText, term)) {
+        continue;
+      }
+      score += term.length >= 4 ? 4 : 2;
+      if (normalizedText === term) {
+        score += 2;
+      }
+      matchedTerms += 1;
+    }
+
+    if (preferredSet.has(normalizedText)) {
+      score += 4;
+    }
+
+    score -= blockShapePenalty(field, normalizedText);
+
+    if (score <= 0) {
+      continue;
+    }
+
+    if (field === "totalAmountMinor") {
+      if (matchedTerms === 0) {
+        continue;
+      }
+      const hasTotalKeyword = /\b(grand total|invoice total|amount due|balance due|total due|amount payable|total)\b/i.test(
+        normalizedText
+      );
+      if (!hasTotalKeyword && keywordBonus <= 0 && matchedTerms < 2) {
+        continue;
+      }
+    }
+
+    if (!best || score > best.score) {
+      best = { block, index, score };
+    }
+  }
+
+  if (!best) {
+    return undefined;
+  }
+
+  return { block: best.block, index: best.index };
+}
+
+function normalizeFieldValue(field: keyof ParsedInvoiceData, value: unknown): string {
+  if (field === "totalAmountMinor") {
+    if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
+      return "";
+    }
+    return String(Math.round(value));
+  }
+
+  if (typeof value !== "string") {
+    return "";
+  }
+
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return "";
+  }
+
+  return field === "currency" ? trimmed.toUpperCase() : trimmed;
+}
+
+function fieldKeywordBonus(field: keyof ParsedInvoiceData, text: string): number {
+  if (field === "totalAmountMinor") {
+    if (/\b(grand total|invoice total|amount due|balance due|total due|amount payable|total)\b/i.test(text)) {
+      return 6;
+    }
+    if (/\b(subtotal|tax|vat|gst|charges|credit|discount)\b/i.test(text)) {
+      return -3;
+    }
+    return 0;
+  }
+
+  if (field === "invoiceNumber") {
+    return /\b(invoice|inv|bill).*(number|no|#)?\b/i.test(text) ? 4 : 0;
+  }
+
+  if (field === "vendorName") {
+    if (/\b(vendor|supplier|sold by|bill from|from)\b/i.test(text)) {
+      return 3;
+    }
+    if (looksLikeAddress(text)) {
+      return -5;
+    }
+    return 0;
+  }
+
+  if (field === "currency") {
+    return /\b(currency)\b/i.test(text) ? 2 : 0;
+  }
+
+  if (field === "invoiceDate") {
+    return /\b(invoice date|date)\b/i.test(text) ? 2 : 0;
+  }
+
+  if (field === "dueDate") {
+    return /\b(due date|payment terms)\b/i.test(text) ? 2 : 0;
+  }
+
+  return 0;
+}
+
+function containsTerm(haystack: string, term: string): boolean {
+  if (!term.trim()) {
+    return false;
+  }
+
+  if (/\d/.test(term)) {
+    const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    return new RegExp(`(^|[^\\d])${escaped}([^\\d]|$)`, "i").test(haystack);
+  }
+
+  return haystack.includes(term);
+}
+
+function blockShapePenalty(field: keyof ParsedInvoiceData, text: string): number {
+  const lineCount = text
+    .split(/\n+/)
+    .map((entry) => entry.trim())
+    .filter((entry) => entry.length > 0).length;
+  const lengthPenalty = Math.floor(text.length / 160);
+  const linePenalty = lineCount > 1 ? Math.min(6, lineCount - 1) : 0;
+
+  if (field === "totalAmountMinor") {
+    if (/\b(summary|description|quantity|rate|amount|subtotal|charges)\b/i.test(text) && lineCount > 2) {
+      return linePenalty + lengthPenalty + 3;
+    }
+    return linePenalty + lengthPenalty;
+  }
+
+  if (field === "invoiceNumber" || field === "currency" || field === "invoiceDate" || field === "dueDate") {
+    return linePenalty + lengthPenalty;
+  }
+
+  if (field === "vendorName") {
+    if (looksLikeAddress(text)) {
+      return linePenalty + lengthPenalty + 4;
+    }
+    return linePenalty + lengthPenalty;
+  }
+
+  return linePenalty + lengthPenalty;
 }
 
 function formatConfidence(value: number): string {

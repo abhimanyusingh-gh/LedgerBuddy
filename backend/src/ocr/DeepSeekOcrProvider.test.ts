@@ -25,8 +25,9 @@ describe("DeepSeekOcrProvider", () => {
   });
 
   it("calls /ocr/document without authorization header when api key is empty", async () => {
-    const post = jest.fn(async (_url: string, body: { includeLayout: boolean }, config: { headers: Record<string, string> }) => {
+    const post = jest.fn(async (_url: string, body: { includeLayout: boolean; prompt: string }, config: { headers: Record<string, string> }) => {
       expect(body.includeLayout).toBe(true);
+      expect(body.prompt).toBe("<|grounding|>Convert page to markdown.");
       expect(config.headers.Authorization).toBeUndefined();
       return {
         data: {
@@ -40,6 +41,24 @@ describe("DeepSeekOcrProvider", () => {
     const result = await provider.extractText(Buffer.from("png"), "image/png");
     expect(result.text).toBe("invoice text");
     expect(result.confidence).toBe(0.8);
+  });
+
+  it("strips image placeholders from configured OCR prompt", async () => {
+    const post = jest.fn(async (_url: string, body: { prompt: string }) => {
+      expect(body.prompt).toBe("Convert page to markdown.");
+      return {
+        data: {
+          rawText: "invoice text"
+        }
+      };
+    });
+
+    const provider = new DeepSeekOcrProvider({
+      prompt: "<image>\nConvert page to markdown. <|image_1|>",
+      httpClient: { post }
+    });
+
+    await provider.extractText(Buffer.from("png"), "image/png");
   });
 
   it("adds authorization header when api key is provided", async () => {
@@ -384,7 +403,7 @@ describe("DeepSeekOcrProvider", () => {
     process.env.DEEPSEEK_OCR_MAX_TOKENS = "NaN";
     const post = jest.fn(async (_url: string, body: { maxTokens: number; prompt: string }) => {
       expect(body.maxTokens).toBe(512);
-      expect(body.prompt).toBe("<image>\n<|grounding|>Convert page to markdown.");
+      expect(body.prompt).toBe("<|grounding|>Convert page to markdown.");
       return {
         data: {
           rawText: "ok"

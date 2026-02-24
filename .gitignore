@@ -18,3 +18,7 @@ terraform.tfstate.*
 .venv*
 __pycache__/
 *.pyc
+.local-run/
+.e2e-ocr.log
+.e2e-slm.log
+sample-invoices/e2e-inbox/
