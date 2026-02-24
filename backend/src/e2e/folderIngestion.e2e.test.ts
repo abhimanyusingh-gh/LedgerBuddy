@@ -37,13 +37,22 @@ interface InvoiceListResponse {
     attachmentName: string;
     status: string;
     ocrProvider?: string;
+    ocrConfidence?: number;
+    confidenceScore?: number;
+    confidenceTone?: string;
+    autoSelectForApproval?: boolean;
     parsed?: {
+      invoiceNumber?: string;
+      vendorName?: string;
+      currency?: string;
       totalAmountMinor?: number;
     };
   }>;
 }
 
 const ALLOWED_STATUSES = new Set(["PARSED", "NEEDS_REVIEW", "FAILED_OCR", "FAILED_PARSE", "APPROVED", "EXPORTED"]);
+const NON_FAILED_STATUSES = new Set(["PARSED", "NEEDS_REVIEW", "APPROVED", "EXPORTED"]);
+const CONFIDENCE_TONES = new Set(["red", "yellow", "green"]);
 
 describe("local full-stack ingestion e2e", () => {
   let expectedFiles: string[] = [];
@@ -98,6 +107,29 @@ describe("local full-stack ingestion e2e", () => {
     }
 
     expect(invoices.every((invoice) => ALLOWED_STATUSES.has(invoice.status))).toBe(true);
+
+    const failedInvoices = invoices.filter((invoice) => !NON_FAILED_STATUSES.has(invoice.status));
+    expect(failedInvoices).toHaveLength(0);
+
+    let invoicesWithVendor = 0;
+    let invoicesWithAmount = 0;
+    let invoicesWithIdentifier = 0;
+    for (const invoice of invoices) {
+      assertConfidenceSignals(invoice);
+      if (hasNonEmptyText(invoice.parsed?.vendorName)) {
+        invoicesWithVendor += 1;
+      }
+      if (isPositiveInteger(invoice.parsed?.totalAmountMinor)) {
+        invoicesWithAmount += 1;
+      }
+      if (hasNonEmptyText(invoice.parsed?.invoiceNumber) || hasNonEmptyText(invoice.parsed?.currency)) {
+        invoicesWithIdentifier += 1;
+      }
+    }
+
+    expect(invoicesWithVendor).toBe(expectedFiles.length);
+    expect(invoicesWithAmount).toBe(expectedFiles.length);
+    expect(invoicesWithIdentifier).toBeGreaterThanOrEqual(1);
   });
 
   it("uses checkpointing to skip already processed files on rerun", async () => {
@@ -172,4 +204,32 @@ async function waitForIngestionCompletion(timeoutMs = 20 * 60_000): Promise<Inge
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function assertConfidenceSignals(invoice: InvoiceListResponse["items"][number]): void {
+  expect(isProbability(invoice.ocrConfidence)).toBe(true);
+  expect(isPercentage(invoice.confidenceScore)).toBe(true);
+  expect(CONFIDENCE_TONES.has(invoice.confidenceTone ?? "")).toBe(true);
+  expect(typeof invoice.autoSelectForApproval).toBe("boolean");
+
+  const score = invoice.confidenceScore as number;
+  const expectedTone = score >= 91 ? "green" : score >= 80 ? "yellow" : "red";
+  expect(invoice.confidenceTone).toBe(expectedTone);
+  expect(invoice.autoSelectForApproval).toBe(score >= 91);
+}
+
+function hasNonEmptyText(value: unknown): value is string {
+  return typeof value === "string" && value.trim().length > 0;
+}
+
+function isPositiveInteger(value: unknown): value is number {
+  return typeof value === "number" && Number.isInteger(value) && value > 0;
+}
+
+function isProbability(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value) && value >= 0 && value <= 1;
+}
+
+function isPercentage(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value) && value >= 0 && value <= 100;
 }

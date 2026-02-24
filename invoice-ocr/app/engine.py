@@ -17,6 +17,7 @@ GROUNDING_BLOCK_PATTERN = re.compile(
   r"<\|ref\|>(?P<label>.*?)<\|/ref\|><\|det\|>(?P<det>.*?)<\|/det\|>(?P<body>.*?)(?=<\|ref\|>|\Z)",
   re.DOTALL
 )
+VISION_TOKEN_PATTERN = re.compile(r"<\|image_\d+\|>|<image>", re.IGNORECASE)
 PDF_RENDER_DPI = 300
 PDF_RENDER_SCALE = PDF_RENDER_DPI / 72.0
 
@@ -106,11 +107,21 @@ def normalize_remote_confidence(value: Any) -> float | None:
 
 
 def resolve_prompt(prompt: str, include_layout: bool) -> str:
-  if prompt.strip():
-    return prompt.strip()
-  if include_layout:
-    return settings.layout_prompt
-  return settings.text_prompt
+  base_prompt = prompt if prompt.strip() else (settings.layout_prompt if include_layout else settings.text_prompt)
+  normalized = sanitize_prompt(base_prompt)
+  if normalized:
+    return normalized
+  fallback = settings.layout_prompt if include_layout else settings.text_prompt
+  return sanitize_prompt(fallback)
+
+
+def sanitize_prompt(value: str) -> str:
+  sanitized = VISION_TOKEN_PATTERN.sub(" ", value)
+  sanitized = re.sub(r"[ \t]+\n", "\n", sanitized)
+  sanitized = re.sub(r"\n[ \t]+", "\n", sanitized)
+  sanitized = re.sub(r"[ \t]{2,}", " ", sanitized)
+  sanitized = re.sub(r"\n{3,}", "\n\n", sanitized)
+  return sanitized.strip()
 
 
 def normalize_model_output(response: Any) -> str:
