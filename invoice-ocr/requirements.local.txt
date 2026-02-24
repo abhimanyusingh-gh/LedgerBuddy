@@ -1,0 +1,4 @@
+-r requirements.base.txt
+mlx==0.30.6
+mlx-lm==0.30.7
+mlx-vlm==0.3.12

@@ -4,7 +4,8 @@ from typing import Any
 
 from fastapi import FastAPI, HTTPException, Request
 
-from .engine import create_ocr_engine, estimate_confidence, parse_data_url
+from .engine import estimate_confidence, parse_data_url
+from .engines import create_ocr_engine
 from .logging import log_error, log_info, reset_correlation_id, set_correlation_id
 from .schemas import OcrDocumentRequest
 

@@ -4,12 +4,13 @@ from typing import Any
 
 from fastapi import FastAPI, Request
 
-from .engine import create_slm_engine, normalize_blocks, normalize_candidate_map, normalize_field_regions, select_with_fallback
+from .engine import normalize_blocks, normalize_candidate_map, normalize_field_regions, select_with_fallback
+from .engines import create_llm_engine
 from .logging import log_error, log_info, reset_correlation_id, set_correlation_id
 from .schemas import VerifyInvoiceRequest, VerifyInvoiceResponse
 
 app = FastAPI(title="Invoice SLM Service", version="2.0.0")
-engine = create_slm_engine()
+engine = create_llm_engine()
 
 
 @app.middleware("http")
