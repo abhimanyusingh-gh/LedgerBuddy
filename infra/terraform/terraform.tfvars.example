@@ -8,6 +8,13 @@ instance_type = "t3.small"
 worker_market_type = "spot"
 app_image     = "123456789012.dkr.ecr.us-east-1.amazonaws.com/invoice-processor-backend:latest"
 
+provision_artifact_bucket      = true
+artifact_bucket_name           = "invoice-processor-prod-artifacts-example"
+artifact_bucket_prefix         = "invoice-artifacts"
+artifact_bucket_force_destroy  = false
+artifact_bucket_versioning_enabled = true
+artifact_bucket_expiration_days    = 0
+
 provision_documentdb = true
 
 # When provision_documentdb=true, mongo_uri is ignored and Terraform injects

@@ -5,6 +5,16 @@ export interface OcrBlock {
   bboxNormalized?: [number, number, number, number];
   bboxModel?: [number, number, number, number];
   blockType?: string;
+  cropPath?: string;
+}
+
+export interface OcrPageImage {
+  page: number;
+  mimeType: string;
+  dataUrl: string;
+  width?: number;
+  height?: number;
+  dpi?: number;
 }
 
 export interface OcrResult {
@@ -12,6 +22,7 @@ export interface OcrResult {
   confidence?: number;
   provider: string;
   blocks?: OcrBlock[];
+  pageImages?: OcrPageImage[];
 }
 
 export interface OcrProvider {

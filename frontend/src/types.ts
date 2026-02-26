@@ -26,6 +26,7 @@ export interface Invoice {
     bboxNormalized?: [number, number, number, number];
     bboxModel?: [number, number, number, number];
     blockType?: string;
+    cropPath?: string;
   }>;
   confidenceScore: number;
   confidenceTone: "red" | "yellow" | "green";

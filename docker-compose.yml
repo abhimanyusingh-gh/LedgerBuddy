@@ -34,6 +34,12 @@ services:
       FIELD_VERIFIER_PROVIDER: http
       FIELD_VERIFIER_BASE_URL: ${FIELD_VERIFIER_BASE_URL:-http://host.docker.internal:8100/v1}
       FIELD_VERIFIER_TIMEOUT_MS: "20000"
+      LOCAL_FILE_STORE_ROOT: ${LOCAL_FILE_STORE_ROOT:-/app/.local-run/artifacts}
+      S3_FILE_STORE_BUCKET: ${S3_FILE_STORE_BUCKET:-}
+      S3_FILE_STORE_REGION: ${S3_FILE_STORE_REGION:-us-east-1}
+      S3_FILE_STORE_PREFIX: ${S3_FILE_STORE_PREFIX:-invoice-processor}
+      S3_FILE_STORE_ENDPOINT: ${S3_FILE_STORE_ENDPOINT:-}
+      S3_FILE_STORE_FORCE_PATH_STYLE: ${S3_FILE_STORE_FORCE_PATH_STYLE:-false}
       CONFIDENCE_EXPECTED_MAX_TOTAL: "100000"
       CONFIDENCE_EXPECTED_MAX_DUE_DAYS: "90"
       CONFIDENCE_AUTO_SELECT_MIN: "91"
@@ -42,6 +48,7 @@ services:
       TALLY_PURCHASE_LEDGER: Purchase
     volumes:
       - ${INVOICE_INBOX_PATH:-./sample-invoices/inbox}:/app/sample-invoices/inbox:ro
+      - ./.local-run/artifacts:/app/.local-run/artifacts
 
   frontend:
     build:

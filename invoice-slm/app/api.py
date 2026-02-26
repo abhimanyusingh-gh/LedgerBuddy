@@ -5,12 +5,12 @@ from typing import Any
 from fastapi import FastAPI, Request
 
 from .engine import normalize_blocks, normalize_candidate_map, normalize_field_regions, select_with_fallback
-from .engines import create_llm_engine
+from .providers import create_llm_provider
 from .logging import log_error, log_info, reset_correlation_id, set_correlation_id
 from .schemas import VerifyInvoiceRequest, VerifyInvoiceResponse
 
 app = FastAPI(title="Invoice SLM Service", version="2.0.0")
-engine = create_llm_engine()
+provider = create_llm_provider()
 
 
 @app.middleware("http")
@@ -41,12 +41,12 @@ async def correlation_middleware(request: Request, call_next):
 
 @app.on_event("startup")
 def on_startup() -> None:
-  engine.startup()
+  provider.startup()
 
 
 @app.get("/health")
 def health() -> dict[str, Any]:
-  return engine.health()
+  return provider.health()
 
 
 @app.get("/v1/health")
@@ -75,7 +75,7 @@ def verify_invoice(request: VerifyInvoiceRequest) -> VerifyInvoiceResponse:
   }
 
   try:
-    slm_payload = engine.select_fields(inference_payload)
+    slm_payload = provider.select_fields(inference_payload)
   except Exception as error:
     slm_error = str(error)
     log_error("slm.infer.failed", error=slm_error)

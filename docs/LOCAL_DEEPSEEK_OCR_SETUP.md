@@ -17,12 +17,12 @@ yarn docker:up
 ```
 
 Defaults:
-- OCR engine: `local_hybrid` (DeepSeek MLX + Apple Vision arbitration)
+- OCR provider: `local_hybrid` (DeepSeek MLX + Apple Vision arbitration)
 - OCR model: `mlx-community/DeepSeek-OCR-4bit`
 - SLM model: `mlx-community/DeepSeek-R1-Distill-Qwen-1.5B-4bit`
 
 `yarn docker:up` starts:
-- local OCR service (`8000`) using host macOS engines
+- local OCR service (`8000`) using host macOS providers
 - local MLX SLM service (`8100`)
 - `backend` (`4000`)
 - `frontend` (`5173`)
@@ -40,16 +40,16 @@ Defaults:
 
 Backend readiness is blocked until OCR + SLM are reachable and ready.
 
-## 4. Engine boundaries
+## 4. Provider boundaries
 
-- Local OCR engines: `OCR_ENGINE=local_hybrid|local_mlx|local_apple_vision`
-- Local SLM engine: `SLM_ENGINE=local_mlx`
-- Production-safe engine: `*_ENGINE=prod_http`
+- Local OCR providers: `OCR_ENGINE=local_hybrid|local_mlx|local_apple_vision`
+- Local SLM provider: `SLM_ENGINE=local_mlx`
+- Production-safe provider: `*_ENGINE=prod_http`
 - No `/v1/chat/completions` usage.
 
-MLX exists only in local engine modules:
-- `invoice-ocr/app/engines/local_mlx.py`
-- `invoice-ocr/app/engines/local_hybrid.py` (imports local MLX + Apple Vision only in local mode)
-- `invoice-slm/app/engines/local_mlx.py`
+MLX exists only in local provider modules:
+- `invoice-ocr/app/providers/local_mlx.py`
+- `invoice-ocr/app/providers/local_hybrid.py` (imports local MLX + Apple Vision only in local mode)
+- `invoice-slm/app/providers/local_mlx.py`
 
 Production Docker images install `requirements.prod.txt` only (no MLX packages).

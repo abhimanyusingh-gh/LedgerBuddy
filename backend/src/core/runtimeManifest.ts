@@ -7,6 +7,7 @@ import type { WorkloadTier } from "../types/tenant.js";
 
 type OcrProviderType = "auto" | "deepseek" | "mock";
 type VerifierProviderType = "none" | "http";
+type FileStoreProviderType = "local" | "s3";
 type SourceType = "email" | "folder";
 
 interface SourceBaseManifest {
@@ -64,6 +65,19 @@ export interface RuntimeManifest {
       apiKey: string;
     };
   };
+  fileStore: {
+    provider: FileStoreProviderType;
+    local: {
+      rootPath: string;
+    };
+    s3: {
+      bucket: string;
+      region: string;
+      prefix: string;
+      endpoint: string;
+      forcePathStyle: boolean;
+    };
+  };
   extraction: {
     ocrHighConfidenceThreshold: number;
   };
@@ -104,6 +118,25 @@ const runtimeManifestSchema = z.object({
           baseUrl: z.string().min(1).optional(),
           timeoutMs: z.coerce.number().int().positive().optional(),
           apiKey: z.string().optional()
+        })
+        .optional()
+    })
+    .optional(),
+  fileStore: z
+    .object({
+      provider: z.enum(["local", "s3"]).optional(),
+      local: z
+        .object({
+          rootPath: z.string().min(1).optional()
+        })
+        .optional(),
+      s3: z
+        .object({
+          bucket: z.string().optional(),
+          region: z.string().min(1).optional(),
+          prefix: z.string().optional(),
+          endpoint: z.string().optional(),
+          forcePathStyle: z.coerce.boolean().optional()
         })
         .optional()
     })
@@ -198,6 +231,19 @@ export function loadRuntimeManifest(): RuntimeManifest {
         apiKey: parsed.verifier?.http?.apiKey ?? defaults.verifier.http.apiKey
       }
     },
+    fileStore: {
+      provider: defaults.fileStore.provider,
+      local: {
+        rootPath: parsed.fileStore?.local?.rootPath ?? defaults.fileStore.local.rootPath
+      },
+      s3: {
+        bucket: parsed.fileStore?.s3?.bucket ?? defaults.fileStore.s3.bucket,
+        region: parsed.fileStore?.s3?.region ?? defaults.fileStore.s3.region,
+        prefix: parsed.fileStore?.s3?.prefix ?? defaults.fileStore.s3.prefix,
+        endpoint: parsed.fileStore?.s3?.endpoint ?? defaults.fileStore.s3.endpoint,
+        forcePathStyle: parsed.fileStore?.s3?.forcePathStyle ?? defaults.fileStore.s3.forcePathStyle
+      }
+    },
     extraction: {
       ocrHighConfidenceThreshold:
         parsed.extraction?.ocrHighConfidenceThreshold ?? defaults.extraction.ocrHighConfidenceThreshold
@@ -219,7 +265,8 @@ export function loadRuntimeManifest(): RuntimeManifest {
   logger.info("runtime.manifest.loaded", {
     path: manifestPath,
     sourceCount: merged.sources.length,
-    ocrProvider: merged.ocr.provider
+    ocrProvider: merged.ocr.provider,
+    fileStoreProvider: merged.fileStore.provider
   });
 
   return merged;
@@ -230,7 +277,7 @@ function resolveConfiguredManifestPath(): string | null {
     return resolveManifestPath(env.APP_MANIFEST_PATH);
   }
 
-  if (env.ENV !== "local" || env.NODE_ENV === "test") {
+  if (!env.isLocalMlEnv || env.NODE_ENV === "test") {
     return null;
   }
 
@@ -280,6 +327,19 @@ function createDefaultManifest(): RuntimeManifest {
         baseUrl: env.FIELD_VERIFIER_BASE_URL,
         timeoutMs: env.FIELD_VERIFIER_TIMEOUT_MS,
         apiKey: env.FIELD_VERIFIER_API_KEY?.trim() ?? ""
+      }
+    },
+    fileStore: {
+      provider: env.isLocalMlEnv ? "local" : "s3",
+      local: {
+        rootPath: env.LOCAL_FILE_STORE_ROOT
+      },
+      s3: {
+        bucket: env.S3_FILE_STORE_BUCKET?.trim() ?? "",
+        region: env.S3_FILE_STORE_REGION,
+        prefix: env.S3_FILE_STORE_PREFIX,
+        endpoint: env.S3_FILE_STORE_ENDPOINT?.trim() ?? "",
+        forcePathStyle: env.S3_FILE_STORE_FORCE_PATH_STYLE
       }
     },
     extraction: {

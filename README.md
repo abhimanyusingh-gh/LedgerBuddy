@@ -13,8 +13,8 @@ Implemented:
 - Staged extraction pipeline: vendor fingerprint -> template path (known vendors) -> OCR confidence gate -> layout graph + heuristics -> deterministic validation -> SLM field verifier fallback.
 - MongoDB persistence with per-file source+tenant checkpointing and folder idempotency filtering by `sourceDocumentId`.
 - OCR block crop artifacts persisted per bounding box with file-store abstraction:
-  - `ENV=local` -> local disk
-  - `ENV=prod` -> S3
+  - `ENV=local|dev` -> local disk
+  - `ENV=stg|prod` -> S3
 - Tenant/workload partition keys (`tenantId`, `workloadTier`) across sources, checkpoints, and invoices.
 - Review dashboard with failed/parsed visibility, confidence badges, batch approval/export, and full invoice list paging.
 - Review dashboard includes value-source highlighting with OCR bounding-box overlays and per-field crop inspect actions.
@@ -32,8 +32,8 @@ Not yet implemented:
 
 - `backend/` Node.js API + worker + ingestion pipeline.
 - `frontend/` React review dashboard.
-- `invoice-ocr/` local OCR FastAPI service with pluggable engines (DeepSeek MLX, Apple Vision, hybrid, prod HTTP).
-- `invoice-slm/` local MLX field-verifier FastAPI service.
+- `invoice-ocr/` local OCR FastAPI service with pluggable providers (DeepSeek MLX, Apple Vision, hybrid, prod HTTP).
+- `invoice-slm/` local MLX field-verifier FastAPI service with pluggable providers.
 - `infra/modules/` copy-first reusable Terraform module catalog.
 - `infra/terraform/` Invoice Processor stack composition using local modules (`environments/prod.tfvars.example` included).
 - `sample-invoices/inbox/` local folder source for manual and e2e runs.
@@ -79,7 +79,7 @@ This brings up:
 - OCR service: `http://localhost:8000`
 - SLM service: `http://localhost:8100`
 
-`yarn docker:up` starts local OCR/SLM services on host macOS (for `ENV=local`) and then starts compose services.
+`yarn docker:up` starts local OCR/SLM services on host macOS (for `ENV=local|dev`) and then starts compose services.
 
 5. Create env files (optional overrides):
 ```bash
@@ -93,14 +93,14 @@ Notes:
 - For local MLX OCR/SLM, no API key is required.
 - MLX services run on host macOS, not inside Docker.
 - Backend blocks startup until both ML capabilities are reachable and healthy.
-- Runtime mode switch: `ENV=local|prod`.
-- `ENV=local`: run host OCR/SLM services (`SLM_ENGINE=local_mlx`, `OCR_ENGINE=local_hybrid` by default).
-- `ENV=prod`: use production-safe HTTP engines (`SLM_ENGINE=prod_http`, `OCR_ENGINE=prod_http`).
+- Runtime mode switch: `ENV=local|dev|stg|prod`.
+- `ENV=local|dev`: run host OCR/SLM services (`SLM_ENGINE=local_mlx`, `OCR_ENGINE=local_hybrid` by default).
+- `ENV=stg|prod`: use production-safe HTTP providers (`SLM_ENGINE=prod_http`, `OCR_ENGINE=prod_http`) and set remote URLs.
 - Artifact storage is also env-driven:
-  - `ENV=local` uses `LOCAL_FILE_STORE_ROOT` (default `.local-run/artifacts`, gitignored)
-  - `ENV=prod` uses `S3_FILE_STORE_BUCKET` + `S3_FILE_STORE_REGION` + `S3_FILE_STORE_PREFIX`
+  - `ENV=local|dev` uses `LOCAL_FILE_STORE_ROOT` (default `.local-run/artifacts`, gitignored)
+  - `ENV=stg|prod` uses `S3_FILE_STORE_BUCKET` + `S3_FILE_STORE_REGION` + `S3_FILE_STORE_PREFIX`
 - OCR path is direct inference via `POST /v1/ocr/document` (no `/v1/chat/completions` usage).
-- OCR/SLM API layers are engine-agnostic and selected by env:
+- OCR/SLM API layers are provider-agnostic and selected by env:
   - OCR: `OCR_ENGINE=local_hybrid|local_mlx|local_apple_vision|prod_http`
   - SLM: `SLM_ENGINE=local_mlx|prod_http`
 - Production Docker dependencies exclude MLX packages entirely.
@@ -132,28 +132,28 @@ yarn logs:local
 ```
 Backend + OCR + SLM emit JSON logs with a shared `correlationId` so one id traces a request from API ingress to OCR and export.
 
-## ML Engine Boundaries
+## ML Provider Boundaries
 
-Python ML services use strict engine interfaces with explicit factory selection:
+Python ML services use strict boundary interfaces with explicit provider factory selection:
 
 - SLM:
-  - `invoice-slm/app/engines/base.py` (`LLMEngine`)
-  - `invoice-slm/app/engines/local_mlx.py` (MLX only)
-  - `invoice-slm/app/engines/prod_http.py` (Docker/Linux safe)
-  - `invoice-slm/app/engines/factory.py`
+  - `invoice-slm/app/boundary/llm_provider.py` (`LLMProvider`)
+  - `invoice-slm/app/providers/local_mlx.py` (MLX only)
+  - `invoice-slm/app/providers/prod_http.py` (Docker/Linux safe)
+  - `invoice-slm/app/providers/factory.py`
 - OCR:
-  - `invoice-ocr/app/engines/base.py` (`OCREngine`)
-  - `invoice-ocr/app/engines/local_mlx.py` (DeepSeek OCR MLX, `mlx_vlm`)
-  - `invoice-ocr/app/engines/local_apple_vision.py` (Apple Vision OCR)
-  - `invoice-ocr/app/engines/local_hybrid.py` (DeepSeek + Apple arbitration)
-  - `invoice-ocr/app/engines/prod_http.py` (Docker/Linux safe)
-  - `invoice-ocr/app/engines/factory.py`
+  - `invoice-ocr/app/boundary/ocr_provider.py` (`OCRProvider`)
+  - `invoice-ocr/app/providers/local_mlx.py` (DeepSeek OCR MLX, `mlx_vlm`)
+  - `invoice-ocr/app/providers/local_apple_vision.py` (Apple Vision OCR)
+  - `invoice-ocr/app/providers/local_hybrid.py` (DeepSeek + Apple arbitration)
+  - `invoice-ocr/app/providers/prod_http.py` (Docker/Linux safe)
+  - `invoice-ocr/app/providers/factory.py`
 
 Why MLX cannot leak into production:
 - MLX imports exist only in `local_mlx.py` modules.
 - Docker images install `requirements.prod.txt` only (no MLX packages).
 - Dockerfiles default to `*_ENGINE=prod_http`.
-- Engine selection is explicit (`*_ENGINE`) and has no fallback.
+- Provider selection is explicit (`*_ENGINE`) and has no fallback.
 
 ## Runtime Composition Manifest
 

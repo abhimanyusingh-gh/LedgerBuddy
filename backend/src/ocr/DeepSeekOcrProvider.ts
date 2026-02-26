@@ -1,5 +1,5 @@
 import axios from "axios";
-import type { OcrBlock, OcrProvider, OcrResult } from "../core/interfaces/OcrProvider.js";
+import type { OcrBlock, OcrPageImage, OcrProvider, OcrResult } from "../core/interfaces/OcrProvider.js";
 import { getCorrelationId, logger } from "../utils/logger.js";
 
 const SUPPORTED_MIME_TYPES = new Set([
@@ -20,6 +20,7 @@ interface OcrDocumentApiResponse {
   raw_text?: unknown;
   confidence?: unknown;
   blocks?: unknown;
+  pageImages?: unknown;
 }
 
 interface DeepSeekHttpClient {
@@ -110,7 +111,8 @@ export class DeepSeekOcrProvider implements OcrProvider {
         text: payload.rawText,
         confidence: normalizeConfidence(payload.confidence),
         provider: this.name,
-        blocks: payload.blocks
+        blocks: payload.blocks,
+        pageImages: payload.pageImages
       };
     } catch (error) {
       logger.error("ocr.request.failed", {
@@ -165,7 +167,12 @@ async function sleepBeforeRetry(attempt: number): Promise<void> {
   await new Promise<void>((resolve) => setTimeout(resolve, 500 * attempt));
 }
 
-function parseOcrDocumentResponse(data: unknown): { rawText: string; confidence?: number; blocks?: OcrBlock[] } {
+function parseOcrDocumentResponse(data: unknown): {
+  rawText: string;
+  confidence?: number;
+  blocks?: OcrBlock[];
+  pageImages?: OcrPageImage[];
+} {
   if (!isRecord(data)) {
     return { rawText: "" };
   }
@@ -174,7 +181,8 @@ function parseOcrDocumentResponse(data: unknown): { rawText: string; confidence?
   return {
     rawText: normalizeText(payload.rawText) ?? normalizeText(payload.raw_text) ?? "",
     confidence: normalizeNumber(payload.confidence),
-    blocks: normalizeBlocks(payload.blocks)
+    blocks: normalizeBlocks(payload.blocks),
+    pageImages: normalizePageImages(payload.pageImages)
   };
 }
 
@@ -308,6 +316,41 @@ function normalizeBlocks(value: unknown): OcrBlock[] | undefined {
   return blocks.length > 0 ? blocks : undefined;
 }
 
+function normalizePageImages(value: unknown): OcrPageImage[] | undefined {
+  if (!Array.isArray(value)) {
+    return undefined;
+  }
+
+  const pageImages: OcrPageImage[] = [];
+  for (const entry of value) {
+    if (!isRecord(entry)) {
+      continue;
+    }
+
+    const page = normalizePageNumber(entry.page);
+    const mimeType = normalizeText(entry.mimeType) ?? "image/png";
+    const dataUrl = normalizeText(entry.dataUrl);
+    if (!dataUrl || !dataUrl.startsWith("data:")) {
+      continue;
+    }
+
+    const width = normalizePositiveInteger(entry.width);
+    const height = normalizePositiveInteger(entry.height);
+    const dpi = normalizePositiveInteger(entry.dpi);
+
+    pageImages.push({
+      page,
+      mimeType,
+      dataUrl,
+      ...(width ? { width } : {}),
+      ...(height ? { height } : {}),
+      ...(dpi ? { dpi } : {})
+    });
+  }
+
+  return pageImages.length > 0 ? pageImages : undefined;
+}
+
 function normalizeBox(value: unknown): [number, number, number, number] | undefined {
   if (!Array.isArray(value) || value.length !== 4) {
     return undefined;
@@ -326,6 +369,15 @@ function normalizePageNumber(value: unknown): number {
   }
   const rounded = Math.round(parsed);
   return rounded > 0 ? rounded : 1;
+}
+
+function normalizePositiveInteger(value: unknown): number | undefined {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) {
+    return undefined;
+  }
+  const rounded = Math.round(parsed);
+  return rounded > 0 ? rounded : undefined;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

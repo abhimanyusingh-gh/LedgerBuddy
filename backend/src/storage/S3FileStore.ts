@@ -1,5 +1,5 @@
-import { DeleteObjectCommand, GetObjectCommand, ListObjectsV2Command, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
-import type { FileStore, FileStoreGetResult, FileStoreObjectRef, FileStorePutInput } from "../core/interfaces/FileStore.js";
+import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import type { FileStore, FileStoreObjectRef, FileStorePutInput } from "../core/interfaces/FileStore.js";
 
 interface S3FileStoreOptions {
   bucket: string;
@@ -28,67 +28,11 @@ export class S3FileStore implements FileStore {
     }
 
     this.prefix = normalizePrefix(options.prefix ?? "");
-    const endpoint = options.endpoint?.trim() || undefined;
     this.client = new S3Client({
       region,
-      endpoint,
-      forcePathStyle: options.forcePathStyle ?? false,
-      ...(endpoint
-        ? { credentials: { accessKeyId: process.env.AWS_ACCESS_KEY_ID ?? "test", secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY ?? "test" } }
-        : {})
+      endpoint: options.endpoint?.trim() || undefined,
+      forcePathStyle: options.forcePathStyle ?? false
     });
-  }
-
-  async getObject(key: string): Promise<FileStoreGetResult> {
-    const fullKey = this.prefix ? `${this.prefix}/${normalizeKey(key)}` : normalizeKey(key);
-    const response = await this.client.send(
-      new GetObjectCommand({
-        Bucket: this.bucket,
-        Key: fullKey
-      })
-    );
-    const bytes = await response.Body?.transformToByteArray();
-    return {
-      body: Buffer.from(bytes ?? new Uint8Array()),
-      contentType: response.ContentType ?? "application/octet-stream"
-    };
-  }
-
-  async listObjects(prefix: string): Promise<{ key: string }[]> {
-    const fullPrefix = this.prefix ? `${this.prefix}/${normalizeKey(prefix)}` : normalizeKey(prefix);
-    const results: { key: string }[] = [];
-    let continuationToken: string | undefined;
-
-    do {
-      const response = await this.client.send(
-        new ListObjectsV2Command({
-          Bucket: this.bucket,
-          Prefix: fullPrefix.endsWith("/") ? fullPrefix : `${fullPrefix}/`,
-          ContinuationToken: continuationToken
-        })
-      );
-
-      for (const object of response.Contents ?? []) {
-        if (object.Key) {
-          const stripped = this.prefix ? object.Key.slice(this.prefix.length + 1) : object.Key;
-          results.push({ key: stripped });
-        }
-      }
-
-      continuationToken = response.IsTruncated ? response.NextContinuationToken : undefined;
-    } while (continuationToken);
-
-    return results;
-  }
-
-  async deleteObject(key: string): Promise<void> {
-    const fullKey = this.prefix ? `${this.prefix}/${normalizeKey(key)}` : normalizeKey(key);
-    await this.client.send(
-      new DeleteObjectCommand({
-        Bucket: this.bucket,
-        Key: fullKey
-      })
-    );
   }
 
   async putObject(input: FileStorePutInput): Promise<FileStoreObjectRef> {

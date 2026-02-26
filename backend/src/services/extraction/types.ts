@@ -1,4 +1,4 @@
-import type { OcrBlock } from "../../core/interfaces/OcrProvider.js";
+import type { OcrBlock, OcrPageImage } from "../../core/interfaces/OcrProvider.js";
 import type { ParseResult } from "../../parser/invoiceParser.js";
 import type { ConfidenceAssessment } from "../confidenceAssessment.js";
 
@@ -23,6 +23,7 @@ export interface PipelineExtractionResult {
   confidenceAssessment: ConfidenceAssessment;
   attempts: ExtractionAttemptSummary[];
   ocrBlocks: OcrBlock[];
+  ocrPageImages: OcrPageImage[];
   processingIssues: string[];
   metadata: Record<string, string>;
 }

@@ -38,3 +38,13 @@ output "documentdb_security_group_id" {
   value       = try(module.documentdb[0].security_group_id, null)
   description = "Provisioned DocumentDB security group ID, if enabled."
 }
+
+output "artifact_bucket_name" {
+  value       = local.resolved_artifact_bucket_name
+  description = "S3 bucket used for OCR crop and preview artifacts."
+}
+
+output "artifact_bucket_arn" {
+  value       = try(module.artifact_bucket[0].bucket_arn, null)
+  description = "ARN of provisioned artifact bucket, if managed by this stack."
+}

@@ -41,6 +41,7 @@ Reusable module catalog lives in:
 - `infra/modules/aws_iam_instance_profile`
 - `infra/modules/aws_scheduled_ec2_service`
 - `infra/modules/aws_documentdb_cluster`
+- `infra/modules/aws_s3_bucket`
 
 2. Copy production vars template:
 ```bash

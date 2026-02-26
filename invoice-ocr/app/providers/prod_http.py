@@ -32,17 +32,18 @@ class ProdHttpOCRProvider(OCRProvider):
       "provider": "prod_http"
     }
     try:
-      remote = self._request_json("/health", probe=True)
+      remote = self._request_json("/health")
       if isinstance(remote, dict):
         payload["remote"] = remote
     except Exception as error:
+      payload["status"] = "error"
       payload["lastError"] = str(error)
       self.last_error = str(error)
     return payload
 
   def list_models(self) -> list[dict[str, Any]]:
     try:
-      payload = self._request_json("/models", probe=True)
+      payload = self._request_json("/models")
       if isinstance(payload, dict) and isinstance(payload.get("data"), list):
         data = [
           entry
@@ -77,7 +78,7 @@ class ProdHttpOCRProvider(OCRProvider):
     if not isinstance(payload, dict):
       raise RuntimeError("Remote OCR returned invalid payload.")
 
-    result: dict[str, Any] = {
+    return {
       "rawText": normalize_text(payload.get("rawText")) or normalize_text(payload.get("raw_text")) or "",
       "blocks": normalize_blocks(payload.get("blocks")),
       "confidence": normalize_remote_confidence(payload.get("confidence")),
@@ -85,10 +86,6 @@ class ProdHttpOCRProvider(OCRProvider):
       "provider": normalize_text(payload.get("provider")) or "prod_http",
       "model": normalize_text(payload.get("model")) or settings.model_id
     }
-    usage = payload.get("usage")
-    if isinstance(usage, dict):
-      result["usage"] = usage
-    return result
 
   def _validate_remote(self) -> None:
     configured = normalize_model_id(settings.model_id)
@@ -98,7 +95,7 @@ class ProdHttpOCRProvider(OCRProvider):
         f"Configured model '{settings.model_id}' is not listed by remote OCR. Available: {sorted(available)}"
       )
 
-  def _request_json(self, path: str, body: dict[str, Any] | None = None, probe: bool = False) -> Any:
+  def _request_json(self, path: str, body: dict[str, Any] | None = None) -> Any:
     url = f"{self.base_url}{path}"
     headers = {"Content-Type": "application/json"}
     if settings.remote_api_key:
@@ -111,9 +108,8 @@ class ProdHttpOCRProvider(OCRProvider):
       method="POST" if body is not None else "GET"
     )
 
-    timeout_s = settings.probe_timeout_ms // 1000 if probe else max(1, int(settings.remote_timeout_ms / 1000))
     try:
-      with url_request.urlopen(request, timeout=max(1, timeout_s)) as response:
+      with url_request.urlopen(request, timeout=max(1, int(settings.remote_timeout_ms / 1000))) as response:
         return json.loads(response.read().decode("utf-8"))
     except url_error.HTTPError as error:
       detail = error.read().decode("utf-8", errors="replace")
