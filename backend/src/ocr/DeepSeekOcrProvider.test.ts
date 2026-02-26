@@ -162,6 +162,44 @@ describe("DeepSeekOcrProvider", () => {
     ]);
   });
 
+  it("maps OCR page images for PDF previews", async () => {
+    const post = jest.fn(async () => ({
+      data: {
+        rawText: "layout text",
+        confidence: 93,
+        pageImages: [
+          {
+            page: 1,
+            mimeType: "image/png",
+            width: 2480,
+            height: 3508,
+            dpi: 300,
+            dataUrl: "data:image/png;base64,QUJD"
+          },
+          {
+            page: 2,
+            mimeType: "image/png",
+            dataUrl: "invalid-data-url"
+          }
+        ]
+      }
+    }));
+
+    const provider = new DeepSeekOcrProvider({ httpClient: { post } });
+    const result = await provider.extractText(Buffer.from("pdf"), "application/pdf");
+
+    expect(result.pageImages).toEqual([
+      {
+        page: 1,
+        mimeType: "image/png",
+        width: 2480,
+        height: 3508,
+        dpi: 300,
+        dataUrl: "data:image/png;base64,QUJD"
+      }
+    ]);
+  });
+
   it("returns empty text for malformed response payload", async () => {
     const post = jest.fn(async () => ({
       data: "unexpected"

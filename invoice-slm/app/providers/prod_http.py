@@ -29,10 +29,11 @@ class ProdHttpLLMProvider(LLMProvider):
       "provider": "prod_http"
     }
     try:
-      remote = self._request_json("/health", probe=True)
+      remote = self._request_json("/health")
       if isinstance(remote, dict):
         payload["remote"] = remote
     except Exception as error:
+      payload["status"] = "error"
       payload["lastError"] = str(error)
       self.last_error = str(error)
     return payload
@@ -48,50 +49,33 @@ class ProdHttpLLMProvider(LLMProvider):
         "hints": {
           "fieldCandidates": payload.get("fieldCandidates", {}),
           "fieldRegions": payload.get("fieldRegions", {}),
-          "documentContext": payload.get("documentContext"),
           "vendorNameHint": payload.get("vendorNameHint"),
-          "vendorTemplateMatched": bool(payload.get("vendorTemplateMatched")),
-          "pageImages": payload.get("pageImages"),
-          "llmAssist": bool(payload.get("llmAssist")),
-          "languageHint": payload.get("languageHint"),
-          "documentLanguage": payload.get("documentLanguage"),
-          "priorCorrections": payload.get("priorCorrections")
+          "vendorTemplateMatched": bool(payload.get("vendorTemplateMatched"))
         }
       }
     )
     if not isinstance(response, dict):
       raise RuntimeError("Remote SLM returned invalid payload.")
 
-    invoice_type = response.get("invoiceType") if isinstance(response.get("invoiceType"), str) else "other"
-    remote_usage = response.get("usage")
-
     selected = response.get("selected")
     if isinstance(selected, dict):
-      result: dict[str, Any] = {
+      return {
         "selected": selected,
         "reasonCodes": response.get("reasonCodes") if isinstance(response.get("reasonCodes"), dict) else {},
-        "issues": response.get("issues") if isinstance(response.get("issues"), list) else [],
-        "invoiceType": invoice_type
+        "issues": response.get("issues") if isinstance(response.get("issues"), list) else []
       }
-      if isinstance(remote_usage, dict):
-        result["_usage"] = remote_usage
-      return result
 
     parsed = response.get("parsed")
     if isinstance(parsed, dict):
-      result: dict[str, Any] = {
+      return {
         "selected": parsed,
         "reasonCodes": response.get("reasonCodes") if isinstance(response.get("reasonCodes"), dict) else {},
-        "issues": response.get("issues") if isinstance(response.get("issues"), list) else [],
-        "invoiceType": invoice_type
+        "issues": response.get("issues") if isinstance(response.get("issues"), list) else []
       }
-      if isinstance(remote_usage, dict):
-        result["_usage"] = remote_usage
-      return result
 
     raise RuntimeError("Remote SLM payload does not contain selected/parsed output.")
 
-  def _request_json(self, path: str, body: dict[str, Any] | None = None, probe: bool = False) -> Any:
+  def _request_json(self, path: str, body: dict[str, Any] | None = None) -> Any:
     url = f"{self.base_url}{ensure_path(path)}"
     headers = {"Content-Type": "application/json"}
     if settings.remote_api_key:
@@ -104,9 +88,8 @@ class ProdHttpLLMProvider(LLMProvider):
       method="POST" if body is not None else "GET"
     )
 
-    timeout_s = settings.probe_timeout_ms // 1000 if probe else max(1, int(settings.remote_timeout_ms / 1000))
     try:
-      with url_request.urlopen(request, timeout=max(1, timeout_s)) as response:
+      with url_request.urlopen(request, timeout=max(1, int(settings.remote_timeout_ms / 1000))) as response:
         return json.loads(response.read().decode("utf-8"))
     except url_error.HTTPError as error:
       detail = error.read().decode("utf-8", errors="replace")

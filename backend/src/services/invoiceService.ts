@@ -51,7 +51,12 @@ export class InvoiceService {
     const skip = (params.page - 1) * params.limit;
 
     const [items, total] = await Promise.all([
-      InvoiceModel.find(query).sort({ createdAt: -1 }).skip(skip).limit(params.limit).lean(),
+      InvoiceModel.find(query)
+        .select({ ocrText: 0, ocrBlocks: 0 })
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(params.limit)
+        .lean(),
       InvoiceModel.countDocuments(query)
     ]);
 

@@ -1,26 +1,29 @@
 import type { Invoice } from "./types";
 import { formatMinorAmountWithCurrency } from "./currency";
+import type { SourceFieldKey } from "./sourceHighlights";
 
 export interface ExtractedFieldRow {
+  fieldKey: SourceFieldKey | "notes";
   label: string;
   value: string;
 }
 
 export function getExtractedFieldRows(invoice: Invoice): ExtractedFieldRow[] {
+  const notes =
+    Array.isArray(invoice.parsed?.notes) && invoice.parsed.notes.length > 0 ? invoice.parsed.notes.join(" | ") : "-";
+
   return [
-    { label: "Invoice Number", value: invoice.parsed?.invoiceNumber ?? "-" },
-    { label: "Vendor Name", value: invoice.parsed?.vendorName ?? "-" },
-    { label: "Invoice Date", value: invoice.parsed?.invoiceDate ?? "-" },
-    { label: "Due Date", value: invoice.parsed?.dueDate ?? "-" },
+    { fieldKey: "invoiceNumber", label: "Invoice Number", value: invoice.parsed?.invoiceNumber ?? "-" },
+    { fieldKey: "vendorName", label: "Vendor Name", value: invoice.parsed?.vendorName ?? "-" },
+    { fieldKey: "invoiceDate", label: "Invoice Date", value: invoice.parsed?.invoiceDate ?? "-" },
+    { fieldKey: "dueDate", label: "Due Date", value: invoice.parsed?.dueDate ?? "-" },
     {
+      fieldKey: "totalAmountMinor",
       label: "Total Amount",
       value: formatMinorAmountWithCurrency(invoice.parsed?.totalAmountMinor, invoice.parsed?.currency)
     },
-    { label: "Currency", value: invoice.parsed?.currency ?? "-" },
-    { label: "OCR Engine", value: invoice.ocrProvider ?? "-" },
-    { label: "Extraction Source", value: invoice.metadata?.extractionSource ?? "-" },
-    { label: "Extraction Strategy", value: invoice.metadata?.extractionStrategy ?? "-" },
-    { label: "OCR Confidence", value: formatOcrConfidenceLabel(invoice.ocrConfidence) }
+    { fieldKey: "currency", label: "Currency", value: invoice.parsed?.currency ?? "-" },
+    { fieldKey: "notes", label: "Notes", value: notes }
   ];
 }
 

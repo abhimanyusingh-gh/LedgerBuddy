@@ -11,15 +11,7 @@ export interface FileStoreObjectRef {
   contentType: string;
 }
 
-export interface FileStoreGetResult {
-  body: Buffer;
-  contentType: string;
-}
-
 export interface FileStore {
   readonly name: string;
   putObject(input: FileStorePutInput): Promise<FileStoreObjectRef>;
-  getObject(key: string): Promise<FileStoreGetResult>;
-  deleteObject(key: string): Promise<void>;
-  listObjects?(prefix: string): Promise<{ key: string }[]>;
 }

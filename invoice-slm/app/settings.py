@@ -1,6 +1,9 @@
 from dataclasses import dataclass
 import os
 
+ENV_MODES = {"local", "dev", "stg", "prod"}
+SLM_ENGINES = {"local_mlx", "prod_http"}
+
 
 def read_bool(name: str, default: bool) -> bool:
   raw = os.getenv(name)
@@ -28,9 +31,17 @@ def read_choice(name: str, default: str, allowed: set[str]) -> str:
   return value if value in allowed else default
 
 
+def read_env_mode() -> str:
+  return read_choice("ENV", "local", ENV_MODES)
+
+
+def default_slm_engine(env_mode: str) -> str:
+  return "local_mlx" if env_mode in {"local", "dev"} else "prod_http"
+
+
 @dataclass(frozen=True)
 class Settings:
-  engine: str
+  provider: str
   model_id: str
   model_path: str
   remote_base_url: str
@@ -43,8 +54,10 @@ class Settings:
   max_blocks: int
 
 
+env_mode = read_env_mode()
+
 settings = Settings(
-  engine=read_choice("SLM_ENGINE", "local_mlx", {"local_mlx", "prod_http"}),
+  provider=read_choice("SLM_ENGINE", default_slm_engine(env_mode), SLM_ENGINES),
   model_id=os.getenv("SLM_MODEL_ID", "mlx-community/DeepSeek-R1-Distill-Qwen-1.5B-4bit").strip(),
   model_path=os.getenv("SLM_MODEL_PATH", "").strip(),
   remote_base_url=os.getenv("SLM_REMOTE_BASE_URL", "").strip(),

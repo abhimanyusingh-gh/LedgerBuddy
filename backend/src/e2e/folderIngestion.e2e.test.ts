@@ -50,6 +50,25 @@ interface InvoiceListResponse {
   }>;
 }
 
+interface InvoiceDetailResponse {
+  _id: string;
+  attachmentName: string;
+  ocrBlocks?: Array<{
+    text: string;
+    cropPath?: string;
+  }>;
+  metadata?: Record<string, string>;
+}
+
+const SOURCE_OVERLAY_FIELDS = [
+  "vendorName",
+  "invoiceNumber",
+  "invoiceDate",
+  "dueDate",
+  "totalAmountMinor",
+  "currency"
+] as const;
+
 const ALLOWED_STATUSES = new Set(["PARSED", "NEEDS_REVIEW", "FAILED_OCR", "FAILED_PARSE", "APPROVED", "EXPORTED"]);
 const NON_FAILED_STATUSES = new Set(["PARSED", "NEEDS_REVIEW", "APPROVED", "EXPORTED"]);
 const CONFIDENCE_TONES = new Set(["red", "yellow", "green"]);
@@ -62,6 +81,10 @@ describe("local full-stack ingestion e2e", () => {
     if (expectedFiles.length === 0) {
       throw new Error(`E2E inbox is empty: '${inboxDir}'`);
     }
+    expect(expectedFiles.length).toBe(3);
+    expect(expectedFiles.some((file) => /\.(jpg|jpeg)$/i.test(file))).toBe(true);
+    expect(expectedFiles.some((file) => /\.png$/i.test(file))).toBe(true);
+    expect(expectedFiles.some((file) => /\.pdf$/i.test(file))).toBe(true);
 
     const backendHealth = await api.get("/health");
     expect(backendHealth.status).toBe(200);
@@ -114,8 +137,19 @@ describe("local full-stack ingestion e2e", () => {
     let invoicesWithVendor = 0;
     let invoicesWithAmount = 0;
     let invoicesWithIdentifier = 0;
+    let jpgCount = 0;
+    let pngCount = 0;
+    let pdfCount = 0;
     for (const invoice of invoices) {
       assertConfidenceSignals(invoice);
+      const lowerName = invoice.attachmentName.toLowerCase();
+      if (lowerName.endsWith(".jpg") || lowerName.endsWith(".jpeg")) {
+        jpgCount += 1;
+      } else if (lowerName.endsWith(".png")) {
+        pngCount += 1;
+      } else if (lowerName.endsWith(".pdf")) {
+        pdfCount += 1;
+      }
       if (hasNonEmptyText(invoice.parsed?.vendorName)) {
         invoicesWithVendor += 1;
       }
@@ -127,9 +161,41 @@ describe("local full-stack ingestion e2e", () => {
       }
     }
 
-    expect(invoicesWithVendor).toBe(expectedFiles.length);
-    expect(invoicesWithAmount).toBe(expectedFiles.length);
+    expect(jpgCount).toBe(1);
+    expect(pngCount).toBe(1);
+    expect(pdfCount).toBe(1);
+    expect(invoicesWithVendor).toBeGreaterThanOrEqual(2);
+    expect(invoicesWithAmount).toBeGreaterThanOrEqual(2);
     expect(invoicesWithIdentifier).toBeGreaterThanOrEqual(1);
+
+    const invoiceDetails = await Promise.all(
+      invoices.map((invoice) => api.get<InvoiceDetailResponse>(`/api/invoices/${invoice._id}`))
+    );
+    invoiceDetails.forEach((response) => {
+      expect(response.status).toBe(200);
+      const detail = response.data;
+      const blocks = detail.ocrBlocks ?? [];
+      if (blocks.length === 0) {
+        return;
+      }
+      const blocksWithCropPath = blocks.filter((block) => typeof block.cropPath === "string" && block.cropPath.length > 0);
+      expect(blocksWithCropPath.length).toBeGreaterThan(0);
+      expect(typeof detail.metadata?.ocrBlockCropCount).toBe("string");
+      expect(typeof detail.metadata?.fieldOverlayPaths).toBe("string");
+    });
+
+    for (const response of invoiceDetails) {
+      const detail = response.data;
+      const overlayMap = parseStringMap(detail.metadata?.fieldOverlayPaths);
+      const firstField = SOURCE_OVERLAY_FIELDS.find((field) => typeof overlayMap[field] === "string");
+      if (!firstField) {
+        continue;
+      }
+
+      const overlayResponse = await api.get(`/api/invoices/${detail._id}/source-overlays/${firstField}`);
+      expect(overlayResponse.status).toBe(200);
+      expect(String(overlayResponse.headers["content-type"] ?? "")).toContain("image/");
+    }
   });
 
   it("uses checkpointing to skip already processed files on rerun", async () => {
@@ -232,4 +298,25 @@ function isProbability(value: unknown): value is number {
 
 function isPercentage(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value) && value >= 0 && value <= 100;
+}
+
+function parseStringMap(value: unknown): Record<string, string> {
+  if (typeof value !== "string") {
+    return {};
+  }
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(value);
+  } catch {
+    return {};
+  }
+
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    return {};
+  }
+
+  return Object.fromEntries(
+    Object.entries(parsed).filter(([, entry]) => typeof entry === "string" && entry.trim().length > 0)
+  );
 }

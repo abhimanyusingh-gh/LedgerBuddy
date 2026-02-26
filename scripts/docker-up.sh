@@ -151,7 +151,7 @@ start_local_service_if_needed() {
   wait_for_model_ready "$health_url" "$name" 1800 "$pid_file" "$log_file"
 }
 
-if [[ "$ENV_MODE" == "local" ]]; then
+if [[ "$ENV_MODE" == "local" || "$ENV_MODE" == "dev" ]]; then
   PYTHON_BIN="$(resolve_python_bin)"
   assert_python_version "$PYTHON_BIN"
 

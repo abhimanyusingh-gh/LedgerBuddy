@@ -1,5 +1,6 @@
 import axios from "axios";
 import type { AccountingExporter } from "./interfaces/AccountingExporter.js";
+import type { FileStore } from "./interfaces/FileStore.js";
 import type { FieldVerifier } from "./interfaces/FieldVerifier.js";
 import type { OcrProvider } from "./interfaces/OcrProvider.js";
 import { MockOcrProvider } from "../ocr/MockOcrProvider.js";
@@ -15,6 +16,8 @@ import { logger } from "../utils/logger.js";
 import { loadRuntimeManifest, type RuntimeManifest } from "./runtimeManifest.js";
 import { NoopFieldVerifier } from "../verifier/NoopFieldVerifier.js";
 import { HttpFieldVerifier } from "../verifier/HttpFieldVerifier.js";
+import { LocalDiskFileStore } from "../storage/LocalDiskFileStore.js";
+import { S3FileStore } from "../storage/S3FileStore.js";
 
 const OCR_BOOTSTRAP_TIMEOUT_MS = 5_000;
 const VERIFIER_BOOTSTRAP_TIMEOUT_MS = 5_000;
@@ -29,6 +32,7 @@ export async function buildDependencies(): Promise<Dependencies> {
   const manifest = loadRuntimeManifest();
   const ocrProvider = await resolveOcrProvider(manifest);
   const fieldVerifier = await resolveFieldVerifier(manifest);
+  const fileStore = resolveFileStore(manifest);
   const extractionPipeline = new InvoiceExtractionPipeline(
     ocrProvider,
     fieldVerifier,
@@ -39,7 +43,8 @@ export async function buildDependencies(): Promise<Dependencies> {
   );
   const sources = buildIngestionSources(manifest.sources);
   const ingestionService = new IngestionService(sources, ocrProvider, {
-    pipeline: extractionPipeline
+    pipeline: extractionPipeline,
+    fileStore
   });
   const invoiceService = new InvoiceService();
 
@@ -51,6 +56,35 @@ export async function buildDependencies(): Promise<Dependencies> {
     invoiceService,
     exportService
   };
+}
+
+function resolveFileStore(runtimeManifest: RuntimeManifest): FileStore {
+  if (runtimeManifest.fileStore.provider === "local") {
+    logger.info("Using file store provider", {
+      provider: "local",
+      rootPath: runtimeManifest.fileStore.local.rootPath
+    });
+    return new LocalDiskFileStore({
+      rootPath: runtimeManifest.fileStore.local.rootPath
+    });
+  }
+
+  if (runtimeManifest.fileStore.provider === "s3") {
+    logger.info("Using file store provider", {
+      provider: "s3",
+      bucket: runtimeManifest.fileStore.s3.bucket,
+      region: runtimeManifest.fileStore.s3.region
+    });
+    return new S3FileStore({
+      bucket: runtimeManifest.fileStore.s3.bucket,
+      region: runtimeManifest.fileStore.s3.region,
+      prefix: runtimeManifest.fileStore.s3.prefix,
+      endpoint: runtimeManifest.fileStore.s3.endpoint,
+      forcePathStyle: runtimeManifest.fileStore.s3.forcePathStyle
+    });
+  }
+
+  throw new Error(`Unsupported file store provider '${runtimeManifest.fileStore.provider}'.`);
 }
 
 async function resolveFieldVerifier(runtimeManifest = loadRuntimeManifest()): Promise<FieldVerifier> {

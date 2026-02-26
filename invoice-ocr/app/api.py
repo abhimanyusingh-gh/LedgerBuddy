@@ -5,11 +5,11 @@ from typing import Any
 from fastapi import FastAPI, HTTPException, Request
 
 from .engine import estimate_confidence, parse_data_url
-from .engines import create_ocr_engine
+from .providers import create_ocr_provider
 from .logging import log_error, log_info, reset_correlation_id, set_correlation_id
 from .schemas import OcrDocumentRequest
 
-engine = create_ocr_engine()
+provider = create_ocr_provider()
 app = FastAPI(title="Invoice OCR Service", version="2.0.0")
 
 
@@ -42,12 +42,12 @@ async def correlation_middleware(request: Request, call_next):
 
 @app.on_event("startup")
 def on_startup() -> None:
-  engine.startup()
+  provider.startup()
 
 
 @app.get("/health")
 def health() -> dict[str, Any]:
-  return engine.health()
+  return provider.health()
 
 
 @app.get("/v1/health")
@@ -59,7 +59,7 @@ def health_v1() -> dict[str, Any]:
 def list_models() -> dict[str, Any]:
   return {
     "object": "list",
-    "data": engine.list_models()
+    "data": provider.list_models()
   }
 
 
@@ -74,7 +74,7 @@ def ocr_document(request: OcrDocumentRequest) -> dict[str, Any]:
   started_at = time.perf_counter()
 
   try:
-    extraction = engine.extract_document(
+    extraction = provider.extract_document(
       image_bytes=document_bytes,
       mime_type=mime_type,
       prompt=request.prompt,
@@ -89,6 +89,7 @@ def ocr_document(request: OcrDocumentRequest) -> dict[str, Any]:
 
   raw_text = str(extraction.get("rawText", ""))
   blocks = extraction["blocks"] if isinstance(extraction.get("blocks"), list) else []
+  page_images = extraction["pageImages"] if isinstance(extraction.get("pageImages"), list) else []
   confidence = normalize_confidence(extraction.get("confidence"))
   if confidence is None:
     confidence = estimate_confidence(raw_text, blocks)
@@ -107,11 +108,12 @@ def ocr_document(request: OcrDocumentRequest) -> dict[str, Any]:
     "object": "ocr.document",
     "created": int(time.time()),
     "model": request.model or extraction.get("model", ""),
-    "provider": extraction.get("provider", "ocr-engine"),
+    "provider": extraction.get("provider", "ocr-provider"),
     "mimeType": mime_type,
     "rawText": raw_text,
     "confidence": int(round(confidence * 100)),
     "blocks": blocks,
+    "pageImages": page_images,
     "engineMode": extraction.get("mode", "unknown"),
     "latencyMs": elapsed_ms
   }

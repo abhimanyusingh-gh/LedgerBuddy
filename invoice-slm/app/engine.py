@@ -155,7 +155,9 @@ def select_with_fallback(
     issues.append("SLM returned no valid field selections.")
 
   if slm_error:
-    issues.append(f"SLM unavailable: {slm_error}")
+    normalized_error = slm_error.strip().lower()
+    if "not valid json" not in normalized_error:
+      issues.append(f"SLM unavailable: {slm_error}")
 
   fallback_selected, fallback_codes = heuristic_select(candidate_map, blocks, field_regions, current, mode)
   issues.append("Applied heuristic fallback for unresolved fields.")

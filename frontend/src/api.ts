@@ -42,6 +42,23 @@ export async function fetchInvoices(status?: string) {
   };
 }
 
+export async function fetchInvoiceById(invoiceId: string) {
+  const response = await apiClient.get<Invoice>(`/invoices/${invoiceId}`);
+  return stripNulls(response.data) as Invoice;
+}
+
+export function getInvoiceBlockCropUrl(invoiceId: string, blockIndex: number): string {
+  return apiClient.getUri({
+    url: `/invoices/${invoiceId}/ocr-blocks/${blockIndex}/crop`
+  });
+}
+
+export function getInvoiceFieldOverlayUrl(invoiceId: string, field: string): string {
+  return apiClient.getUri({
+    url: `/invoices/${invoiceId}/source-overlays/${field}`
+  });
+}
+
 export async function approveInvoices(ids: string[], approvedBy: string) {
   const response = await apiClient.post<{ modifiedCount: number }>("/invoices/approve", {
     ids,

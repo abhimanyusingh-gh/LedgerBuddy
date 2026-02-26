@@ -49,7 +49,8 @@ Build a minimal, modular application that ingests invoices, extracts structured 
 - Load and display all invoice pages from the backend (no hidden first-page cap).
 - Allow collapsing the right-side Invoice Details section so the Invoice list can expand.
 - Show extracted values and Tally mapping in table format with clear labels.
-- Show OCR engine, extraction source, and confidence.
+- Show confidence and source-highlight overlays for extracted fields.
+- Provide a lightweight inspect icon per extracted field to open the persisted crop image used for that value.
 - File details popup shows detected data + mapping.
 - Batch approval workflow.
 - Export confirmation dialog shows selected file count.

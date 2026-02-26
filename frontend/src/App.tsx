@@ -4,14 +4,19 @@ import {
   exportToTally,
   fetchIngestionStatus,
   fetchInvoices,
+  getInvoiceBlockCropUrl,
+  getInvoiceFieldOverlayUrl,
   runIngestion,
   updateInvoiceParsedFields
 } from "./api";
-import type { IngestionJobStatus, Invoice, InvoiceStatus } from "./types";
+import type { IngestionJobStatus, Invoice } from "./types";
 import { ConfidenceBadge } from "./components/ConfidenceBadge";
 import { ExtractedFieldsTable } from "./components/ExtractedFieldsTable";
+import { IngestionProgressCard } from "./components/IngestionProgressCard";
+import { InvoiceSourceViewer } from "./components/InvoiceSourceViewer";
 import { TallyMappingTable } from "./components/TallyMappingTable";
 import { formatOcrConfidenceLabel, getExtractedFieldRows } from "./extractedFields";
+import { getInvoiceSourceHighlights } from "./sourceHighlights";
 import {
   isInvoiceApprovable,
   isInvoiceExportable,
@@ -20,41 +25,25 @@ import {
   removeSelectedIds
 } from "./selection";
 import { getInvoiceTallyMappings } from "./tallyMapping";
-import { formatMinorAmountWithCurrency, minorUnitsToMajorString } from "./currency";
-
-const STATUSES: Array<InvoiceStatus | "ALL"> = [
-  "ALL",
-  "PARSED",
-  "NEEDS_REVIEW",
-  "FAILED_OCR",
-  "FAILED_PARSE",
-  "APPROVED",
-  "EXPORTED"
-];
-
-interface EditInvoiceFormState {
-  invoiceNumber: string;
-  vendorName: string;
-  invoiceDate: string;
-  dueDate: string;
-  currency: string;
-  totalAmountMajor: string;
-}
-
-const EMPTY_EDIT_FORM: EditInvoiceFormState = {
-  invoiceNumber: "",
-  vendorName: "",
-  invoiceDate: "",
-  dueDate: "",
-  currency: "",
-  totalAmountMajor: ""
-};
+import { formatMinorAmountWithCurrency } from "./currency";
+import {
+  buildEditForm,
+  buildFieldCropUrlMap,
+  buildFieldOverlayUrlMap,
+  EMPTY_EDIT_FORM,
+  normalizeAmountInput,
+  normalizeTextInput,
+  type EditInvoiceFormState,
+  STATUSES
+} from "./invoiceView";
+import { useInvoiceDetail } from "./hooks/useInvoiceDetail";
 
 export function App() {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [popupSourcePreviewExpanded, setPopupSourcePreviewExpanded] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [statusFilter, setStatusFilter] = useState<InvoiceStatus | "ALL">("ALL");
+  const [statusFilter, setStatusFilter] = useState<(typeof STATUSES)[number]>("ALL");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [popupInvoiceId, setPopupInvoiceId] = useState<string | null>(null);
@@ -66,25 +55,65 @@ export function App() {
   const [editForm, setEditForm] = useState<EditInvoiceFormState>(EMPTY_EDIT_FORM);
   const [ingestionStatus, setIngestionStatus] = useState<IngestionJobStatus | null>(null);
   const ingestionWasRunningRef = useRef(false);
+  const {
+    detail: activeInvoiceDetail,
+    loading: activeInvoiceDetailLoading,
+    refresh: refreshActiveInvoiceDetail
+  } = useInvoiceDetail(activeId);
+  const {
+    detail: popupInvoiceDetail,
+    loading: popupInvoiceDetailLoading,
+    refresh: refreshPopupInvoiceDetail
+  } = useInvoiceDetail(popupInvoiceId);
 
   useEffect(() => {
     void loadInvoices();
   }, [statusFilter]);
 
-  const activeInvoice = useMemo(
+  useEffect(() => {
+    setPopupSourcePreviewExpanded(false);
+  }, [popupInvoiceId]);
+
+  const activeInvoiceSummary = useMemo(
     () => invoices.find((invoice) => invoice._id === activeId) ?? null,
     [activeId, invoices]
   );
+  const activeInvoice = useMemo(() => {
+    if (!activeInvoiceSummary) {
+      return activeInvoiceDetail;
+    }
+    if (!activeInvoiceDetail || activeInvoiceDetail._id !== activeInvoiceSummary._id) {
+      return activeInvoiceSummary;
+    }
+    const detailUpdatedAt = Date.parse(activeInvoiceDetail.updatedAt);
+    const summaryUpdatedAt = Date.parse(activeInvoiceSummary.updatedAt);
+    return Number.isFinite(detailUpdatedAt) && detailUpdatedAt >= summaryUpdatedAt
+      ? activeInvoiceDetail
+      : activeInvoiceSummary;
+  }, [activeInvoiceDetail, activeInvoiceSummary]);
 
   const failedCount = useMemo(
     () => invoices.filter((invoice) => ["FAILED_OCR", "FAILED_PARSE"].includes(invoice.status)).length,
     [invoices]
   );
 
-  const popupInvoice = useMemo(
+  const popupInvoiceSummary = useMemo(
     () => invoices.find((invoice) => invoice._id === popupInvoiceId) ?? null,
     [invoices, popupInvoiceId]
   );
+  const popupInvoice = useMemo(() => {
+    if (!popupInvoiceSummary) {
+      return popupInvoiceDetail;
+    }
+    if (!popupInvoiceDetail || popupInvoiceDetail._id !== popupInvoiceSummary._id) {
+      return popupInvoiceSummary;
+    }
+    const detailUpdatedAt = Date.parse(popupInvoiceDetail.updatedAt);
+    const summaryUpdatedAt = Date.parse(popupInvoiceSummary.updatedAt);
+    return Number.isFinite(detailUpdatedAt) && detailUpdatedAt >= summaryUpdatedAt
+      ? popupInvoiceDetail
+      : popupInvoiceSummary;
+  }, [popupInvoiceDetail, popupInvoiceSummary]);
 
   const activeExtractedRows = useMemo(
     () => (activeInvoice ? getExtractedFieldRows(activeInvoice) : []),
@@ -95,7 +124,12 @@ export function App() {
     () => (activeInvoice ? getInvoiceTallyMappings(activeInvoice) : []),
     [activeInvoice]
   );
-
+  const activeCropUrlByField = useMemo(() => {
+    if (!activeInvoice) {
+      return {};
+    }
+    return buildFieldCropUrlMap(activeInvoice._id, getInvoiceSourceHighlights(activeInvoice), getInvoiceBlockCropUrl);
+  }, [activeInvoice]);
   const popupExtractedRows = useMemo(
     () => (popupInvoice ? getExtractedFieldRows(popupInvoice) : []),
     [popupInvoice]
@@ -105,6 +139,22 @@ export function App() {
     () => (popupInvoice ? getInvoiceTallyMappings(popupInvoice) : []),
     [popupInvoice]
   );
+  const popupCropUrlByField = useMemo(() => {
+    if (!popupInvoice) {
+      return {};
+    }
+    return buildFieldCropUrlMap(popupInvoice._id, getInvoiceSourceHighlights(popupInvoice), getInvoiceBlockCropUrl);
+  }, [popupInvoice]);
+  const popupOverlayUrlByField = useMemo(() => {
+    if (!popupInvoice) {
+      return {};
+    }
+    return buildFieldOverlayUrlMap(
+      popupInvoice._id,
+      getInvoiceSourceHighlights(popupInvoice),
+      getInvoiceFieldOverlayUrl
+    );
+  }, [popupInvoice]);
 
   const canEditActiveInvoice = Boolean(activeInvoice && activeInvoice.status !== "EXPORTED");
   const ingestionProgressPercent = useMemo(() => {
@@ -193,7 +243,7 @@ export function App() {
 
     setEditForm(buildEditForm(activeInvoice));
     setEditingParsedFields(false);
-  }, [activeInvoice?._id]);
+  }, [activeInvoice]);
 
   useEffect(() => {
     void refreshIngestionStatus();
@@ -230,12 +280,19 @@ export function App() {
     try {
       const data = await fetchInvoices(statusFilter === "ALL" ? undefined : statusFilter);
       setInvoices(data.items);
+      const ids = new Set(data.items.map((item) => item._id));
       setSelectedIds((currentSelectedIds) => mergeSelectedIds(currentSelectedIds, data.items));
-      if (!data.items.find((item) => item._id === activeId)) {
+      if (activeId && !ids.has(activeId)) {
         setActiveId(data.items[0]?._id ?? null);
       }
-      if (popupInvoiceId && !data.items.find((item) => item._id === popupInvoiceId)) {
+      if (popupInvoiceId && !ids.has(popupInvoiceId)) {
         setPopupInvoiceId(null);
+      }
+      if (activeId && ids.has(activeId)) {
+        void refreshActiveInvoiceDetail();
+      }
+      if (popupInvoiceId && ids.has(popupInvoiceId)) {
+        void refreshPopupInvoiceDetail();
       }
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : "Failed to fetch invoices");
@@ -430,44 +487,11 @@ export function App() {
           </button>
           <button onClick={() => void loadInvoices()}>Refresh</button>
         </div>
-        {ingestionStatus && ingestionStatus.state !== "idle" ? (
-          <div
-            className={`ingestion-progress ${
-              ingestionStatus.running
-                ? "ingestion-progress-running"
-                : ingestionStatus.state === "failed"
-                  ? "ingestion-progress-failed"
-                  : "ingestion-progress-complete"
-            }`}
-            role="status"
-            aria-live="polite"
-          >
-            <div className="ingestion-progress-head">
-              {ingestionStatus.running ? <span className="ingestion-spinner" aria-hidden="true" /> : null}
-              <strong>
-                {ingestionStatus.running
-                  ? "Ingestion in progress"
-                  : ingestionStatus.state === "failed"
-                    ? "Ingestion failed"
-                    : "Ingestion completed"}
-              </strong>
-              <span>
-                {ingestionStatus.processedFiles}/{ingestionStatus.totalFiles > 0 ? ingestionStatus.totalFiles : "?"}{" "}
-                processed
-              </span>
-            </div>
-            <div className="ingestion-progress-track">
-              <div className="ingestion-progress-fill" style={{ width: `${ingestionProgressPercent}%` }} />
-            </div>
-            <p className="muted ingestion-progress-meta">
-              Successful {ingestionSuccessfulFiles} | New {ingestionStatus.newInvoices} | Duplicates{" "}
-              {ingestionStatus.duplicates} | Failures {ingestionStatus.failures}
-            </p>
-            {ingestionStatus.state === "failed" && ingestionStatus.error ? (
-              <p className="error ingestion-progress-error">{ingestionStatus.error}</p>
-            ) : null}
-          </div>
-        ) : null}
+        <IngestionProgressCard
+          status={ingestionStatus}
+          progressPercent={ingestionProgressPercent}
+          successfulFiles={ingestionSuccessfulFiles}
+        />
         <p className="muted export-selection">
           {selectedIds.length} selected | {selectedExportableIds.length} approved exportable
           {selectedNonExportableCount > 0
@@ -575,44 +599,45 @@ export function App() {
             ) : activeInvoice ? (
               <div className="detail-scroll">
                 <div className="detail-content">
+                  {activeInvoiceDetailLoading ? <p className="muted">Loading full invoice details...</p> : null}
                   <div className="detail-grid">
                     <p>
-                      <span>ID</span>
-                      <strong>{activeInvoice._id}</strong>
-                    </p>
-                    <p>
-                      <span>Attachment</span>
+                      <span>File</span>
                       <strong>{activeInvoice.attachmentName}</strong>
                     </p>
                     <p>
-                      <span>Source</span>
-                      <strong>{activeInvoice.sourceType}:{activeInvoice.sourceKey}</strong>
+                      <span>Vendor</span>
+                      <strong>{activeInvoice.parsed?.vendorName ?? "-"}</strong>
                     </p>
                     <p>
-                      <span>Tenant / Tier</span>
-                      <strong>{activeInvoice.tenantId}:{activeInvoice.workloadTier}</strong>
+                      <span>Invoice Number</span>
+                      <strong>{activeInvoice.parsed?.invoiceNumber ?? "-"}</strong>
                     </p>
                     <p>
-                      <span>OCR Engine</span>
-                      <strong>{activeInvoice.ocrProvider ?? "-"}</strong>
+                      <span>Invoice Date</span>
+                      <strong>{activeInvoice.parsed?.invoiceDate ?? "-"}</strong>
                     </p>
                     <p>
-                      <span>Extraction Source</span>
-                      <strong>{activeInvoice.metadata?.extractionSource ?? "-"}</strong>
+                      <span>Due Date</span>
+                      <strong>{activeInvoice.parsed?.dueDate ?? "-"}</strong>
+                    </p>
+                    <p>
+                      <span>Total Amount</span>
+                      <strong>
+                        {formatMinorAmountWithCurrency(activeInvoice.parsed?.totalAmountMinor, activeInvoice.parsed?.currency)}
+                      </strong>
+                    </p>
+                    <p>
+                      <span>Status</span>
+                      <strong>{activeInvoice.status}</strong>
+                    </p>
+                    <p>
+                      <span>Confidence</span>
+                      <strong><ConfidenceBadge score={activeInvoice.confidenceScore ?? 0} /></strong>
                     </p>
                     <p>
                       <span>OCR Confidence</span>
                       <strong>{formatOcrConfidenceLabel(activeInvoice.ocrConfidence)}</strong>
-                    </p>
-                    <p>
-                      <span>OCR Blocks</span>
-                      <strong>{activeInvoice.ocrBlocks?.length ?? 0}</strong>
-                    </p>
-                    <p>
-                      <span>Confidence</span>
-                      <strong>
-                        <ConfidenceBadge score={activeInvoice.confidenceScore ?? 0} />
-                      </strong>
                     </p>
                   </div>
 
@@ -707,10 +732,18 @@ export function App() {
                   {detailsExpanded ? (
                     <>
                       <div>
+                        <h3>System Details</h3>
+                        <p className="muted system-details-line">
+                          Source: {activeInvoice.sourceType}:{activeInvoice.sourceKey} | Tenant: {activeInvoice.tenantId} |
+                          Tier: {activeInvoice.workloadTier}
+                        </p>
+                      </div>
+
+                      <div>
                         <h3>Risk Signals</h3>
-                        {activeInvoice.riskMessages.length > 0 ? (
+                        {(activeInvoice.riskMessages ?? []).length > 0 ? (
                           <ul>
-                            {activeInvoice.riskMessages.map((entry) => (
+                            {(activeInvoice.riskMessages ?? []).map((entry) => (
                               <li key={entry}>{entry}</li>
                             ))}
                           </ul>
@@ -721,9 +754,9 @@ export function App() {
 
                       <div>
                         <h3>Parse Errors / Warnings</h3>
-                        {activeInvoice.processingIssues.length > 0 ? (
+                        {(activeInvoice.processingIssues ?? []).length > 0 ? (
                           <ul>
-                            {activeInvoice.processingIssues.map((entry) => (
+                            {(activeInvoice.processingIssues ?? []).map((entry) => (
                               <li key={entry}>{entry}</li>
                             ))}
                           </ul>
@@ -734,7 +767,7 @@ export function App() {
 
                       <div>
                         <h3>Extracted Invoice Fields</h3>
-                        <ExtractedFieldsTable rows={activeExtractedRows} />
+                        <ExtractedFieldsTable rows={activeExtractedRows} cropUrlByField={activeCropUrlByField} />
                       </div>
 
                       <div>
@@ -775,13 +808,27 @@ export function App() {
               </button>
             </div>
             <p className="muted popup-meta">
-              Status: <strong>{popupInvoice.status}</strong> | Source: {popupInvoice.sourceType}:{popupInvoice.sourceKey} |
-              Tenant: {popupInvoice.tenantId} | Tier: {popupInvoice.workloadTier}
+              Status: <strong>{popupInvoice.status}</strong> | Received: {new Date(popupInvoice.receivedAt).toLocaleString()}
             </p>
             <div className="popup-content">
+              {popupInvoiceDetailLoading ? <p className="muted">Loading full invoice details...</p> : null}
+              {Object.keys(popupOverlayUrlByField).length > 0 ? (
+                <div className="source-preview-section">
+                  <button
+                    type="button"
+                    className="source-preview-toggle"
+                    onClick={() => setPopupSourcePreviewExpanded((currentValue) => !currentValue)}
+                  >
+                    {popupSourcePreviewExpanded ? "Hide Value Source Highlights" : "Show Value Source Highlights"}
+                  </button>
+                  {popupSourcePreviewExpanded ? (
+                    <InvoiceSourceViewer invoice={popupInvoice} overlayUrlByField={popupOverlayUrlByField} />
+                  ) : null}
+                </div>
+              ) : null}
               <div>
                 <h3>Extracted Invoice Fields</h3>
-                <ExtractedFieldsTable rows={popupExtractedRows} />
+                <ExtractedFieldsTable rows={popupExtractedRows} cropUrlByField={popupCropUrlByField} />
               </div>
               <div>
                 <h3>Detected Fields to Tally Mapping</h3>
@@ -793,28 +840,4 @@ export function App() {
       ) : null}
     </div>
   );
-}
-
-function buildEditForm(invoice: Invoice): EditInvoiceFormState {
-  return {
-    invoiceNumber: invoice.parsed?.invoiceNumber ?? "",
-    vendorName: invoice.parsed?.vendorName ?? "",
-    invoiceDate: invoice.parsed?.invoiceDate ?? "",
-    dueDate: invoice.parsed?.dueDate ?? "",
-    currency: invoice.parsed?.currency ?? "",
-    totalAmountMajor:
-      typeof invoice.parsed?.totalAmountMinor === "number"
-        ? minorUnitsToMajorString(invoice.parsed.totalAmountMinor, invoice.parsed?.currency)
-        : ""
-  };
-}
-
-function normalizeTextInput(value: string): string | null {
-  const trimmed = value.trim();
-  return trimmed.length > 0 ? trimmed : null;
-}
-
-function normalizeAmountInput(value: string): string | null {
-  const trimmed = value.trim();
-  return trimmed.length > 0 ? trimmed : null;
 }

@@ -26,19 +26,14 @@ describe("extracted field helpers", () => {
   it("builds clear labeled rows for extracted values", () => {
     const invoice: Invoice = {
       ...baseInvoice,
-      ocrProvider: "deepseek",
-      ocrConfidence: 0.93,
-      metadata: {
-        extractionSource: "ocr-provider",
-        extractionStrategy: "best-candidate"
-      },
       parsed: {
         invoiceNumber: "INV-42",
         vendorName: "Acme Corp",
         invoiceDate: "2026-02-01",
         dueDate: "2026-02-15",
         totalAmountMinor: 120050,
-        currency: "USD"
+        currency: "USD",
+        notes: ["first note", "second note"]
       }
     };
 
@@ -49,10 +44,7 @@ describe("extracted field helpers", () => {
         expect.objectContaining({ label: "Invoice Number", value: "INV-42" }),
         expect.objectContaining({ label: "Vendor Name", value: "Acme Corp" }),
         expect.objectContaining({ label: "Total Amount", value: "USD 1200.50" }),
-        expect.objectContaining({ label: "OCR Engine", value: "deepseek" }),
-        expect.objectContaining({ label: "Extraction Source", value: "ocr-provider" }),
-        expect.objectContaining({ label: "Extraction Strategy", value: "best-candidate" }),
-        expect.objectContaining({ label: "OCR Confidence", value: "93%" })
+        expect.objectContaining({ label: "Notes", value: "first note | second note" })
       ])
     );
   });
@@ -63,7 +55,7 @@ describe("extracted field helpers", () => {
 
     expect(rowMap.get("Invoice Number")).toBe("-");
     expect(rowMap.get("Total Amount")).toBe("-");
-    expect(rowMap.get("OCR Confidence")).toBe("-");
+    expect(rowMap.get("Notes")).toBe("-");
   });
 
   it("formats OCR confidence consistently", () => {

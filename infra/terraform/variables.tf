@@ -36,6 +36,46 @@ variable "worker_market_type" {
   }
 }
 
+variable "provision_artifact_bucket" {
+  type        = bool
+  description = "Whether Terraform should provision a reusable S3 bucket for OCR artifacts."
+  default     = true
+}
+
+variable "artifact_bucket_name" {
+  type        = string
+  description = "S3 bucket name used for invoice artifacts (provisioned or pre-existing)."
+
+  validation {
+    condition     = length(trim(var.artifact_bucket_name)) > 0
+    error_message = "artifact_bucket_name must be set."
+  }
+}
+
+variable "artifact_bucket_prefix" {
+  type        = string
+  description = "Object key prefix used by backend when persisting OCR artifacts."
+  default     = "invoice-artifacts"
+}
+
+variable "artifact_bucket_force_destroy" {
+  type        = bool
+  description = "Allow destroying provisioned artifact bucket with non-empty contents."
+  default     = false
+}
+
+variable "artifact_bucket_versioning_enabled" {
+  type        = bool
+  description = "Enable versioning on the provisioned artifact bucket."
+  default     = true
+}
+
+variable "artifact_bucket_expiration_days" {
+  type        = number
+  description = "Optional lifecycle expiration for provisioned artifact objects; set 0 to disable."
+  default     = 0
+}
+
 variable "ami_id" {
   type        = string
   description = "Optional AMI id override. Leave blank to use latest Amazon Linux 2023."

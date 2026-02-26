@@ -63,12 +63,8 @@ class LocalMlxLLMProvider(LLMProvider):
     if self.model is None or self.tokenizer is None:
       raise RuntimeError("SLM model is not initialized.")
 
-    if payload.get("llmAssist"):
-      log_info("slm.llm_assist.local_mlx_ignores_images", note="Local MLX provider does not support vision; running text-only re-extraction")
-
     for strict in (False, True):
       prompt = build_prompt(self.tokenizer, payload, strict=strict)
-      prompt_tokens = len(self.tokenizer.encode(prompt))
       output = generate(
         self.model,
         self.tokenizer,
@@ -77,15 +73,11 @@ class LocalMlxLLMProvider(LLMProvider):
         max_tokens=settings.max_new_tokens
       )
       output_text = extract_generation_text(output)
-      completion_tokens = len(self.tokenizer.encode(output_text))
-      usage = {"promptTokens": prompt_tokens, "completionTokens": completion_tokens}
       parsed = parse_json_object(output_text)
       if parsed is not None:
-        parsed["_usage"] = usage
         return parsed
       recovered = recover_payload_from_text(output_text, payload)
       if recovered is not None:
-        recovered["_usage"] = usage
         return recovered
 
     fallback = recover_payload_from_candidates(payload)
@@ -138,44 +130,25 @@ def resolve_model_reference() -> str:
 
 
 def build_prompt(tokenizer: Any, payload: dict[str, Any], strict: bool) -> str:
-  prior_corrections = payload.get("priorCorrections")
-  prior_corrections_text = ""
-  if isinstance(prior_corrections, list) and prior_corrections:
-    parts = []
-    for entry in prior_corrections[:6]:
-      if isinstance(entry, dict) and isinstance(entry.get("field"), str) and isinstance(entry.get("hint"), str):
-        parts.append(f"{entry['field']}: {entry['hint']}")
-    if parts:
-      prior_corrections_text = " PRIOR_CORRECTIONS: " + "; ".join(parts) + "."
-
   if strict:
     instruction = (
       "Return only one minified JSON object. "
       "No markdown. No code fence. No explanation. No preamble. "
       "Schema: "
       "{\"selected\":{\"invoiceNumber\":\"\",\"vendorName\":\"\",\"currency\":\"\",\"totalAmountMinor\":0,"
-      "\"invoiceDate\":\"\",\"dueDate\":\"\"},\"reasonCodes\":{},\"issues\":[],\"invoiceType\":\"\"}. "
-      "invoiceType must be one of: standard, gst-tax-invoice, vat-invoice, receipt, utility-bill, "
-      "professional-service, purchase-order, credit-note, proforma, other."
-      + prior_corrections_text
+      "\"invoiceDate\":\"\",\"dueDate\":\"\"},\"reasonCodes\":{},\"issues\":[]}."
     )
   else:
     instruction = (
       "Use OCR text blocks and bounding boxes to choose invoice fields. "
       "Output schema must be exactly: "
       "{\"selected\":{\"invoiceNumber\":\"\",\"vendorName\":\"\",\"currency\":\"\",\"totalAmountMinor\":0,"
-      "\"invoiceDate\":\"\",\"dueDate\":\"\"},\"reasonCodes\":{},\"issues\":[],\"invoiceType\":\"\"} "
-      "invoiceType must be one of: standard, gst-tax-invoice, vat-invoice, receipt, utility-bill, "
-      "professional-service, purchase-order, credit-note, proforma, other. "
+      "\"invoiceDate\":\"\",\"dueDate\":\"\"},\"reasonCodes\":{},\"issues\":[]} "
       "Rules: vendorName cannot be an address; totalAmountMinor must be integer minor units; "
       "if unknown keep empty string or 0."
-      + prior_corrections_text
     )
 
-  prompt_payload = sanitize_payload_for_prompt(payload)
-  user_message = (
-    f"{instruction}\nINPUT_JSON:{json.dumps(prompt_payload, ensure_ascii=True, separators=(',', ':'))}\nOUTPUT_JSON:"
-  )
+  user_message = f"{instruction}\nINPUT_JSON:{json.dumps(payload, ensure_ascii=True, separators=(',', ':'))}\nOUTPUT_JSON:"
   return str(
     tokenizer.apply_chat_template(
       [
@@ -200,66 +173,6 @@ def extract_generation_text(output: Any) -> str:
       if isinstance(value, str):
         return cleanup_generation_text(value)
   return cleanup_generation_text(str(output))
-
-
-def sanitize_payload_for_prompt(payload: dict[str, Any]) -> dict[str, Any]:
-  if not isinstance(payload, dict):
-    return {}
-
-  cloned = dict(payload)
-
-  page_images = cloned.get("pageImages")
-  if isinstance(page_images, list):
-    summaries: list[dict[str, Any]] = []
-    for entry in page_images[:3]:
-      if not isinstance(entry, dict):
-        continue
-      summary = {
-        "page": entry.get("page"),
-        "mimeType": entry.get("mimeType"),
-        "width": entry.get("width"),
-        "height": entry.get("height"),
-        "dpi": entry.get("dpi")
-      }
-      data_url = entry.get("dataUrl")
-      if isinstance(data_url, str) and data_url.startswith("data:"):
-        summary["dataUrlPreview"] = data_url[:140]
-        summary["dataUrlLength"] = len(data_url)
-      summaries.append(summary)
-    cloned["pageImages"] = summaries
-
-  document_context = cloned.get("documentContext")
-  if isinstance(document_context, dict):
-    sanitized_context: dict[str, Any] = {}
-    original_doc = document_context.get("originalDocumentDataUrl")
-    if isinstance(original_doc, str) and original_doc.startswith("data:"):
-      sanitized_context["originalDocumentMimeType"] = original_doc.split(";", 1)[0].replace("data:", "")
-      sanitized_context["originalDocumentPreview"] = original_doc[:180]
-      sanitized_context["originalDocumentLength"] = len(original_doc)
-
-    page_images = document_context.get("pageImages")
-    if isinstance(page_images, list):
-      summaries: list[dict[str, Any]] = []
-      for entry in page_images[:3]:
-        if not isinstance(entry, dict):
-          continue
-        summary = {
-          "page": entry.get("page"),
-          "mimeType": entry.get("mimeType"),
-          "width": entry.get("width"),
-          "height": entry.get("height"),
-          "dpi": entry.get("dpi")
-        }
-        data_url = entry.get("dataUrl")
-        if isinstance(data_url, str) and data_url.startswith("data:"):
-          summary["dataUrlPreview"] = data_url[:140]
-          summary["dataUrlLength"] = len(data_url)
-        summaries.append(summary)
-      sanitized_context["pageImages"] = summaries
-
-    cloned["documentContext"] = sanitized_context
-
-  return cloned
 
 
 def cleanup_generation_text(value: str) -> str:
