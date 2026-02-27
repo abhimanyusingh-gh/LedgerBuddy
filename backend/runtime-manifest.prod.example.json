@@ -30,6 +30,8 @@
       "key": "ap-inbox",
       "tenantId": "tenant-default",
       "workloadTier": "standard",
+      "transport": "imap",
+      "mailhogApiBaseUrl": "",
       "host": "imap.gmail.com",
       "port": 993,
       "secure": true,

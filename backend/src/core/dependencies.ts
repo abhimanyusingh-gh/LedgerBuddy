@@ -18,6 +18,7 @@ import { NoopFieldVerifier } from "../verifier/NoopFieldVerifier.js";
 import { HttpFieldVerifier } from "../verifier/HttpFieldVerifier.js";
 import { LocalDiskFileStore } from "../storage/LocalDiskFileStore.js";
 import { S3FileStore } from "../storage/S3FileStore.js";
+import { EmailSimulationService } from "../services/emailSimulationService.js";
 
 const OCR_BOOTSTRAP_TIMEOUT_MS = 5_000;
 const VERIFIER_BOOTSTRAP_TIMEOUT_MS = 5_000;
@@ -26,6 +27,7 @@ interface Dependencies {
   ingestionService: IngestionService;
   invoiceService: InvoiceService;
   exportService: ExportService | null;
+  emailSimulationService: EmailSimulationService;
 }
 
 export async function buildDependencies(): Promise<Dependencies> {
@@ -47,6 +49,7 @@ export async function buildDependencies(): Promise<Dependencies> {
     fileStore
   });
   const invoiceService = new InvoiceService();
+  const emailSimulationService = new EmailSimulationService();
 
   const exporter = buildExporter(manifest);
   const exportService = exporter ? new ExportService(exporter) : null;
@@ -54,7 +57,8 @@ export async function buildDependencies(): Promise<Dependencies> {
   return {
     ingestionService,
     invoiceService,
-    exportService
+    exportService,
+    emailSimulationService
   };
 }
 

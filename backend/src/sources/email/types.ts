@@ -21,6 +21,8 @@ export interface EmailSourceConfig {
   key: string;
   tenantId?: string;
   workloadTier?: WorkloadTier;
+  transport: "imap" | "mailhog_oauth";
+  mailhogApiBaseUrl: string;
   host: string;
   port: number;
   secure: boolean;

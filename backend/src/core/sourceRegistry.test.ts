@@ -7,6 +7,8 @@ function buildEmailSource(overrides?: Partial<Extract<IngestionSourceManifest, {
     key: "gmail-inbox",
     tenantId: "tenant-1",
     workloadTier: "standard",
+    transport: "imap",
+    mailhogApiBaseUrl: "http://mailhog-oauth:8026",
     host: "imap.gmail.com",
     port: 993,
     secure: true,
@@ -82,5 +84,35 @@ describe("buildIngestionSources", () => {
       "Email source OAuth2 selected but credentials are incomplete. Provide access token or client_id/client_secret/refresh_token/token_endpoint."
     );
   });
-});
 
+  it("requires oauth mode for mailhog_oauth transport", () => {
+    expect(() =>
+      buildIngestionSources([
+        buildEmailSource({
+          transport: "mailhog_oauth",
+          authMode: "password"
+        })
+      ])
+    ).toThrow("MailHog OAuth source requires EMAIL_AUTH_MODE=oauth2.");
+  });
+
+  it("requires mailhog api base url for mailhog_oauth transport", () => {
+    expect(() =>
+      buildIngestionSources([
+        buildEmailSource({
+          transport: "mailhog_oauth",
+          authMode: "oauth2",
+          password: "",
+          mailhogApiBaseUrl: "",
+          oauth2: {
+            clientId: "",
+            clientSecret: "",
+            refreshToken: "",
+            accessToken: "token",
+            tokenEndpoint: "https://oauth2.googleapis.com/token"
+          }
+        })
+      ])
+    ).toThrow("MailHog OAuth source selected but EMAIL_MAILHOG_API_BASE_URL is missing.");
+  });
+});

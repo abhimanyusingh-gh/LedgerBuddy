@@ -45,6 +45,8 @@ function baseConfig(overrides?: Partial<EmailSourceConfig>): EmailSourceConfig {
     key: "gmail-imap",
     tenantId: "tenant-default",
     workloadTier: "standard",
+    transport: "imap",
+    mailhogApiBaseUrl: "http://mailhog-oauth:8026",
     host: "imap.gmail.com",
     port: 993,
     secure: true,

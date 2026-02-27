@@ -44,6 +44,11 @@ const envSchema = z.object({
     .transform((value) => value === "true"),
   EMAIL_USERNAME: z.string().optional(),
   EMAIL_PASSWORD: z.string().optional(),
+  EMAIL_TRANSPORT: z.enum(["imap", "mailhog_oauth"]).default("imap"),
+  EMAIL_MAILHOG_API_BASE_URL: z
+    .string()
+    .default("http://mailhog-oauth:8026")
+    .transform((value) => normalizeUrl(value)),
   EMAIL_AUTH_MODE: z.enum(["password", "oauth2"]).default("password"),
   EMAIL_OAUTH_CLIENT_ID: z.string().optional(),
   EMAIL_OAUTH_CLIENT_SECRET: z.string().optional(),
@@ -53,6 +58,7 @@ const envSchema = z.object({
     .string()
     .default("https://oauth2.googleapis.com/token")
     .transform((value) => normalizeUrl(value)),
+  EMAIL_SIMULATION_SAMPLE_DIR: z.string().default(""),
   EMAIL_MAILBOX: z.string().default("INBOX"),
   EMAIL_FROM_FILTER: z.string().optional(),
 

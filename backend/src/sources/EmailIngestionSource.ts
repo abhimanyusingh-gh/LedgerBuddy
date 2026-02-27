@@ -1,6 +1,7 @@
 import type { EmailIngestionBoundary } from "../core/boundaries/EmailIngestionBoundary.js";
 import type { IngestedFile, IngestionSource } from "../core/interfaces/IngestionSource.js";
 import { GmailImapIngestionProvider } from "./email/GmailImapIngestionProvider.js";
+import { MailhogOAuthIngestionProvider } from "./email/MailhogOAuthIngestionProvider.js";
 import type { EmailSourceConfig } from "./email/types.js";
 
 export type { EmailSourceConfig } from "./email/types.js";
@@ -18,7 +19,8 @@ export class EmailIngestionSource implements IngestionSource {
     this.key = config.key;
     this.tenantId = config.tenantId ?? "default";
     this.workloadTier = config.workloadTier ?? "standard";
-    this.boundary = new GmailImapIngestionProvider(config);
+    this.boundary =
+      config.transport === "mailhog_oauth" ? new MailhogOAuthIngestionProvider(config) : new GmailImapIngestionProvider(config);
   }
 
   fetchNewFiles(lastCheckpoint: string | null): Promise<IngestedFile[]> {
@@ -27,6 +29,9 @@ export class EmailIngestionSource implements IngestionSource {
 }
 
 function assertSecureGmailConfig(config: EmailSourceConfig): void {
+  if (config.transport !== "imap") {
+    return;
+  }
   if (config.host.trim().toLowerCase() !== "imap.gmail.com") {
     return;
   }

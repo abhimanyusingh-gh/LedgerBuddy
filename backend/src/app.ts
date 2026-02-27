@@ -32,7 +32,7 @@ export async function createApp() {
 
   app.use("/", healthRouter);
   app.use("/api", createInvoiceRouter(dependencies.invoiceService));
-  app.use("/api", createJobsRouter(dependencies.ingestionService));
+  app.use("/api", createJobsRouter(dependencies.ingestionService, dependencies.emailSimulationService));
   app.use("/api", createExportRouter(dependencies.exportService));
 
   app.use((error: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {

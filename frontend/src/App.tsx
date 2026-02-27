@@ -6,6 +6,7 @@ import {
   fetchInvoices,
   getInvoiceBlockCropUrl,
   getInvoiceFieldOverlayUrl,
+  runEmailSimulationIngestion,
   runIngestion,
   updateInvoiceParsedFields
 } from "./api";
@@ -368,6 +369,16 @@ export function App() {
     }
   }
 
+  async function handleEmailSimulationIngest() {
+    try {
+      setError(null);
+      const status = await runEmailSimulationIngestion();
+      setIngestionStatus(status);
+    } catch (ingestError) {
+      setError(ingestError instanceof Error ? ingestError.message : "Email simulation ingestion failed");
+    }
+  }
+
   function toggleSelection(invoice: Invoice) {
     if (!isInvoiceSelectable(invoice)) {
       return;
@@ -472,6 +483,9 @@ export function App() {
         <div className="actions">
           <button onClick={handleIngest} disabled={ingestionStatus?.running === true}>
             {ingestionStatus?.running ? "Ingestion Running..." : "Run Ingestion"}
+          </button>
+          <button onClick={handleEmailSimulationIngest} disabled={ingestionStatus?.running === true}>
+            {ingestionStatus?.running ? "Ingestion Running..." : "Run Email XOAUTH2 Simulation"}
           </button>
           <button onClick={toggleSelectAllVisible} disabled={selectableVisibleIds.length === 0}>
             {areAllVisibleSelectableSelected ? "Deselect All" : "Select All"}

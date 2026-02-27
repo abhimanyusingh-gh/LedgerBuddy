@@ -1,0 +1,29 @@
+{
+  "defaultTenantId": "default",
+  "defaultWorkloadTier": "standard",
+  "sources": [
+    {
+      "type": "email",
+      "key": "mailhog-e2e-inbox",
+      "tenantId": "default",
+      "workloadTier": "standard",
+      "transport": "mailhog_oauth",
+      "mailhogApiBaseUrl": "http://mailhog-oauth:8026",
+      "host": "imap.gmail.com",
+      "port": 993,
+      "secure": true,
+      "username": "ap@example.com",
+      "authMode": "oauth2",
+      "password": "",
+      "oauth2": {
+        "clientId": "mailhog-client",
+        "clientSecret": "mailhog-secret",
+        "refreshToken": "mailhog-refresh",
+        "accessToken": "mailhog-access-token",
+        "tokenEndpoint": "http://mailhog-oauth:8026/oauth/token"
+      },
+      "mailbox": "INBOX",
+      "fromFilter": ""
+    }
+  ]
+}

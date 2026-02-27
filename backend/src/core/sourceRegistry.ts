@@ -14,6 +14,8 @@ export function buildIngestionSources(sourceManifests: IngestionSourceManifest[]
           key: sourceManifest.key,
           tenantId: sourceManifest.tenantId,
           workloadTier: sourceManifest.workloadTier,
+          transport: sourceManifest.transport,
+          mailhogApiBaseUrl: sourceManifest.mailhogApiBaseUrl,
           host: sourceManifest.host,
           port: sourceManifest.port,
           secure: sourceManifest.secure,
@@ -64,8 +66,20 @@ export function buildIngestionSources(sourceManifests: IngestionSourceManifest[]
 }
 
 function assertEmailSourceConfiguration(sourceManifest: Extract<IngestionSourceManifest, { type: "email" }>): void {
-  if (!sourceManifest.host || !sourceManifest.username) {
-    throw new Error("Email source selected but EMAIL_HOST/EMAIL_USERNAME are missing.");
+  if (!sourceManifest.username) {
+    throw new Error("Email source selected but EMAIL_USERNAME is missing.");
+  }
+
+  if (sourceManifest.transport === "imap" && !sourceManifest.host) {
+    throw new Error("Email IMAP source selected but EMAIL_HOST is missing.");
+  }
+
+  if (sourceManifest.transport === "mailhog_oauth" && !sourceManifest.mailhogApiBaseUrl.trim()) {
+    throw new Error("MailHog OAuth source selected but EMAIL_MAILHOG_API_BASE_URL is missing.");
+  }
+
+  if (sourceManifest.transport === "mailhog_oauth" && sourceManifest.authMode !== "oauth2") {
+    throw new Error("MailHog OAuth source requires EMAIL_AUTH_MODE=oauth2.");
   }
 
   if (sourceManifest.authMode === "oauth2") {

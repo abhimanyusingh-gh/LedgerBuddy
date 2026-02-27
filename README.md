@@ -34,6 +34,7 @@ Not yet implemented:
 - `frontend/` React review dashboard.
 - `invoice-ocr/` local OCR FastAPI service with pluggable providers (DeepSeek MLX, Apple Vision, hybrid, prod HTTP).
 - `invoice-slm/` local MLX field-verifier FastAPI service with pluggable providers.
+- `mailhog-oauth-wrapper/` local XOAUTH2 wrapper over MailHog APIs for email-source prod-simulation tests.
 - `infra/modules/` copy-first reusable Terraform module catalog.
 - `infra/terraform/` Invoice Processor stack composition using local modules (`environments/prod.tfvars.example` included).
 - `sample-invoices/inbox/` local folder source for manual and e2e runs.
@@ -76,6 +77,8 @@ This brings up:
 - Frontend dashboard: `http://localhost:5173`
 - MongoDB: `localhost:27017`
 - Mongo Express: `http://localhost:8081`
+- MailHog SMTP/UI: `localhost:1025` / `http://localhost:8025`
+- MailHog OAuth wrapper: `http://localhost:8026`
 - OCR service: `http://localhost:8000`
 - SLM service: `http://localhost:8100`
 
@@ -182,6 +185,17 @@ Set in `backend/.env`:
 - `INGESTION_SOURCES=email`
 - `EMAIL_*` values
 - `OCR_PROVIDER=auto` (recommended)
+
+IMAP transport (default):
+- `EMAIL_TRANSPORT=imap`
+
+MailHog XOAUTH2 prod-simulation transport:
+- `EMAIL_TRANSPORT=mailhog_oauth`
+- `EMAIL_MAILHOG_API_BASE_URL=http://mailhog-oauth:8026`
+- `EMAIL_AUTH_MODE=oauth2`
+- `EMAIL_OAUTH_TOKEN_ENDPOINT=http://mailhog-oauth:8026/oauth/token`
+- requests to wrapper endpoints are authenticated with `Authorization: XOAUTH2 <base64(user=...^Aauth=Bearer ...^A^A)>`
+- dashboard action: `Run Email XOAUTH2 Simulation` seeds MailHog emails (max two invoice attachments per email) and then triggers ingestion
 
 Run ingestion:
 ```bash
@@ -343,6 +357,11 @@ yarn run knip
 Backend e2e only:
 ```bash
 yarn workspace invoice-processor-backend run test:e2e
+```
+
+Email XOAUTH2 e2e (MailHog + XOAUTH2 wrapper + real OCR/SLM):
+```bash
+yarn e2e:email-oauth
 ```
 
 Benchmark local and prod endpoints:

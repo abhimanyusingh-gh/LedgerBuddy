@@ -61,6 +61,12 @@ test.describe("frontend source highlights", () => {
     await verifyInvoiceOverlayFlow(page, invoice.attachmentName);
   });
 
+  test("shows button to trigger email XOAUTH2 simulation workflow", async ({ page }) => {
+    await page.goto("/", { waitUntil: "domcontentloaded" });
+    await expect(page.getByRole("heading", { name: "Ops Console" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Run Email XOAUTH2 Simulation" })).toBeVisible();
+  });
+
   test("png invoice exposes image preview + selectable bbox overlay", async ({ page, request }) => {
     const invoice = await resolveInvoiceByExtension(request, /.+\.png$/i);
     await verifyInvoiceOverlayFlow(page, invoice.attachmentName);

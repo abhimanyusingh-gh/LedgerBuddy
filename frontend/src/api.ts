@@ -82,6 +82,11 @@ export async function runIngestion() {
   return sanitizeIngestionStatus(response.data);
 }
 
+export async function runEmailSimulationIngestion() {
+  const response = await apiClient.post<IngestionJobStatus>("/jobs/ingest/email-simulate");
+  return sanitizeIngestionStatus(response.data);
+}
+
 export async function fetchIngestionStatus() {
   const response = await apiClient.get<IngestionJobStatus>("/jobs/ingest/status");
   return sanitizeIngestionStatus(response.data);
