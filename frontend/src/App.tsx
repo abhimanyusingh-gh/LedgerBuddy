@@ -2,14 +2,17 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   approveInvoices,
   exportToTally,
+  fetchGmailConnectionStatus,
   fetchIngestionStatus,
   fetchInvoices,
+  getGmailConnectUrl,
   getInvoiceBlockCropUrl,
   getInvoiceFieldOverlayUrl,
+  runEmailSimulationIngestion,
   runIngestion,
   updateInvoiceParsedFields
 } from "./api";
-import type { IngestionJobStatus, Invoice } from "./types";
+import type { GmailConnectionStatus, IngestionJobStatus, Invoice } from "./types";
 import { ConfidenceBadge } from "./components/ConfidenceBadge";
 import { ExtractedFieldsTable } from "./components/ExtractedFieldsTable";
 import { IngestionProgressCard } from "./components/IngestionProgressCard";
@@ -50,6 +53,7 @@ export function App() {
   const [detailsPanelVisible, setDetailsPanelVisible] = useState(true);
   const [detailsPanelCollapsed, setDetailsPanelCollapsed] = useState(false);
   const [detailsExpanded, setDetailsExpanded] = useState(false);
+  const [gmailConnection, setGmailConnection] = useState<GmailConnectionStatus | null>(null);
   const [editingParsedFields, setEditingParsedFields] = useState(false);
   const [savingParsedFields, setSavingParsedFields] = useState(false);
   const [editForm, setEditForm] = useState<EditInvoiceFormState>(EMPTY_EDIT_FORM);
@@ -219,6 +223,11 @@ export function App() {
     return detailsPanelCollapsed ? "content content-details-collapsed" : "content";
   }, [detailsPanelVisible, detailsPanelCollapsed]);
 
+  const gmailConnectionState = gmailConnection?.connectionState ?? "DISCONNECTED";
+  const gmailNeedsReauth = gmailConnectionState === "NEEDS_REAUTH";
+  const gmailConnected = gmailConnectionState === "CONNECTED";
+  const gmailEmailAddress = gmailConnection?.emailAddress ?? "";
+
   useEffect(() => {
     if (!popupInvoiceId) {
       return undefined;
@@ -247,6 +256,31 @@ export function App() {
 
   useEffect(() => {
     void refreshIngestionStatus();
+    void loadGmailConnectionStatus();
+  }, []);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const gmailStatus = params.get("gmail");
+    if (!gmailStatus) {
+      return;
+    }
+
+    if (gmailStatus === "error") {
+      const reason = params.get("reason");
+      setError(reason ? `Gmail reconnect failed: ${reason}` : "Gmail reconnect failed.");
+    }
+
+    if (gmailStatus === "connected") {
+      setError(null);
+    }
+
+    void loadGmailConnectionStatus();
+    params.delete("gmail");
+    params.delete("reason");
+    const query = params.toString();
+    const nextUrl = `${window.location.pathname}${query.length > 0 ? `?${query}` : ""}${window.location.hash}`;
+    window.history.replaceState({}, "", nextUrl);
   }, []);
 
   useEffect(() => {
@@ -268,6 +302,7 @@ export function App() {
         setError(ingestionStatus.error ? `Ingestion failed: ${ingestionStatus.error}` : "Ingestion failed.");
       }
       void loadInvoices();
+      void loadGmailConnectionStatus();
     }
 
     ingestionWasRunningRef.current = isRunning;
@@ -308,6 +343,22 @@ export function App() {
     } catch {
       // Keep UI usable even if status endpoint temporarily fails.
     }
+  }
+
+  async function loadGmailConnectionStatus() {
+    try {
+      const status = await fetchGmailConnectionStatus();
+      setGmailConnection(status);
+    } catch {
+      setGmailConnection({
+        provider: "gmail",
+        connectionState: "DISCONNECTED"
+      });
+    }
+  }
+
+  function handleConnectGmail() {
+    window.location.assign(getGmailConnectUrl());
   }
 
   async function handleApprove() {
@@ -365,6 +416,16 @@ export function App() {
       setIngestionStatus(status);
     } catch (ingestError) {
       setError(ingestError instanceof Error ? ingestError.message : "Ingestion run failed");
+    }
+  }
+
+  async function handleEmailSimulationIngest() {
+    try {
+      setError(null);
+      const status = await runEmailSimulationIngestion();
+      setIngestionStatus(status);
+    } catch (ingestError) {
+      setError(ingestError instanceof Error ? ingestError.message : "Email simulation ingestion failed");
     }
   }
 
@@ -457,6 +518,27 @@ export function App() {
       </header>
 
       <section className="controls">
+        {gmailNeedsReauth ? (
+          <div className="mailbox-banner" role="alert">
+            <strong>We lost access to your mailbox. Please reconnect.</strong>
+            <button type="button" onClick={handleConnectGmail}>
+              Reconnect Gmail
+            </button>
+          </div>
+        ) : null}
+
+        <div className="mailbox-connection-card">
+          <span className={gmailConnected ? "mailbox-state mailbox-state-connected" : "mailbox-state mailbox-state-idle"}>
+            {gmailConnected ? "Mailbox Connected" : "Mailbox Not Connected"}
+          </span>
+          {gmailConnected && gmailEmailAddress ? <span className="mailbox-email">{gmailEmailAddress}</span> : null}
+          {!gmailConnected ? (
+            <button type="button" onClick={handleConnectGmail}>
+              {gmailNeedsReauth ? "Reconnect Gmail" : "Connect Gmail"}
+            </button>
+          ) : null}
+        </div>
+
         <div className="status-tabs">
           {STATUSES.map((status) => (
             <button
@@ -472,6 +554,9 @@ export function App() {
         <div className="actions">
           <button onClick={handleIngest} disabled={ingestionStatus?.running === true}>
             {ingestionStatus?.running ? "Ingestion Running..." : "Run Ingestion"}
+          </button>
+          <button onClick={handleEmailSimulationIngest} disabled={ingestionStatus?.running === true}>
+            {ingestionStatus?.running ? "Ingestion Running..." : "Run Email XOAUTH2 Simulation"}
           </button>
           <button onClick={toggleSelectAllVisible} disabled={selectableVisibleIds.length === 0}>
             {areAllVisibleSelectableSelected ? "Deselect All" : "Select All"}

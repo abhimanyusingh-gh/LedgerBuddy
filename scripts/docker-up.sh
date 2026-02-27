@@ -170,7 +170,7 @@ if [[ "$ENV_MODE" == "local" || "$ENV_MODE" == "dev" ]]; then
     "$PYTHON_BIN" -m uvicorn app.api:app --app-dir invoice-slm --host 0.0.0.0 --port 8100
 fi
 
-INVOICE_INBOX_PATH="$INVOICE_INBOX_PATH" ENV="$ENV_MODE" "${COMPOSE_CMD[@]}" up -d --build --remove-orphans backend frontend mongo mongo-express
+INVOICE_INBOX_PATH="$INVOICE_INBOX_PATH" ENV="$ENV_MODE" "${COMPOSE_CMD[@]}" up -d --build --remove-orphans backend frontend mongo mongo-express mailhog mailhog-oauth
 wait_for_http_contains "$BACKEND_HEALTH_URL" "\"ready\":true" "backend" 600
 wait_for_http_contains "$FRONTEND_URL" "<html" "frontend" 300
 

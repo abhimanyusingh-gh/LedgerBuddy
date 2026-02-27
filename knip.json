@@ -2,7 +2,7 @@
   "$schema": "https://unpkg.com/knip@latest/schema.json",
   "workspaces": {
     "backend": {
-      "entry": ["src/server.ts", "src/scripts/runWorkerOnce.ts", "src/scripts/runBenchmarkCorpus.ts"],
+      "entry": ["src/server.ts", "src/scripts/runWorkerOnce.ts"],
       "project": ["src/**/*.ts"],
       "ignore": ["src/**/*.test.ts", "src/types/mailparser.d.ts"]
     },

@@ -2,10 +2,9 @@ import axios from "axios";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { buildXoauth2AuthorizationHeader } from "../sources/email/xoauth2.js";
-import { completeE2ETenantOnboarding, createE2EUserAndLogin } from "./authHelper.js";
 
-const apiBaseUrl = process.env.E2E_API_BASE_URL ?? "http://127.0.0.1:4100";
-const wrapperBaseUrl = process.env.E2E_MAILHOG_WRAPPER_URL ?? "http://127.0.0.1:8126";
+const apiBaseUrl = process.env.E2E_API_BASE_URL ?? "http://127.0.0.1:4000";
+const wrapperBaseUrl = process.env.E2E_MAILHOG_WRAPPER_URL ?? "http://127.0.0.1:8026";
 const oauthClientId = process.env.E2E_EMAIL_OAUTH_CLIENT_ID ?? "mailhog-client";
 const oauthClientSecret = process.env.E2E_EMAIL_OAUTH_CLIENT_SECRET ?? "mailhog-secret";
 const oauthRefreshToken = process.env.E2E_EMAIL_OAUTH_REFRESH_TOKEN ?? "mailhog-refresh";
@@ -47,10 +46,6 @@ describe("email XOAUTH2 ingestion e2e", () => {
     const health = await api.get("/health");
     expect(health.status).toBe(200);
     expect(health.data?.ready).toBe(true);
-
-    const sessionToken = await createE2EUserAndLogin(apiBaseUrl, `email-oauth-e2e-${Date.now()}@local.test`);
-    api.defaults.headers.common.Authorization = `Bearer ${sessionToken}`;
-    await completeE2ETenantOnboarding(apiBaseUrl, sessionToken);
 
     const accessToken = await fetchAccessToken();
     xoauth2HeaderValue = buildXoauth2AuthorizationHeader(emailUsername, accessToken);

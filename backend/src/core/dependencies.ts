@@ -18,6 +18,8 @@ import { NoopFieldVerifier } from "../verifier/NoopFieldVerifier.js";
 import { HttpFieldVerifier } from "../verifier/HttpFieldVerifier.js";
 import { LocalDiskFileStore } from "../storage/LocalDiskFileStore.js";
 import { S3FileStore } from "../storage/S3FileStore.js";
+import { EmailSimulationService } from "../services/emailSimulationService.js";
+import { GmailMailboxConnectionService } from "../services/gmailMailboxConnectionService.js";
 
 const OCR_BOOTSTRAP_TIMEOUT_MS = 5_000;
 const VERIFIER_BOOTSTRAP_TIMEOUT_MS = 5_000;
@@ -26,10 +28,13 @@ interface Dependencies {
   ingestionService: IngestionService;
   invoiceService: InvoiceService;
   exportService: ExportService | null;
+  emailSimulationService: EmailSimulationService;
+  gmailConnectionService: GmailMailboxConnectionService;
 }
 
 export async function buildDependencies(): Promise<Dependencies> {
   const manifest = loadRuntimeManifest();
+  const gmailConnectionService = new GmailMailboxConnectionService();
   const ocrProvider = await resolveOcrProvider(manifest);
   const fieldVerifier = await resolveFieldVerifier(manifest);
   const fileStore = resolveFileStore(manifest);
@@ -41,12 +46,15 @@ export async function buildDependencies(): Promise<Dependencies> {
       ocrHighConfidenceThreshold: manifest.extraction.ocrHighConfidenceThreshold
     }
   );
-  const sources = buildIngestionSources(manifest.sources);
+  const sources = buildIngestionSources(manifest.sources, {
+    gmailMailboxBoundary: gmailConnectionService
+  });
   const ingestionService = new IngestionService(sources, ocrProvider, {
     pipeline: extractionPipeline,
     fileStore
   });
   const invoiceService = new InvoiceService();
+  const emailSimulationService = new EmailSimulationService();
 
   const exporter = buildExporter(manifest);
   const exportService = exporter ? new ExportService(exporter) : null;
@@ -54,7 +62,9 @@ export async function buildDependencies(): Promise<Dependencies> {
   return {
     ingestionService,
     invoiceService,
-    exportService
+    exportService,
+    emailSimulationService,
+    gmailConnectionService
   };
 }
 

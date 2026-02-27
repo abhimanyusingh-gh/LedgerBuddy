@@ -1,9 +1,16 @@
 import axios from "axios";
-import type { IngestionJobStatus, Invoice, InvoiceListResponse, TallyExportResponse } from "./types";
+import type {
+  GmailConnectionStatus,
+  IngestionJobStatus,
+  Invoice,
+  InvoiceListResponse,
+  TallyExportResponse
+} from "./types";
 
-const apiClient = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL ?? "http://localhost:4000/api"
-});
+const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:4000/api";
+const backendBaseUrl = apiBaseUrl.replace(/\/api\/?$/, "");
+
+const apiClient = axios.create({ baseURL: apiBaseUrl });
 
 export async function fetchInvoices(status?: string) {
   const pageSize = 100;
@@ -82,9 +89,23 @@ export async function runIngestion() {
   return sanitizeIngestionStatus(response.data);
 }
 
+export async function runEmailSimulationIngestion() {
+  const response = await apiClient.post<IngestionJobStatus>("/jobs/ingest/email-simulate");
+  return sanitizeIngestionStatus(response.data);
+}
+
 export async function fetchIngestionStatus() {
   const response = await apiClient.get<IngestionJobStatus>("/jobs/ingest/status");
   return sanitizeIngestionStatus(response.data);
+}
+
+export async function fetchGmailConnectionStatus() {
+  const response = await apiClient.get<GmailConnectionStatus>("/mailbox/gmail/connection");
+  return sanitizeGmailConnectionStatus(response.data);
+}
+
+export function getGmailConnectUrl(): string {
+  return `${backendBaseUrl}/connect/gmail`;
 }
 
 interface UpdateInvoiceParsedPayload {
@@ -168,5 +189,21 @@ function sanitizeIngestionStatus(value: unknown): IngestionJobStatus {
     error: typeof data.error === "string" ? data.error : undefined,
     correlationId: typeof data.correlationId === "string" ? data.correlationId : undefined,
     lastUpdatedAt: typeof data.lastUpdatedAt === "string" ? data.lastUpdatedAt : new Date(0).toISOString()
+  };
+}
+
+function sanitizeGmailConnectionStatus(value: unknown): GmailConnectionStatus {
+  const data = stripNulls(value) as Partial<GmailConnectionStatus>;
+  const connectionState =
+    data.connectionState === "CONNECTED" || data.connectionState === "NEEDS_REAUTH" || data.connectionState === "DISCONNECTED"
+      ? data.connectionState
+      : "DISCONNECTED";
+
+  return {
+    provider: "gmail",
+    connectionState,
+    emailAddress: typeof data.emailAddress === "string" ? data.emailAddress : undefined,
+    lastErrorReason: typeof data.lastErrorReason === "string" ? data.lastErrorReason : undefined,
+    lastSyncedAt: typeof data.lastSyncedAt === "string" ? data.lastSyncedAt : undefined
   };
 }

@@ -32,6 +32,7 @@ const envSchema = z.object({
   APP_MANIFEST_PATH: z.string().optional(),
 
   INGESTION_SOURCES: z.string().default("email"),
+  DEFAULT_USER_ID: z.string().default("local-user"),
   DEFAULT_TENANT_ID: z.string().default("default"),
   DEFAULT_WORKLOAD_TIER: z.enum(["standard", "heavy"]).default("standard"),
 
@@ -44,6 +45,52 @@ const envSchema = z.object({
     .transform((value) => value === "true"),
   EMAIL_USERNAME: z.string().optional(),
   EMAIL_PASSWORD: z.string().optional(),
+  EMAIL_TRANSPORT: z.enum(["imap", "mailhog_oauth"]).default("imap"),
+  EMAIL_MAILHOG_API_BASE_URL: z
+    .string()
+    .default("http://mailhog-oauth:8026")
+    .transform((value) => normalizeUrl(value)),
+  EMAIL_SMTP_HOST: z.string().default("smtp.gmail.com"),
+  EMAIL_SMTP_PORT: z.coerce.number().default(465),
+  EMAIL_SMTP_SECURE: z
+    .string()
+    .default("true")
+    .transform((value) => value === "true"),
+  EMAIL_SMTP_TIMEOUT_MS: z.coerce.number().default(15000),
+  EMAIL_AUTH_MODE: z.enum(["password", "oauth2"]).default("password"),
+  EMAIL_OAUTH_CLIENT_ID: z.string().optional(),
+  EMAIL_OAUTH_CLIENT_SECRET: z.string().optional(),
+  EMAIL_OAUTH_REFRESH_TOKEN: z.string().optional(),
+  EMAIL_OAUTH_ACCESS_TOKEN: z.string().optional(),
+  EMAIL_OAUTH_TOKEN_ENDPOINT: z
+    .string()
+    .default("https://oauth2.googleapis.com/token")
+    .transform((value) => normalizeUrl(value)),
+  EMAIL_SIMULATION_SAMPLE_DIR: z.string().default(""),
+  GMAIL_OAUTH_CLIENT_ID: z.string().default(""),
+  GMAIL_OAUTH_CLIENT_SECRET: z.string().default(""),
+  GMAIL_OAUTH_REDIRECT_URI: z
+    .string()
+    .default("http://localhost:4000/connect/gmail/callback")
+    .transform((value) => normalizeUrl(value)),
+  GMAIL_OAUTH_AUTH_URL: z
+    .string()
+    .default("https://accounts.google.com/o/oauth2/v2/auth")
+    .transform((value) => normalizeUrl(value)),
+  GMAIL_OAUTH_TOKEN_URL: z
+    .string()
+    .default("https://oauth2.googleapis.com/token")
+    .transform((value) => normalizeUrl(value)),
+  GMAIL_OAUTH_USERINFO_URL: z
+    .string()
+    .default("https://openidconnect.googleapis.com/v1/userinfo")
+    .transform((value) => normalizeUrl(value)),
+  GMAIL_OAUTH_SCOPES: z.string().default("https://mail.google.com/ openid email profile"),
+  GMAIL_OAUTH_STATE_TTL_SECONDS: z.coerce.number().default(600),
+  GMAIL_OAUTH_HTTP_TIMEOUT_MS: z.coerce.number().default(15000),
+  GMAIL_OAUTH_TOKEN_ENCRYPTION_SECRET: z.string().default("local-dev-gmail-oauth-encryption-secret"),
+  GMAIL_OAUTH_SUCCESS_REDIRECT_URL: z.string().default("http://localhost:5173"),
+  GMAIL_OAUTH_FAILURE_REDIRECT_URL: z.string().default("http://localhost:5173"),
   EMAIL_MAILBOX: z.string().default("INBOX"),
   EMAIL_FROM_FILTER: z.string().optional(),
 
@@ -85,7 +132,17 @@ const envSchema = z.object({
   TALLY_ENDPOINT: z.string().optional(),
   TALLY_COMPANY: z.string().optional(),
   TALLY_PURCHASE_LEDGER: z.string().default("Purchase"),
-  DEFAULT_APPROVER: z.string().default("system")
+  DEFAULT_APPROVER: z.string().default("system"),
+  MAILBOX_ALERT_SMTP_HOST: z.string().default(""),
+  MAILBOX_ALERT_SMTP_PORT: z.coerce.number().default(587),
+  MAILBOX_ALERT_SMTP_SECURE: z
+    .string()
+    .default("false")
+    .transform((value) => value === "true"),
+  MAILBOX_ALERT_SMTP_USERNAME: z.string().default(""),
+  MAILBOX_ALERT_SMTP_PASSWORD: z.string().default(""),
+  MAILBOX_ALERT_FROM: z.string().default(""),
+  MAILBOX_ALERT_TO: z.string().default("")
 });
 
 const parsed = envSchema.safeParse(process.env);
@@ -117,6 +174,14 @@ if (!localMlEnv) {
     console.error("Invalid env vars: FIELD_VERIFIER_BASE_URL is required when ENV is 'stg' or 'prod'.");
     process.exit(1);
   }
+}
+
+if ((values.ENV === "stg" || values.ENV === "prod") && values.GMAIL_OAUTH_TOKEN_ENCRYPTION_SECRET === "local-dev-gmail-oauth-encryption-secret") {
+  // eslint-disable-next-line no-console
+  console.error(
+    "Invalid env vars: set GMAIL_OAUTH_TOKEN_ENCRYPTION_SECRET for stg/prod. Do not use the default development secret."
+  );
+  process.exit(1);
 }
 
 export const env = {

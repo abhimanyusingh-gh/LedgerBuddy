@@ -1,111 +1,44 @@
-import { ImapFlow } from "imapflow";
-import { simpleParser } from "mailparser";
+import type { EmailIngestionBoundary } from "../core/boundaries/EmailIngestionBoundary.js";
 import type { IngestedFile, IngestionSource } from "../core/interfaces/IngestionSource.js";
-import { logger } from "../utils/logger.js";
-import { isSupportedInvoiceMimeType, normalizeInvoiceMimeType } from "../utils/mime.js";
-import type { WorkloadTier } from "../types/tenant.js";
+import { GmailImapIngestionProvider } from "./email/GmailImapIngestionProvider.js";
+import { MailhogOAuthIngestionProvider } from "./email/MailhogOAuthIngestionProvider.js";
+import type { EmailSourceConfig } from "./email/types.js";
 
-interface EmailSourceConfig {
-  key: string;
-  tenantId?: string;
-  workloadTier?: WorkloadTier;
-  host: string;
-  port: number;
-  secure: boolean;
-  username: string;
-  password: string;
-  mailbox: string;
-  fromFilter?: string;
-}
+export type { EmailSourceConfig } from "./email/types.js";
 
 export class EmailIngestionSource implements IngestionSource {
   readonly type = "email";
-
   readonly key: string;
   readonly tenantId: string;
-  readonly workloadTier: WorkloadTier;
+  readonly workloadTier: "standard" | "heavy";
 
-  private readonly config: EmailSourceConfig;
+  private readonly boundary: EmailIngestionBoundary;
 
-  constructor(config: EmailSourceConfig) {
-    this.config = config;
+  constructor(private readonly config: EmailSourceConfig) {
+    assertSecureGmailConfig(config);
     this.key = config.key;
     this.tenantId = config.tenantId ?? "default";
     this.workloadTier = config.workloadTier ?? "standard";
+    this.boundary =
+      config.transport === "mailhog_oauth" ? new MailhogOAuthIngestionProvider(config) : new GmailImapIngestionProvider(config);
   }
 
-  async fetchNewFiles(lastCheckpoint: string | null): Promise<IngestedFile[]> {
-    const client = new ImapFlow({
-      host: this.config.host,
-      port: this.config.port,
-      secure: this.config.secure,
-      auth: {
-        user: this.config.username,
-        pass: this.config.password
-      }
-    });
+  fetchNewFiles(lastCheckpoint: string | null): Promise<IngestedFile[]> {
+    return this.boundary.fetchNewFiles(lastCheckpoint);
+  }
+}
 
-    const files: IngestedFile[] = [];
-    const minUid = lastCheckpoint ? Number(lastCheckpoint) : 0;
-
-    await client.connect();
-
-    try {
-      await client.mailboxOpen(this.config.mailbox);
-
-      for await (const message of client.fetch("1:*", {
-        uid: true,
-        source: true,
-        envelope: true,
-        internalDate: true
-      })) {
-        if (!message.uid || message.uid <= minUid || !message.source) {
-          continue;
-        }
-
-        const parsedMail = await simpleParser(message.source);
-        const from = parsedMail.from?.text ?? "";
-        if (this.config.fromFilter && !from.toLowerCase().includes(this.config.fromFilter.toLowerCase())) {
-          continue;
-        }
-
-        const attachments = parsedMail.attachments ?? [];
-        for (const attachment of attachments) {
-          const mimeType = normalizeInvoiceMimeType(attachment.contentType ?? "");
-          if (!isSupportedInvoiceMimeType(mimeType)) {
-            continue;
-          }
-
-          files.push({
-            tenantId: this.tenantId,
-            workloadTier: this.workloadTier,
-            sourceKey: this.key,
-            sourceType: this.type,
-            sourceDocumentId: String(message.uid),
-            attachmentName: attachment.filename ?? `attachment-${message.uid}`,
-            mimeType,
-            receivedAt: message.internalDate ?? parsedMail.date ?? new Date(),
-            buffer: attachment.content,
-            checkpointValue: String(message.uid),
-            metadata: {
-              messageId: parsedMail.messageId ?? "",
-              subject: parsedMail.subject ?? "",
-              from
-            }
-          });
-        }
-      }
-    } catch (error) {
-      logger.error("Failed reading from email source", {
-        sourceKey: this.key,
-        error: error instanceof Error ? error.message : String(error)
-      });
-      throw error;
-    } finally {
-      await client.logout().catch(() => undefined);
-    }
-
-    files.sort((a, b) => Number(a.checkpointValue) - Number(b.checkpointValue));
-    return files;
+function assertSecureGmailConfig(config: EmailSourceConfig): void {
+  if (config.transport !== "imap") {
+    return;
+  }
+  if (config.host.trim().toLowerCase() !== "imap.gmail.com") {
+    return;
+  }
+  if (!config.secure) {
+    throw new Error("Gmail IMAP requires TLS. Set EMAIL_SECURE=true.");
+  }
+  if (config.port !== 993) {
+    throw new Error("Gmail IMAP requires port 993.");
   }
 }

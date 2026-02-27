@@ -19,7 +19,6 @@ terraform.tfstate.*
 __pycache__/
 *.pyc
 .local-run/
-.local-run/artifacts/
 .e2e-ocr.log
 .e2e-slm.log
 sample-invoices/e2e-inbox/

@@ -123,6 +123,71 @@ h1 {
   margin-bottom: 1rem;
 }
 
+.mailbox-banner {
+  border: 1px solid rgba(173, 47, 31, 0.45);
+  background: rgba(173, 47, 31, 0.08);
+  border-radius: 10px;
+  padding: 0.65rem 0.8rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+}
+
+.mailbox-banner button {
+  border: 1px solid rgba(173, 47, 31, 0.45);
+  background: #fff4f0;
+  color: var(--warn);
+  border-radius: 8px;
+  padding: 0.4rem 0.75rem;
+  cursor: pointer;
+}
+
+.mailbox-connection-card {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--bg-panel);
+  padding: 0.6rem 0.8rem;
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  flex-wrap: wrap;
+}
+
+.mailbox-state {
+  font-size: 0.85rem;
+  border-radius: 999px;
+  padding: 0.2rem 0.6rem;
+  border: 1px solid var(--line);
+}
+
+.mailbox-state-connected {
+  border-color: rgba(31, 122, 108, 0.45);
+  background: rgba(31, 122, 108, 0.1);
+  color: var(--accent-2);
+}
+
+.mailbox-state-idle {
+  border-color: rgba(74, 94, 86, 0.28);
+  background: rgba(74, 94, 86, 0.08);
+  color: var(--ink-soft);
+}
+
+.mailbox-email {
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+}
+
+.mailbox-connection-card button {
+  margin-left: auto;
+  border: 1px solid var(--line);
+  background: var(--bg-panel);
+  color: var(--ink);
+  border-radius: 8px;
+  padding: 0.4rem 0.75rem;
+  cursor: pointer;
+}
+
 .status-tabs {
   display: flex;
   flex-wrap: wrap;

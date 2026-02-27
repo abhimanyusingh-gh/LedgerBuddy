@@ -96,3 +96,13 @@ export interface IngestionJobStatus {
   correlationId?: string;
   lastUpdatedAt: string;
 }
+
+export type GmailConnectionState = "DISCONNECTED" | "CONNECTED" | "NEEDS_REAUTH";
+
+export interface GmailConnectionStatus {
+  provider: "gmail";
+  emailAddress?: string;
+  connectionState: GmailConnectionState;
+  lastErrorReason?: string;
+  lastSyncedAt?: string;
+}

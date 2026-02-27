@@ -12,7 +12,6 @@ const oauthRefreshToken = process.env.OAUTH_REFRESH_TOKEN ?? "mailhog-refresh";
 const oauthAccessToken = process.env.OAUTH_ACCESS_TOKEN ?? "mailhog-access-token";
 const xoauth2Username = process.env.OAUTH_XOAUTH2_USERNAME ?? "ap@example.com";
 const tokenExpiresIn = Number(process.env.OAUTH_TOKEN_EXPIRES_IN ?? 3600);
-const sendGridApiKey = process.env.SENDGRID_API_KEY ?? "local-sendgrid-key";
 
 const app = express();
 app.use(express.json({ limit: "15mb" }));
@@ -70,10 +69,9 @@ app.get("/messages", async (req, res) => {
     const response = await axios.get(`${mailhogBaseUrl}/api/v1/messages`, {
       timeout: 15_000
     });
-    const rawMessages = extractMailApiMessages(response.data);
-    const normalized = await Promise.all(rawMessages.map((message) => toWrapperMessage(message, mailhogBaseUrl)));
-    const items = normalized
-      .filter((message) => message !== null)
+    const rawMessages = Array.isArray(response.data) ? response.data : [];
+    const items = rawMessages
+      .map((message) => toWrapperMessage(message))
       .filter((message) => message.checkpoint > after)
       .sort((left, right) => left.checkpoint.localeCompare(right.checkpoint));
 
@@ -118,35 +116,6 @@ app.post("/seed", async (req, res) => {
     res.status(502).json({
       error: "seed_failed",
       message: error instanceof Error ? error.message : String(error)
-    });
-  }
-});
-
-app.post("/sendgrid/v3/mail/send", async (req, res) => {
-  if (!isSendgridAuthorized(req.headers.authorization)) {
-    res.status(401).json({ errors: [{ message: "unauthorized" }] });
-    return;
-  }
-
-  const parsed = normalizeSendGridMailPayload(req.body);
-  if (!parsed) {
-    res.status(400).json({ errors: [{ message: "invalid_sendgrid_payload" }] });
-    return;
-  }
-
-  try {
-    await smtpTransport.sendMail({
-      from: parsed.from,
-      to: parsed.to,
-      subject: parsed.subject,
-      text: parsed.text,
-      html: parsed.html
-    });
-    res.status(202).send();
-  } catch (error) {
-    res.status(502).json({
-      errors: [{ message: "sendgrid_relay_failed" }],
-      detail: error instanceof Error ? error.message : String(error)
     });
   }
 });
@@ -218,130 +187,16 @@ function normalizeAttachment(value) {
   };
 }
 
-function isSendgridAuthorized(authorizationHeader) {
-  if (typeof authorizationHeader !== "string") {
-    return false;
-  }
-  const [scheme, token] = authorizationHeader.trim().split(/\s+/);
-  if (scheme?.toLowerCase() !== "bearer" || !token) {
-    return false;
-  }
-  return token === sendGridApiKey;
-}
-
-function normalizeSendGridMailPayload(payload) {
-  if (!payload || typeof payload !== "object") {
-    return null;
-  }
-
-  const fromEmail = String(payload.from?.email ?? "").trim();
-  const recipients = extractSendGridRecipients(payload.personalizations);
-  const topLevelSubject = String(payload.subject ?? "").trim();
-  const personalizationSubject = String(payload.personalizations?.[0]?.subject ?? "").trim();
-  const subject = personalizationSubject || topLevelSubject;
-  const contents = Array.isArray(payload.content) ? payload.content : [];
-  const text = extractSendGridContent(contents, "text/plain");
-  const html = extractSendGridContent(contents, "text/html");
-
-  if (!fromEmail || recipients.length === 0 || !subject || (!text && !html)) {
-    return null;
-  }
-
-  return {
-    from: fromEmail,
-    to: recipients.join(", "),
-    subject,
-    text: text || undefined,
-    html: html || undefined
-  };
-}
-
-function extractSendGridRecipients(personalizations) {
-  if (!Array.isArray(personalizations)) {
-    return [];
-  }
-
-  const recipients = new Set();
-  for (const personalization of personalizations) {
-    if (!personalization || typeof personalization !== "object") {
-      continue;
-    }
-    const toList = Array.isArray(personalization.to) ? personalization.to : [];
-    for (const recipient of toList) {
-      const email = String(recipient?.email ?? "").trim().toLowerCase();
-      if (email.includes("@")) {
-        recipients.add(email);
-      }
-    }
-  }
-  return Array.from(recipients);
-}
-
-function extractSendGridContent(contents, expectedType) {
-  for (const entry of contents) {
-    if (!entry || typeof entry !== "object") {
-      continue;
-    }
-    const type = String(entry.type ?? "").trim().toLowerCase();
-    if (type !== expectedType) {
-      continue;
-    }
-    const value = String(entry.value ?? "").trim();
-    if (value.length > 0) {
-      return value;
-    }
-  }
-  return "";
-}
-
-function extractMailApiMessages(payload) {
-  if (Array.isArray(payload)) {
-    return payload;
-  }
-  if (payload && typeof payload === "object" && Array.isArray(payload.messages)) {
-    return payload.messages;
-  }
-  return [];
-}
-
-async function toWrapperMessage(message, baseUrl) {
-  const id = String(message?.ID ?? message?.id ?? "");
-  const created = String(message?.Created ?? message?.created ?? "");
-  if (!id) {
-    return null;
-  }
-  const rawData = await resolveRawMessageData(message, baseUrl, id);
-  if (!rawData) {
-    return null;
-  }
+function toWrapperMessage(message) {
+  const id = String(message?.ID ?? "");
+  const created = String(message?.Created ?? "");
+  const rawData = String(message?.Raw?.Data ?? "");
   return {
     id,
     checkpoint: `${normalizeIsoTimestamp(created)}#${id}`,
     receivedAt: created,
     rawData: Buffer.from(rawData, "utf8").toString("base64")
   };
-}
-
-async function resolveRawMessageData(message, baseUrl, id) {
-  const inlineRawData = String(message?.Raw?.Data ?? message?.rawData ?? "").trim();
-  if (inlineRawData) {
-    return inlineRawData;
-  }
-
-  try {
-    const response = await axios.get(`${baseUrl}/api/v1/message/${encodeURIComponent(id)}/raw`, {
-      timeout: 15_000,
-      responseType: "text",
-      transformResponse: [(value) => value]
-    });
-    if (typeof response.data === "string" && response.data.trim().length > 0) {
-      return response.data;
-    }
-  } catch {
-    return "";
-  }
-
-  return "";
 }
 
 function normalizeIsoTimestamp(value) {

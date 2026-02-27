@@ -25,6 +25,7 @@
     "quality:check": "yarn run knip && yarn run coverage:check",
     "prepare": "husky",
     "e2e:local": "bash ./scripts/e2e-local.sh",
+    "e2e:email-oauth": "bash ./scripts/e2e-email-oauth.sh",
     "e2e:frontend": "yarn workspace invoice-processor-frontend run test:e2e",
     "e2e:frontend:local": "bash ./scripts/e2e-frontend.sh"
   },

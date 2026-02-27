@@ -30,11 +30,26 @@
       "key": "ap-inbox",
       "tenantId": "tenant-default",
       "workloadTier": "standard",
+      "oauthUserId": "tenant-default-user",
+      "transport": "imap",
+      "mailhogApiBaseUrl": "",
       "host": "imap.gmail.com",
       "port": 993,
       "secure": true,
+      "smtpHost": "smtp.gmail.com",
+      "smtpPort": 465,
+      "smtpSecure": true,
+      "smtpTimeoutMs": 15000,
       "username": "replace-with-username",
-      "password": "replace-with-password",
+      "authMode": "oauth2",
+      "password": "",
+      "oauth2": {
+        "clientId": "",
+        "clientSecret": "",
+        "refreshToken": "",
+        "accessToken": "",
+        "tokenEndpoint": "https://oauth2.googleapis.com/token"
+      },
       "mailbox": "INBOX",
       "fromFilter": ""
     }

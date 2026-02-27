@@ -5,7 +5,6 @@ const oauthStateSchema = new Schema(
   {
     state: { type: String, required: true, unique: true },
     userId: { type: String, required: true },
-    tenantId: { type: String },
     provider: { type: String, enum: MailboxProviders, required: true },
     codeVerifier: { type: String, required: true },
     expiresAt: { type: Date, required: true }

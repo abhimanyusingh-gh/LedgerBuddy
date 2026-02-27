@@ -4,6 +4,6 @@ export interface GmailIngestionCredentials {
 }
 
 export interface GmailMailboxBoundary {
-  resolveIngestionCredentials(tenantId: string): Promise<GmailIngestionCredentials | null>;
-  markSyncSuccess(tenantId: string): Promise<void>;
+  resolveIngestionCredentials(userId: string): Promise<GmailIngestionCredentials | null>;
+  markSyncSuccess(userId: string): Promise<void>;
 }

@@ -6,6 +6,7 @@ import { buildDependencies } from "./core/dependencies.js";
 import { createInvoiceRouter } from "./routes/invoices.js";
 import { createExportRouter } from "./routes/export.js";
 import { createJobsRouter } from "./routes/jobs.js";
+import { createGmailConnectionRouter } from "./routes/gmailConnection.js";
 import { logger, runWithLogContext } from "./utils/logger.js";
 
 export async function createApp() {
@@ -31,8 +32,9 @@ export async function createApp() {
   });
 
   app.use("/", healthRouter);
+  app.use("/", createGmailConnectionRouter(dependencies.gmailConnectionService));
   app.use("/api", createInvoiceRouter(dependencies.invoiceService));
-  app.use("/api", createJobsRouter(dependencies.ingestionService));
+  app.use("/api", createJobsRouter(dependencies.ingestionService, dependencies.emailSimulationService));
   app.use("/api", createExportRouter(dependencies.exportService));
 
   app.use((error: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
