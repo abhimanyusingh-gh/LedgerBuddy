@@ -34,7 +34,15 @@
       "port": 993,
       "secure": true,
       "username": "replace-with-username",
-      "password": "replace-with-password",
+      "authMode": "oauth2",
+      "password": "",
+      "oauth2": {
+        "clientId": "replace-with-google-client-id",
+        "clientSecret": "replace-with-google-client-secret",
+        "refreshToken": "replace-with-google-refresh-token",
+        "accessToken": "",
+        "tokenEndpoint": "https://oauth2.googleapis.com/token"
+      },
       "mailbox": "INBOX",
       "fromFilter": ""
     }
