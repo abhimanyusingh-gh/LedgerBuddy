@@ -1,4 +1,4 @@
-import { Schema, model, type InferSchemaType, type HydratedDocument } from "mongoose";
+import { Schema, model, type InferSchemaType } from "mongoose";
 import { MailboxProviders } from "../types/mailbox.js";
 
 const mailboxNotificationEventSchema = new Schema(
@@ -18,7 +18,6 @@ const mailboxNotificationEventSchema = new Schema(
 mailboxNotificationEventSchema.index({ userId: 1, provider: 1, eventType: 1, createdAt: -1 });
 
 type MailboxNotificationEvent = InferSchemaType<typeof mailboxNotificationEventSchema>;
-export type MailboxNotificationEventDocument = HydratedDocument<MailboxNotificationEvent>;
 
 export const MailboxNotificationEventModel = model<MailboxNotificationEvent>(
   "MailboxNotificationEvent",

@@ -161,6 +161,13 @@ describe("parseInvoiceText", () => {
     expect(result.parsed.invoiceNumber).toBeUndefined();
   });
 
+  it("accepts long alpha-only invoice numbers", () => {
+    const text = ["Invoice Number: ABCDEF", "Vendor: Blue River Ltd", "Grand Total: 10.00"].join("\n");
+    const result = parseInvoiceText(text);
+
+    expect(result.parsed.invoiceNumber).toBe("ABCDEF");
+  });
+
   it("extracts invoice number from line after hint and continues past unrelated lines", () => {
     const text = [
       "Document Header",
@@ -362,6 +369,11 @@ describe("extractTotalAmount additional branch paths", () => {
     expect(extractTotalAmount(text)).toBe(80);
   });
 
+  it("ignores tax total labels that score non-positive and do not represent payable totals", () => {
+    const text = ["Tax Total 10% 99.99"].join("\n");
+    expect(extractTotalAmount(text)).toBeUndefined();
+  });
+
   it("splits dotted concatenated OCR tokens", () => {
     const text = ["Invoice Number: INV-453", "Grand Total: 1.001.50"].join("\n");
     expect(extractTotalAmount(text)).toBe(1.5);
@@ -380,6 +392,14 @@ describe("extractTotalAmount additional branch paths", () => {
   it("prefers the later line when candidates have identical score and amount", () => {
     const text = ["Header", "Grand Total: 100.00", "Grand Total: 100.00"].join("\n");
     expect(extractTotalAmount(text)).toBe(100);
+  });
+
+  it("prefers higher amount when score and line index are identical", () => {
+    expect(extractTotalAmount("Grand Total: 100.00 200.00")).toBe(200);
+  });
+
+  it("uses currency keyword as monetary context in fallback extraction", () => {
+    expect(extractTotalAmount("Charge USD 500")).toBe(500);
   });
 
   it("parses comma-grouped tokens where the last group is not fractional", () => {

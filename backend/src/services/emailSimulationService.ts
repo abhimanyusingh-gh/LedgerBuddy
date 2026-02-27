@@ -14,7 +14,7 @@ interface SimulationAttachment {
   contentBase64: string;
 }
 
-export interface EmailSimulationSummary {
+interface EmailSimulationSummary {
   emailsSeeded: number;
   attachmentsSeeded: number;
 }

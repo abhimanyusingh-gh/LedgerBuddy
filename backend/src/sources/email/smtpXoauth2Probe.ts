@@ -1,7 +1,7 @@
 import net from "node:net";
 import tls from "node:tls";
 
-export interface SmtpXoauth2ProbeInput {
+interface SmtpXoauth2ProbeInput {
   host: string;
   port: number;
   secure: boolean;

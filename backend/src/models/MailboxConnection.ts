@@ -1,4 +1,4 @@
-import { Schema, model, type InferSchemaType, type HydratedDocument } from "mongoose";
+import { Schema, model, type InferSchemaType } from "mongoose";
 import { MailboxConnectionStates, MailboxProviders } from "../types/mailbox.js";
 
 const mailboxConnectionSchema = new Schema(
@@ -20,6 +20,5 @@ const mailboxConnectionSchema = new Schema(
 mailboxConnectionSchema.index({ userId: 1, provider: 1 }, { unique: true });
 
 type MailboxConnection = InferSchemaType<typeof mailboxConnectionSchema>;
-export type MailboxConnectionDocument = HydratedDocument<MailboxConnection>;
 
 export const MailboxConnectionModel = model<MailboxConnection>("MailboxConnection", mailboxConnectionSchema);

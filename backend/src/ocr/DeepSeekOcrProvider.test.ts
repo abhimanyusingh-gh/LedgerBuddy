@@ -200,6 +200,74 @@ describe("DeepSeekOcrProvider", () => {
     ]);
   });
 
+  it("skips non-object page image entries and ignores non-numeric dimensions", async () => {
+    const post = jest.fn(async () => ({
+      data: {
+        rawText: "layout text",
+        pageImages: [
+          1,
+          {
+            page: 3,
+            mimeType: "image/png",
+            width: "not-a-number",
+            dataUrl: "data:image/png;base64,QUJD"
+          }
+        ]
+      }
+    }));
+
+    const provider = new DeepSeekOcrProvider({ httpClient: { post } });
+    const result = await provider.extractText(Buffer.from("pdf"), "application/pdf");
+
+    expect(result.pageImages).toEqual([
+      {
+        page: 3,
+        mimeType: "image/png",
+        dataUrl: "data:image/png;base64,QUJD"
+      }
+    ]);
+  });
+
+  it("defaults page image mime type and drops zero dimensions", async () => {
+    const post = jest.fn(async () => ({
+      data: {
+        rawText: "layout text",
+        pageImages: [
+          {
+            page: 2,
+            width: 0,
+            dataUrl: "data:image/png;base64,QUJD"
+          }
+        ]
+      }
+    }));
+
+    const provider = new DeepSeekOcrProvider({ httpClient: { post } });
+    const result = await provider.extractText(Buffer.from("pdf"), "application/pdf");
+
+    expect(result.pageImages).toEqual([
+      {
+        page: 2,
+        mimeType: "image/png",
+        dataUrl: "data:image/png;base64,QUJD"
+      }
+    ]);
+  });
+
+  it("returns undefined page images when all entries are invalid", async () => {
+    const post = jest.fn(async () => ({
+      data: {
+        rawText: "layout text",
+        pageImages: [{ page: 1, dataUrl: "invalid" }, 42]
+      }
+    }));
+
+    const provider = new DeepSeekOcrProvider({ httpClient: { post } });
+    const result = await provider.extractText(Buffer.from("pdf"), "application/pdf");
+
+    expect(result.pageImages).toBeUndefined();
+  });
+
   it("returns empty text for malformed response payload", async () => {
     const post = jest.fn(async () => ({
       data: "unexpected"

@@ -16,7 +16,7 @@ import { MailboxNotificationService } from "./mailboxNotificationService.js";
 
 const GMAIL_PROVIDER = "gmail";
 
-export interface GmailConnectionStatus {
+interface GmailConnectionStatus {
   provider: "gmail";
   emailAddress: string | null;
   connectionState: "DISCONNECTED" | "CONNECTED" | "NEEDS_REAUTH";
@@ -128,7 +128,7 @@ export class GmailMailboxConnectionService implements GmailMailboxBoundary {
     const connection = await MailboxConnectionModel.findOne({
       userId,
       provider: GMAIL_PROVIDER
-    }).lean();
+    });
 
     if (!connection) {
       return {

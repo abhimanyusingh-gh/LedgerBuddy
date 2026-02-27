@@ -1,4 +1,4 @@
-import { Schema, model, type InferSchemaType, type HydratedDocument } from "mongoose";
+import { Schema, model, type InferSchemaType } from "mongoose";
 import { MailboxProviders } from "../types/mailbox.js";
 
 const oauthStateSchema = new Schema(
@@ -17,6 +17,5 @@ const oauthStateSchema = new Schema(
 oauthStateSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
 type OAuthState = InferSchemaType<typeof oauthStateSchema>;
-export type OAuthStateDocument = HydratedDocument<OAuthState>;
 
 export const OAuthStateModel = model<OAuthState>("OAuthState", oauthStateSchema);

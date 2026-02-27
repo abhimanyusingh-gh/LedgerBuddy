@@ -12,7 +12,7 @@ interface UserInfoApiResponse {
   email?: unknown;
 }
 
-export interface RefreshGoogleAccessTokenInput {
+interface RefreshGoogleAccessTokenInput {
   clientId: string;
   clientSecret: string;
   refreshToken: string;
@@ -20,12 +20,12 @@ export interface RefreshGoogleAccessTokenInput {
   timeoutMs: number;
 }
 
-export interface RefreshGoogleAccessTokenResult {
+interface RefreshGoogleAccessTokenResult {
   accessToken: string;
   expiresInSeconds: number;
 }
 
-export interface ExchangeAuthorizationCodeInput {
+interface ExchangeAuthorizationCodeInput {
   code: string;
   codeVerifier: string;
   clientId: string;
@@ -35,13 +35,13 @@ export interface ExchangeAuthorizationCodeInput {
   timeoutMs: number;
 }
 
-export interface ExchangeAuthorizationCodeResult {
+interface ExchangeAuthorizationCodeResult {
   accessToken: string;
   refreshToken: string;
   expiresInSeconds: number;
 }
 
-export class GoogleOAuthTokenError extends Error {
+class GoogleOAuthTokenError extends Error {
   constructor(
     message: string,
     readonly errorCode: string

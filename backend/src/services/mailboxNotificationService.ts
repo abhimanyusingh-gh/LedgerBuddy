@@ -3,7 +3,7 @@ import { env } from "../config/env.js";
 import { MailboxNotificationEventModel } from "../models/MailboxNotificationEvent.js";
 import { logger } from "../utils/logger.js";
 
-export interface ReauthNotificationInput {
+interface ReauthNotificationInput {
   userId: string;
   provider: "gmail";
   emailAddress: string;
