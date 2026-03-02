@@ -1,0 +1,51 @@
+{
+  "tenants": [
+    {
+      "id": "65f0000000000000000000a1",
+      "name": "Tenant Alpha",
+      "onboardingStatus": "completed"
+    },
+    {
+      "id": "65f0000000000000000000b2",
+      "name": "Tenant Beta",
+      "onboardingStatus": "completed"
+    }
+  ],
+  "users": [
+    {
+      "email": "tenant-admin-1@local.test",
+      "password": "DemoPass!1",
+      "displayName": "Tenant Admin 1",
+      "tenantId": "65f0000000000000000000a1",
+      "role": "TENANT_ADMIN"
+    },
+    {
+      "email": "tenant-user-1@local.test",
+      "password": "DemoPass!1",
+      "displayName": "Tenant User 1",
+      "tenantId": "65f0000000000000000000a1",
+      "role": "MEMBER"
+    },
+    {
+      "email": "tenant-admin-2@local.test",
+      "password": "DemoPass!1",
+      "displayName": "Tenant Admin 2",
+      "tenantId": "65f0000000000000000000b2",
+      "role": "TENANT_ADMIN"
+    },
+    {
+      "email": "tenant-user-2@local.test",
+      "password": "DemoPass!1",
+      "displayName": "Tenant User 2",
+      "tenantId": "65f0000000000000000000b2",
+      "role": "MEMBER"
+    },
+    {
+      "email": "platform-admin@local.test",
+      "password": "DemoPass!1",
+      "displayName": "Platform Admin",
+      "tenantId": "65f0000000000000000000a1",
+      "role": "MEMBER"
+    }
+  ]
+}

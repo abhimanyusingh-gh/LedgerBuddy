@@ -42,7 +42,10 @@ services:
       APP_SESSION_SIGNING_SECRET: ${APP_SESSION_SIGNING_SECRET:-local-dev-session-signing-secret-change-me}
       APP_SESSION_TTL_SECONDS: ${APP_SESSION_TTL_SECONDS:-28800}
       REFRESH_TOKEN_ENCRYPTION_SECRET: ${REFRESH_TOKEN_ENCRYPTION_SECRET:-local-dev-refresh-token-secret-32-chars}
+      AUTH_AUTO_PROVISION_USERS: ${AUTH_AUTO_PROVISION_USERS:-false}
       PLATFORM_ADMIN_EMAILS: ${PLATFORM_ADMIN_EMAILS:-platform-admin@local.test}
+      LOCAL_DEMO_SEED: ${LOCAL_DEMO_SEED:-false}
+      LOCAL_DEMO_CONFIG_PATH: ${LOCAL_DEMO_CONFIG_PATH:-config/local-demo-users.json}
       INGESTION_SOURCES: ${INGESTION_SOURCES:-folder}
       FOLDER_SOURCE_KEY: local-folder
       FOLDER_SOURCE_PATH: /app/sample-invoices/inbox

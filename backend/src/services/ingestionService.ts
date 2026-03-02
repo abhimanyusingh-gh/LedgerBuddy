@@ -100,7 +100,21 @@ export class IngestionService {
     const runtimeTenantId =
       runtimeOptions?.tenantId && runtimeOptions.tenantId.trim().length > 0 ? runtimeOptions.tenantId.trim() : "";
     const prioritizedSources = [...this.sources].sort(compareSourcePriority);
-    for (const source of prioritizedSources) {
+    const tenantMatchedSources =
+      runtimeTenantId.length > 0
+        ? prioritizedSources.filter((source) => source.tenantId === runtimeTenantId)
+        : prioritizedSources;
+    const tenantScopedSources =
+      runtimeTenantId.length > 0 && tenantMatchedSources.length > 0 ? tenantMatchedSources : prioritizedSources;
+
+    if (runtimeTenantId.length > 0 && tenantMatchedSources.length === 0) {
+      logger.warn("ingestion.run.tenant_source_fallback", {
+        tenantId: runtimeTenantId,
+        sourceCount: prioritizedSources.length
+      });
+    }
+
+    for (const source of tenantScopedSources) {
       const effectiveTenantId = runtimeTenantId || source.tenantId;
       const checkpoint = await CheckpointModel.findOne({ sourceKey: source.key, tenantId: effectiveTenantId }).lean();
       const sourceFiles = await source.fetchNewFiles(checkpoint?.marker ?? null);

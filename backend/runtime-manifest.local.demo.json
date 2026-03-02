@@ -1,0 +1,44 @@
+{
+  "defaultTenantId": "65f0000000000000000000a1",
+  "defaultWorkloadTier": "standard",
+  "database": {
+    "provider": "mongo",
+    "uri": "mongodb://mongo:27017/invoice_processor"
+  },
+  "ocr": {
+    "provider": "deepseek",
+    "deepseek": {
+      "model": "mlx-community/DeepSeek-OCR-4bit"
+    }
+  },
+  "verifier": {
+    "provider": "http",
+    "http": {}
+  },
+  "extraction": {
+    "ocrHighConfidenceThreshold": 0.92
+  },
+  "sources": [
+    {
+      "type": "folder",
+      "key": "tenant-alpha-folder",
+      "tenantId": "65f0000000000000000000a1",
+      "workloadTier": "standard",
+      "folderPath": "/app/sample-invoices/inbox/tenant-alpha",
+      "recursive": false
+    },
+    {
+      "type": "folder",
+      "key": "tenant-beta-folder",
+      "tenantId": "65f0000000000000000000b2",
+      "workloadTier": "standard",
+      "folderPath": "/app/sample-invoices/inbox/tenant-beta",
+      "recursive": false
+    }
+  ],
+  "export": {
+    "tallyEndpoint": "http://tally.example.local",
+    "tallyCompany": "Demo Company",
+    "tallyPurchaseLedger": "Purchase"
+  }
+}
