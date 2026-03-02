@@ -62,7 +62,7 @@ test.describe("tenant admin visibility", () => {
   test("platform admin sees tenant usage overview panel", async ({ page }) => {
     await seedAuthToken(page, platformToken);
     await page.goto("/", { waitUntil: "domcontentloaded" });
-    await expect(page.getByRole("heading", { name: "Platform Stats" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Platform Statistics" })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Onboard Tenant Admin" })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Platform Tenant Usage Overview" })).toBeVisible();
     await expect(
@@ -94,9 +94,9 @@ test.describe("tenant admin visibility", () => {
     await page.goto("/", { waitUntil: "domcontentloaded" });
 
     await expect(page.getByTestId("platform-stats-grid")).toBeVisible();
-    await page.getByRole("button", { name: "Toggle Platform Stats section" }).click();
+    await page.getByRole("button", { name: "Toggle Platform Statistics section" }).click();
     await expect(page.getByTestId("platform-stats-grid")).toHaveCount(0);
-    await page.getByRole("button", { name: "Toggle Platform Stats section" }).click();
+    await page.getByRole("button", { name: "Toggle Platform Statistics section" }).click();
     await expect(page.getByTestId("platform-stats-grid")).toBeVisible();
 
     await page.getByRole("button", { name: "Toggle Onboard Tenant Admin section" }).click();

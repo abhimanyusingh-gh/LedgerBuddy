@@ -31,6 +31,16 @@ import { ExtractedFieldsTable } from "./components/ExtractedFieldsTable";
 import { IngestionProgressCard } from "./components/IngestionProgressCard";
 import { InvoiceSourceViewer } from "./components/InvoiceSourceViewer";
 import { TallyMappingTable } from "./components/TallyMappingTable";
+import { LoginPage } from "./components/login/LoginPage";
+import { PlatformAdminTopNav } from "./components/platformAdmin/PlatformAdminTopNav";
+import { PlatformActivityMonitor } from "./components/platformAdmin/PlatformActivityMonitor";
+import { PlatformOnboardSection } from "./components/platformAdmin/PlatformOnboardSection";
+import { PlatformOverviewHero } from "./components/platformAdmin/PlatformOverviewHero";
+import { PlatformStatsSection } from "./components/platformAdmin/PlatformStatsSection";
+import { PlatformUsageOverviewSection } from "./components/platformAdmin/PlatformUsageOverviewSection";
+import { TenantAdminTopNav } from "./components/tenantAdmin/TenantAdminTopNav";
+import { TenantViewTabs } from "./components/tenantAdmin/TenantViewTabs";
+import { TenantWorkspaceHero } from "./components/tenantAdmin/TenantWorkspaceHero";
 import { formatOcrConfidenceLabel, getExtractedFieldRows } from "./extractedFields";
 import { getInvoiceSourceHighlights } from "./sourceHighlights";
 import {
@@ -809,44 +819,17 @@ export function App() {
 
   if (!session) {
     return (
-      <div className="layout">
-        <main className="content content-list-expanded">
-          <section className="panel list-panel login-panel">
-            <h2>Welcome back</h2>
-            <p className="muted">Sign in with your email and password.</p>
-            <label className="login-field">
-              Email
-              <input
-                value={loginEmail}
-                onChange={(event) => setLoginEmail(event.target.value)}
-                placeholder="user@company.com"
-                autoComplete="email"
-              />
-            </label>
-            <label className="login-field">
-              Password
-              <input
-                type="password"
-                value={loginPassword}
-                onChange={(event) => setLoginPassword(event.target.value)}
-                placeholder="Enter password"
-                autoComplete="current-password"
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") {
-                    void handleLogin();
-                  }
-                }}
-              />
-            </label>
-            <div className="actions">
-              <button type="button" className="tab tab-active" onClick={() => void handleLogin()} disabled={loginSubmitting}>
-                {loginSubmitting ? "Signing in..." : "Sign in"}
-              </button>
-            </div>
-            {error ? <p className="error">{error}</p> : null}
-          </section>
-        </main>
-      </div>
+      <LoginPage
+        email={loginEmail}
+        password={loginPassword}
+        submitting={loginSubmitting}
+        error={error}
+        onEmailChange={setLoginEmail}
+        onPasswordChange={setLoginPassword}
+        onSubmit={() => {
+          void handleLogin();
+        }}
+      />
     );
   }
 
@@ -855,67 +838,30 @@ export function App() {
   const requiresTenantSetup = session.flags.requires_tenant_setup;
 
   return (
-    <div className="layout">
-      <div className="orb orb-left" />
-      <div className="orb orb-right" />
+    <div className={isPlatformAdmin ? "layout layout-platform" : "layout"}>
+      {isPlatformAdmin ? (
+        <PlatformAdminTopNav userEmail={session.user.email} onLogout={handleLogout} />
+      ) : (
+        <TenantAdminTopNav userEmail={session.user.email} onLogout={handleLogout} />
+      )}
 
-      <header className="topbar">
-        <div>
-          <p className="eyebrow">Invoice Processing</p>
-          <h1>{isPlatformAdmin ? "Platform Overview" : "Invoice Workspace"}</h1>
-          <p className="muted">
-            Account: <strong>{session.user.email}</strong>
-            {isPlatformAdmin ? (
-              <>
-                {" "}
-                | Access: <strong>Platform Admin</strong>
-              </>
-            ) : (
-              <>
-                {" "}
-                | Tenant: <strong>{session.tenant.name}</strong> | Access:{" "}
-                <strong>{session.user.role === "TENANT_ADMIN" ? "Tenant Admin" : "Member"}</strong>
-              </>
-            )}
-          </p>
-        </div>
-
-        <div className="metrics">
-          <div className="metric">
-            <span>{isPlatformAdmin ? "Tenants" : "Total"}</span>
-            <strong>{isPlatformAdmin ? platformUsage.length : invoices.length}</strong>
-          </div>
-          <div className="metric metric-alert">
-            <span>{isPlatformAdmin ? "Failed Docs" : "Failed"}</span>
-            <strong>
-              {isPlatformAdmin
-                ? platformStats.failedDocuments
-                : failedCount}
-            </strong>
-          </div>
-          <button onClick={handleLogout}>Logout</button>
-        </div>
-      </header>
+      {!isPlatformAdmin ? (
+        <>
+          <TenantWorkspaceHero
+            tenantName={session.tenant.name}
+            totalInvoices={invoices.length}
+            failedInvoices={failedCount}
+          />
+          <TenantViewTabs
+            showTenantConfig={showTenantConfig}
+            canViewTenantConfig={isTenantAdmin}
+            onShowDashboard={() => setShowTenantConfig(false)}
+            onShowTenantConfig={() => setShowTenantConfig(true)}
+          />
+        </>
+      ) : null}
 
       <section className="controls">
-        {isTenantAdmin && !isPlatformAdmin ? (
-          <div className="view-switch" role="tablist" aria-label="Tenant console sections">
-            <button
-              type="button"
-              className={showTenantConfig ? "tab" : "tab tab-active"}
-              onClick={() => setShowTenantConfig(false)}
-            >
-              Dashboard
-            </button>
-            <button
-              type="button"
-              className={showTenantConfig ? "tab tab-active" : "tab"}
-              onClick={() => setShowTenantConfig(true)}
-            >
-              Tenant Config
-            </button>
-          </div>
-        ) : null}
 
         {requiresTenantSetup && !isPlatformAdmin ? (
           <div className="editor-card">
@@ -954,7 +900,7 @@ export function App() {
             {gmailNeedsReauth ? (
               <div className="mailbox-banner" role="alert">
                 <strong>We lost access to your mailbox. Please reconnect.</strong>
-                <button type="button" onClick={handleConnectGmail}>
+                <button type="button" className="app-button app-button-primary" onClick={handleConnectGmail}>
                   Reconnect Gmail
                 </button>
               </div>
@@ -968,7 +914,7 @@ export function App() {
               </span>
               {gmailConnected && gmailEmailAddress ? <span className="mailbox-email">{gmailEmailAddress}</span> : null}
               {!gmailConnected ? (
-                <button type="button" onClick={handleConnectGmail}>
+                <button type="button" className="app-button app-button-secondary" onClick={handleConnectGmail}>
                   {gmailNeedsReauth ? "Reconnect Gmail" : "Connect Gmail"}
                 </button>
               ) : null}
@@ -987,7 +933,12 @@ export function App() {
                     placeholder="user@example.com"
                   />
                 </label>
-                <button type="button" onClick={() => void handleInviteUser()} disabled={!inviteEmail.trim()}>
+                <button
+                  type="button"
+                  className="app-button app-button-primary"
+                  onClick={() => void handleInviteUser()}
+                  disabled={!inviteEmail.trim()}
+                >
                   Send Invite
                 </button>
               </div>
@@ -1016,7 +967,7 @@ export function App() {
                           </select>
                         </td>
                         <td>
-                          <button type="button" onClick={() => void handleRemoveUser(user.userId)}>
+                          <button type="button" className="app-button app-button-secondary" onClick={() => void handleRemoveUser(user.userId)}>
                             Remove
                           </button>
                         </td>
@@ -1033,167 +984,42 @@ export function App() {
           <>
             {isPlatformAdmin ? (
               <>
-                <div className="editor-card">
-                  <div className="editor-header">
-                    <h3>Platform Stats</h3>
-                    <button
-                      type="button"
-                      aria-label="Toggle Platform Stats section"
-                      onClick={() => setPlatformStatsCollapsed((currentValue) => !currentValue)}
-                    >
-                      {platformStatsCollapsed ? "Expand" : "Collapse"}
-                    </button>
-                  </div>
-                  {!platformStatsCollapsed ? (
-                    <div className="platform-stats-grid" data-testid="platform-stats-grid">
-                      <div className="platform-stat-tile">
-                        <span>Tenants</span>
-                        <strong>{platformStats.tenants}</strong>
-                      </div>
-                      <div className="platform-stat-tile">
-                        <span>Users</span>
-                        <strong>{platformStats.users}</strong>
-                      </div>
-                      <div className="platform-stat-tile">
-                        <span>Documents</span>
-                        <strong>{platformStats.totalDocuments}</strong>
-                      </div>
-                      <div className="platform-stat-tile">
-                        <span>Approved</span>
-                        <strong>{platformStats.approvedDocuments}</strong>
-                      </div>
-                      <div className="platform-stat-tile">
-                        <span>Exported</span>
-                        <strong>{platformStats.exportedDocuments}</strong>
-                      </div>
-                      <div className="platform-stat-tile">
-                        <span>Failed</span>
-                        <strong>{platformStats.failedDocuments}</strong>
-                      </div>
-                    </div>
-                  ) : (
-                    <p className="muted section-collapsed-note">Section collapsed.</p>
-                  )}
-                </div>
-
-                <div className="editor-card">
-                  <div className="editor-header">
-                    <h3>Onboard Tenant Admin</h3>
-                    <div className="editor-actions">
-                      {!platformOnboardCollapsed ? (
-                        <button type="button" onClick={() => void handlePlatformOnboardTenantAdmin()}>
-                          Create Tenant Admin
-                        </button>
-                      ) : null}
-                      <button
-                        type="button"
-                        aria-label="Toggle Onboard Tenant Admin section"
-                        onClick={() => setPlatformOnboardCollapsed((currentValue) => !currentValue)}
-                      >
-                        {platformOnboardCollapsed ? "Expand" : "Collapse"}
-                      </button>
-                    </div>
-                  </div>
-                  {!platformOnboardCollapsed ? (
-                    <div className="edit-grid">
-                      <label>
-                        Tenant Name
-                        <input
-                          value={platformOnboardForm.tenantName}
-                          onChange={(event) =>
-                            setPlatformOnboardForm((state) => ({ ...state, tenantName: event.target.value }))
-                          }
-                          placeholder="Acme Health"
-                        />
-                      </label>
-                      <label>
-                        Tenant Admin Email
-                        <input
-                          value={platformOnboardForm.adminEmail}
-                          onChange={(event) =>
-                            setPlatformOnboardForm((state) => ({ ...state, adminEmail: event.target.value }))
-                          }
-                          placeholder="admin@acmehealth.com"
-                        />
-                      </label>
-                      <label>
-                        Admin Name (optional)
-                        <input
-                          value={platformOnboardForm.adminDisplayName}
-                          onChange={(event) =>
-                            setPlatformOnboardForm((state) => ({ ...state, adminDisplayName: event.target.value }))
-                          }
-                          placeholder="Priya Shah"
-                        />
-                      </label>
-                    </div>
-                  ) : (
-                    <p className="muted section-collapsed-note">Section collapsed.</p>
-                  )}
-                </div>
-
-                <div className="editor-card">
-                  <div className="editor-header">
-                    <h3>Platform Tenant Usage Overview</h3>
-                    <div className="editor-actions">
-                      {!platformUsageCollapsed ? (
-                        <button type="button" onClick={() => void loadPlatformUsage()}>
-                          Refresh Usage
-                        </button>
-                      ) : null}
-                      <button
-                        type="button"
-                        aria-label="Toggle Platform Tenant Usage Overview section"
-                        onClick={() => setPlatformUsageCollapsed((currentValue) => !currentValue)}
-                      >
-                        {platformUsageCollapsed ? "Expand" : "Collapse"}
-                      </button>
-                    </div>
-                  </div>
-                  {!platformUsageCollapsed ? (
-                    <div className="list-scroll" style={{ maxHeight: "220px" }}>
-                      <table data-testid="platform-usage-table">
-                        <thead>
-                          <tr>
-                            <th>Tenant</th>
-                            <th>Onboarding</th>
-                            <th>Users</th>
-                            <th>Documents</th>
-                            <th>Approved</th>
-                            <th>Exported</th>
-                            <th>Needs Review</th>
-                            <th>Failed</th>
-                            <th>Gmail</th>
-                            <th>Last Ingested</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {platformUsage.map((entry) => (
-                            <tr
-                              key={entry.tenantId}
-                              className={entry.tenantId === selectedPlatformTenantId ? "row-active" : undefined}
-                              onClick={() => setSelectedPlatformTenantId(entry.tenantId)}
-                            >
-                              <td>{entry.tenantName}</td>
-                              <td>{entry.onboardingStatus}</td>
-                              <td>{entry.userCount}</td>
-                              <td>{entry.totalDocuments}</td>
-                              <td>{entry.approvedDocuments}</td>
-                              <td>{entry.exportedDocuments}</td>
-                              <td>{entry.needsReviewDocuments}</td>
-                              <td>{entry.failedDocuments}</td>
-                              <td>{entry.gmailConnectionState}</td>
-                              <td>{entry.lastIngestedAt ? new Date(entry.lastIngestedAt).toLocaleString() : "-"}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  ) : (
-                    <p className="muted section-collapsed-note">Section collapsed.</p>
-                  )}
-                  <p className="muted">This view is usage-only. Invoice content is not exposed at platform scope.</p>
-                </div>
+                <PlatformOverviewHero
+                  tenantCount={platformStats.tenants}
+                  failedDocuments={platformStats.failedDocuments}
+                />
+                <PlatformStatsSection
+                  stats={platformStats}
+                  collapsed={platformStatsCollapsed}
+                  onToggle={() => setPlatformStatsCollapsed((currentValue) => !currentValue)}
+                />
+                <PlatformOnboardSection
+                  form={platformOnboardForm}
+                  collapsed={platformOnboardCollapsed}
+                  onToggle={() => setPlatformOnboardCollapsed((currentValue) => !currentValue)}
+                  onChange={setPlatformOnboardForm}
+                  onSubmit={() => {
+                    void handlePlatformOnboardTenantAdmin();
+                  }}
+                />
+                <PlatformUsageOverviewSection
+                  usage={platformUsage}
+                  selectedTenantId={selectedPlatformTenantId}
+                  collapsed={platformUsageCollapsed}
+                  onToggle={() => setPlatformUsageCollapsed((currentValue) => !currentValue)}
+                  onRefresh={() => {
+                    void loadPlatformUsage();
+                  }}
+                  onSelectTenant={setSelectedPlatformTenantId}
+                />
+                <PlatformActivityMonitor
+                  selectedTenant={selectedPlatformTenant}
+                  collapsed={platformActivityCollapsed}
+                  onToggle={() => setPlatformActivityCollapsed((currentValue) => !currentValue)}
+                  onRefresh={() => {
+                    void loadPlatformUsage();
+                  }}
+                />
               </>
             ) : null}
 
@@ -1212,31 +1038,56 @@ export function App() {
                 </div>
 
                 <div className="actions">
-                  <button onClick={handleIngest} disabled={requiresTenantSetup || ingestionStatus?.running === true}>
+                  <button
+                    type="button"
+                    className="app-button app-button-secondary"
+                    onClick={handleIngest}
+                    disabled={requiresTenantSetup || ingestionStatus?.running === true}
+                  >
                     {ingestionStatus?.running ? "Ingestion Running..." : "Run Ingestion"}
                   </button>
                   <button
+                    type="button"
+                    className="app-button app-button-secondary"
                     onClick={handleEmailSimulationIngest}
                     disabled={requiresTenantSetup || ingestionStatus?.running === true}
                   >
                     {ingestionStatus?.running ? "Ingestion Running..." : "Ingest Demo Emails"}
                   </button>
-                  <button onClick={toggleSelectAllVisible} disabled={selectableVisibleIds.length === 0}>
+                  <button
+                    type="button"
+                    className="app-button app-button-secondary"
+                    onClick={toggleSelectAllVisible}
+                    disabled={selectableVisibleIds.length === 0}
+                  >
                     {areAllVisibleSelectableSelected ? "Deselect All" : "Select All"}
                   </button>
-                  <button onClick={handleApprove} disabled={requiresTenantSetup || selectedApprovableIds.length === 0}>
+                  <button
+                    type="button"
+                    className="app-button app-button-primary"
+                    onClick={handleApprove}
+                    disabled={requiresTenantSetup || selectedApprovableIds.length === 0}
+                  >
                     Approve Selected
                   </button>
                   <button
+                    type="button"
+                    className="app-button app-button-primary"
                     onClick={handleExport}
                     disabled={requiresTenantSetup || selectedExportableIds.length === 0 || selectedNonExportableCount > 0}
                   >
                     Export To Tally ({selectedExportableIds.length})
                   </button>
-                  <button onClick={() => setDetailsPanelVisible((currentValue) => !currentValue)}>
+                  <button
+                    type="button"
+                    className="app-button app-button-secondary"
+                    onClick={() => setDetailsPanelVisible((currentValue) => !currentValue)}
+                  >
                     {detailsPanelVisible ? "Hide Details Panel" : "Show Details Panel"}
                   </button>
-                  <button onClick={() => void loadInvoices()}>Refresh</button>
+                  <button type="button" className="app-button app-button-secondary" onClick={() => void loadInvoices()}>
+                    Refresh
+                  </button>
                 </div>
                 <IngestionProgressCard
                   status={ingestionStatus}
@@ -1257,80 +1108,8 @@ export function App() {
 
       {error ? <p className="error">{error}</p> : null}
 
-      <main className={isPlatformAdmin ? "content content-list-expanded" : contentClassName}>
-        {isPlatformAdmin ? (
-          <section className="panel list-panel">
-            <div className="panel-title">
-              <h2>Activity Monitor</h2>
-              <div className="editor-actions">
-                {!platformActivityCollapsed ? (
-                  <button type="button" onClick={() => void loadPlatformUsage()}>
-                    Refresh
-                  </button>
-                ) : null}
-                <button
-                  type="button"
-                  className="collapse-button"
-                  aria-label="Toggle Activity Monitor section"
-                  onClick={() => setPlatformActivityCollapsed((currentValue) => !currentValue)}
-                >
-                  {platformActivityCollapsed ? "Expand" : "Collapse"}
-                </button>
-              </div>
-            </div>
-            {platformActivityCollapsed ? (
-              <p className="muted section-collapsed-note">Section collapsed.</p>
-            ) : selectedPlatformTenant ? (
-              <div className="detail-content">
-                <p className="muted" data-testid="platform-activity-tenant">
-                  Selected tenant: <strong>{selectedPlatformTenant.tenantName}</strong>
-                </p>
-                <div className="platform-stats-grid">
-                  <div className="platform-stat-tile">
-                    <span>Onboarding</span>
-                    <strong>{selectedPlatformTenant.onboardingStatus}</strong>
-                  </div>
-                  <div className="platform-stat-tile">
-                    <span>Users</span>
-                    <strong>{selectedPlatformTenant.userCount}</strong>
-                  </div>
-                  <div className="platform-stat-tile">
-                    <span>Documents</span>
-                    <strong>{selectedPlatformTenant.totalDocuments}</strong>
-                  </div>
-                  <div className="platform-stat-tile">
-                    <span>Approved</span>
-                    <strong>{selectedPlatformTenant.approvedDocuments}</strong>
-                  </div>
-                  <div className="platform-stat-tile">
-                    <span>Exported</span>
-                    <strong>{selectedPlatformTenant.exportedDocuments}</strong>
-                  </div>
-                  <div className="platform-stat-tile">
-                    <span>Failed</span>
-                    <strong>{selectedPlatformTenant.failedDocuments}</strong>
-                  </div>
-                </div>
-                <div className="detail-grid">
-                  <p>
-                    <span>Gmail Connection</span>
-                    <strong>{selectedPlatformTenant.gmailConnectionState}</strong>
-                  </p>
-                  <p>
-                    <span>Last Ingested</span>
-                    <strong>
-                      {selectedPlatformTenant.lastIngestedAt
-                        ? new Date(selectedPlatformTenant.lastIngestedAt).toLocaleString()
-                        : "-"}
-                    </strong>
-                  </p>
-                </div>
-              </div>
-            ) : (
-              <p className="muted">Select a tenant in the usage table to load activity details.</p>
-            )}
-          </section>
-        ) : (
+      {!isPlatformAdmin ? (
+        <main className={contentClassName}>
           <>
             <section className="panel list-panel">
               <div className="panel-title">
@@ -1607,8 +1386,8 @@ export function App() {
           </section>
             ) : null}
           </>
-        )}
-      </main>
+        </main>
+      ) : null}
 
       {popupInvoice ? (
         <div className="popup-overlay" role="presentation" onClick={closePopup}>
