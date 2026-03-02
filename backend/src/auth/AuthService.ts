@@ -1,4 +1,4 @@
-import { createHash, randomBytes } from "node:crypto";
+import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import { AuthLoginStateModel } from "../models/AuthLoginState.js";
 import { TenantModel } from "../models/Tenant.js";
 import { TenantUserRoleModel } from "../models/TenantUserRole.js";
@@ -10,6 +10,7 @@ import { encryptSecret } from "../utils/secretCrypto.js";
 import type { AuthenticatedRequestContext, SessionFlagsPayload } from "../types/auth.js";
 import { TenantIntegrationModel } from "../models/TenantIntegration.js";
 import { HttpError } from "../errors/HttpError.js";
+import { findLocalDemoUserByEmail } from "../config/localDemoUsers.js";
 
 interface LoginCallbackResult {
   sessionToken: string;
@@ -77,17 +78,39 @@ export class AuthService {
       encryptedRefreshToken
     });
 
-    const sessionToken = createSessionToken({
-      userId: context.userId,
-      email: context.email,
-      tenantId: context.tenantId,
-      ttlSeconds: env.APP_SESSION_TTL_SECONDS,
-      secret: env.APP_SESSION_SIGNING_SECRET
-    });
+    const sessionToken = this.createSessionTokenForContext(context);
 
     return {
       sessionToken,
       redirectPath: stateRecord.nextPath,
+      context
+    };
+  }
+
+  async loginWithPassword(email: string, password: string): Promise<{ sessionToken: string; context: AuthenticatedRequestContext }> {
+    const normalizedEmail = email.trim().toLowerCase();
+    const normalizedPassword = password;
+    if (!normalizedEmail || !normalizedPassword) {
+      throw new HttpError("Email and password are required.", 400, "auth_credentials_missing");
+    }
+
+    const configuredUser = findLocalDemoUserByEmail(normalizedEmail);
+    if (!configuredUser || !safeConstantTimeEquals(configuredUser.password, normalizedPassword)) {
+      throw new HttpError("Invalid email or password.", 401, "auth_credentials_invalid");
+    }
+
+    const context = await this.resolvePrincipalByEmail(normalizedEmail);
+    await UserModel.updateOne(
+      { _id: context.userId },
+      {
+        $set: {
+          lastLoginAt: new Date()
+        }
+      }
+    );
+
+    return {
+      sessionToken: this.createSessionTokenForContext(context),
       context
     };
   }
@@ -98,26 +121,23 @@ export class AuthService {
     if (!user) {
       throw new HttpError("Authenticated user not found.", 401, "auth_user_missing");
     }
-    const tenant = await TenantModel.findById(user.tenantId).lean();
+    if (String(user.tenantId) !== verified.tenantId) {
+      throw new HttpError("Session tenant mismatch.", 401, "auth_tenant_mismatch");
+    }
+
+    const tenant = await TenantModel.findById(verified.tenantId).lean();
     if (!tenant) {
       throw new HttpError("Tenant not found.", 401, "auth_tenant_missing");
-    }
-    const roleRecord = await TenantUserRoleModel.findOne({
-      tenantId: user.tenantId,
-      userId: String(user._id)
-    }).lean();
-    if (!roleRecord) {
-      throw new HttpError("User has no assigned tenant role.", 401, "auth_role_missing");
     }
 
     return {
       userId: String(user._id),
       email: user.email,
-      tenantId: user.tenantId,
+      tenantId: verified.tenantId,
       tenantName: tenant.name,
       onboardingStatus: tenant.onboardingStatus,
-      role: roleRecord.role,
-      isPlatformAdmin: isPlatformAdminEmail(user.email)
+      role: verified.role,
+      isPlatformAdmin: verified.isPlatformAdmin
     };
   }
 
@@ -148,6 +168,13 @@ export class AuthService {
     });
 
     if (!existingUser) {
+      if (!env.AUTH_AUTO_PROVISION_USERS) {
+        throw new HttpError(
+          "User is not provisioned for this environment. Ask a tenant admin or platform admin to grant access.",
+          403,
+          "auth_user_not_provisioned"
+        );
+      }
       const tenant = await TenantModel.create({
         name: deriveTenantName(input.email),
         onboardingStatus: "pending"
@@ -205,6 +232,48 @@ export class AuthService {
       isPlatformAdmin: isPlatformAdminEmail(existingUser.email)
     };
   }
+
+  private createSessionTokenForContext(context: AuthenticatedRequestContext): string {
+    return createSessionToken({
+      userId: context.userId,
+      email: context.email,
+      tenantId: context.tenantId,
+      role: context.role,
+      isPlatformAdmin: context.isPlatformAdmin,
+      ttlSeconds: env.APP_SESSION_TTL_SECONDS,
+      secret: env.APP_SESSION_SIGNING_SECRET
+    });
+  }
+
+  private async resolvePrincipalByEmail(email: string): Promise<AuthenticatedRequestContext> {
+    const user = await UserModel.findOne({ email }).lean();
+    if (!user) {
+      throw new HttpError("User is not provisioned for this environment.", 403, "auth_user_not_provisioned");
+    }
+
+    const tenant = await TenantModel.findById(user.tenantId).lean();
+    if (!tenant) {
+      throw new HttpError("Tenant not found.", 401, "auth_tenant_missing");
+    }
+
+    const roleRecord = await TenantUserRoleModel.findOne({
+      tenantId: user.tenantId,
+      userId: String(user._id)
+    }).lean();
+    if (!roleRecord) {
+      throw new HttpError("User has no assigned tenant role.", 401, "auth_role_missing");
+    }
+
+    return {
+      userId: String(user._id),
+      email: user.email,
+      tenantId: user.tenantId,
+      tenantName: tenant.name,
+      onboardingStatus: tenant.onboardingStatus,
+      role: roleRecord.role,
+      isPlatformAdmin: isPlatformAdminEmail(user.email)
+    };
+  }
 }
 
 function deriveTenantName(email: string): string {
@@ -226,4 +295,13 @@ function normalizeNextPath(value: string): string {
 function isPlatformAdminEmail(email: string): boolean {
   const normalized = email.trim().toLowerCase();
   return normalized.length > 0 && env.platformAdminEmails.includes(normalized);
+}
+
+function safeConstantTimeEquals(expected: string, actual: string): boolean {
+  const expectedBuffer = Buffer.from(expected, "utf8");
+  const actualBuffer = Buffer.from(actual, "utf8");
+  if (expectedBuffer.length !== actualBuffer.length) {
+    return false;
+  }
+  return timingSafeEqual(expectedBuffer, actualBuffer);
 }

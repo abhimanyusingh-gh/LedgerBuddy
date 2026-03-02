@@ -57,7 +57,16 @@ const envSchema = z.object({
   APP_SESSION_SIGNING_SECRET: z.string().default("local-dev-session-signing-secret-change-me"),
   APP_SESSION_TTL_SECONDS: z.coerce.number().default(28800),
   REFRESH_TOKEN_ENCRYPTION_SECRET: z.string().default("local-dev-refresh-token-secret-32-chars"),
-  PLATFORM_ADMIN_EMAILS: z.string().default("platform-admin@local.test"),
+  AUTH_AUTO_PROVISION_USERS: z
+    .string()
+    .default("false")
+    .transform((value) => value === "true"),
+  PLATFORM_ADMIN_EMAILS: z.string().default(""),
+  LOCAL_DEMO_SEED: z
+    .string()
+    .default("false")
+    .transform((value) => value === "true"),
+  LOCAL_DEMO_CONFIG_PATH: z.string().default("config/local-demo-users.json"),
 
   INGESTION_SOURCES: z.string().default("email"),
   DEFAULT_USER_ID: z.string().default("local-user"),

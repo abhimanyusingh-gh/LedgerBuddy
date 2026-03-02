@@ -59,6 +59,10 @@ export function createGmailConnectionRouter(
         response.status(401).json({ message: "Authentication required." });
         return;
       }
+      if (context.isPlatformAdmin) {
+        response.status(403).json({ message: "Platform admins cannot access tenant mailbox connections." });
+        return;
+      }
 
       const status = await gmailIntegrationService.getConnectionStatus(context.tenantId);
       response.json({
@@ -83,6 +87,10 @@ export function createGmailConnectionRouter(
       const context = request.authContext;
       if (!context) {
         response.status(401).json({ message: "Authentication required." });
+        return;
+      }
+      if (context.isPlatformAdmin) {
+        response.status(403).json({ message: "Platform admins cannot access tenant mailbox connections." });
         return;
       }
       const status = await gmailIntegrationService.getConnectionStatus(context.tenantId);

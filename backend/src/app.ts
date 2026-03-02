@@ -12,7 +12,11 @@ import { createSessionRouter } from "./routes/session.js";
 import { createTenantAdminRouter } from "./routes/tenantAdmin.js";
 import { createTenantLifecycleRouter } from "./routes/tenantLifecycle.js";
 import { createPlatformAdminRouter } from "./routes/platformAdmin.js";
-import { createAuthenticationMiddleware, requireTenantSetupCompleted } from "./auth/middleware.js";
+import {
+  createAuthenticationMiddleware,
+  requireNonPlatformAdmin,
+  requireTenantSetupCompleted
+} from "./auth/middleware.js";
 import { logger, runWithLogContext } from "./utils/logger.js";
 import { isHttpError } from "./errors/HttpError.js";
 
@@ -44,12 +48,25 @@ export async function createApp() {
   app.use("/api", authenticate);
   app.use("/api", createSessionRouter(dependencies.authService));
   app.use("/api", createPlatformAdminRouter(dependencies.platformAdminService));
-  app.use("/api", createTenantLifecycleRouter(dependencies.tenantAdminService, dependencies.tenantInviteService));
-  app.use("/api", createTenantAdminRouter(dependencies.tenantAdminService, dependencies.tenantInviteService));
+  app.use(
+    "/api",
+    requireNonPlatformAdmin,
+    createTenantLifecycleRouter(dependencies.tenantAdminService, dependencies.tenantInviteService)
+  );
+  app.use(
+    "/api",
+    requireNonPlatformAdmin,
+    createTenantAdminRouter(dependencies.tenantAdminService, dependencies.tenantInviteService)
+  );
   app.use("/", createGmailConnectionRouter(dependencies.gmailIntegrationService, dependencies.authService));
-  app.use("/api", requireTenantSetupCompleted, createInvoiceRouter(dependencies.invoiceService));
-  app.use("/api", requireTenantSetupCompleted, createJobsRouter(dependencies.ingestionService, dependencies.emailSimulationService));
-  app.use("/api", requireTenantSetupCompleted, createExportRouter(dependencies.exportService));
+  app.use("/api", requireNonPlatformAdmin, requireTenantSetupCompleted, createInvoiceRouter(dependencies.invoiceService));
+  app.use(
+    "/api",
+    requireNonPlatformAdmin,
+    requireTenantSetupCompleted,
+    createJobsRouter(dependencies.ingestionService, dependencies.emailSimulationService)
+  );
+  app.use("/api", requireNonPlatformAdmin, requireTenantSetupCompleted, createExportRouter(dependencies.exportService));
 
   app.use((error: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
     const message = error instanceof Error ? error.message : "Unknown server error";

@@ -5,6 +5,17 @@ import { env } from "../config/env.js";
 export function createAuthRouter(authService: AuthService) {
   const router = Router();
 
+  router.post("/auth/token", async (request, response, next) => {
+    try {
+      const email = typeof request.body?.email === "string" ? request.body.email : "";
+      const password = typeof request.body?.password === "string" ? request.body.password : "";
+      const result = await authService.loginWithPassword(email, password);
+      response.json({ token: result.sessionToken });
+    } catch (error) {
+      next(error);
+    }
+  });
+
   router.get("/auth/login", async (request, response, next) => {
     try {
       const nextPath = typeof request.query.next === "string" ? request.query.next : "/";

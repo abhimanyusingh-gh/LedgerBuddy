@@ -1,17 +1,20 @@
 import type { NextFunction, Request, Response } from "express";
 import type { AuthService } from "./AuthService.js";
 
-function resolveBearerToken(request: Request): string {
+export function resolveBearerToken(request: Request): string {
   const authorization = request.header("authorization");
+  const queryToken = typeof request.query.authToken === "string" ? request.query.authToken.trim() : "";
   if (typeof authorization !== "string") {
-    return "";
-  }
-  const [scheme, token] = authorization.split(" ");
-  if (scheme?.toLowerCase() !== "bearer" || !token) {
-    const queryToken = typeof request.query.authToken === "string" ? request.query.authToken.trim() : "";
     return queryToken;
   }
-  return token.trim();
+
+  const [scheme, token] = authorization.split(" ");
+  const normalizedToken = typeof token === "string" ? token.trim() : "";
+  if (scheme?.toLowerCase() !== "bearer" || !normalizedToken || normalizedToken === "undefined" || normalizedToken === "null") {
+    return queryToken;
+  }
+
+  return normalizedToken;
 }
 
 export function createAuthenticationMiddleware(authService: AuthService) {
@@ -47,10 +50,30 @@ export function requireTenantSetupCompleted(request: Request, response: Response
   next();
 }
 
+export function requireNonPlatformAdmin(request: Request, response: Response, next: NextFunction): void {
+  const context = request.authContext;
+  if (!context) {
+    response.status(401).json({ message: "Authentication required." });
+    return;
+  }
+
+  if (context.isPlatformAdmin) {
+    response.status(403).json({ message: "Platform admins have read-only access to tenant operations." });
+    return;
+  }
+
+  next();
+}
+
 export function requireTenantAdmin(request: Request, response: Response, next: NextFunction): void {
   const context = request.authContext;
   if (!context) {
     response.status(401).json({ message: "Authentication required." });
+    return;
+  }
+
+  if (context.isPlatformAdmin) {
+    response.status(403).json({ message: "Platform admins cannot perform tenant admin actions." });
     return;
   }
 
