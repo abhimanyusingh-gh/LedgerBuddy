@@ -123,6 +123,32 @@ h1 {
   margin-bottom: 1rem;
 }
 
+.view-switch {
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.login-panel {
+  max-width: 720px;
+  justify-self: center;
+  width: 100%;
+}
+
+.login-field {
+  display: grid;
+  gap: 0.35rem;
+  max-width: 420px;
+}
+
+.login-field input {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0.55rem 0.7rem;
+  font: inherit;
+  background: var(--bg-panel);
+}
+
 .mailbox-banner {
   border: 1px solid rgba(173, 47, 31, 0.45);
   background: rgba(173, 47, 31, 0.08);

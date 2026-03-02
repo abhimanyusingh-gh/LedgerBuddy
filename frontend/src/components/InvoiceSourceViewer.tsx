@@ -55,7 +55,7 @@ export function InvoiceSourceViewer({ invoice, overlayUrlByField }: InvoiceSourc
             >
               <span>{highlight.label}: {highlight.value}</span>
               <small>
-                {highlight.source} | {formatOcrConfidenceLabel(highlight.confidence)} | page {highlight.page}
+                {formatOcrConfidenceLabel(highlight.confidence)} | page {highlight.page}
               </small>
             </button>
           );

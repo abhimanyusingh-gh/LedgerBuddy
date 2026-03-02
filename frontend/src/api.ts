@@ -63,6 +63,13 @@ export interface PlatformTenantUsageSummary {
   createdAt: string;
 }
 
+export interface PlatformTenantOnboardResult {
+  tenantId: string;
+  tenantName: string;
+  adminUserId: string;
+  adminEmail: string;
+}
+
 export function getStoredSessionToken(): string {
   return window.localStorage.getItem(SESSION_TOKEN_KEY) ?? "";
 }
@@ -80,10 +87,26 @@ export function clearStoredSessionToken(): void {
   window.localStorage.removeItem(SESSION_TOKEN_KEY);
 }
 
-export function getAuthLoginUrl(nextPath = "/"): string {
+export function getAuthLoginUrl(nextPath = "/", loginHint = ""): string {
   const url = new URL("/auth/login", backendBaseUrl);
   url.searchParams.set("next", nextPath);
+  const normalizedLoginHint = loginHint.trim().toLowerCase();
+  if (normalizedLoginHint.length > 0) {
+    url.searchParams.set("login_hint", normalizedLoginHint);
+  }
   return url.toString();
+}
+
+export async function loginWithCredentials(email: string, password: string): Promise<string> {
+  const response = await axios.post<{ token?: string }>(`${backendBaseUrl}/auth/token`, {
+    email,
+    password
+  });
+  const token = typeof response.data?.token === "string" ? response.data.token.trim() : "";
+  if (!token) {
+    throw new Error("Login did not return a session token.");
+  }
+  return token;
 }
 
 export async function fetchSessionContext(): Promise<SessionContextResponse> {
@@ -119,6 +142,15 @@ export async function removeTenantUser(userId: string): Promise<void> {
 export async function fetchPlatformTenantUsage(): Promise<PlatformTenantUsageSummary[]> {
   const response = await apiClient.get<{ items?: PlatformTenantUsageSummary[] }>("/platform/tenants/usage");
   return Array.isArray(response.data?.items) ? response.data.items : [];
+}
+
+export async function onboardTenantAdmin(payload: {
+  tenantName: string;
+  adminEmail: string;
+  adminDisplayName?: string;
+}): Promise<PlatformTenantOnboardResult> {
+  const response = await apiClient.post<PlatformTenantOnboardResult>("/platform/tenants/onboard-admin", payload);
+  return response.data;
 }
 
 export async function fetchInvoices(status?: string) {

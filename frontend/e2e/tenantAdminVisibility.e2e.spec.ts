@@ -2,8 +2,10 @@ import { expect, test, type APIRequestContext, type Page } from "@playwright/tes
 import axios from "axios";
 
 const apiBaseUrl = process.env.E2E_API_BASE_URL ?? "http://127.0.0.1:4000";
-const mailhogApiBaseUrl = process.env.E2E_MAILHOG_API_BASE_URL ?? "http://127.0.0.1:8025";
+const tenantAdminEmail = process.env.E2E_TENANT_ADMIN_EMAIL ?? "tenant-admin-1@local.test";
+const tenantMemberEmail = process.env.E2E_TENANT_MEMBER_EMAIL ?? "tenant-user-1@local.test";
 const platformAdminEmail = process.env.E2E_PLATFORM_ADMIN_EMAIL ?? "platform-admin@local.test";
+const loginPassword = process.env.E2E_LOGIN_PASSWORD ?? "DemoPass!1";
 
 test.describe("tenant admin visibility", () => {
   let adminToken = "";
@@ -13,28 +15,10 @@ test.describe("tenant admin visibility", () => {
   test.beforeAll(async ({ request }) => {
     await expectBackendReady(request);
 
-    const adminEmail = uniqueEmail("fe-admin");
-    adminToken = await createE2ESessionToken(apiBaseUrl, adminEmail);
+    adminToken = await createE2ESessionToken(apiBaseUrl, tenantAdminEmail);
     await completeE2ETenantOnboarding(request, adminToken);
-
+    memberToken = await createE2ESessionToken(apiBaseUrl, tenantMemberEmail);
     platformToken = await createE2ESessionToken(apiBaseUrl, platformAdminEmail);
-    await completeE2ETenantOnboarding(request, platformToken);
-
-    const memberEmail = uniqueEmail("fe-member");
-    const inviteStartMs = Date.now();
-    const invite = await request.post(`${apiBaseUrl}/api/admin/users/invite`, {
-      headers: authHeaders(adminToken),
-      data: { email: memberEmail }
-    });
-    expect(invite.status()).toBe(201);
-
-    const inviteToken = await pollInviteTokenFromMailhog(memberEmail, inviteStartMs);
-    memberToken = await createE2ESessionToken(apiBaseUrl, memberEmail);
-    const accept = await request.post(`${apiBaseUrl}/api/tenant/invites/accept`, {
-      headers: authHeaders(memberToken),
-      data: { token: inviteToken }
-    });
-    expect(accept.status()).toBe(204);
 
     await connectGmail(adminToken);
   });
@@ -42,7 +26,8 @@ test.describe("tenant admin visibility", () => {
   test("admin sees tenant settings and gmail action controls", async ({ page }) => {
     await seedAuthToken(page, adminToken);
     await page.goto("/", { waitUntil: "domcontentloaded" });
-    await expect(page.getByRole("heading", { name: "Ops Console" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Invoice Workspace" })).toBeVisible();
+    await page.getByRole("button", { name: "Tenant Config" }).click();
     await expect(page.getByRole("heading", { name: "Tenant Settings" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Send Invite" })).toBeVisible();
     await expect(page.getByText("Mailbox Connected")).toBeVisible();
@@ -52,10 +37,11 @@ test.describe("tenant admin visibility", () => {
   test("member does not see tenant settings or gmail action controls", async ({ page }) => {
     await seedAuthToken(page, memberToken);
     await page.goto("/", { waitUntil: "domcontentloaded" });
-    await expect(page.getByRole("heading", { name: "Ops Console" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Invoice Workspace" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Tenant Config" })).toHaveCount(0);
     await expect(page.getByRole("heading", { name: "Tenant Settings" })).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Send Invite" })).toHaveCount(0);
-    await expect(page.getByText("Mailbox Connected")).toBeVisible();
+    await expect(page.getByText("Mailbox Connected")).toHaveCount(0);
     await expect(page.getByRole("button", { name: /Connect Gmail|Reconnect Gmail/ })).toHaveCount(0);
   });
 
@@ -76,10 +62,30 @@ test.describe("tenant admin visibility", () => {
   test("platform admin sees tenant usage overview panel", async ({ page }) => {
     await seedAuthToken(page, platformToken);
     await page.goto("/", { waitUntil: "domcontentloaded" });
+    await expect(page.getByRole("heading", { name: "Onboard Tenant Admin" })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Platform Tenant Usage Overview" })).toBeVisible();
-    await expect(page.getByText("This view is usage-only. Invoice content is not exposed at platform scope.")).toBeVisible();
+    await expect(
+      page.getByText("This view is usage-only. Invoice content is not exposed at platform scope.")
+    ).toBeVisible();
     await expect(page.getByRole("columnheader", { name: "Tenant" })).toBeVisible();
     await expect(page.getByRole("columnheader", { name: "Documents" })).toBeVisible();
+  });
+
+  test("platform admin can onboard a tenant admin from UI", async ({ page }) => {
+    await seedAuthToken(page, platformToken);
+    await page.goto("/", { waitUntil: "domcontentloaded" });
+
+    const tenantName = `Playwright Tenant ${Date.now()}`;
+    const adminEmail = `pw-admin-${Date.now()}@local.test`;
+
+    await page.getByLabel("Tenant Name").fill(tenantName);
+    await page.getByLabel("Tenant Admin Email").fill(adminEmail);
+    await page.getByLabel("Admin Name (optional)").fill("Playwright Admin");
+    await page.getByRole("button", { name: "Create Tenant Admin" }).click();
+
+    await expect(
+      page.locator("tbody tr").filter({ has: page.getByRole("cell", { name: tenantName }) }).first()
+    ).toBeVisible();
   });
 });
 
@@ -90,17 +96,24 @@ async function expectBackendReady(request: APIRequestContext): Promise<void> {
   expect(payload.ready).toBe(true);
 }
 
-async function createE2ESessionToken(apiRoot: string, loginHint: string): Promise<string> {
-  const loginUrl = new URL("/auth/login", apiRoot);
-  loginUrl.searchParams.set("next", "/");
-  loginUrl.searchParams.set("login_hint", loginHint);
-
-  const authorizeRedirect = await requestRedirect(loginUrl.toString());
-  const callbackRedirect = await requestRedirect(authorizeRedirect);
-  const frontendRedirect = await requestRedirect(callbackRedirect);
-  const token = new URL(frontendRedirect).searchParams.get("token");
+async function createE2ESessionToken(apiRoot: string, email: string): Promise<string> {
+  const response = await axios.post<{ token?: string }>(
+    `${apiRoot}/auth/token`,
+    {
+      email,
+      password: loginPassword
+    },
+    {
+      timeout: 30_000,
+      validateStatus: () => true
+    }
+  );
+  if (response.status !== 200) {
+    throw new Error(`Failed to login with credentials for '${email}' (HTTP ${response.status}).`);
+  }
+  const token = typeof response.data?.token === "string" ? response.data.token.trim() : "";
   if (!token) {
-    throw new Error("OAuth callback did not return a session token.");
+    throw new Error(`Credential login did not return a session token for '${email}'.`);
   }
   return token;
 }
@@ -129,97 +142,6 @@ async function completeE2ETenantOnboarding(request: APIRequestContext, token: st
   expect(complete.ok()).toBeTruthy();
 }
 
-async function pollInviteTokenFromMailhog(recipient: string, startedAfterMs: number): Promise<string> {
-  const timeoutAt = Date.now() + 30_000;
-  while (Date.now() < timeoutAt) {
-    const response = await axios.get(`${mailhogApiBaseUrl}/api/v2/messages`, {
-      timeout: 15_000,
-      validateStatus: () => true
-    });
-    if (response.status === 200 && Array.isArray(response.data?.items)) {
-      const token = extractInviteToken(response.data.items, recipient, startedAfterMs);
-      if (token) {
-        return token;
-      }
-    }
-    await sleep(1_000);
-  }
-  throw new Error(`Timed out waiting for invite email token for recipient '${recipient}'.`);
-}
-
-function extractInviteToken(messages: unknown[], recipient: string, startedAfterMs: number): string {
-  const target = recipient.toLowerCase();
-  const sorted = [...messages].sort((left, right) => parseCreatedAt(right) - parseCreatedAt(left));
-
-  for (const message of sorted) {
-    const createdAt = parseCreatedAt(message);
-    if (createdAt > 0 && createdAt < startedAfterMs) {
-      continue;
-    }
-    if (!containsRecipient(message, target)) {
-      continue;
-    }
-    for (const candidate of getMessageTextCandidates(message)) {
-      const decoded = decodeQuotedPrintable(candidate);
-      const match = decoded.match(/invite\?token=([A-Za-z0-9._~-]+)/i);
-      if (match?.[1]) {
-        return decodeURIComponent(match[1]);
-      }
-    }
-  }
-
-  return "";
-}
-
-function parseCreatedAt(message: unknown): number {
-  if (!message || typeof message !== "object") {
-    return 0;
-  }
-  const created = (message as { Created?: unknown }).Created;
-  if (typeof created !== "string") {
-    return 0;
-  }
-  const parsed = Date.parse(created);
-  return Number.isFinite(parsed) ? parsed : 0;
-}
-
-function containsRecipient(message: unknown, recipient: string): boolean {
-  if (!message || typeof message !== "object") {
-    return false;
-  }
-  const toEntries = (message as { To?: Array<{ Mailbox?: unknown; Domain?: unknown }> }).To;
-  if (!Array.isArray(toEntries)) {
-    return JSON.stringify(message).toLowerCase().includes(recipient);
-  }
-  return toEntries.some((entry) => {
-    const mailbox = typeof entry?.Mailbox === "string" ? entry.Mailbox.toLowerCase() : "";
-    const domain = typeof entry?.Domain === "string" ? entry.Domain.toLowerCase() : "";
-    return mailbox && domain ? `${mailbox}@${domain}` === recipient : false;
-  });
-}
-
-function getMessageTextCandidates(message: unknown): string[] {
-  if (!message || typeof message !== "object") {
-    return [];
-  }
-  const contentBody =
-    typeof (message as { Content?: { Body?: unknown } }).Content?.Body === "string"
-      ? (message as { Content: { Body: string } }).Content.Body
-      : "";
-  const rawData =
-    typeof (message as { Raw?: { Data?: unknown } }).Raw?.Data === "string"
-      ? (message as { Raw: { Data: string } }).Raw.Data
-      : "";
-  return [contentBody, rawData].filter((value) => value.length > 0);
-}
-
-function decodeQuotedPrintable(value: string): string {
-  const unfolded = value.replace(/=\r?\n/g, "");
-  return unfolded.replace(/=([A-Fa-f0-9]{2})/g, (_match, hex: string) =>
-    String.fromCharCode(Number.parseInt(hex, 16))
-  );
-}
-
 function authHeaders(token: string): Record<string, string> {
   return {
     Authorization: `Bearer ${token}`
@@ -230,21 +152,6 @@ async function seedAuthToken(page: Page, token: string): Promise<void> {
   await page.addInitScript((value) => {
     window.localStorage.setItem("invoice_processor_session_token", value);
   }, token);
-}
-
-async function requestRedirect(url: string): Promise<string> {
-  const response = await axios.get(url, {
-    maxRedirects: 0,
-    validateStatus: () => true
-  });
-  if (response.status < 300 || response.status >= 400) {
-    throw new Error(`Expected redirect from ${url}, received HTTP ${response.status}.`);
-  }
-  const location = response.headers.location;
-  if (typeof location !== "string" || location.trim().length === 0) {
-    throw new Error(`Redirect from ${url} did not include location header.`);
-  }
-  return new URL(location, url).toString();
 }
 
 async function connectGmail(token: string): Promise<void> {
@@ -288,12 +195,4 @@ async function followRedirectChain(startUrl: string, maxHops = 6): Promise<strin
   }
 
   return currentUrl;
-}
-
-function uniqueEmail(prefix: string): string {
-  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}@local.test`;
-}
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
 }
