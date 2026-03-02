@@ -1,23 +1,46 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   approveInvoices,
+  assignTenantUserRole,
+  clearStoredSessionToken,
+  completeTenantOnboarding,
   exportToTally,
+  fetchGmailConnectUrl,
   fetchGmailConnectionStatus,
   fetchIngestionStatus,
   fetchInvoices,
-  getGmailConnectUrl,
+  loginWithCredentials,
+  fetchPlatformTenantUsage,
+  onboardTenantAdmin,
+  fetchSessionContext,
+  fetchTenantUsers,
   getInvoiceBlockCropUrl,
   getInvoiceFieldOverlayUrl,
+  getStoredSessionToken,
+  inviteTenantUser,
   runEmailSimulationIngestion,
   runIngestion,
+  setStoredSessionToken,
+  removeTenantUser,
   updateInvoiceParsedFields
 } from "./api";
 import type { GmailConnectionStatus, IngestionJobStatus, Invoice } from "./types";
+import type { PlatformTenantUsageSummary } from "./api";
 import { ConfidenceBadge } from "./components/ConfidenceBadge";
 import { ExtractedFieldsTable } from "./components/ExtractedFieldsTable";
 import { IngestionProgressCard } from "./components/IngestionProgressCard";
 import { InvoiceSourceViewer } from "./components/InvoiceSourceViewer";
 import { TallyMappingTable } from "./components/TallyMappingTable";
+import { LoginPage } from "./components/login/LoginPage";
+import { PlatformAdminTopNav } from "./components/platformAdmin/PlatformAdminTopNav";
+import { PlatformActivityMonitor } from "./components/platformAdmin/PlatformActivityMonitor";
+import { PlatformOnboardSection } from "./components/platformAdmin/PlatformOnboardSection";
+import { PlatformOverviewHero } from "./components/platformAdmin/PlatformOverviewHero";
+import { PlatformStatsSection } from "./components/platformAdmin/PlatformStatsSection";
+import { PlatformUsageOverviewSection } from "./components/platformAdmin/PlatformUsageOverviewSection";
+import { TenantAdminTopNav } from "./components/tenantAdmin/TenantAdminTopNav";
+import { TenantViewTabs } from "./components/tenantAdmin/TenantViewTabs";
+import { TenantWorkspaceHero } from "./components/tenantAdmin/TenantWorkspaceHero";
 import { formatOcrConfidenceLabel, getExtractedFieldRows } from "./extractedFields";
 import { getInvoiceSourceHighlights } from "./sourceHighlights";
 import {
@@ -42,6 +65,31 @@ import {
 import { useInvoiceDetail } from "./hooks/useInvoiceDetail";
 
 export function App() {
+  const [authLoading, setAuthLoading] = useState(true);
+  const [session, setSession] = useState<{
+    user: { id: string; email: string; role: "TENANT_ADMIN" | "MEMBER"; isPlatformAdmin: boolean };
+    tenant: { id: string; name: string; onboarding_status: "pending" | "completed" };
+    flags: {
+      requires_tenant_setup: boolean;
+      requires_reauth: boolean;
+      requires_admin_action: boolean;
+      requires_email_confirmation: boolean;
+    };
+  } | null>(null);
+  const [tenantUsers, setTenantUsers] = useState<Array<{ userId: string; email: string; role: "TENANT_ADMIN" | "MEMBER" }>>(
+    []
+  );
+  const [platformUsage, setPlatformUsage] = useState<PlatformTenantUsageSummary[]>([]);
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [onboardingForm, setOnboardingForm] = useState({
+    tenantName: "",
+    adminEmail: ""
+  });
+  const [platformOnboardForm, setPlatformOnboardForm] = useState({
+    tenantName: "",
+    adminEmail: "",
+    adminDisplayName: ""
+  });
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [popupSourcePreviewExpanded, setPopupSourcePreviewExpanded] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -56,6 +104,15 @@ export function App() {
   const [gmailConnection, setGmailConnection] = useState<GmailConnectionStatus | null>(null);
   const [editingParsedFields, setEditingParsedFields] = useState(false);
   const [savingParsedFields, setSavingParsedFields] = useState(false);
+  const [loginEmail, setLoginEmail] = useState<string>("");
+  const [loginPassword, setLoginPassword] = useState<string>("");
+  const [loginSubmitting, setLoginSubmitting] = useState(false);
+  const [showTenantConfig, setShowTenantConfig] = useState(false);
+  const [selectedPlatformTenantId, setSelectedPlatformTenantId] = useState<string | null>(null);
+  const [platformStatsCollapsed, setPlatformStatsCollapsed] = useState(false);
+  const [platformOnboardCollapsed, setPlatformOnboardCollapsed] = useState(false);
+  const [platformUsageCollapsed, setPlatformUsageCollapsed] = useState(false);
+  const [platformActivityCollapsed, setPlatformActivityCollapsed] = useState(false);
   const [editForm, setEditForm] = useState<EditInvoiceFormState>(EMPTY_EDIT_FORM);
   const [ingestionStatus, setIngestionStatus] = useState<IngestionJobStatus | null>(null);
   const ingestionWasRunningRef = useRef(false);
@@ -71,8 +128,61 @@ export function App() {
   } = useInvoiceDetail(popupInvoiceId);
 
   useEffect(() => {
+    void bootstrapSession();
+  }, []);
+
+  useEffect(() => {
+    if (!session || session.user.isPlatformAdmin) {
+      return;
+    }
     void loadInvoices();
-  }, [statusFilter]);
+  }, [session, statusFilter]);
+
+  useEffect(() => {
+    if (!session) {
+      setShowTenantConfig(false);
+      return;
+    }
+    if (session.user.isPlatformAdmin) {
+      void loadPlatformUsage();
+      setTenantUsers([]);
+      setGmailConnection(null);
+      setIngestionStatus(null);
+    } else {
+      setPlatformUsage([]);
+      setSelectedPlatformTenantId(null);
+      void refreshIngestionStatus();
+      void loadGmailConnectionStatus();
+      if (session.user.role === "TENANT_ADMIN") {
+        void loadTenantUsers();
+        setOnboardingForm({
+          tenantName: session.tenant.name,
+          adminEmail: session.user.email
+        });
+      } else {
+        setTenantUsers([]);
+      }
+    }
+  }, [session?.user.id, session?.tenant.id]);
+
+  useEffect(() => {
+    if (platformUsage.length === 0) {
+      setSelectedPlatformTenantId(null);
+      return;
+    }
+
+    setSelectedPlatformTenantId((currentValue) =>
+      currentValue && platformUsage.some((entry) => entry.tenantId === currentValue)
+        ? currentValue
+        : platformUsage[0].tenantId
+    );
+  }, [platformUsage]);
+
+  useEffect(() => {
+    if (session?.user.role !== "TENANT_ADMIN") {
+      setShowTenantConfig(false);
+    }
+  }, [session?.user.role]);
 
   useEffect(() => {
     setPopupSourcePreviewExpanded(false);
@@ -99,6 +209,20 @@ export function App() {
   const failedCount = useMemo(
     () => invoices.filter((invoice) => ["FAILED_OCR", "FAILED_PARSE"].includes(invoice.status)).length,
     [invoices]
+  );
+  const platformStats = useMemo(() => {
+    return {
+      tenants: platformUsage.length,
+      users: platformUsage.reduce((sum, entry) => sum + entry.userCount, 0),
+      totalDocuments: platformUsage.reduce((sum, entry) => sum + entry.totalDocuments, 0),
+      approvedDocuments: platformUsage.reduce((sum, entry) => sum + entry.approvedDocuments, 0),
+      exportedDocuments: platformUsage.reduce((sum, entry) => sum + entry.exportedDocuments, 0),
+      failedDocuments: platformUsage.reduce((sum, entry) => sum + entry.failedDocuments, 0)
+    };
+  }, [platformUsage]);
+  const selectedPlatformTenant = useMemo(
+    () => platformUsage.find((entry) => entry.tenantId === selectedPlatformTenantId) ?? null,
+    [platformUsage, selectedPlatformTenantId]
   );
 
   const popupInvoiceSummary = useMemo(
@@ -228,6 +352,63 @@ export function App() {
   const gmailConnected = gmailConnectionState === "CONNECTED";
   const gmailEmailAddress = gmailConnection?.emailAddress ?? "";
 
+  async function bootstrapSession() {
+    setAuthLoading(true);
+    const params = new URLSearchParams(window.location.search);
+    const callbackToken = params.get("token");
+    const callbackNext = params.get("next");
+    if (callbackToken) {
+      setStoredSessionToken(callbackToken);
+      params.delete("token");
+      params.delete("next");
+      const query = params.toString();
+      const targetPath = callbackNext && callbackNext.startsWith("/") ? callbackNext : window.location.pathname;
+      window.history.replaceState({}, "", `${targetPath}${query.length > 0 ? `?${query}` : ""}`);
+    }
+
+    const storedToken = getStoredSessionToken();
+    if (!storedToken) {
+      setSession(null);
+      setAuthLoading(false);
+      return;
+    }
+
+    try {
+      const sessionContext = await fetchSessionContext();
+      setSession(sessionContext);
+      setError(null);
+    } catch {
+      clearStoredSessionToken();
+      setSession(null);
+    } finally {
+      setAuthLoading(false);
+    }
+  }
+
+  async function loadTenantUsers() {
+    if (!session || session.user.role !== "TENANT_ADMIN") {
+      return;
+    }
+    try {
+      const users = await fetchTenantUsers();
+      setTenantUsers(users);
+    } catch (loadError) {
+      setError(loadError instanceof Error ? loadError.message : "Failed to load tenant users.");
+    }
+  }
+
+  async function loadPlatformUsage() {
+    if (!session?.user.isPlatformAdmin) {
+      return;
+    }
+    try {
+      const usage = await fetchPlatformTenantUsage();
+      setPlatformUsage(usage);
+    } catch (loadError) {
+      setError(loadError instanceof Error ? loadError.message : "Failed to load tenant usage overview.");
+    }
+  }
+
   useEffect(() => {
     if (!popupInvoiceId) {
       return undefined;
@@ -255,11 +436,6 @@ export function App() {
   }, [activeInvoice]);
 
   useEffect(() => {
-    void refreshIngestionStatus();
-    void loadGmailConnectionStatus();
-  }, []);
-
-  useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const gmailStatus = params.get("gmail");
     if (!gmailStatus) {
@@ -275,13 +451,18 @@ export function App() {
       setError(null);
     }
 
-    void loadGmailConnectionStatus();
+    if (session) {
+      void loadGmailConnectionStatus();
+      if (session.user.isPlatformAdmin) {
+        void loadPlatformUsage();
+      }
+    }
     params.delete("gmail");
     params.delete("reason");
     const query = params.toString();
     const nextUrl = `${window.location.pathname}${query.length > 0 ? `?${query}` : ""}${window.location.hash}`;
     window.history.replaceState({}, "", nextUrl);
-  }, []);
+  }, [session]);
 
   useEffect(() => {
     if (!ingestionStatus?.running) {
@@ -309,6 +490,9 @@ export function App() {
   }, [ingestionStatus?.running, ingestionStatus?.state, ingestionStatus?.error]);
 
   async function loadInvoices() {
+    if (!session) {
+      return;
+    }
     setLoading(true);
     setError(null);
 
@@ -330,13 +514,21 @@ export function App() {
         void refreshPopupInvoiceDetail();
       }
     } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : "Failed to fetch invoices");
+      if (loadError instanceof Error && /401|Authentication required|bearer token/i.test(loadError.message)) {
+        clearStoredSessionToken();
+        setSession(null);
+      } else {
+        setError(loadError instanceof Error ? loadError.message : "Failed to fetch invoices");
+      }
     } finally {
       setLoading(false);
     }
   }
 
   async function refreshIngestionStatus() {
+    if (!session) {
+      return;
+    }
     try {
       const status = await fetchIngestionStatus();
       setIngestionStatus(status);
@@ -346,6 +538,9 @@ export function App() {
   }
 
   async function loadGmailConnectionStatus() {
+    if (!session) {
+      return;
+    }
     try {
       const status = await fetchGmailConnectionStatus();
       setGmailConnection(status);
@@ -357,8 +552,13 @@ export function App() {
     }
   }
 
-  function handleConnectGmail() {
-    window.location.assign(getGmailConnectUrl());
+  async function handleConnectGmail() {
+    try {
+      const connectUrl = await fetchGmailConnectUrl();
+      window.location.assign(connectUrl);
+    } catch (connectError) {
+      setError(connectError instanceof Error ? connectError.message : "Failed to start Gmail connection flow.");
+    }
   }
 
   async function handleApprove() {
@@ -429,6 +629,114 @@ export function App() {
     }
   }
 
+  function handleLogout() {
+    clearStoredSessionToken();
+    setSession(null);
+    setInvoices([]);
+    setTenantUsers([]);
+    setActiveId(null);
+    setPopupInvoiceId(null);
+    setShowTenantConfig(false);
+  }
+
+  async function handleLogin() {
+    const normalizedEmail = loginEmail.trim().toLowerCase();
+    if (!normalizedEmail || !loginPassword) {
+      setError("Enter email and password.");
+      return;
+    }
+
+    try {
+      setLoginSubmitting(true);
+      setError(null);
+      const token = await loginWithCredentials(normalizedEmail, loginPassword);
+      setStoredSessionToken(token);
+      setLoginPassword("");
+      await bootstrapSession();
+    } catch (loginError) {
+      setError(loginError instanceof Error ? loginError.message : "Login failed.");
+      clearStoredSessionToken();
+      setSession(null);
+    } finally {
+      setLoginSubmitting(false);
+    }
+  }
+
+  async function handleCompleteOnboarding() {
+    if (!session) {
+      return;
+    }
+    try {
+      setError(null);
+      await completeTenantOnboarding({
+        tenantName: onboardingForm.tenantName,
+        adminEmail: onboardingForm.adminEmail
+      });
+      const refreshed = await fetchSessionContext();
+      setSession(refreshed);
+    } catch (setupError) {
+      setError(setupError instanceof Error ? setupError.message : "Failed to complete onboarding.");
+    }
+  }
+
+  async function handleInviteUser() {
+    try {
+      setError(null);
+      await inviteTenantUser(inviteEmail);
+      setInviteEmail("");
+      await loadTenantUsers();
+    } catch (inviteError) {
+      setError(inviteError instanceof Error ? inviteError.message : "Failed to invite user.");
+    }
+  }
+
+  async function handlePlatformOnboardTenantAdmin() {
+    const tenantName = platformOnboardForm.tenantName.trim();
+    const adminEmail = platformOnboardForm.adminEmail.trim().toLowerCase();
+    const adminDisplayName = platformOnboardForm.adminDisplayName.trim();
+    if (!tenantName || !adminEmail) {
+      setError("Enter tenant name and tenant admin email.");
+      return;
+    }
+
+    try {
+      setError(null);
+      await onboardTenantAdmin({
+        tenantName,
+        adminEmail,
+        ...(adminDisplayName ? { adminDisplayName } : {})
+      });
+      setPlatformOnboardForm({
+        tenantName: "",
+        adminEmail: "",
+        adminDisplayName: ""
+      });
+      await loadPlatformUsage();
+    } catch (onboardError) {
+      setError(onboardError instanceof Error ? onboardError.message : "Failed to onboard tenant admin.");
+    }
+  }
+
+  async function handleRoleChange(userId: string, role: "TENANT_ADMIN" | "MEMBER") {
+    try {
+      setError(null);
+      await assignTenantUserRole(userId, role);
+      await loadTenantUsers();
+    } catch (assignError) {
+      setError(assignError instanceof Error ? assignError.message : "Failed to update role.");
+    }
+  }
+
+  async function handleRemoveUser(userId: string) {
+    try {
+      setError(null);
+      await removeTenantUser(userId);
+      await loadTenantUsers();
+    } catch (removeError) {
+      setError(removeError instanceof Error ? removeError.message : "Failed to remove user.");
+    }
+  }
+
   function toggleSelection(invoice: Invoice) {
     if (!isInvoiceSelectable(invoice)) {
       return;
@@ -487,6 +795,9 @@ export function App() {
 
       setEditingParsedFields(false);
       await loadInvoices();
+      if (session?.user.isPlatformAdmin) {
+        await loadPlatformUsage();
+      }
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : "Failed to update parsed invoice fields");
     } finally {
@@ -494,177 +805,389 @@ export function App() {
     }
   }
 
+  if (authLoading) {
+    return (
+      <div className="layout">
+        <main className="content content-list-expanded">
+          <section className="panel list-panel">
+            <h2>Authenticating...</h2>
+          </section>
+        </main>
+      </div>
+    );
+  }
+
+  if (!session) {
+    return (
+      <LoginPage
+        email={loginEmail}
+        password={loginPassword}
+        submitting={loginSubmitting}
+        error={error}
+        onEmailChange={setLoginEmail}
+        onPasswordChange={setLoginPassword}
+        onSubmit={() => {
+          void handleLogin();
+        }}
+      />
+    );
+  }
+
+  const isTenantAdmin = session.user.role === "TENANT_ADMIN";
+  const isPlatformAdmin = session.user.isPlatformAdmin;
+  const requiresTenantSetup = session.flags.requires_tenant_setup;
+
   return (
-    <div className="layout">
-      <div className="orb orb-left" />
-      <div className="orb orb-right" />
+    <div className={isPlatformAdmin ? "layout layout-platform" : "layout"}>
+      {isPlatformAdmin ? (
+        <PlatformAdminTopNav userEmail={session.user.email} onLogout={handleLogout} />
+      ) : (
+        <TenantAdminTopNav userEmail={session.user.email} onLogout={handleLogout} />
+      )}
 
-      <header className="topbar">
-        <div>
-          <p className="eyebrow">Invoice Processor</p>
-          <h1>Ops Console</h1>
-        </div>
-
-        <div className="metrics">
-          <div className="metric">
-            <span>Total</span>
-            <strong>{invoices.length}</strong>
-          </div>
-          <div className="metric metric-alert">
-            <span>Failed</span>
-            <strong>{failedCount}</strong>
-          </div>
-        </div>
-      </header>
+      {!isPlatformAdmin ? (
+        <>
+          <TenantWorkspaceHero
+            tenantName={session.tenant.name}
+            totalInvoices={invoices.length}
+            failedInvoices={failedCount}
+          />
+          <TenantViewTabs
+            showTenantConfig={showTenantConfig}
+            canViewTenantConfig={isTenantAdmin}
+            onShowDashboard={() => setShowTenantConfig(false)}
+            onShowTenantConfig={() => setShowTenantConfig(true)}
+          />
+        </>
+      ) : null}
 
       <section className="controls">
-        {gmailNeedsReauth ? (
-          <div className="mailbox-banner" role="alert">
-            <strong>We lost access to your mailbox. Please reconnect.</strong>
-            <button type="button" onClick={handleConnectGmail}>
-              Reconnect Gmail
-            </button>
+
+        {requiresTenantSetup && !isPlatformAdmin ? (
+          <div className="editor-card">
+            <div className="editor-header">
+              <h3>Tenant Onboarding</h3>
+              {isTenantAdmin ? (
+                <button type="button" onClick={() => void handleCompleteOnboarding()}>
+                  Complete Onboarding
+                </button>
+              ) : null}
+            </div>
+            <div className="edit-grid">
+              <label>
+                Tenant Name
+                <input
+                  value={onboardingForm.tenantName}
+                  disabled={!isTenantAdmin}
+                  onChange={(event) => setOnboardingForm((state) => ({ ...state, tenantName: event.target.value }))}
+                />
+              </label>
+              <label>
+                Admin Email
+                <input
+                  value={onboardingForm.adminEmail}
+                  disabled={!isTenantAdmin}
+                  onChange={(event) => setOnboardingForm((state) => ({ ...state, adminEmail: event.target.value }))}
+                />
+              </label>
+            </div>
+            {!isTenantAdmin ? <p className="muted">Only tenant admins can complete onboarding.</p> : null}
           </div>
         ) : null}
 
-        <div className="mailbox-connection-card">
-          <span className={gmailConnected ? "mailbox-state mailbox-state-connected" : "mailbox-state mailbox-state-idle"}>
-            {gmailConnected ? "Mailbox Connected" : "Mailbox Not Connected"}
-          </span>
-          {gmailConnected && gmailEmailAddress ? <span className="mailbox-email">{gmailEmailAddress}</span> : null}
-          {!gmailConnected ? (
-            <button type="button" onClick={handleConnectGmail}>
-              {gmailNeedsReauth ? "Reconnect Gmail" : "Connect Gmail"}
-            </button>
-          ) : null}
-        </div>
+        {showTenantConfig && isTenantAdmin && !isPlatformAdmin ? (
+          <>
+            {gmailNeedsReauth ? (
+              <div className="mailbox-banner" role="alert">
+                <strong>We lost access to your mailbox. Please reconnect.</strong>
+                <button type="button" className="app-button app-button-primary" onClick={handleConnectGmail}>
+                  Reconnect Gmail
+                </button>
+              </div>
+            ) : null}
 
-        <div className="status-tabs">
-          {STATUSES.map((status) => (
-            <button
-              key={status}
-              className={status === statusFilter ? "tab tab-active" : "tab"}
-              onClick={() => setStatusFilter(status)}
-            >
-              {status}
-            </button>
-          ))}
-        </div>
+            <div className="mailbox-connection-card">
+              <span
+                className={gmailConnected ? "mailbox-state mailbox-state-connected" : "mailbox-state mailbox-state-idle"}
+              >
+                {gmailConnected ? "Mailbox Connected" : "Mailbox Not Connected"}
+              </span>
+              {gmailConnected && gmailEmailAddress ? <span className="mailbox-email">{gmailEmailAddress}</span> : null}
+              {!gmailConnected ? (
+                <button type="button" className="app-button app-button-secondary" onClick={handleConnectGmail}>
+                  {gmailNeedsReauth ? "Reconnect Gmail" : "Connect Gmail"}
+                </button>
+              ) : null}
+            </div>
 
-        <div className="actions">
-          <button onClick={handleIngest} disabled={ingestionStatus?.running === true}>
-            {ingestionStatus?.running ? "Ingestion Running..." : "Run Ingestion"}
-          </button>
-          <button onClick={handleEmailSimulationIngest} disabled={ingestionStatus?.running === true}>
-            {ingestionStatus?.running ? "Ingestion Running..." : "Run Email XOAUTH2 Simulation"}
-          </button>
-          <button onClick={toggleSelectAllVisible} disabled={selectableVisibleIds.length === 0}>
-            {areAllVisibleSelectableSelected ? "Deselect All" : "Select All"}
-          </button>
-          <button onClick={handleApprove} disabled={selectedApprovableIds.length === 0}>
-            Approve Selected
-          </button>
-          <button onClick={handleExport} disabled={selectedExportableIds.length === 0 || selectedNonExportableCount > 0}>
-            Export To Tally ({selectedExportableIds.length})
-          </button>
-          <button onClick={() => setDetailsPanelVisible((currentValue) => !currentValue)}>
-            {detailsPanelVisible ? "Hide Details Panel" : "Show Details Panel"}
-          </button>
-          <button onClick={() => void loadInvoices()}>Refresh</button>
-        </div>
-        <IngestionProgressCard
-          status={ingestionStatus}
-          progressPercent={ingestionProgressPercent}
-          successfulFiles={ingestionSuccessfulFiles}
-        />
-        <p className="muted export-selection">
-          {selectedIds.length} selected | {selectedExportableIds.length} approved exportable
-          {selectedNonExportableCount > 0
-            ? ` | ${selectedNonExportableCount} non-approved must be deselected for export`
-            : ""}
-        </p>
+            <div className="editor-card">
+              <div className="editor-header">
+                <h3>Tenant Settings</h3>
+              </div>
+              <div className="edit-grid">
+                <label>
+                  Invite User Email
+                  <input
+                    value={inviteEmail}
+                    onChange={(event) => setInviteEmail(event.target.value)}
+                    placeholder="user@example.com"
+                  />
+                </label>
+                <button
+                  type="button"
+                  className="app-button app-button-primary"
+                  onClick={() => void handleInviteUser()}
+                  disabled={!inviteEmail.trim()}
+                >
+                  Send Invite
+                </button>
+              </div>
+              <div className="list-scroll" style={{ maxHeight: "160px" }}>
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Email</th>
+                      <th>Role</th>
+                      <th>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {tenantUsers.map((user) => (
+                      <tr key={user.userId}>
+                        <td>{user.email}</td>
+                        <td>
+                          <select
+                            value={user.role}
+                            onChange={(event) =>
+                              void handleRoleChange(user.userId, event.target.value as "TENANT_ADMIN" | "MEMBER")
+                            }
+                          >
+                            <option value="TENANT_ADMIN">Tenant Admin</option>
+                            <option value="MEMBER">Member</option>
+                          </select>
+                        </td>
+                        <td>
+                          <button type="button" className="app-button app-button-secondary" onClick={() => void handleRemoveUser(user.userId)}>
+                            Remove
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </>
+        ) : null}
+
+        {!showTenantConfig ? (
+          <>
+            {isPlatformAdmin ? (
+              <>
+                <PlatformOverviewHero
+                  tenantCount={platformStats.tenants}
+                  failedDocuments={platformStats.failedDocuments}
+                />
+                <PlatformStatsSection
+                  stats={platformStats}
+                  collapsed={platformStatsCollapsed}
+                  onToggle={() => setPlatformStatsCollapsed((currentValue) => !currentValue)}
+                />
+                <PlatformOnboardSection
+                  form={platformOnboardForm}
+                  collapsed={platformOnboardCollapsed}
+                  onToggle={() => setPlatformOnboardCollapsed((currentValue) => !currentValue)}
+                  onChange={setPlatformOnboardForm}
+                  onSubmit={() => {
+                    void handlePlatformOnboardTenantAdmin();
+                  }}
+                />
+                <PlatformUsageOverviewSection
+                  usage={platformUsage}
+                  selectedTenantId={selectedPlatformTenantId}
+                  collapsed={platformUsageCollapsed}
+                  onToggle={() => setPlatformUsageCollapsed((currentValue) => !currentValue)}
+                  onRefresh={() => {
+                    void loadPlatformUsage();
+                  }}
+                  onSelectTenant={setSelectedPlatformTenantId}
+                />
+                <PlatformActivityMonitor
+                  selectedTenant={selectedPlatformTenant}
+                  collapsed={platformActivityCollapsed}
+                  onToggle={() => setPlatformActivityCollapsed((currentValue) => !currentValue)}
+                  onRefresh={() => {
+                    void loadPlatformUsage();
+                  }}
+                />
+              </>
+            ) : null}
+
+            {!isPlatformAdmin ? (
+              <>
+                <div className="status-tabs">
+                  {STATUSES.map((status) => (
+                    <button
+                      key={status}
+                      className={status === statusFilter ? "tab tab-active" : "tab"}
+                      onClick={() => setStatusFilter(status)}
+                    >
+                      {status}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="actions">
+                  <button
+                    type="button"
+                    className="app-button app-button-secondary"
+                    onClick={handleIngest}
+                    disabled={requiresTenantSetup || ingestionStatus?.running === true}
+                  >
+                    {ingestionStatus?.running ? "Ingestion Running..." : "Run Ingestion"}
+                  </button>
+                  <button
+                    type="button"
+                    className="app-button app-button-secondary"
+                    onClick={handleEmailSimulationIngest}
+                    disabled={requiresTenantSetup || ingestionStatus?.running === true}
+                  >
+                    {ingestionStatus?.running ? "Ingestion Running..." : "Ingest Demo Emails"}
+                  </button>
+                  <button
+                    type="button"
+                    className="app-button app-button-secondary"
+                    onClick={toggleSelectAllVisible}
+                    disabled={selectableVisibleIds.length === 0}
+                  >
+                    {areAllVisibleSelectableSelected ? "Deselect All" : "Select All"}
+                  </button>
+                  <button
+                    type="button"
+                    className="app-button app-button-primary"
+                    onClick={handleApprove}
+                    disabled={requiresTenantSetup || selectedApprovableIds.length === 0}
+                  >
+                    Approve Selected
+                  </button>
+                  <button
+                    type="button"
+                    className="app-button app-button-primary"
+                    onClick={handleExport}
+                    disabled={requiresTenantSetup || selectedExportableIds.length === 0 || selectedNonExportableCount > 0}
+                  >
+                    Export To Tally ({selectedExportableIds.length})
+                  </button>
+                  <button
+                    type="button"
+                    className="app-button app-button-secondary"
+                    onClick={() => setDetailsPanelVisible((currentValue) => !currentValue)}
+                  >
+                    {detailsPanelVisible ? "Hide Details Panel" : "Show Details Panel"}
+                  </button>
+                  <button type="button" className="app-button app-button-secondary" onClick={() => void loadInvoices()}>
+                    Refresh
+                  </button>
+                </div>
+                <IngestionProgressCard
+                  status={ingestionStatus}
+                  progressPercent={ingestionProgressPercent}
+                  successfulFiles={ingestionSuccessfulFiles}
+                />
+                <p className="muted export-selection">
+                  {selectedIds.length} selected | {selectedExportableIds.length} approved exportable
+                  {selectedNonExportableCount > 0
+                    ? ` | ${selectedNonExportableCount} non-approved must be deselected for export`
+                    : ""}
+                </p>
+              </>
+            ) : null}
+          </>
+        ) : null}
       </section>
 
       {error ? <p className="error">{error}</p> : null}
 
-      <main className={contentClassName}>
-        <section className="panel list-panel">
-          <div className="panel-title">
-            <h2>Invoices</h2>
-            {loading ? <span>Loading...</span> : <span>{invoices.length} records</span>}
-          </div>
+      {!isPlatformAdmin ? (
+        <main className={contentClassName}>
+          <>
+            <section className="panel list-panel">
+              <div className="panel-title">
+                <h2>Invoices</h2>
+                {loading ? <span>Loading...</span> : <span>{invoices.length} records</span>}
+              </div>
 
-          <div className="list-scroll">
-            <table>
-              <thead>
-                <tr>
-                  <th />
-                  <th>File</th>
-                  <th>Vendor</th>
-                  <th>Invoice #</th>
-                  <th>Total</th>
-                  <th>Confidence</th>
-                  <th>Status</th>
-                  <th>Received</th>
-                </tr>
-              </thead>
-              <tbody>
-                {invoices.map((invoice) => {
-                  const rowClasses = [
-                    invoice._id === activeId ? "row-active" : null,
-                    invoice.status === "EXPORTED" ? "row-exported" : null
-                  ]
-                    .filter(Boolean)
-                    .join(" ");
-
-                  return (
-                    <tr key={invoice._id} className={rowClasses || undefined} onClick={() => setActiveId(invoice._id)}>
-                      <td>
-                        <input
-                          type="checkbox"
-                          checked={selectedIds.includes(invoice._id)}
-                          disabled={!isInvoiceSelectable(invoice)}
-                          onChange={() => toggleSelection(invoice)}
-                          onClick={(event) => event.stopPropagation()}
-                        />
-                      </td>
-                      <td>
-                        <button
-                          type="button"
-                          className="file-label"
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            openPopup(invoice._id);
-                          }}
-                        >
-                          {invoice.attachmentName}
-                        </button>
-                      </td>
-                      <td>{invoice.parsed?.vendorName ?? "-"}</td>
-                      <td>{invoice.parsed?.invoiceNumber ?? "-"}</td>
-                      <td
-                        className={
-                          invoice.riskFlags.includes("TOTAL_AMOUNT_ABOVE_EXPECTED") ? "value-risk" : undefined
-                        }
-                      >
-                        {formatMinorAmountWithCurrency(invoice.parsed?.totalAmountMinor, invoice.parsed?.currency)}
-                      </td>
-                      <td>
-                        <ConfidenceBadge score={invoice.confidenceScore ?? 0} />
-                      </td>
-                      <td>
-                        <span className={`status status-${invoice.status.toLowerCase()}`}>{invoice.status}</span>
-                      </td>
-                      <td>{new Date(invoice.receivedAt).toLocaleString()}</td>
+              <div className="list-scroll">
+                <table>
+                  <thead>
+                    <tr>
+                      <th />
+                      <th>File</th>
+                      <th>Vendor</th>
+                      <th>Invoice #</th>
+                      <th>Total</th>
+                      <th>Confidence</th>
+                      <th>Status</th>
+                      <th>Received</th>
                     </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </section>
+                  </thead>
+                  <tbody>
+                    {invoices.map((invoice) => {
+                      const rowClasses = [
+                        invoice._id === activeId ? "row-active" : null,
+                        invoice.status === "EXPORTED" ? "row-exported" : null
+                      ]
+                        .filter(Boolean)
+                        .join(" ");
 
-        {detailsPanelVisible ? (
+                      return (
+                        <tr key={invoice._id} className={rowClasses || undefined} onClick={() => setActiveId(invoice._id)}>
+                          <td>
+                            <input
+                              type="checkbox"
+                              checked={selectedIds.includes(invoice._id)}
+                              disabled={!isInvoiceSelectable(invoice)}
+                              onChange={() => toggleSelection(invoice)}
+                              onClick={(event) => event.stopPropagation()}
+                            />
+                          </td>
+                          <td>
+                            <button
+                              type="button"
+                              className="file-label"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                openPopup(invoice._id);
+                              }}
+                            >
+                              {invoice.attachmentName}
+                            </button>
+                          </td>
+                          <td>{invoice.parsed?.vendorName ?? "-"}</td>
+                          <td>{invoice.parsed?.invoiceNumber ?? "-"}</td>
+                          <td
+                            className={
+                              invoice.riskFlags.includes("TOTAL_AMOUNT_ABOVE_EXPECTED") ? "value-risk" : undefined
+                            }
+                          >
+                            {formatMinorAmountWithCurrency(invoice.parsed?.totalAmountMinor, invoice.parsed?.currency)}
+                          </td>
+                          <td>
+                            <ConfidenceBadge score={invoice.confidenceScore ?? 0} />
+                          </td>
+                          <td>
+                            <span className={`status status-${invoice.status.toLowerCase()}`}>{invoice.status}</span>
+                          </td>
+                          <td>{new Date(invoice.receivedAt).toLocaleString()}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+
+            {detailsPanelVisible ? (
           <section className={`panel detail-panel ${detailsPanelCollapsed ? "detail-panel-collapsed" : ""}`}>
             <div className="panel-title">
               <h2>Invoice Details</h2>
@@ -721,7 +1244,7 @@ export function App() {
                       <strong><ConfidenceBadge score={activeInvoice.confidenceScore ?? 0} /></strong>
                     </p>
                     <p>
-                      <span>OCR Confidence</span>
+                      <span>Read Confidence</span>
                       <strong>{formatOcrConfidenceLabel(activeInvoice.ocrConfidence)}</strong>
                     </p>
                   </div>
@@ -817,14 +1340,6 @@ export function App() {
                   {detailsExpanded ? (
                     <>
                       <div>
-                        <h3>System Details</h3>
-                        <p className="muted system-details-line">
-                          Source: {activeInvoice.sourceType}:{activeInvoice.sourceKey} | Tenant: {activeInvoice.tenantId} |
-                          Tier: {activeInvoice.workloadTier}
-                        </p>
-                      </div>
-
-                      <div>
                         <h3>Risk Signals</h3>
                         {(activeInvoice.riskMessages ?? []).length > 0 ? (
                           <ul>
@@ -856,17 +1371,12 @@ export function App() {
                       </div>
 
                       <div>
-                        <h3>Detected Fields to Tally Mapping</h3>
+                        <h3>Export Mapping</h3>
                         <TallyMappingTable rows={activeTallyMappings} />
-                      </div>
-
-                      <div>
-                        <h3>OCR Text Preview</h3>
-                        <pre>{activeInvoice.ocrText?.slice(0, 2000) || "No OCR text available."}</pre>
                       </div>
                     </>
                   ) : (
-                    <p className="muted">Details are collapsed. Expand to inspect extraction, mapping, and OCR output.</p>
+                    <p className="muted">Details are collapsed. Expand to inspect extracted fields and export mapping.</p>
                   )}
                 </div>
               </div>
@@ -874,8 +1384,10 @@ export function App() {
               <p className="muted">Select an invoice to inspect details.</p>
             )}
           </section>
-        ) : null}
-      </main>
+            ) : null}
+          </>
+        </main>
+      ) : null}
 
       {popupInvoice ? (
         <div className="popup-overlay" role="presentation" onClick={closePopup}>
@@ -916,7 +1428,7 @@ export function App() {
                 <ExtractedFieldsTable rows={popupExtractedRows} cropUrlByField={popupCropUrlByField} />
               </div>
               <div>
-                <h3>Detected Fields to Tally Mapping</h3>
+                <h3>Export Mapping</h3>
                 <TallyMappingTable rows={popupTallyMappings} />
               </div>
             </div>

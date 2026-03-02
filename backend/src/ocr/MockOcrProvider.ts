@@ -1,4 +1,4 @@
-import type { OcrProvider, OcrResult } from "../core/interfaces/OcrProvider.js";
+import type { OcrExtractionOptions, OcrProvider, OcrResult } from "../core/interfaces/OcrProvider.js";
 
 interface MockOcrProviderOptions {
   text?: string;
@@ -16,7 +16,7 @@ export class MockOcrProvider implements OcrProvider {
     this.confidence = parseConfidence(options?.confidence ?? process.env.MOCK_OCR_CONFIDENCE);
   }
 
-  async extractText(_buffer: Buffer, _mimeType: string): Promise<OcrResult> {
+  async extractText(_buffer: Buffer, _mimeType: string, _options?: OcrExtractionOptions): Promise<OcrResult> {
     return {
       text: this.text,
       confidence: this.text ? this.confidence : 0,

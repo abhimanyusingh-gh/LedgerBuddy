@@ -9,7 +9,7 @@ export function resolveBearerToken(request: Request): string {
   }
 
   const [scheme, token] = authorization.split(" ");
-  const normalizedToken = token.trim();
+  const normalizedToken = typeof token === "string" ? token.trim() : "";
   if (scheme?.toLowerCase() !== "bearer" || !normalizedToken || normalizedToken === "undefined" || normalizedToken === "null") {
     return queryToken;
   }
@@ -79,21 +79,6 @@ export function requireTenantAdmin(request: Request, response: Response, next: N
 
   if (context.role !== "TENANT_ADMIN") {
     response.status(403).json({ message: "Tenant admin role required." });
-    return;
-  }
-
-  next();
-}
-
-export function requireNotViewer(request: Request, response: Response, next: NextFunction): void {
-  const context = request.authContext;
-  if (!context) {
-    response.status(401).json({ message: "Authentication required." });
-    return;
-  }
-
-  if (context.role === "VIEWER") {
-    response.status(403).json({ message: "Viewers have read-only access." });
     return;
   }
 

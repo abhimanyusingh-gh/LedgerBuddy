@@ -85,9 +85,9 @@ The system must ingest invoices from configurable sources, extract data from mix
 - Reason: local/prod adapter switching without code changes.
 
 11. Runtime Environment Switch
-- Introduce `ENV=local|prod`.
+- Introduce `ENV=local|stg|prod`.
 - `ENV=local`: OCR/SLM run as host macOS MLX services, while compose runs backend/frontend/db.
-- `ENV=prod`: backend routes to remote OCR/SLM providers using the same abstraction contracts.
+- `ENV=stg|prod`: backend routes to remote OCR/SLM providers using the same abstraction contracts.
 - Reason: one-switch operational mode without caller/API changes.
 
 12. Startup Readiness Guarantees
@@ -113,6 +113,25 @@ The system must ingest invoices from configurable sources, extract data from mix
 - Invoices, checkpoints, and ingestion sources carry `tenantId`.
 - Sources also carry `workloadTier` (`standard`, `heavy`), and ingestion prioritizes `standard` tier first.
 - Reason: establish a clean path to tenant-level isolation and predictable performance as usage scales.
+
+17. Invite Email Sender Abstraction
+- Introduce an invite-email boundary with pluggable providers.
+- Provider implementations:
+  - SMTP provider
+  - SendGrid API provider (`/v3/mail/send`)
+- Local default uses SendGrid-compatible relay endpoint backed by MailHog for deterministic integration testing.
+- Reason: production compatibility with SendGrid while retaining offline local e2e confidence.
+
+18. Platform Admin Usage Scope
+- Add OAuth-derived platform-admin capability from configured email allowlist.
+- Platform-admin API endpoint returns tenant-level usage aggregates only:
+  - tenant metadata
+  - user counts
+  - document lifecycle counts
+  - Gmail connection status
+  - last ingestion timestamp
+- No invoice rows, OCR text, or extracted values are returned at platform scope.
+- Reason: preserve tenant data boundaries while enabling central operational oversight.
 
 ## 4. Consequences
 

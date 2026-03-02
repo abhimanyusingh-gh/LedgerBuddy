@@ -1,12 +1,12 @@
 import axios from "axios";
 import mongoose from "mongoose";
 import { randomUUID } from "node:crypto";
-import { loginWithPassword, createE2EUserAndLogin, completeE2ETenantOnboarding } from "./authHelper.js";
+import { createE2ESessionTokenWithOptions, completeE2ETenantOnboarding } from "./authHelper.js";
 import { InvoiceModel } from "../models/Invoice.js";
 import { TenantIntegrationModel } from "../models/TenantIntegration.js";
 
-const apiBaseUrl = process.env.E2E_API_BASE_URL ?? "http://127.0.0.1:4100";
-const mongoUri = process.env.E2E_MONGO_URI ?? "mongodb://billforge_app:billforge_local_pass@127.0.0.1:27018/billforge?authSource=billforge";
+const apiBaseUrl = process.env.E2E_API_BASE_URL ?? "http://127.0.0.1:4000";
+const mongoUri = process.env.E2E_MONGO_URI ?? "mongodb://127.0.0.1:27017/invoice_processor";
 const platformAdminEmail = process.env.E2E_PLATFORM_ADMIN_EMAIL ?? "platform-admin@local.test";
 
 const api = axios.create({
@@ -30,7 +30,9 @@ describe("platform admin tenant usage e2e", () => {
   });
 
   it("returns usage-only tenant overview for platform admin and blocks non-platform users", async () => {
-    const platformToken = await loginWithPassword(apiBaseUrl, platformAdminEmail, "DemoPass!1");
+    const platformToken = await createE2ESessionTokenWithOptions(apiBaseUrl, {
+      loginHint: platformAdminEmail
+    });
     const platformSession = await fetchSession(platformToken);
     expect(platformSession.user.isPlatformAdmin).toBe(true);
 
@@ -50,8 +52,9 @@ describe("platform admin tenant usage e2e", () => {
     expect(onboardResponse.data?.tenantName).toBe(onboardedTenantName);
     expect(onboardResponse.data?.adminEmail).toBe(onboardedTenantAdminEmail);
 
-    const onboardedAdminTempPassword = onboardResponse.data?.tempPassword as string;
-    const onboardedAdminToken = await loginWithPassword(apiBaseUrl, onboardedTenantAdminEmail, onboardedAdminTempPassword);
+    const onboardedAdminToken = await createE2ESessionTokenWithOptions(apiBaseUrl, {
+      loginHint: onboardedTenantAdminEmail
+    });
     const onboardedAdminSession = await fetchSession(onboardedAdminToken);
     expect(onboardedAdminSession.user.isPlatformAdmin).toBe(false);
     expect(onboardedAdminSession.user.role).toBe("TENANT_ADMIN");
@@ -110,10 +113,12 @@ describe("platform admin tenant usage e2e", () => {
       }
     );
     expect(tenantBOnboard.status).toBe(201);
-    const tenantATempPassword = tenantAOnboard.data?.tempPassword as string;
-    const tenantBTempPassword = tenantBOnboard.data?.tempPassword as string;
-    const tenantAToken = await loginWithPassword(apiBaseUrl, tenantAEmail, tenantATempPassword);
-    const tenantBToken = await loginWithPassword(apiBaseUrl, tenantBEmail, tenantBTempPassword);
+    const tenantAToken = await createE2ESessionTokenWithOptions(apiBaseUrl, {
+      loginHint: tenantAEmail
+    });
+    const tenantBToken = await createE2ESessionTokenWithOptions(apiBaseUrl, {
+      loginHint: tenantBEmail
+    });
     await completeE2ETenantOnboarding(apiBaseUrl, tenantAToken);
     await completeE2ETenantOnboarding(apiBaseUrl, tenantBToken);
 

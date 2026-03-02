@@ -1,5 +1,5 @@
 const mockEnv = {
-  ENV: "local" as "local" | "dev" | "stg" | "prod",
+  ENV: "local" as "local" | "stg" | "prod",
   isLocalMlEnv: true,
   NODE_ENV: "test",
   PORT: 4000,

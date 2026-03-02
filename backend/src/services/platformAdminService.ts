@@ -1,17 +1,13 @@
-import { randomBytes } from "node:crypto";
 import { InvoiceModel } from "../models/Invoice.js";
 import { TenantIntegrationModel } from "../models/TenantIntegration.js";
 import { TenantModel } from "../models/Tenant.js";
 import { UserModel } from "../models/User.js";
 import { TenantUserRoleModel } from "../models/TenantUserRole.js";
 import { HttpError } from "../errors/HttpError.js";
-import type { InviteEmailSenderBoundary } from "../core/boundaries/InviteEmailSenderBoundary.js";
-import type { KeycloakAdminClient } from "../keycloak/KeycloakAdminClient.js";
 
-interface TenantUsageOverview {
+export interface TenantUsageOverview {
   tenantId: string;
   tenantName: string;
-  enabled: boolean;
   onboardingStatus: "pending" | "completed";
   userCount: number;
   totalDocuments: number;
@@ -21,29 +17,16 @@ interface TenantUsageOverview {
   needsReviewDocuments: number;
   failedDocuments: number;
   gmailConnectionState: "CONNECTED" | "NEEDS_REAUTH" | "DISCONNECTED";
-  adminTempPassword?: string;
-  adminEmail?: string;
-  ocrTokensTotal: number;
-  slmTokensTotal: number;
   lastIngestedAt: string | null;
   createdAt: string;
 }
 
 export class PlatformAdminService {
-  private readonly emailSender?: InviteEmailSenderBoundary;
-  private readonly keycloakAdmin: KeycloakAdminClient;
-
-  constructor(emailSender?: InviteEmailSenderBoundary, keycloakAdmin?: KeycloakAdminClient) {
-    this.emailSender = emailSender;
-    this.keycloakAdmin = keycloakAdmin!;
-  }
-
-  async onboardTenantAdmin(input: { tenantName: string; adminEmail: string; displayName?: string; mode?: "test" | "live" }): Promise<{
+  async onboardTenantAdmin(input: { tenantName: string; adminEmail: string; displayName?: string }): Promise<{
     tenantId: string;
     tenantName: string;
     adminUserId: string;
     adminEmail: string;
-    tempPassword: string;
   }> {
     const tenantName = input.tenantName.trim();
     const adminEmail = input.adminEmail.trim().toLowerCase();
@@ -61,64 +44,34 @@ export class PlatformAdminService {
       throw new HttpError("Admin user already exists. Use tenant admin role assignment flow.", 409, "platform_admin_exists");
     }
 
-    const tempPassword = randomBytes(6).toString("base64url");
-
     const tenant = await TenantModel.create({
       name: tenantName,
-      onboardingStatus: "pending",
-      ...(input.mode ? { mode: input.mode } : {})
+      onboardingStatus: "pending"
     });
-
-    let createdUser;
-    try {
-      createdUser = await UserModel.create({
-        email: adminEmail,
-        externalSubject: buildProvisionedSubject(adminEmail),
-        tenantId: String(tenant._id),
-        displayName,
-        encryptedRefreshToken: "",
-        lastLoginAt: new Date(0),
-        tempPassword,
-        mustChangePassword: true
-      });
-      await TenantUserRoleModel.create({
-        tenantId: String(tenant._id),
-        userId: String(createdUser._id),
-        role: "TENANT_ADMIN"
-      });
-    } catch (dbError) {
-      await TenantModel.deleteOne({ _id: tenant._id });
-      throw dbError;
-    }
-
-    try {
-      await this.keycloakAdmin.createUser(adminEmail, tempPassword, false);
-    } catch (kcError) {
-      await UserModel.deleteOne({ _id: createdUser._id });
-      await TenantUserRoleModel.deleteOne({ tenantId: String(tenant._id), userId: String(createdUser._id) });
-      await TenantModel.deleteOne({ _id: tenant._id });
-      throw new HttpError("Failed to register user in identity provider.", 502, "platform_kc_create_failed");
-    }
+    const createdUser = await UserModel.create({
+      email: adminEmail,
+      externalSubject: buildProvisionedSubject(adminEmail),
+      tenantId: String(tenant._id),
+      displayName,
+      encryptedRefreshToken: "",
+      lastLoginAt: new Date(0)
+    });
+    await TenantUserRoleModel.create({
+      tenantId: String(tenant._id),
+      userId: String(createdUser._id),
+      role: "TENANT_ADMIN"
+    });
 
     return {
       tenantId: String(tenant._id),
       tenantName: tenant.name,
       adminUserId: String(createdUser._id),
-      adminEmail: createdUser.email,
-      tempPassword
+      adminEmail: createdUser.email
     };
   }
 
-  async setTenantEnabled(tenantId: string, enabled: boolean): Promise<void> {
-    const tenant = await TenantModel.findById(tenantId);
-    if (!tenant) {
-      throw new HttpError("Tenant not found.", 404, "platform_tenant_not_found");
-    }
-    await TenantModel.updateOne({ _id: tenantId }, { $set: { enabled } });
-  }
-
   async listTenantUsageOverview(): Promise<TenantUsageOverview[]> {
-    const [tenants, invoiceStats, userStats, integrations, adminInfoList] = await Promise.all([
+    const [tenants, invoiceStats, userStats, integrations] = await Promise.all([
       TenantModel.find().sort({ createdAt: 1 }).lean(),
       InvoiceModel.aggregate<{
         _id: string;
@@ -129,8 +82,6 @@ export class PlatformAdminService {
         needsReviewDocuments: number;
         failedDocuments: number;
         lastIngestedAt: Date | null;
-        ocrTokensTotal: number;
-        slmTokensTotal: number;
       }>([
         {
           $group: {
@@ -161,9 +112,7 @@ export class PlatformAdminService {
                 $cond: [{ $in: ["$status", ["FAILED_OCR", "FAILED_PARSE"]] }, 1, 0]
               }
             },
-            lastIngestedAt: { $max: "$createdAt" },
-            ocrTokensTotal: { $sum: { $ifNull: ["$ocrTokens", 0] } },
-            slmTokensTotal: { $sum: { $ifNull: ["$slmTokens", 0] } }
+            lastIngestedAt: { $max: "$createdAt" }
           }
         }
       ]),
@@ -175,20 +124,7 @@ export class PlatformAdminService {
           }
         }
       ]),
-      TenantIntegrationModel.find({ provider: "gmail" }).lean(),
-      TenantUserRoleModel.aggregate<{ _id: string; email: string; tempPassword?: string }>([
-        { $match: { role: "TENANT_ADMIN" } },
-        {
-          $lookup: {
-            from: "users",
-            let: { uid: { $toObjectId: "$userId" } },
-            pipeline: [{ $match: { $expr: { $eq: ["$_id", "$$uid"] } } }],
-            as: "user"
-          }
-        },
-        { $unwind: "$user" },
-        { $group: { _id: "$tenantId", email: { $first: "$user.email" }, tempPassword: { $first: "$user.tempPassword" } } }
-      ])
+      TenantIntegrationModel.find({ provider: "gmail" }).lean()
     ]);
 
     const invoiceMap = new Map(invoiceStats.map((entry) => [entry._id, entry]));
@@ -199,8 +135,6 @@ export class PlatformAdminService {
         .map((entry) => [entry.tenantId, entry.status])
     );
 
-    const adminInfoMap = new Map(adminInfoList.map((a) => [a._id, a]));
-
     return tenants.map((tenant) => {
       const tenantId = String(tenant._id);
       const invoice = invoiceMap.get(tenantId);
@@ -208,7 +142,6 @@ export class PlatformAdminService {
       return {
         tenantId,
         tenantName: tenant.name,
-        enabled: tenant.enabled !== false,
         onboardingStatus: tenant.onboardingStatus,
         userCount: userMap.get(tenantId) ?? 0,
         totalDocuments: invoice?.totalDocuments ?? 0,
@@ -217,14 +150,10 @@ export class PlatformAdminService {
         exportedDocuments: invoice?.exportedDocuments ?? 0,
         needsReviewDocuments: invoice?.needsReviewDocuments ?? 0,
         failedDocuments: invoice?.failedDocuments ?? 0,
-        ocrTokensTotal: invoice?.ocrTokensTotal ?? 0,
-        slmTokensTotal: invoice?.slmTokensTotal ?? 0,
         gmailConnectionState:
           gmailStatus === "connected" ? "CONNECTED" : gmailStatus === "requires_reauth" ? "NEEDS_REAUTH" : "DISCONNECTED",
         lastIngestedAt: invoice?.lastIngestedAt ? new Date(invoice.lastIngestedAt).toISOString() : null,
-        createdAt: new Date(tenant.createdAt).toISOString(),
-        adminTempPassword: adminInfoMap.get(tenantId)?.tempPassword,
-        adminEmail: adminInfoMap.get(tenantId)?.email
+        createdAt: new Date(tenant.createdAt).toISOString()
       };
     });
   }
@@ -239,4 +168,3 @@ function deriveDisplayName(email: string): string {
 function buildProvisionedSubject(email: string): string {
   return `provisioned-${email.replace(/[^a-z0-9]+/gi, "-").replace(/^-+|-+$/g, "").toLowerCase()}`;
 }
-

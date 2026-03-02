@@ -150,7 +150,8 @@ export class GmailImapIngestionProvider implements EmailIngestionBoundary {
     }
 
     if (this.config.gmailMailboxBoundary) {
-      const linked = await this.config.gmailMailboxBoundary.resolveIngestionCredentials(this.config.oauthUserId);
+      const mailboxOwnerId = this.config.tenantId ?? this.config.oauthUserId;
+      const linked = await this.config.gmailMailboxBoundary.resolveIngestionCredentials(mailboxOwnerId);
       if (linked) {
         return {
           auth: {
@@ -161,7 +162,7 @@ export class GmailImapIngestionProvider implements EmailIngestionBoundary {
             user: linked.emailAddress,
             accessToken: linked.accessToken
           },
-          linkedUserId: this.config.oauthUserId
+          linkedUserId: mailboxOwnerId
         };
       }
     }

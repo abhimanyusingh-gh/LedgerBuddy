@@ -9,6 +9,7 @@ import { computeVendorFingerprint } from "./vendorFingerprint.js";
 import { templateFromParsed, type VendorTemplateSnapshot, type VendorTemplateStore } from "./vendorTemplateStore.js";
 import type { PipelineExtractionResult } from "./types.js";
 import { logger } from "../../utils/logger.js";
+import { detectInvoiceLanguage, detectInvoiceLanguageBeforeOcr, type DetectedInvoiceLanguage } from "./languageDetection.js";
 
 type PipelineErrorCode = "FAILED_OCR" | "FAILED_PARSE";
 
@@ -26,6 +27,7 @@ interface ExtractionPipelineInput {
 
 interface ExtractionPipelineOptions {
   ocrHighConfidenceThreshold?: number;
+  enableOcrKeyValueGrounding?: boolean;
 }
 
 export class ExtractionPipelineError extends Error {
@@ -40,6 +42,7 @@ export class ExtractionPipelineError extends Error {
 
 export class InvoiceExtractionPipeline {
   private readonly ocrHighConfidenceThreshold: number;
+  private readonly enableOcrKeyValueGrounding: boolean;
 
   constructor(
     private readonly ocrProvider: OcrProvider,
@@ -48,6 +51,7 @@ export class InvoiceExtractionPipeline {
     options?: ExtractionPipelineOptions
   ) {
     this.ocrHighConfidenceThreshold = clampProbability(options?.ocrHighConfidenceThreshold ?? 0.88);
+    this.enableOcrKeyValueGrounding = options?.enableOcrKeyValueGrounding ?? true;
   }
 
   async extract(input: ExtractionPipelineInput): Promise<PipelineExtractionResult> {
@@ -76,9 +80,25 @@ export class InvoiceExtractionPipeline {
     let ocrConfidence: number | undefined;
     let ocrBlocks: OcrBlock[] = [];
     let ocrPageImages: OcrPageImage[] = [];
+    const preOcrLanguage = detectInvoiceLanguageBeforeOcr({
+      attachmentName: input.attachmentName,
+      sourceKey: input.sourceKey,
+      mimeType: input.mimeType,
+      fileBuffer: input.fileBuffer
+    });
+    const preOcrLanguageHint = shouldUseLanguageHint(preOcrLanguage) ? preOcrLanguage.code : undefined;
+    if (preOcrLanguage.code !== "und") {
+      metadata.preOcrLanguage = preOcrLanguage.code;
+      metadata.preOcrLanguageConfidence = formatConfidence(preOcrLanguage.confidence);
+      if (preOcrLanguage.signals.length > 0) {
+        metadata.preOcrLanguageSignals = preOcrLanguage.signals.join(",");
+      }
+    }
 
     try {
-      const ocrResult = await this.ocrProvider.extractText(input.fileBuffer, input.mimeType);
+      const ocrResult = await this.ocrProvider.extractText(input.fileBuffer, input.mimeType, {
+        languageHint: preOcrLanguageHint
+      });
       ocrProvider = ocrResult.provider || this.ocrProvider.name;
       ocrBlocks = ocrResult.blocks ?? [];
       ocrPageImages = ocrResult.pageImages ?? [];
@@ -108,6 +128,16 @@ export class InvoiceExtractionPipeline {
         });
       }
 
+      const keyValueText = this.enableOcrKeyValueGrounding ? buildKeyValueGroundingText(ocrBlocks) : "";
+      if (keyValueText.length > 0 && !isNearDuplicateText(keyValueText, rawText) && !isNearDuplicateText(keyValueText, blockText)) {
+        extractionCandidates.push({
+          text: keyValueText,
+          provider: ocrProvider,
+          confidence: ocrConfidence,
+          source: "ocr-key-value-grounding"
+        });
+      }
+
       if (rawText.length === 0 && blockText.length === 0) {
         processingIssues.push("OCR provider returned empty text.");
       }
@@ -128,6 +158,19 @@ export class InvoiceExtractionPipeline {
       throw new ExtractionPipelineError("FAILED_OCR", "No text detected from OCR.");
     }
 
+    const postOcrLanguage = detectInvoiceLanguage(extractionCandidates.map((candidate) => candidate.text));
+    const detectedLanguage = resolveDetectedLanguage(preOcrLanguage, postOcrLanguage);
+    metadata.documentLanguage = detectedLanguage.code;
+    metadata.documentLanguageConfidence = formatConfidence(detectedLanguage.confidence);
+    metadata.documentLanguageSource = postOcrLanguage.code === "und" ? "pre-ocr" : "post-ocr";
+    if (postOcrLanguage.code !== "und") {
+      metadata.postOcrLanguage = postOcrLanguage.code;
+      metadata.postOcrLanguageConfidence = formatConfidence(postOcrLanguage.confidence);
+    }
+    if (detectedLanguage.signals.length > 0) {
+      metadata.documentLanguageSignals = detectedLanguage.signals.join(",");
+    }
+
     const layoutGraph = buildLayoutGraph(ocrBlocks);
     metadata.layoutGraphNodes = String(layoutGraph.nodes.length);
     metadata.layoutGraphEdges = String(layoutGraph.edges.length);
@@ -142,6 +185,7 @@ export class InvoiceExtractionPipeline {
         expectedMaxTotal: input.expectedMaxTotal,
         expectedMaxDueDays: input.expectedMaxDueDays,
         autoSelectMin: input.autoSelectMin,
+        languageHint: detectedLanguage.code,
         referenceDate: input.referenceDate
       });
       const parsedFromTemplate = applyTemplate(template, templateResult.parseResult.parsed);
@@ -201,6 +245,7 @@ export class InvoiceExtractionPipeline {
       expectedMaxTotal: input.expectedMaxTotal,
       expectedMaxDueDays: input.expectedMaxDueDays,
       autoSelectMin: input.autoSelectMin,
+      languageHint: detectedLanguage.code,
       referenceDate: input.referenceDate
     });
 
@@ -232,6 +277,12 @@ export class InvoiceExtractionPipeline {
         mode,
         hints: {
           mimeType: input.mimeType,
+          documentLanguage: detectedLanguage.code,
+          documentLanguageConfidence: detectedLanguage.confidence,
+          documentContext: {
+            originalDocumentDataUrl: buildDocumentDataUrl(input.fileBuffer, input.mimeType),
+            pageImages: ocrPageImages
+          },
           vendorNameHint: template?.vendorName,
           vendorTemplateMatched: Boolean(template),
           fieldCandidates,
@@ -976,6 +1027,129 @@ function blockShapePenalty(field: keyof ParsedInvoiceData, text: string): number
   return linePenalty + lengthPenalty;
 }
 
+function buildDocumentDataUrl(fileBuffer: Buffer, mimeType: string): string | undefined {
+  if (fileBuffer.length === 0) {
+    return undefined;
+  }
+
+  if (!mimeType.startsWith("image/") && mimeType !== "application/pdf") {
+    return undefined;
+  }
+
+  if (fileBuffer.length > 8 * 1024 * 1024) {
+    return undefined;
+  }
+
+  return `data:${mimeType};base64,${fileBuffer.toString("base64")}`;
+}
+
+function buildKeyValueGroundingText(blocks: OcrBlock[]): string {
+  if (blocks.length < 2) {
+    return "";
+  }
+
+  const labelPattern =
+    /\b(invoice(?:\s*number)?|facture|factuurnummer|rechnungsnummer|vendor|supplier|fournisseur|due(?:\s*date)?|date|total|amount|currency|betrag|montant|numero)\b/i;
+
+  const normalizedBlocks = blocks
+    .map((block) => ({
+      block,
+      bbox: block.bboxNormalized ?? block.bboxModel ?? block.bbox,
+      text: block.text.trim()
+    }))
+    .filter((entry) => entry.text.length > 0)
+    .sort((left, right) => {
+      if (left.block.page !== right.block.page) {
+        return left.block.page - right.block.page;
+      }
+      return left.bbox[1] - right.bbox[1];
+    });
+
+  const lines: string[] = [];
+  for (const entry of normalizedBlocks) {
+    const labelText = entry.text.replace(/[:\-]+$/, "").trim();
+    if (!labelPattern.test(labelText)) {
+      continue;
+    }
+
+    const scale = inferBlockScale(entry.bbox);
+    const maxYDrift = scale === "normalized" ? 0.06 : 42;
+    const minXDrift = scale === "normalized" ? -0.03 : -24;
+    const labelRight = entry.bbox[2];
+    const labelCenterY = (entry.bbox[1] + entry.bbox[3]) / 2;
+    const candidate = normalizedBlocks
+      .filter((blockEntry) => blockEntry.block.page === entry.block.page && blockEntry.block !== entry.block)
+      .map((blockEntry) => {
+        const valueCenterY = (blockEntry.bbox[1] + blockEntry.bbox[3]) / 2;
+        const yDrift = Math.abs(valueCenterY - labelCenterY);
+        const xDrift = blockEntry.bbox[0] - labelRight;
+        return {
+          ...blockEntry,
+          yDrift,
+          xDrift
+        };
+      })
+      .filter((blockEntry) => blockEntry.xDrift >= minXDrift && blockEntry.yDrift <= maxYDrift)
+      .sort((left, right) => {
+        if (left.yDrift !== right.yDrift) {
+          return left.yDrift - right.yDrift;
+        }
+        return left.xDrift - right.xDrift;
+      })[0];
+
+    if (!candidate) {
+      continue;
+    }
+
+    const valueText = candidate.text.replace(/\s+/g, " ").trim();
+    if (!valueText || labelPattern.test(valueText) || valueText.length > 100) {
+      continue;
+    }
+
+    lines.push(`${labelText}: ${valueText}`);
+  }
+
+  return [...new Set(lines)].join("\n");
+}
+
+function inferBlockScale(bbox: [number, number, number, number]): "normalized" | "pixel" {
+  if (bbox.every((value) => Number.isFinite(value) && Math.abs(value) <= 2.5)) {
+    return "normalized";
+  }
+  return "pixel";
+}
+
+function shouldUseLanguageHint(language: DetectedInvoiceLanguage): boolean {
+  return language.code !== "und" && language.confidence >= 0.4;
+}
+
+function resolveDetectedLanguage(
+  preOcrLanguage: DetectedInvoiceLanguage,
+  postOcrLanguage: DetectedInvoiceLanguage
+): DetectedInvoiceLanguage {
+  if (postOcrLanguage.code === "und") {
+    return preOcrLanguage;
+  }
+
+  if (preOcrLanguage.code === "und") {
+    return postOcrLanguage;
+  }
+
+  if (postOcrLanguage.code === preOcrLanguage.code) {
+    return {
+      code: postOcrLanguage.code,
+      confidence: clampProbability(Math.max(postOcrLanguage.confidence, preOcrLanguage.confidence)),
+      signals: uniqueIssues([...postOcrLanguage.signals, ...preOcrLanguage.signals])
+    };
+  }
+
+  if (postOcrLanguage.confidence >= preOcrLanguage.confidence - 0.12) {
+    return postOcrLanguage;
+  }
+
+  return preOcrLanguage;
+}
+
 function formatConfidence(value: number): string {
   return clampProbability(value).toFixed(4);
 }
@@ -1014,7 +1188,6 @@ function isNearDuplicateText(left: string, right: string): boolean {
     value
       .toLowerCase()
       .replace(/\s+/g, " ")
-      .replace(/[^a-z0-9 ]+/g, "")
       .trim();
 
   const normalizedLeft = normalize(left);
@@ -1022,5 +1195,5 @@ function isNearDuplicateText(left: string, right: string): boolean {
   if (!normalizedLeft || !normalizedRight) {
     return false;
   }
-  return normalizedLeft === normalizedRight || normalizedRight.includes(normalizedLeft);
+  return normalizedLeft === normalizedRight;
 }

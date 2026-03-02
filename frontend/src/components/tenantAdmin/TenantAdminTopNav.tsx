@@ -1,14 +1,12 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 
 interface TenantAdminTopNavProps {
   userEmail: string;
   onLogout: () => void;
-  onChangePassword: () => void;
-  counts: { total: number; approved: number; pending: number };
-  themeToggle?: React.ReactNode;
 }
 
-export function TenantAdminTopNav({ userEmail, onLogout, onChangePassword, counts, themeToggle }: TenantAdminTopNavProps) {
+export function TenantAdminTopNav({ userEmail, onLogout }: TenantAdminTopNavProps) {
+  const [searchValue, setSearchValue] = useState("");
   const avatarLabel = useMemo(() => {
     const trimmed = userEmail.trim();
     if (!trimmed) {
@@ -24,24 +22,35 @@ export function TenantAdminTopNav({ userEmail, onLogout, onChangePassword, count
           <div className="tenant-brand-icon">
             <span className="material-symbols-outlined">account_balance_wallet</span>
           </div>
-          <h2>BillForge</h2>
+          <h2>FinParse</h2>
         </div>
         <div className="tenant-nav-divider" />
-        <span className="toolbar-icon-wrap">
-          <span className="tenant-nav-stat">{counts.total} invoices</span>
-          <span className="toolbar-icon-label">{counts.approved} approved, {counts.pending} pending review</span>
-        </span>
+        <nav aria-label="Workspace navigation" className="tenant-nav-links">
+          <button type="button" className="tenant-nav-link tenant-nav-link-active">
+            Dashboard
+          </button>
+        </nav>
       </div>
 
       <div className="tenant-top-nav-right">
-        {themeToggle ?? null}
+        <label className="tenant-search" aria-label="Search invoices">
+          <span className="material-symbols-outlined">search</span>
+          <input
+            value={searchValue}
+            onChange={(event) => setSearchValue(event.target.value)}
+            type="text"
+            placeholder="Search invoices..."
+          />
+        </label>
+        <button type="button" className="tenant-icon-button" aria-label="Notifications">
+          <span className="material-symbols-outlined">notifications</span>
+        </button>
+        <button type="button" className="tenant-icon-button" aria-label="Settings">
+          <span className="material-symbols-outlined">settings</span>
+        </button>
         <div className="tenant-avatar" aria-label={`Signed in as ${userEmail}`} title={userEmail}>
           {avatarLabel}
         </div>
-        <button type="button" className="app-button app-button-secondary" onClick={onChangePassword}
-          aria-label="Change Password" title="Change Password">
-          <span className="material-symbols-outlined">key</span>
-        </button>
         <button type="button" className="app-button app-button-secondary" onClick={onLogout}>
           Logout
         </button>

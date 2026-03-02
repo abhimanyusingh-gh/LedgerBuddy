@@ -6,6 +6,11 @@ export function createExportRouter(exportService: ExportService | null) {
 
   router.post("/exports/tally", async (req, res, next) => {
     try {
+      const authContext = req.authContext;
+      if (!authContext) {
+        res.status(401).json({ message: "Authentication required." });
+        return;
+      }
       if (!exportService) {
         res.status(400).json({
           message: "Tally exporter is not configured. Provide TALLY_ENDPOINT and TALLY_COMPANY."
@@ -16,7 +21,11 @@ export function createExportRouter(exportService: ExportService | null) {
       const ids = Array.isArray(req.body?.ids) ? req.body.ids.filter(isString) : undefined;
       const requestedBy = typeof req.body?.requestedBy === "string" ? req.body.requestedBy : "system";
 
-      const result = await exportService.exportApprovedInvoices({ ids, requestedBy });
+      const result = await exportService.exportApprovedInvoices({
+        ids,
+        requestedBy,
+        tenantId: authContext.tenantId
+      });
       res.json(result);
     } catch (error) {
       next(error);

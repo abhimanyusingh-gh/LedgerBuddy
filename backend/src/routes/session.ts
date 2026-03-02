@@ -1,6 +1,5 @@
 import { Router } from "express";
 import type { AuthService } from "../auth/AuthService.js";
-import { TenantModel } from "../models/Tenant.js";
 
 export function createSessionRouter(authService: AuthService) {
   const router = Router();
@@ -13,10 +12,7 @@ export function createSessionRouter(authService: AuthService) {
         return;
       }
 
-      const [flags, tenantDoc] = await Promise.all([
-        authService.getSessionFlags(context),
-        TenantModel.findById(context.tenantId).select({ mode: 1 }).lean()
-      ]);
+      const flags = await authService.getSessionFlags(context);
       response.json({
         user: {
           id: context.userId,
@@ -27,8 +23,7 @@ export function createSessionRouter(authService: AuthService) {
         tenant: {
           id: context.tenantId,
           name: context.tenantName,
-          onboarding_status: context.onboardingStatus,
-          mode: tenantDoc?.mode ?? "test"
+          onboarding_status: context.onboardingStatus
         },
         flags
       });

@@ -1,5 +1,6 @@
 aws_region   = "us-east-1"
 project_name = "invoice-processor-prod"
+environment  = "prod"
 
 vpc_id     = "vpc-xxxxxxxx"
 subnet_ids = ["subnet-aaaaaaa", "subnet-bbbbbbb"]
@@ -71,3 +72,8 @@ app_manifest = {
     DEFAULT_WORKLOAD_TIER = "standard"
   }
 }
+
+sts_trusted_services = ["ecs-tasks.amazonaws.com"]
+sts_assume_role_arns = [
+  "arn:aws:iam::123456789012:role/platform-sts-issuer"
+]

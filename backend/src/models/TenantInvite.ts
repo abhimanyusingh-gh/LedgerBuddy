@@ -17,7 +17,6 @@ const tenantInviteSchema = new Schema(
 
 tenantInviteSchema.index({ tokenHash: 1 }, { unique: true });
 tenantInviteSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
-tenantInviteSchema.index({ tenantId: 1, email: 1, acceptedAt: 1 });
 
 type TenantInvite = InferSchemaType<typeof tenantInviteSchema>;
 

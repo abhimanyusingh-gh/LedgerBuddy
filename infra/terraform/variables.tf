@@ -3,10 +3,39 @@ variable "aws_region" {
   description = "AWS region where infrastructure should be deployed."
 }
 
+variable "environment" {
+  type        = string
+  description = "Deployment environment."
+  default     = "local"
+
+  validation {
+    condition     = contains(["local", "stg", "prod"], var.environment)
+    error_message = "environment must be one of: local, stg, prod."
+  }
+}
+
 variable "project_name" {
   type        = string
   description = "Project name used for naming/tagging resources."
   default     = "invoice-processor"
+}
+
+variable "sts_trusted_services" {
+  type        = list(string)
+  description = "Service principals allowed to assume auth/backend STS access roles."
+  default     = ["ecs-tasks.amazonaws.com"]
+}
+
+variable "sts_trusted_arns" {
+  type        = list(string)
+  description = "Optional IAM principal ARNs allowed to assume auth/backend STS access roles."
+  default     = []
+}
+
+variable "sts_assume_role_arns" {
+  type        = list(string)
+  description = "Role ARNs that auth/backend roles can assume via STS in stg/prod."
+  default     = []
 }
 
 variable "vpc_id" {
@@ -47,7 +76,7 @@ variable "artifact_bucket_name" {
   description = "S3 bucket name used for invoice artifacts (provisioned or pre-existing)."
 
   validation {
-    condition     = length(trim(var.artifact_bucket_name)) > 0
+    condition     = length(trimspace(var.artifact_bucket_name)) > 0
     error_message = "artifact_bucket_name must be set."
   }
 }
@@ -100,7 +129,7 @@ variable "mongo_uri" {
   sensitive   = true
 
   validation {
-    condition     = var.provision_documentdb || length(trim(var.mongo_uri)) > 0
+    condition     = var.provision_documentdb || length(trimspace(var.mongo_uri)) > 0
     error_message = "Set mongo_uri when provision_documentdb is false."
   }
 }
@@ -260,7 +289,7 @@ variable "documentdb_master_username" {
   default     = "invoice_admin"
 
   validation {
-    condition     = !var.provision_documentdb || length(trim(var.documentdb_master_username)) > 0
+    condition     = !var.provision_documentdb || length(trimspace(var.documentdb_master_username)) > 0
     error_message = "Provide documentdb_master_username when provision_documentdb is true."
   }
 }

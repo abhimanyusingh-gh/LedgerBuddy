@@ -49,6 +49,7 @@ class ProdHttpLLMProvider(LLMProvider):
         "hints": {
           "fieldCandidates": payload.get("fieldCandidates", {}),
           "fieldRegions": payload.get("fieldRegions", {}),
+          "documentContext": payload.get("documentContext"),
           "vendorNameHint": payload.get("vendorNameHint"),
           "vendorTemplateMatched": bool(payload.get("vendorTemplateMatched"))
         }

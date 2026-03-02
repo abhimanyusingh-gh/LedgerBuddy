@@ -27,7 +27,8 @@ describe("DeepSeekOcrProvider", () => {
   it("calls /ocr/document without authorization header when api key is empty", async () => {
     const post = jest.fn(async (_url: string, body: { includeLayout: boolean; prompt: string }, config: { headers: Record<string, string> }) => {
       expect(body.includeLayout).toBe(true);
-      expect(body.prompt).toBe("<|grounding|>Convert page to markdown.");
+      expect(body.prompt).toContain("<|grounding|>Convert page to markdown.");
+      expect(body.prompt).toContain("Key-Value Pairs");
       expect(config.headers.Authorization).toBeUndefined();
       return {
         data: {
@@ -45,7 +46,8 @@ describe("DeepSeekOcrProvider", () => {
 
   it("strips image placeholders from configured OCR prompt", async () => {
     const post = jest.fn(async (_url: string, body: { prompt: string }) => {
-      expect(body.prompt).toBe("Convert page to markdown.");
+      expect(body.prompt).toContain("Convert page to markdown.");
+      expect(body.prompt).toContain("Key-Value Pairs");
       return {
         data: {
           rawText: "invoice text"
@@ -55,6 +57,45 @@ describe("DeepSeekOcrProvider", () => {
 
     const provider = new DeepSeekOcrProvider({
       prompt: "<image>\nConvert page to markdown. <|image_1|>",
+      httpClient: { post }
+    });
+
+    await provider.extractText(Buffer.from("png"), "image/png");
+  });
+
+  it("appends language hint to OCR prompt when provided", async () => {
+    const post = jest.fn(async (_url: string, body: { prompt: string }) => {
+      expect(body.prompt).toContain("Convert page to markdown.");
+      expect(body.prompt).toContain("Key-Value Pairs");
+      expect(body.prompt).toContain("Document language hint: fr.");
+      return {
+        data: {
+          rawText: "invoice text"
+        }
+      };
+    });
+
+    const provider = new DeepSeekOcrProvider({
+      prompt: "Convert page to markdown.",
+      httpClient: { post }
+    });
+
+    await provider.extractText(Buffer.from("png"), "image/png", { languageHint: "fr" });
+  });
+
+  it("supports disabling key-value prompt enforcement for baseline comparisons", async () => {
+    const post = jest.fn(async (_url: string, body: { prompt: string }) => {
+      expect(body.prompt).toBe("Convert page to markdown.");
+      return {
+        data: {
+          rawText: "invoice text"
+        }
+      };
+    });
+
+    const provider = new DeepSeekOcrProvider({
+      prompt: "Convert page to markdown.",
+      enforceKeyValuePairs: false,
       httpClient: { post }
     });
 
@@ -509,7 +550,8 @@ describe("DeepSeekOcrProvider", () => {
     process.env.DEEPSEEK_OCR_MAX_TOKENS = "NaN";
     const post = jest.fn(async (_url: string, body: { maxTokens: number; prompt: string }) => {
       expect(body.maxTokens).toBe(512);
-      expect(body.prompt).toBe("<|grounding|>Convert page to markdown.");
+      expect(body.prompt).toContain("<|grounding|>Convert page to markdown.");
+      expect(body.prompt).toContain("Key-Value Pairs");
       return {
         data: {
           rawText: "ok"
@@ -577,6 +619,32 @@ describe("DeepSeekOcrProvider", () => {
         bboxNormalized: [10, 20, 30, 40],
         bboxModel: [11, 21, 31, 41],
         blockType: "heading"
+      }
+    ]);
+  });
+
+  it("merges label and value when both are present in OCR block payload", async () => {
+    const post = jest.fn(async () => ({
+      data: {
+        rawText: "Invoice Number 42183017",
+        blocks: [
+          {
+            label: "Invoice Number",
+            text: "42183017",
+            bbox: [11, 12, 33, 44]
+          }
+        ]
+      }
+    }));
+
+    const provider = new DeepSeekOcrProvider({ httpClient: { post } });
+    const result = await provider.extractText(Buffer.from("img"), "image/png");
+
+    expect(result.blocks).toEqual([
+      {
+        text: "Invoice Number: 42183017",
+        page: 1,
+        bbox: [11, 12, 33, 44]
       }
     ]);
   });

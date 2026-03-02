@@ -50,13 +50,14 @@ module "artifact_bucket" {
 }
 
 locals {
+  sts_enabled                   = contains(["stg", "prod"], var.environment)
   common_tags                   = { Project = var.project_name }
   final_ami_id                  = var.ami_id != "" ? var.ami_id : data.aws_ami.amazon_linux.id
   resolved_mongo_uri            = var.provision_documentdb ? module.documentdb[0].connection_uri : var.mongo_uri
   resolved_artifact_bucket_name = var.provision_artifact_bucket ? module.artifact_bucket[0].bucket_name : var.artifact_bucket_name
   artifact_bucket_prefix        = trim(var.artifact_bucket_prefix, "/")
-  artifact_object_arn = local.artifact_bucket_prefix != "" ? "arn:aws:s3:::${local.resolved_artifact_bucket_name}/${local.artifact_bucket_prefix}/*" : "arn:aws:s3:::${local.resolved_artifact_bucket_name}/*"
-  worker_policy_arns = compact([try(aws_iam_policy.worker_artifact_access[0].arn, null)])
+  artifact_object_arn           = local.artifact_bucket_prefix != "" ? "arn:aws:s3:::${local.resolved_artifact_bucket_name}/${local.artifact_bucket_prefix}/*" : "arn:aws:s3:::${local.resolved_artifact_bucket_name}/*"
+  worker_policy_arns            = compact([try(aws_iam_policy.worker_artifact_access[0].arn, null)])
   worker_ingress_rules = [
     for cidr in var.api_ingress_cidrs : {
       from_port   = 4000
@@ -107,8 +108,30 @@ locals {
   )
 }
 
+module "auth_sts_role" {
+  count  = local.sts_enabled ? 1 : 0
+  source = "../modules/aws_sts_access_role"
+
+  name                     = "${var.project_name}-${var.environment}-auth-sts"
+  trusted_services         = var.sts_trusted_services
+  trusted_arns             = var.sts_trusted_arns
+  allowed_assume_role_arns = var.sts_assume_role_arns
+  tags                     = local.common_tags
+}
+
+module "backend_sts_role" {
+  count  = local.sts_enabled ? 1 : 0
+  source = "../modules/aws_sts_access_role"
+
+  name                     = "${var.project_name}-${var.environment}-backend-sts"
+  trusted_services         = var.sts_trusted_services
+  trusted_arns             = var.sts_trusted_arns
+  allowed_assume_role_arns = var.sts_assume_role_arns
+  tags                     = local.common_tags
+}
+
 resource "aws_iam_policy" "worker_artifact_access" {
-  count       = length(trim(local.resolved_artifact_bucket_name)) > 0 ? 1 : 0
+  count       = length(trimspace(local.resolved_artifact_bucket_name)) > 0 ? 1 : 0
   name        = "${var.project_name}-worker-artifacts"
   description = "Allow worker access to invoice artifact storage."
 

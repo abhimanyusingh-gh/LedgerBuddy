@@ -10,6 +10,8 @@ services:
         condition: service_started
       mailhog-oauth:
         condition: service_started
+      local-sts:
+        condition: service_started
     env_file:
       - path: ./backend/.env.example
         required: true
@@ -25,6 +27,25 @@ services:
       PORT: "4000"
       MONGO_URI: mongodb://mongo:27017/invoice_processor
       APP_MANIFEST_PATH: ${APP_MANIFEST_PATH:-}
+      FRONTEND_BASE_URL: ${FRONTEND_BASE_URL:-http://localhost:5173}
+      STS_CLIENT_ID: ${STS_CLIENT_ID:-invoice-processor-local-client}
+      STS_CLIENT_SECRET: ${STS_CLIENT_SECRET:-invoice-processor-local-secret}
+      STS_SCOPES: ${STS_SCOPES:-openid profile email offline_access}
+      STS_REDIRECT_URI: ${STS_REDIRECT_URI:-http://localhost:4000/auth/callback}
+      STS_LOCAL_PUBLIC_BASE_URL: ${STS_LOCAL_PUBLIC_BASE_URL:-http://localhost:8090}
+      STS_LOCAL_INTERNAL_BASE_URL: ${STS_LOCAL_INTERNAL_BASE_URL:-http://local-sts:8090}
+      STS_AUTH_URL: ${STS_AUTH_URL:-}
+      STS_TOKEN_URL: ${STS_TOKEN_URL:-}
+      STS_VALIDATE_URL: ${STS_VALIDATE_URL:-}
+      STS_USERINFO_URL: ${STS_USERINFO_URL:-}
+      AUTH_STATE_TTL_SECONDS: ${AUTH_STATE_TTL_SECONDS:-600}
+      APP_SESSION_SIGNING_SECRET: ${APP_SESSION_SIGNING_SECRET:-local-dev-session-signing-secret-change-me}
+      APP_SESSION_TTL_SECONDS: ${APP_SESSION_TTL_SECONDS:-28800}
+      REFRESH_TOKEN_ENCRYPTION_SECRET: ${REFRESH_TOKEN_ENCRYPTION_SECRET:-local-dev-refresh-token-secret-32-chars}
+      AUTH_AUTO_PROVISION_USERS: ${AUTH_AUTO_PROVISION_USERS:-false}
+      PLATFORM_ADMIN_EMAILS: ${PLATFORM_ADMIN_EMAILS:-platform-admin@local.test}
+      LOCAL_DEMO_SEED: ${LOCAL_DEMO_SEED:-false}
+      LOCAL_DEMO_CONFIG_PATH: ${LOCAL_DEMO_CONFIG_PATH:-config/local-demo-users.json}
       INGESTION_SOURCES: ${INGESTION_SOURCES:-folder}
       FOLDER_SOURCE_KEY: local-folder
       FOLDER_SOURCE_PATH: /app/sample-invoices/inbox
@@ -46,6 +67,18 @@ services:
       EMAIL_SIMULATION_SAMPLE_DIR: ${EMAIL_SIMULATION_SAMPLE_DIR:-/app/sample-invoices/inbox}
       EMAIL_MAILBOX: ${EMAIL_MAILBOX:-INBOX}
       EMAIL_FROM_FILTER: ${EMAIL_FROM_FILTER:-}
+      GMAIL_OAUTH_CLIENT_ID: ${GMAIL_OAUTH_CLIENT_ID:-invoice-processor-local-client}
+      GMAIL_OAUTH_CLIENT_SECRET: ${GMAIL_OAUTH_CLIENT_SECRET:-invoice-processor-local-secret}
+      GMAIL_OAUTH_REDIRECT_URI: ${GMAIL_OAUTH_REDIRECT_URI:-http://localhost:4000/connect/gmail/callback}
+      GMAIL_OAUTH_AUTH_URL: ${GMAIL_OAUTH_AUTH_URL:-http://localhost:8090/oauth2/authorize}
+      GMAIL_OAUTH_TOKEN_URL: ${GMAIL_OAUTH_TOKEN_URL:-http://local-sts:8090/oauth2/token}
+      GMAIL_OAUTH_USERINFO_URL: ${GMAIL_OAUTH_USERINFO_URL:-http://local-sts:8090/oauth2/userinfo}
+      GMAIL_OAUTH_SCOPES: ${GMAIL_OAUTH_SCOPES:-https://mail.google.com/ openid email profile}
+      GMAIL_OAUTH_STATE_TTL_SECONDS: ${GMAIL_OAUTH_STATE_TTL_SECONDS:-600}
+      GMAIL_OAUTH_HTTP_TIMEOUT_MS: ${GMAIL_OAUTH_HTTP_TIMEOUT_MS:-15000}
+      GMAIL_OAUTH_TOKEN_ENCRYPTION_SECRET: ${GMAIL_OAUTH_TOKEN_ENCRYPTION_SECRET:-local-dev-gmail-oauth-encryption-secret}
+      GMAIL_OAUTH_SUCCESS_REDIRECT_URL: ${GMAIL_OAUTH_SUCCESS_REDIRECT_URL:-http://localhost:5173}
+      GMAIL_OAUTH_FAILURE_REDIRECT_URL: ${GMAIL_OAUTH_FAILURE_REDIRECT_URL:-http://localhost:5173}
       DEEPSEEK_BASE_URL: ${DEEPSEEK_BASE_URL:-http://host.docker.internal:8000/v1}
       DEEPSEEK_OCR_MODEL: ${DEEPSEEK_OCR_MODEL:-mlx-community/DeepSeek-OCR-4bit}
       DEEPSEEK_OCR_MAX_TOKENS: "768"
@@ -66,6 +99,17 @@ services:
       TALLY_ENDPOINT: http://tally.example.local
       TALLY_COMPANY: Demo Company
       TALLY_PURCHASE_LEDGER: Purchase
+      INVITE_EMAIL_PROVIDER: ${INVITE_EMAIL_PROVIDER:-sendgrid}
+      INVITE_SMTP_HOST: ${INVITE_SMTP_HOST:-mailhog}
+      INVITE_SMTP_PORT: ${INVITE_SMTP_PORT:-1025}
+      INVITE_SMTP_SECURE: ${INVITE_SMTP_SECURE:-false}
+      INVITE_SMTP_USERNAME: ${INVITE_SMTP_USERNAME:-}
+      INVITE_SMTP_PASSWORD: ${INVITE_SMTP_PASSWORD:-}
+      INVITE_SENDGRID_API_KEY: ${INVITE_SENDGRID_API_KEY:-local-sendgrid-key}
+      INVITE_SENDGRID_ENDPOINT: ${INVITE_SENDGRID_ENDPOINT:-http://mailhog-oauth:8026/sendgrid/v3/mail/send}
+      INVITE_SENDGRID_TIMEOUT_MS: ${INVITE_SENDGRID_TIMEOUT_MS:-15000}
+      INVITE_FROM: ${INVITE_FROM:-no-reply@invoice.local}
+      INVITE_BASE_URL: ${INVITE_BASE_URL:-http://localhost:5173}
     volumes:
       - ${INVOICE_INBOX_PATH:-./sample-invoices/inbox}:/app/sample-invoices/inbox:ro
       - ./.local-run/artifacts:/app/.local-run/artifacts
@@ -107,7 +151,7 @@ services:
       ME_CONFIG_BASICAUTH: "false"
 
   mailhog:
-    image: mailhog/mailhog:latest
+    image: axllent/mailpit:latest
     container_name: invoice-processor-mailhog
     restart: unless-stopped
     ports:
@@ -135,6 +179,23 @@ services:
       OAUTH_ACCESS_TOKEN: ${EMAIL_OAUTH_ACCESS_TOKEN:-mailhog-access-token}
       OAUTH_XOAUTH2_USERNAME: ${EMAIL_USERNAME:-ap@example.com}
       OAUTH_TOKEN_EXPIRES_IN: "3600"
+      SENDGRID_API_KEY: ${INVITE_SENDGRID_API_KEY:-local-sendgrid-key}
+
+  local-sts:
+    build:
+      context: .
+      dockerfile: local-sts/Dockerfile
+    container_name: invoice-processor-local-sts
+    restart: unless-stopped
+    ports:
+      - "8090:8090"
+    environment:
+      PORT: "8090"
+      ISSUER: http://local-sts:8090
+      CLIENT_ID: ${STS_CLIENT_ID:-invoice-processor-local-client}
+      CLIENT_SECRET: ${STS_CLIENT_SECRET:-invoice-processor-local-secret}
+      DEFAULT_USER_EMAIL: ${LOCAL_STS_DEFAULT_USER_EMAIL:-admin@local.test}
+      DEFAULT_USER_NAME: ${LOCAL_STS_DEFAULT_USER_NAME:-Local Admin}
 
 volumes:
   mongo_data:

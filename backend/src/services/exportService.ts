@@ -7,6 +7,7 @@ import { logger } from "../utils/logger.js";
 interface ExportRequest {
   ids?: string[];
   requestedBy: string;
+  tenantId: string;
 }
 
 export class ExportService {
@@ -19,7 +20,8 @@ export class ExportService {
       requestedIds: request.ids?.length ?? 0
     });
     const query: Record<string, unknown> = {
-      status: "APPROVED"
+      status: "APPROVED",
+      tenantId: request.tenantId
     };
 
     if (request.ids && request.ids.length > 0) {

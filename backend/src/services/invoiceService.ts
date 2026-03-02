@@ -8,7 +8,7 @@ import type { WorkloadTier } from "../types/tenant.js";
 
 interface ListInvoicesParams {
   status?: string;
-  tenantId?: string;
+  tenantId: string;
   workloadTier?: WorkloadTier;
   page: number;
   limit: number;
@@ -41,9 +41,7 @@ export class InvoiceService {
     if (params.status) {
       query.status = params.status;
     }
-    if (params.tenantId) {
-      query.tenantId = params.tenantId;
-    }
+    query.tenantId = params.tenantId;
     if (params.workloadTier) {
       query.workloadTier = params.workloadTier;
     }
@@ -68,16 +66,16 @@ export class InvoiceService {
     };
   }
 
-  async getInvoiceById(id: string) {
+  async getInvoiceById(id: string, tenantId: string) {
     if (!Types.ObjectId.isValid(id)) {
       return null;
     }
 
-    const invoice = await InvoiceModel.findById(id).lean();
+    const invoice = await InvoiceModel.findOne({ _id: id, tenantId }).lean();
     return invoice ? sanitizeForApi(invoice) : null;
   }
 
-  async approveInvoices(ids: string[], approvedBy = env.DEFAULT_APPROVER) {
+  async approveInvoices(ids: string[], approvedBy = env.DEFAULT_APPROVER, tenantId: string) {
     const validIds = ids.filter((id) => Types.ObjectId.isValid(id)).map((id) => new Types.ObjectId(id));
     if (validIds.length === 0) {
       return 0;
@@ -86,6 +84,7 @@ export class InvoiceService {
     const result = await InvoiceModel.updateMany(
       {
         _id: { $in: validIds },
+        tenantId,
         status: { $in: ["PARSED", "NEEDS_REVIEW", "FAILED_PARSE"] }
       },
       {
@@ -105,7 +104,8 @@ export class InvoiceService {
   async updateInvoiceParsedFields(
     id: string,
     input: UpdateParsedFieldInput,
-    updatedBy = env.DEFAULT_APPROVER
+    updatedBy = env.DEFAULT_APPROVER,
+    tenantId: string
   ) {
     if (!Types.ObjectId.isValid(id)) {
       throw new InvoiceUpdateError("Invalid invoice id.", 400);
@@ -115,7 +115,7 @@ export class InvoiceService {
       throw new InvoiceUpdateError("At least one editable parsed field must be provided.", 400);
     }
 
-    const invoice = await InvoiceModel.findById(id);
+    const invoice = await InvoiceModel.findOne({ _id: id, tenantId });
     if (!invoice) {
       throw new InvoiceUpdateError("Invoice not found.", 404);
     }

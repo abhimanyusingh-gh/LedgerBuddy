@@ -4,7 +4,6 @@ interface PlatformOnboardForm {
   tenantName: string;
   adminEmail: string;
   adminDisplayName: string;
-  mode: string;
 }
 
 interface PlatformOnboardSectionProps {
@@ -13,7 +12,6 @@ interface PlatformOnboardSectionProps {
   onToggle: () => void;
   onChange: (form: PlatformOnboardForm) => void;
   onSubmit: () => void;
-  helpText?: string;
 }
 
 export function PlatformOnboardSection({
@@ -21,8 +19,7 @@ export function PlatformOnboardSection({
   collapsed,
   onToggle,
   onChange,
-  onSubmit,
-  helpText
+  onSubmit
 }: PlatformOnboardSectionProps) {
   return (
     <PlatformSection
@@ -30,7 +27,6 @@ export function PlatformOnboardSection({
       icon="person_add"
       collapsed={collapsed}
       onToggle={onToggle}
-      helpText={helpText}
       actions={
         <button type="button" className="app-button app-button-primary" onClick={onSubmit}>
           <span className="material-symbols-outlined">add_task</span>
@@ -62,16 +58,6 @@ export function PlatformOnboardSection({
             onChange={(event) => onChange({ ...form, adminDisplayName: event.target.value })}
             placeholder="Full Name"
           />
-        </label>
-        <label>
-          <span>Tenant Mode</span>
-          <select
-            value={form.mode ?? "test"}
-            onChange={(event) => onChange({ ...form, mode: event.target.value })}
-          >
-            <option value="test">Test</option>
-            <option value="live">Live</option>
-          </select>
         </label>
       </div>
     </PlatformSection>

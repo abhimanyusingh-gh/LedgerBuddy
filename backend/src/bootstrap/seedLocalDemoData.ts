@@ -4,9 +4,8 @@ import { TenantUserRoleModel } from "../models/TenantUserRole.js";
 import { UserModel } from "../models/User.js";
 import { logger } from "../utils/logger.js";
 import { loadLocalDemoUsersConfig } from "../config/localDemoUsers.js";
-import type { KeycloakAdminClient } from "../keycloak/KeycloakAdminClient.js";
 
-export async function seedLocalDemoData(keycloakAdmin: KeycloakAdminClient): Promise<void> {
+export async function seedLocalDemoData(): Promise<void> {
   const config = loadLocalDemoUsersConfig();
   logger.info("local.demo.seed.start");
 
@@ -16,9 +15,7 @@ export async function seedLocalDemoData(keycloakAdmin: KeycloakAdminClient): Pro
       {
         _id: tenantObjectId(tenant.id),
         name: tenant.name,
-        onboardingStatus: tenant.onboardingStatus,
-        mode: tenant.mode ?? "test",
-        enabled: true
+        onboardingStatus: tenant.onboardingStatus
       },
       { upsert: true, new: true, setDefaultsOnInsert: true }
     );
@@ -33,8 +30,7 @@ export async function seedLocalDemoData(keycloakAdmin: KeycloakAdminClient): Pro
         tenantId: user.tenantId,
         displayName: user.displayName,
         lastLoginAt: new Date(0),
-        encryptedRefreshToken: "",
-        enabled: true
+        encryptedRefreshToken: ""
       },
       { upsert: true, new: true, setDefaultsOnInsert: true }
     );
@@ -55,21 +51,6 @@ export async function seedLocalDemoData(keycloakAdmin: KeycloakAdminClient): Pro
       },
       { upsert: true, new: true, setDefaultsOnInsert: true }
     );
-
-    // Seed Keycloak (idempotent: create if missing, always sync password)
-    try {
-      const existing = await keycloakAdmin.findUserByEmail(user.email);
-      if (!existing) {
-        await keycloakAdmin.createUser(user.email, user.password, false);
-      } else {
-        await keycloakAdmin.setPassword(existing.id, user.password, false);
-      }
-    } catch (kcError) {
-      logger.warn("local.demo.seed.keycloak.warn", {
-        email: user.email,
-        error: kcError instanceof Error ? kcError.message : String(kcError)
-      });
-    }
   }
 
   logger.info("local.demo.seed.complete", {

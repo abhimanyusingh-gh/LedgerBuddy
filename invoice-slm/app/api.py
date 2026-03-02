@@ -70,6 +70,7 @@ def verify_invoice(request: VerifyInvoiceRequest) -> VerifyInvoiceResponse:
     "fieldCandidates": candidate_map,
     "fieldRegions": field_regions,
     "ocrBlocks": blocks,
+    "documentContext": request.hints.get("documentContext"),
     "vendorNameHint": request.hints.get("vendorNameHint"),
     "vendorTemplateMatched": bool(request.hints.get("vendorTemplateMatched"))
   }

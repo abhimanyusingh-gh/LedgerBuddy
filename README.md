@@ -13,9 +13,14 @@ Implemented:
 - Staged extraction pipeline: vendor fingerprint -> template path (known vendors) -> OCR confidence gate -> layout graph + heuristics -> deterministic validation -> SLM field verifier fallback.
 - MongoDB persistence with per-file source+tenant checkpointing and folder idempotency filtering by `sourceDocumentId`.
 - OCR block crop artifacts persisted per bounding box with file-store abstraction:
-  - `ENV=local|dev` -> local disk
+  - `ENV=local` -> local disk
   - `ENV=stg|prod` -> S3
 - Tenant/workload partition keys (`tenantId`, `workloadTier`) across sources, checkpoints, and invoices.
+- Email/password login that exchanges credentials for an internal session token (claims carry role/access).
+- Internal session tokens are standards-compliant JWTs (`HS256`) with role + platform-admin claims.
+- OAuth2 + STS boundary abstraction (`LocalStsProvider`, `ProdStsProvider`) retained for provider integrations and callback flows.
+- Tenant onboarding gate, RBAC (`TENANT_ADMIN`, `MEMBER`), invite flow, and tenant-owned Gmail integration state.
+- Session flags for UI operational state (`requires_tenant_setup`, `requires_reauth`, `requires_admin_action`).
 - Review dashboard with failed/parsed visibility, confidence badges, batch approval/export, and full invoice list paging.
 - Review dashboard includes value-source highlighting with OCR bounding-box overlays and per-field crop inspect actions.
 - Tally exporter using XML import envelope and purchase voucher structure.
@@ -24,7 +29,6 @@ Implemented:
 - Unit tests + true full-stack local end-to-end test (no mock OCR/SLM path).
 
 Not yet implemented:
-- Authentication/authorization.
 - Production-ready observability/alerting.
 - Advanced invoice line-item extraction.
 
@@ -77,12 +81,19 @@ This brings up:
 - Frontend dashboard: `http://localhost:5173`
 - MongoDB: `localhost:27017`
 - Mongo Express: `http://localhost:8081`
-- MailHog SMTP/UI: `localhost:1025` / `http://localhost:8025`
+- Mailpit (MailHog-compatible) SMTP/UI: `localhost:1025` / `http://localhost:8025`
 - MailHog OAuth wrapper: `http://localhost:8026`
 - OCR service: `http://localhost:8000`
 - SLM service: `http://localhost:8100`
 
-`yarn docker:up` starts local OCR/SLM services on host macOS (for `ENV=local|dev`) and then starts compose services.
+`yarn docker:up` starts local OCR/SLM services on host macOS (for `ENV=local`) and then starts compose services.
+
+Local demo mode (`yarn docker:up` with default settings) also:
+- seeds two demo tenants and users in MongoDB
+- enables a seeded platform-admin account
+- splits `sample-invoices/inbox` equally into tenant-specific inboxes under `.local-run/demo-inbox`
+- mounts `backend/runtime-manifest.local.demo.json` so each tenant ingests only its own folder source
+- disables auto user provisioning so demo roles remain credential-driven
 
 5. Create env files (optional overrides):
 ```bash
@@ -96,11 +107,34 @@ Notes:
 - For local MLX OCR/SLM, no API key is required.
 - MLX services run on host macOS, not inside Docker.
 - Backend blocks startup until both ML capabilities are reachable and healthy.
-- Runtime mode switch: `ENV=local|dev|stg|prod`.
-- `ENV=local|dev`: run host OCR/SLM services (`SLM_ENGINE=local_mlx`, `OCR_ENGINE=local_hybrid` by default).
+- Runtime mode switch: `ENV=local|stg|prod`.
+- `ENV=local`: run host OCR/SLM services (`SLM_ENGINE=local_mlx`, `OCR_ENGINE=local_hybrid` by default), local STS, and MailHog-based SMTP.
 - `ENV=stg|prod`: use production-safe HTTP providers (`SLM_ENGINE=prod_http`, `OCR_ENGINE=prod_http`) and set remote URLs.
+- Invite flow email sender is pluggable:
+  - `INVITE_EMAIL_PROVIDER=sendgrid` (local default; SendGrid-compatible API simulated via MailHog wrapper)
+  - `INVITE_EMAIL_PROVIDER=smtp` (uses `INVITE_SMTP_*` config)
+  - SendGrid mode uses `INVITE_SENDGRID_API_KEY`, `INVITE_SENDGRID_ENDPOINT`, `INVITE_SENDGRID_TIMEOUT_MS`
+  - Local simulation endpoint: `http://mailhog-oauth:8026/sendgrid/v3/mail/send` (relays to MailHog SMTP)
+- Platform admin access is OAuth-driven via `PLATFORM_ADMIN_EMAILS` (comma-separated allowlist).
+- `AUTH_AUTO_PROVISION_USERS` defaults to `false`; tenant admins are expected to be onboarded by a platform admin.
+- Local seeded users are configured only in `backend/config/local-demo-users.json`.
+- You can override the seed config path with `LOCAL_DEMO_CONFIG_PATH`.
+- Demo credentials (all use password `DemoPass!1`):
+  - `tenant-admin-1@local.test` (Tenant Alpha admin)
+  - `tenant-user-1@local.test` (Tenant Alpha member)
+  - `tenant-admin-2@local.test` (Tenant Beta admin)
+  - `tenant-user-2@local.test` (Tenant Beta member)
+  - `platform-admin@local.test` (platform usage-only view)
+- The login screen does not expose demo accounts; users sign in with email/password.
+- Platform admin usage API (`GET /api/platform/tenants/usage`) returns tenant-level aggregates only:
+  - tenant identity + onboarding state
+  - user count
+  - document status counts
+  - Gmail connection state + last ingestion timestamp
+  - no invoice-level payload or OCR content
+- Platform admins can onboard tenant admins from API (`POST /api/platform/tenants/onboard-admin`) and from the frontend "Onboard Tenant Admin" form.
 - Artifact storage is also env-driven:
-  - `ENV=local|dev` uses `LOCAL_FILE_STORE_ROOT` (default `.local-run/artifacts`, gitignored)
+  - `ENV=local` uses `LOCAL_FILE_STORE_ROOT` (default `.local-run/artifacts`, gitignored)
   - `ENV=stg|prod` uses `S3_FILE_STORE_BUCKET` + `S3_FILE_STORE_REGION` + `S3_FILE_STORE_PREFIX`
 - OCR path is direct inference via `POST /v1/ocr/document` (no `/v1/chat/completions` usage).
 - OCR/SLM API layers are provider-agnostic and selected by env:
@@ -195,7 +229,7 @@ MailHog XOAUTH2 prod-simulation transport:
 - `EMAIL_AUTH_MODE=oauth2`
 - `EMAIL_OAUTH_TOKEN_ENDPOINT=http://mailhog-oauth:8026/oauth/token`
 - requests to wrapper endpoints are authenticated with `Authorization: XOAUTH2 <base64(user=...^Aauth=Bearer ...^A^A)>`
-- dashboard action: `Run Email XOAUTH2 Simulation` seeds MailHog emails (max two invoice attachments per email) and then triggers ingestion
+- dashboard action: `Ingest Demo Emails` seeds MailHog emails (max two invoice attachments per email) and then triggers ingestion
 
 Run ingestion:
 ```bash
@@ -357,6 +391,11 @@ yarn run knip
 Backend e2e only:
 ```bash
 yarn workspace invoice-processor-backend run test:e2e
+```
+
+SaaS lifecycle e2e only (OAuth + tenancy + RBAC + invite + Gmail connection state):
+```bash
+yarn workspace invoice-processor-backend run test:e2e:saas
 ```
 
 Email XOAUTH2 e2e (MailHog + XOAUTH2 wrapper + real OCR/SLM):

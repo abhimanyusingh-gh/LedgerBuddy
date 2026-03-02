@@ -42,6 +42,7 @@ prepare_frontend_e2e_inbox() {
 }
 
 prepare_frontend_e2e_inbox
+ENV=local yarn docker:down >/dev/null 2>&1 || true
 INVOICE_INBOX_PATH="$E2E_INBOX_DIR" ENV=local yarn docker:up
 
 E2E_API_BASE_URL="$E2E_API_BASE_URL" \

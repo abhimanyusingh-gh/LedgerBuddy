@@ -1,5 +1,4 @@
 import type { ReactNode } from "react";
-import { HelpTooltip } from "../HelpTooltip";
 
 interface PlatformSectionProps {
   title: string;
@@ -10,7 +9,6 @@ interface PlatformSectionProps {
   actions?: ReactNode;
   className?: string;
   testId?: string;
-  helpText?: string;
 }
 
 export function PlatformSection({
@@ -21,8 +19,7 @@ export function PlatformSection({
   children,
   actions,
   className,
-  testId,
-  helpText
+  testId
 }: PlatformSectionProps) {
   const sectionClassName = ["platform-section", className].filter(Boolean).join(" ");
 
@@ -32,7 +29,6 @@ export function PlatformSection({
         <h3>
           <span className="material-symbols-outlined">{icon}</span>
           {title}
-          {helpText ? <HelpTooltip text={helpText} /> : null}
         </h3>
         <div className="platform-section-actions">
           {!collapsed ? actions : null}

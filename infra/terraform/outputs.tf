@@ -48,3 +48,13 @@ output "artifact_bucket_arn" {
   value       = try(module.artifact_bucket[0].bucket_arn, null)
   description = "ARN of provisioned artifact bucket, if managed by this stack."
 }
+
+output "auth_sts_role_arn" {
+  value       = try(module.auth_sts_role[0].role_arn, null)
+  description = "Auth service IAM role ARN used for STS integration in stg/prod."
+}
+
+output "backend_sts_role_arn" {
+  value       = try(module.backend_sts_role[0].role_arn, null)
+  description = "Backend service IAM role ARN used for STS integration in stg/prod."
+}

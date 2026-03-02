@@ -10,17 +10,17 @@ import { TenantIntegrationModel } from "../models/TenantIntegration.js";
 import { InvoiceModel } from "../models/Invoice.js";
 import { MailboxNotificationEventModel } from "../models/MailboxNotificationEvent.js";
 import { decryptSecret, encryptSecret } from "../utils/secretCrypto.js";
-import { createE2EUserAndLogin, E2E_TEST_PASSWORD } from "./authHelper.js";
+import { createE2ESessionTokenWithOptions } from "./authHelper.js";
 import { buildXoauth2AuthorizationHeader } from "../sources/email/xoauth2.js";
 
-const apiBaseUrl = process.env.E2E_API_BASE_URL ?? "http://127.0.0.1:4100";
-const mailhogApiBaseUrl = process.env.E2E_MAILHOG_API_BASE_URL ?? "http://127.0.0.1:8125";
-const mongoUri = process.env.E2E_MONGO_URI ?? "mongodb://billforge_app:billforge_local_pass@127.0.0.1:27018/billforge?authSource=billforge";
+const apiBaseUrl = process.env.E2E_API_BASE_URL ?? "http://127.0.0.1:4000";
+const mailhogApiBaseUrl = process.env.E2E_MAILHOG_API_BASE_URL ?? "http://127.0.0.1:8025";
+const mongoUri = process.env.E2E_MONGO_URI ?? "mongodb://127.0.0.1:27017/invoice_processor";
 
 const sessionSecret = process.env.APP_SESSION_SIGNING_SECRET ?? "local-dev-session-signing-secret-change-me";
 const refreshTokenSecret = process.env.REFRESH_TOKEN_ENCRYPTION_SECRET ?? "local-dev-refresh-token-secret-32-chars";
-const localOauthClientId = process.env.OIDC_CLIENT_ID ?? "billforge-app";
-const localOauthClientSecret = process.env.OIDC_CLIENT_SECRET ?? "billforge-local-secret";
+const localOauthClientId = process.env.STS_CLIENT_ID ?? "invoice-processor-local-client";
+const localOauthClientSecret = process.env.STS_CLIENT_SECRET ?? "invoice-processor-local-secret";
 
 const api = axios.create({
   baseURL: apiBaseUrl,
@@ -64,7 +64,7 @@ describe("saas lifecycle e2e", () => {
     });
     expect(tampered.status).toBe(401);
 
-    const invalidState = await api.get("/api/auth/callback?code=fake-code&state=invalid-state-token");
+    const invalidState = await api.get("/auth/callback?code=fake-code&state=invalid-state-token");
     expect(invalidState.status).toBe(400);
     expect(String(invalidState.data?.message ?? "")).toContain("OAuth state");
 
@@ -235,14 +235,10 @@ describe("saas lifecycle e2e", () => {
     );
     expect(acceptInvite.status).toBe(204);
 
-    // After acceptance the user's tenantId in MongoDB changes — re-login to get a fresh token
-    // with the correct tenantId so subsequent authenticated requests succeed.
-    const freshCandidateToken = await loginAs(candidateEmail);
-
     const reuseInvite = await api.post(
       "/api/tenant/invites/accept",
       { token: candidateToken },
-      { headers: authHeaders(freshCandidateToken) }
+      { headers: authHeaders(candidateUserToken) }
     );
     expect(reuseInvite.status).toBe(409);
 
@@ -257,14 +253,14 @@ describe("saas lifecycle e2e", () => {
     const nonAdminInvite = await api.post(
       "/api/admin/users/invite",
       { email: uniqueEmail("phase45-denied") },
-      { headers: authHeaders(freshCandidateToken) }
+      { headers: authHeaders(candidateUserToken) }
     );
     expect(nonAdminInvite.status).toBe(403);
 
     const nonAdminEscalate = await api.post(
       `/api/admin/users/${String(candidateUser?._id)}/role`,
       { role: "TENANT_ADMIN" },
-      { headers: authHeaders(freshCandidateToken) }
+      { headers: authHeaders(candidateUserToken) }
     );
     expect(nonAdminEscalate.status).toBe(403);
 
@@ -316,11 +312,7 @@ describe("saas lifecycle e2e", () => {
     expect(connectUrlResponse.status).toBe(200);
     expect(typeof connectUrlResponse.data?.connectUrl).toBe("string");
 
-    const finalRedirect = await completeKcOAuthRedirectChain(
-      String(connectUrlResponse.data.connectUrl),
-      adminEmail,
-      E2E_TEST_PASSWORD
-    );
+    const finalRedirect = await followRedirectChain(String(connectUrlResponse.data.connectUrl));
     expect(finalRedirect).toContain("gmail=connected");
 
     const integration = await TenantIntegrationModel.findOne({
@@ -335,11 +327,8 @@ describe("saas lifecycle e2e", () => {
     const refreshToken = decryptSecret(String(integration?.encryptedRefreshToken ?? ""), refreshTokenSecret);
     expect(refreshToken.length).toBeGreaterThan(10);
 
-    const kcTokenUrl = process.env.E2E_KEYCLOAK_BASE_URL
-      ? `${process.env.E2E_KEYCLOAK_BASE_URL}/realms/${process.env.E2E_KC_REALM ?? "billforge"}/protocol/openid-connect/token`
-      : "http://127.0.0.1:8280/realms/billforge/protocol/openid-connect/token";
     const tokenResponse = await axios.post(
-      kcTokenUrl,
+      `${apiBaseUrl.replace(/:\d+$/, ":8090")}/oauth2/token`,
       new URLSearchParams({
         grant_type: "refresh_token",
         client_id: localOauthClientId,
@@ -381,11 +370,8 @@ describe("saas lifecycle e2e", () => {
     );
     expect(accept.status).toBe(204);
 
-    // Re-login after acceptance — tenantId in MongoDB changed, old token is stale
-    const freshMemberToken = await loginAs(memberEmail);
-
     const nonAdminConnect = await api.get("/api/integrations/gmail/connect-url", {
-      headers: authHeaders(freshMemberToken)
+      headers: authHeaders(memberToken)
     });
     expect(nonAdminConnect.status).toBe(403);
 
@@ -410,14 +396,17 @@ describe("saas lifecycle e2e", () => {
     expect(adminFlags.flags.requires_reauth).toBe(true);
     expect(adminFlags.flags.requires_admin_action).toBe(true);
 
-    const memberFlags = await getSession(freshMemberToken);
+    const memberFlags = await getSession(memberToken);
     expect(memberFlags.flags.requires_reauth).toBe(true);
     expect(memberFlags.flags.requires_admin_action).toBe(false);
   });
 });
 
 async function loginAs(email: string): Promise<string> {
-  return createE2EUserAndLogin(apiBaseUrl, email);
+  return createE2ESessionTokenWithOptions(apiBaseUrl, {
+    nextPath: "/",
+    loginHint: email
+  });
 }
 
 async function getSession(token: string): Promise<{
@@ -480,40 +469,13 @@ async function fetchMailMessages(): Promise<unknown[]> {
   if (v1.status !== 200) {
     return [];
   }
-
-  const messages: unknown[] = Array.isArray(v1.data)
-    ? v1.data
-    : Array.isArray(v1.data?.messages)
-      ? v1.data.messages
-      : [];
-
-  // Mailpit returns summary list without body — enrich with full message details
-  if (messages.length > 0 && isMailpitFormat(messages[0])) {
-    const enriched = await Promise.all(
-      messages.map(async (m) => {
-        const id = (m as { ID?: string }).ID;
-        if (!id) return m;
-        const detail = await axios.get(`${mailhogApiBaseUrl}/api/v1/message/${id}`, {
-          timeout: 10_000,
-          validateStatus: () => true
-        });
-        if (detail.status !== 200) return m;
-        // Preserve Created from list entry (millisecond precision) since individual message
-        // only provides Date at second precision, causing timestamp filter false-negatives
-        const listCreated = (m as { Created?: string }).Created;
-        return listCreated ? { ...detail.data, Created: listCreated } : detail.data;
-      })
-    );
-    return enriched;
+  if (Array.isArray(v1.data)) {
+    return v1.data;
   }
-
-  return messages;
-}
-
-function isMailpitFormat(message: unknown): boolean {
-  if (!message || typeof message !== "object") return false;
-  const m = message as Record<string, unknown>;
-  return typeof m.ID === "string" && !m.Content;
+  if (Array.isArray(v1.data?.messages)) {
+    return v1.data.messages;
+  }
+  return [];
 }
 
 function extractInviteToken(messages: unknown[], recipient: string, startedAfterMs: number): string {
@@ -603,93 +565,6 @@ function parseCreatedAt(message: unknown): number {
   }
   const parsed = Date.parse(created);
   return Number.isFinite(parsed) ? parsed : 0;
-}
-
-/**
- * Follows a redirect chain that may include a Keycloak login form.
- * When a KC HTML login page is encountered, it automatically submits the provided credentials
- * and continues following redirects — simulating a headless browser OAuth flow.
- */
-async function completeKcOAuthRedirectChain(
-  startUrl: string,
-  email: string,
-  password: string,
-  maxHops = 15
-): Promise<string> {
-  const cookieStore = new Map<string, string>();
-  let currentUrl = startUrl;
-
-  function getCookieHeader(): string {
-    return Array.from(cookieStore.entries())
-      .map(([k, v]) => `${k}=${v}`)
-      .join("; ");
-  }
-
-  function updateCookies(headers: Record<string, unknown>): void {
-    const setCookies = headers["set-cookie"];
-    const list = Array.isArray(setCookies) ? setCookies : setCookies ? [String(setCookies)] : [];
-    for (const c of list) {
-      const [pair] = c.split(";");
-      const [k, ...vParts] = (pair ?? "").split("=");
-      if (k?.trim()) cookieStore.set(k.trim(), vParts.join("=").trim());
-    }
-  }
-
-  for (let hop = 0; hop < maxHops; hop++) {
-    const response = await axios.get(currentUrl, {
-      timeout: 30_000,
-      maxRedirects: 0,
-      validateStatus: () => true,
-      headers: { Cookie: getCookieHeader() }
-    });
-    updateCookies(response.headers as Record<string, unknown>);
-
-    if (response.status >= 300 && response.status < 400) {
-      const location = response.headers.location;
-      if (!location) break;
-      currentUrl = new URL(location, currentUrl).toString();
-      continue;
-    }
-
-    if (response.status === 200) {
-      const body = String(response.data ?? "");
-      const formActionMatch = body.match(/action="([^"]+)"/);
-      if (formActionMatch && body.includes("password") && body.includes("username")) {
-        // Decode HTML entities in form action (KC encodes & as &amp;)
-        const formAction = (formActionMatch[1] ?? "")
-          .replace(/&amp;/g, "&")
-          .replace(/&lt;/g, "<")
-          .replace(/&gt;/g, ">")
-          .replace(/&quot;/g, '"');
-        const formUrl = new URL(formAction, currentUrl).toString();
-
-        const postResp = await axios.post(
-          formUrl,
-          new URLSearchParams({ username: email, password, credentialId: "" }).toString(),
-          {
-            maxRedirects: 0,
-            validateStatus: () => true,
-            headers: {
-              "Content-Type": "application/x-www-form-urlencoded",
-              Cookie: getCookieHeader()
-            }
-          }
-        );
-        updateCookies(postResp.headers as Record<string, unknown>);
-
-        if (postResp.status >= 300 && postResp.status < 400) {
-          const loc = postResp.headers.location;
-          if (loc) {
-            currentUrl = new URL(loc, formUrl).toString();
-            continue;
-          }
-        }
-      }
-      return currentUrl;
-    }
-    break;
-  }
-  return currentUrl;
 }
 
 async function followRedirectChain(startUrl: string, maxHops = 6): Promise<string> {

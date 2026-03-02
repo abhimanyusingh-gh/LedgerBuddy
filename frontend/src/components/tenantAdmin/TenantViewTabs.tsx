@@ -1,53 +1,36 @@
-export type TenantViewTab = "overview" | "dashboard" | "config" | "exports" | "connections";
-
 interface TenantViewTabsProps {
-  activeTab: TenantViewTab;
+  showTenantConfig: boolean;
   canViewTenantConfig: boolean;
-  onTabChange: (tab: TenantViewTab) => void;
+  onShowDashboard: () => void;
+  onShowTenantConfig: () => void;
 }
 
-export function TenantViewTabs({ activeTab, canViewTenantConfig, onTabChange }: TenantViewTabsProps) {
+export function TenantViewTabs({
+  showTenantConfig,
+  canViewTenantConfig,
+  onShowDashboard,
+  onShowTenantConfig
+}: TenantViewTabsProps) {
+  if (!canViewTenantConfig) {
+    return null;
+  }
+
   return (
     <div className="tenant-view-tabs" role="tablist" aria-label="Tenant workspace sections">
       <button
         type="button"
-        className={activeTab === "overview" ? "tenant-view-tab tenant-view-tab-active" : "tenant-view-tab"}
-        onClick={() => onTabChange("overview")}
+        className={showTenantConfig ? "tenant-view-tab" : "tenant-view-tab tenant-view-tab-active"}
+        onClick={onShowDashboard}
       >
-        Overview
+        Dashboard
       </button>
       <button
         type="button"
-        className={activeTab === "dashboard" ? "tenant-view-tab tenant-view-tab-active" : "tenant-view-tab"}
-        onClick={() => onTabChange("dashboard")}
+        className={showTenantConfig ? "tenant-view-tab tenant-view-tab-active" : "tenant-view-tab"}
+        onClick={onShowTenantConfig}
       >
-        Invoices
+        Tenant Config
       </button>
-      <button
-        type="button"
-        className={activeTab === "exports" ? "tenant-view-tab tenant-view-tab-active" : "tenant-view-tab"}
-        onClick={() => onTabChange("exports")}
-      >
-        Exports
-      </button>
-      {canViewTenantConfig ? (
-        <button
-          type="button"
-          className={activeTab === "config" ? "tenant-view-tab tenant-view-tab-active" : "tenant-view-tab"}
-          onClick={() => onTabChange("config")}
-        >
-          Tenant Config
-        </button>
-      ) : null}
-      {canViewTenantConfig ? (
-        <button
-          type="button"
-          className={activeTab === "connections" ? "tenant-view-tab tenant-view-tab-active" : "tenant-view-tab"}
-          onClick={() => onTabChange("connections")}
-        >
-          Connections
-        </button>
-      ) : null}
     </div>
   );
 }

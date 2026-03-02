@@ -5,7 +5,7 @@ export function LoginBrandPanel() {
       <div className="login-brand-content">
         <div className="login-brand-header">
           <span className="material-symbols-outlined">analytics</span>
-          <h1>BillForge</h1>
+          <h1>FinParse</h1>
         </div>
 
         <div className="login-brand-copy">

@@ -1,5 +1,5 @@
 import axios from "axios";
-import type { OcrBlock, OcrPageImage, OcrProvider, OcrResult } from "../core/interfaces/OcrProvider.js";
+import type { OcrBlock, OcrExtractionOptions, OcrPageImage, OcrProvider, OcrResult } from "../core/interfaces/OcrProvider.js";
 import { getCorrelationId, logger } from "../utils/logger.js";
 
 const SUPPORTED_MIME_TYPES = new Set([
@@ -12,6 +12,9 @@ const SUPPORTED_MIME_TYPES = new Set([
 ]);
 const RETRYABLE_NETWORK_ERROR_CODES = new Set(["ECONNREFUSED", "ECONNRESET", "ETIMEDOUT", "EHOSTUNREACH"]);
 const DEFAULT_PROMPT = "<|grounding|>Convert page to markdown.";
+const KEY_VALUE_PROMPT_INSTRUCTION =
+  "Return a `Key-Value Pairs` section first. Each line must follow `- <label>: <value>`. " +
+  "Never return bare values without their source label. Preserve original language labels and value formatting.";
 const DEFAULT_MAX_TOKENS = 512;
 const DEFAULT_TIMEOUT_MS = 3_600_000;
 
@@ -38,6 +41,7 @@ interface DeepSeekOcrProviderOptions {
   timeoutMs?: number;
   prompt?: string;
   maxTokens?: number;
+  enforceKeyValuePairs?: boolean;
   httpClient?: DeepSeekHttpClient;
 }
 
@@ -49,6 +53,7 @@ export class DeepSeekOcrProvider implements OcrProvider {
   private readonly timeoutMs: number;
   private readonly prompt: string;
   private readonly maxTokens: number;
+  private readonly enforceKeyValuePairs: boolean;
   private readonly httpClient: DeepSeekHttpClient;
 
   constructor(options?: DeepSeekOcrProviderOptions) {
@@ -57,11 +62,12 @@ export class DeepSeekOcrProvider implements OcrProvider {
     this.timeoutMs = options?.timeoutMs ?? readTimeoutMsFromEnv();
     this.prompt = normalizePrompt(options?.prompt ?? process.env.DEEPSEEK_OCR_PROMPT ?? DEFAULT_PROMPT);
     this.maxTokens = normalizeMaxTokens(options?.maxTokens ?? readMaxTokensFromEnv());
+    this.enforceKeyValuePairs = options?.enforceKeyValuePairs ?? true;
     const baseUrl = options?.baseUrl ?? process.env.DEEPSEEK_BASE_URL ?? "http://localhost:8000/v1";
     this.httpClient = options?.httpClient ?? axios.create({ baseURL: baseUrl });
   }
 
-  async extractText(buffer: Buffer, mimeType: string): Promise<OcrResult> {
+  async extractText(buffer: Buffer, mimeType: string, options?: OcrExtractionOptions): Promise<OcrResult> {
     if (!SUPPORTED_MIME_TYPES.has(mimeType)) {
       return {
         text: "",
@@ -85,7 +91,7 @@ export class DeepSeekOcrProvider implements OcrProvider {
       model: this.model,
       document: `data:${mimeType};base64,${buffer.toString("base64")}`,
       includeLayout: true,
-      prompt: this.prompt,
+      prompt: buildPrompt(this.prompt, options?.languageHint, this.enforceKeyValuePairs),
       maxTokens: this.maxTokens
     };
 
@@ -94,7 +100,8 @@ export class DeepSeekOcrProvider implements OcrProvider {
       provider: this.name,
       mimeType,
       model: this.model,
-      payloadBytes: buffer.length
+      payloadBytes: buffer.length,
+      languageHint: options?.languageHint
     });
 
     try {
@@ -243,6 +250,35 @@ function normalizePrompt(value: string): string {
   return trimmed.length > 0 ? trimmed : DEFAULT_PROMPT;
 }
 
+function buildPrompt(
+  prompt: string,
+  languageHint: string | undefined,
+  enforceKeyValuePairs: boolean
+): string {
+  const sections: string[] = [prompt];
+  if (enforceKeyValuePairs) {
+    sections.push(KEY_VALUE_PROMPT_INSTRUCTION);
+  }
+
+  const normalizedHint = normalizeLanguageHint(languageHint);
+  if (normalizedHint) {
+    sections.push(`Document language hint: ${normalizedHint}. Preserve native labels and values.`);
+  }
+
+  return sections.join("\n\n").trim();
+}
+
+function normalizeLanguageHint(value: string | undefined): string | undefined {
+  if (typeof value !== "string") {
+    return undefined;
+  }
+  const normalized = value.trim().toLowerCase();
+  if (!/^[a-z]{2,8}$/.test(normalized)) {
+    return undefined;
+  }
+  return normalized;
+}
+
 function stripVisionPromptTokens(value: string): string {
   return value
     .replace(/<\|image_\d+\|>/gi, "")
@@ -291,7 +327,7 @@ function normalizeBlocks(value: unknown): OcrBlock[] | undefined {
       continue;
     }
 
-    const text = normalizeText(entry.text) ?? normalizeText(entry.label);
+    const text = mergeBlockText(normalizeText(entry.label), normalizeText(entry.text), normalizeText(entry.type));
     const bbox = normalizeBox(entry.bbox) ?? normalizeBox([entry.x1, entry.y1, entry.x2, entry.y2]);
     if (!text || !bbox) {
       continue;
@@ -378,6 +414,27 @@ function normalizePositiveInteger(value: unknown): number | undefined {
   }
   const rounded = Math.round(parsed);
   return rounded > 0 ? rounded : undefined;
+}
+
+function mergeBlockText(label: string | undefined, text: string | undefined, type: string | undefined): string | undefined {
+  const normalizedText = text?.trim();
+  const normalizedLabel = label?.trim();
+
+  if (normalizedText && normalizedLabel) {
+    const lowerText = normalizedText.toLowerCase();
+    const lowerLabel = normalizedLabel.toLowerCase();
+    const shouldJoin =
+      !lowerText.includes(lowerLabel) &&
+      lowerLabel.length >= 2 &&
+      !/^(text|line|table|header|footer|title)$/i.test(normalizedLabel) &&
+      !/^(text|line|table|header|footer|title)$/i.test(type ?? "");
+    if (shouldJoin) {
+      return `${normalizedLabel}: ${normalizedText}`;
+    }
+    return normalizedText;
+  }
+
+  return normalizedText ?? normalizedLabel;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

@@ -138,6 +138,38 @@ describe("parseInvoiceText", () => {
     expect(result.parsed.invoiceNumber).toBe("INV/01/2015/074320");
   });
 
+  it("uses french language hint to parse localized due date labels", () => {
+    const text = [
+      "Numéro de facture: FAC-88",
+      "Fournisseur: Alpha SARL",
+      "Date de facture: 12/02/2026",
+      "Date d'échéance: 25/02/2026",
+      "Montant total: 1500,50 EUR"
+    ].join("\n");
+    const result = parseInvoiceText(text, { languageHint: "fr" });
+
+    expect(result.parsed.invoiceNumber).toBe("FAC-88");
+    expect(result.parsed.vendorName).toBe("Alpha SARL");
+    expect(result.parsed.invoiceDate).toBe("2026-02-12");
+    expect(result.parsed.dueDate).toBe("2026-02-25");
+  });
+
+  it("uses german language hint to parse rechnungsnummer labels", () => {
+    const text = [
+      "Rechnungsnummer: DE-443-20",
+      "Lieferant: Nord GmbH",
+      "Rechnungsdatum: 12.02.2026",
+      "Fälligkeitsdatum: 20.02.2026",
+      "Gesamtbetrag: EUR 1250,50"
+    ].join("\n");
+    const result = parseInvoiceText(text, { languageHint: "de" });
+
+    expect(result.parsed.invoiceNumber).toBe("DE-443-20");
+    expect(result.parsed.vendorName).toBe("Nord GmbH");
+    expect(result.parsed.invoiceDate).toBe("2026-02-12");
+    expect(result.parsed.dueDate).toBe("2026-02-20");
+  });
+
   it("extracts invoice number from fallback inline hint patterns", () => {
     const text = [
       "Document Header",

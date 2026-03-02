@@ -3,33 +3,70 @@ import { z } from "zod";
 
 dotenv.config();
 
-const APP_ENVIRONMENTS = ["local", "dev", "stg", "prod"] as const;
+const APP_ENVIRONMENTS = ["local", "stg", "prod"] as const;
 type AppEnvironment = (typeof APP_ENVIRONMENTS)[number];
-
-function resolveRuntimeEnvironment(value: string | undefined): AppEnvironment {
-  const normalized = value?.trim().toLowerCase();
-  if (normalized === "local" || normalized === "dev" || normalized === "stg" || normalized === "prod") {
-    return normalized;
-  }
-  return "local";
-}
 
 function normalizeUrl(value: string): string {
   return value.trim().replace(/\/+$/, "");
 }
 
 function isLocalMlEnvironment(environment: AppEnvironment): boolean {
-  return environment === "local" || environment === "dev";
+  return environment === "local";
 }
 
-const runtimeEnv = resolveRuntimeEnvironment(process.env.ENV);
-
 const envSchema = z.object({
-  ENV: z.enum(APP_ENVIRONMENTS).default(runtimeEnv),
+  ENV: z.enum(APP_ENVIRONMENTS),
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   PORT: z.coerce.number().default(4000),
   MONGO_URI: z.string().min(1),
   APP_MANIFEST_PATH: z.string().optional(),
+  FRONTEND_BASE_URL: z.string().default("http://localhost:5173"),
+
+  STS_CLIENT_ID: z.string().default("invoice-processor-local-client"),
+  STS_CLIENT_SECRET: z.string().default("invoice-processor-local-secret"),
+  STS_SCOPES: z.string().default("openid profile email offline_access"),
+  STS_REDIRECT_URI: z
+    .string()
+    .default("http://localhost:4000/auth/callback")
+    .transform((value) => normalizeUrl(value)),
+  STS_LOCAL_PUBLIC_BASE_URL: z
+    .string()
+    .default("http://localhost:8090")
+    .transform((value) => normalizeUrl(value)),
+  STS_LOCAL_INTERNAL_BASE_URL: z
+    .string()
+    .default("http://local-sts:8090")
+    .transform((value) => normalizeUrl(value)),
+  STS_AUTH_URL: z
+    .string()
+    .default("")
+    .transform((value) => normalizeUrl(value)),
+  STS_TOKEN_URL: z
+    .string()
+    .default("")
+    .transform((value) => normalizeUrl(value)),
+  STS_VALIDATE_URL: z
+    .string()
+    .default("")
+    .transform((value) => normalizeUrl(value)),
+  STS_USERINFO_URL: z
+    .string()
+    .default("")
+    .transform((value) => normalizeUrl(value)),
+  AUTH_STATE_TTL_SECONDS: z.coerce.number().default(600),
+  APP_SESSION_SIGNING_SECRET: z.string().default("local-dev-session-signing-secret-change-me"),
+  APP_SESSION_TTL_SECONDS: z.coerce.number().default(28800),
+  REFRESH_TOKEN_ENCRYPTION_SECRET: z.string().default("local-dev-refresh-token-secret-32-chars"),
+  AUTH_AUTO_PROVISION_USERS: z
+    .string()
+    .default("false")
+    .transform((value) => value === "true"),
+  PLATFORM_ADMIN_EMAILS: z.string().default(""),
+  LOCAL_DEMO_SEED: z
+    .string()
+    .default("false")
+    .transform((value) => value === "true"),
+  LOCAL_DEMO_CONFIG_PATH: z.string().default("config/local-demo-users.json"),
 
   INGESTION_SOURCES: z.string().default("email"),
   DEFAULT_USER_ID: z.string().default("local-user"),
@@ -133,6 +170,20 @@ const envSchema = z.object({
   TALLY_COMPANY: z.string().optional(),
   TALLY_PURCHASE_LEDGER: z.string().default("Purchase"),
   DEFAULT_APPROVER: z.string().default("system"),
+  INVITE_EMAIL_PROVIDER: z.enum(["smtp", "sendgrid"]).default("smtp"),
+  INVITE_SMTP_HOST: z.string().default("mailhog"),
+  INVITE_SMTP_PORT: z.coerce.number().default(1025),
+  INVITE_SMTP_SECURE: z
+    .string()
+    .default("false")
+    .transform((value) => value === "true"),
+  INVITE_SMTP_USERNAME: z.string().default(""),
+  INVITE_SMTP_PASSWORD: z.string().default(""),
+  INVITE_SENDGRID_API_KEY: z.string().default(""),
+  INVITE_SENDGRID_ENDPOINT: z.string().default("https://api.sendgrid.com/v3/mail/send"),
+  INVITE_SENDGRID_TIMEOUT_MS: z.coerce.number().default(15000),
+  INVITE_FROM: z.string().default("no-reply@invoice.local"),
+  INVITE_BASE_URL: z.string().default("http://localhost:5173"),
   MAILBOX_ALERT_SMTP_HOST: z.string().default(""),
   MAILBOX_ALERT_SMTP_PORT: z.coerce.number().default(587),
   MAILBOX_ALERT_SMTP_SECURE: z
@@ -161,6 +212,14 @@ const resolvedOcrBaseUrl = normalizeUrl(
 const resolvedSlmBaseUrl = normalizeUrl(
   values.FIELD_VERIFIER_BASE_URL ?? (localMlEnv ? "http://localhost:8100/v1" : "")
 );
+const resolvedStsAuthUrl =
+  values.ENV === "local" ? `${values.STS_LOCAL_PUBLIC_BASE_URL}/oauth2/authorize` : values.STS_AUTH_URL;
+const resolvedStsTokenUrl =
+  values.ENV === "local" ? `${values.STS_LOCAL_INTERNAL_BASE_URL}/oauth2/token` : values.STS_TOKEN_URL;
+const resolvedStsValidateUrl =
+  values.ENV === "local" ? `${values.STS_LOCAL_INTERNAL_BASE_URL}/oauth2/introspect` : values.STS_VALIDATE_URL;
+const resolvedStsUserInfoUrl =
+  values.ENV === "local" ? `${values.STS_LOCAL_INTERNAL_BASE_URL}/oauth2/userinfo` : values.STS_USERINFO_URL;
 
 if (!localMlEnv) {
   if (resolvedOcrBaseUrl.length === 0) {
@@ -176,6 +235,14 @@ if (!localMlEnv) {
   }
 }
 
+if (resolvedStsAuthUrl.length === 0 || resolvedStsTokenUrl.length === 0 || resolvedStsValidateUrl.length === 0 || resolvedStsUserInfoUrl.length === 0) {
+  // eslint-disable-next-line no-console
+  console.error(
+    "Invalid env vars: STS auth/token/validate/userinfo endpoints must be configured. Use STS_LOCAL_PUBLIC_BASE_URL and STS_LOCAL_INTERNAL_BASE_URL in local."
+  );
+  process.exit(1);
+}
+
 if ((values.ENV === "stg" || values.ENV === "prod") && values.GMAIL_OAUTH_TOKEN_ENCRYPTION_SECRET === "local-dev-gmail-oauth-encryption-secret") {
   // eslint-disable-next-line no-console
   console.error(
@@ -184,11 +251,30 @@ if ((values.ENV === "stg" || values.ENV === "prod") && values.GMAIL_OAUTH_TOKEN_
   process.exit(1);
 }
 
+if ((values.ENV === "stg" || values.ENV === "prod") && values.APP_SESSION_SIGNING_SECRET === "local-dev-session-signing-secret-change-me") {
+  // eslint-disable-next-line no-console
+  console.error("Invalid env vars: set APP_SESSION_SIGNING_SECRET for stg/prod.");
+  process.exit(1);
+}
+
+if ((values.ENV === "stg" || values.ENV === "prod") && values.REFRESH_TOKEN_ENCRYPTION_SECRET === "local-dev-refresh-token-secret-32-chars") {
+  // eslint-disable-next-line no-console
+  console.error("Invalid env vars: set REFRESH_TOKEN_ENCRYPTION_SECRET for stg/prod.");
+  process.exit(1);
+}
+
 export const env = {
   ...values,
   DEEPSEEK_BASE_URL: resolvedOcrBaseUrl,
   FIELD_VERIFIER_BASE_URL: resolvedSlmBaseUrl,
+  STS_AUTH_URL: resolvedStsAuthUrl,
+  STS_TOKEN_URL: resolvedStsTokenUrl,
+  STS_VALIDATE_URL: resolvedStsValidateUrl,
+  STS_USERINFO_URL: resolvedStsUserInfoUrl,
   isLocalMlEnv: localMlEnv,
+  platformAdminEmails: values.PLATFORM_ADMIN_EMAILS.split(",")
+    .map((email) => email.trim().toLowerCase())
+    .filter(Boolean),
   ingestionSources: values.INGESTION_SOURCES.split(",")
     .map((source) => source.trim())
     .filter(Boolean)

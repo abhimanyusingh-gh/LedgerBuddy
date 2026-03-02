@@ -20,32 +20,50 @@ interface IngestionJobStatus {
   lastUpdatedAt: string;
 }
 
-let currentJobStatus: IngestionJobStatus = buildIdleStatus();
+const currentJobStatusByTenant = new Map<string, IngestionJobStatus>();
 
 export function createJobsRouter(ingestionService: IngestionService, emailSimulationService?: EmailSimulationService) {
   const router = Router();
 
-  router.get("/jobs/ingest/status", (_req, res) => {
-    res.json(currentJobStatus);
+  router.get("/jobs/ingest/status", (request, response) => {
+    const context = request.authContext;
+    if (!context) {
+      response.status(401).json({ message: "Authentication required." });
+      return;
+    }
+
+    response.json(getCurrentStatus(context.tenantId));
   });
 
-  router.post("/jobs/ingest", async (_req, res, next) => {
+  router.post("/jobs/ingest", async (request, response, next) => {
     try {
-      res.status(202).json(startIngestionJob(ingestionService));
+      const context = request.authContext;
+      if (!context) {
+        response.status(401).json({ message: "Authentication required." });
+        return;
+      }
+      response.status(202).json(startIngestionJob(ingestionService, context.tenantId));
     } catch (error) {
       next(error);
     }
   });
 
-  router.post("/jobs/ingest/email-simulate", async (_req, res, next) => {
+  router.post("/jobs/ingest/email-simulate", async (request, response, next) => {
     try {
-      if (currentJobStatus.running) {
-        res.status(202).json(currentJobStatus);
+      const context = request.authContext;
+      if (!context) {
+        response.status(401).json({ message: "Authentication required." });
+        return;
+      }
+
+      const current = getCurrentStatus(context.tenantId);
+      if (current.running) {
+        response.status(202).json(current);
         return;
       }
 
       if (!emailSimulationService) {
-        res.status(400).json({
+        response.status(400).json({
           message: "Email simulation service is unavailable."
         });
         return;
@@ -54,16 +72,17 @@ export function createJobsRouter(ingestionService: IngestionService, emailSimula
       const simulation = await emailSimulationService.seedSampleEmails();
       logger.info("ingestion.email.simulation.seeded", {
         emailsSeeded: simulation.emailsSeeded,
-        attachmentsSeeded: simulation.attachmentsSeeded
+        attachmentsSeeded: simulation.attachmentsSeeded,
+        tenantId: context.tenantId
       });
-      const status = startIngestionJob(ingestionService);
-      res.status(202).json({
+      const status = startIngestionJob(ingestionService, context.tenantId);
+      response.status(202).json({
         ...status,
         emailSimulation: simulation
       });
     } catch (error) {
       if (error instanceof Error) {
-        res.status(400).json({ message: error.message });
+        response.status(400).json({ message: error.message });
         return;
       }
       next(error);
@@ -71,6 +90,14 @@ export function createJobsRouter(ingestionService: IngestionService, emailSimula
   });
 
   return router;
+}
+
+function getCurrentStatus(tenantId: string): IngestionJobStatus {
+  return currentJobStatusByTenant.get(tenantId) ?? buildIdleStatus();
+}
+
+function setCurrentStatus(tenantId: string, status: IngestionJobStatus): void {
+  currentJobStatusByTenant.set(tenantId, status);
 }
 
 function buildIdleStatus(): IngestionJobStatus {
@@ -86,14 +113,15 @@ function buildIdleStatus(): IngestionJobStatus {
   };
 }
 
-function startIngestionJob(ingestionService: IngestionService): IngestionJobStatus {
-  if (currentJobStatus.running) {
-    return currentJobStatus;
+function startIngestionJob(ingestionService: IngestionService, tenantId: string): IngestionJobStatus {
+  const existing = getCurrentStatus(tenantId);
+  if (existing.running) {
+    return existing;
   }
 
   const startedAt = new Date().toISOString();
   const correlationId = getCorrelationId();
-  currentJobStatus = {
+  const runningStatus: IngestionJobStatus = {
     state: "running",
     running: true,
     totalFiles: 0,
@@ -105,50 +133,58 @@ function startIngestionJob(ingestionService: IngestionService): IngestionJobStat
     lastUpdatedAt: startedAt,
     ...(correlationId ? { correlationId } : {})
   };
-  logger.info("ingestion.job.start", { correlationId: correlationId ?? null });
+  setCurrentStatus(tenantId, runningStatus);
+  logger.info("ingestion.job.start", { correlationId: correlationId ?? null, tenantId });
 
   const runJob = () =>
     ingestionService.runOnce({
+      tenantId,
       onProgress: async (progress) => {
-        currentJobStatus = {
-          ...currentJobStatus,
+        const current = getCurrentStatus(tenantId);
+        setCurrentStatus(tenantId, {
+          ...current,
           ...progress,
-          state: progress.running ? "running" : currentJobStatus.state,
+          state: progress.running ? "running" : current.state,
           running: progress.running
-        };
+        });
       }
     });
 
   void (correlationId ? runWithLogContext(correlationId, runJob) : runJob())
     .then((summary) => {
       const completedAt = new Date().toISOString();
-      currentJobStatus = {
-        ...currentJobStatus,
+      const current = getCurrentStatus(tenantId);
+      const nextStatus: IngestionJobStatus = {
+        ...current,
         ...summary,
-        processedFiles: Math.max(currentJobStatus.processedFiles, summary.totalFiles),
+        processedFiles: Math.max(current.processedFiles, summary.totalFiles),
         state: "completed",
         running: false,
         completedAt,
         error: undefined,
         lastUpdatedAt: completedAt
       };
-      logger.info("ingestion.job.complete", { ...summary, correlationId: correlationId ?? null });
+      setCurrentStatus(tenantId, nextStatus);
+      logger.info("ingestion.job.complete", { ...summary, correlationId: correlationId ?? null, tenantId });
     })
     .catch((error) => {
       const completedAt = new Date().toISOString();
-      currentJobStatus = {
-        ...currentJobStatus,
+      const current = getCurrentStatus(tenantId);
+      const nextStatus: IngestionJobStatus = {
+        ...current,
         state: "failed",
         running: false,
         completedAt,
         error: error instanceof Error ? error.message : String(error),
         lastUpdatedAt: completedAt
       };
+      setCurrentStatus(tenantId, nextStatus);
       logger.error("ingestion.job.failed", {
         error: error instanceof Error ? error.message : String(error),
-        correlationId: correlationId ?? null
+        correlationId: correlationId ?? null,
+        tenantId
       });
     });
 
-  return currentJobStatus;
+  return runningStatus;
 }

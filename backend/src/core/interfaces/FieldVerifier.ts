@@ -1,4 +1,4 @@
-import type { OcrBlock } from "./OcrProvider.js";
+import type { OcrBlock, OcrPageImage } from "./OcrProvider.js";
 import type { ParsedInvoiceData } from "../../types/invoice.js";
 
 export type FieldVerificationMode = "strict" | "relaxed";
@@ -10,6 +10,12 @@ export interface FieldVerifierInput {
   mode: FieldVerificationMode;
   hints: {
     mimeType: string;
+    documentLanguage?: string;
+    documentLanguageConfidence?: number;
+    documentContext?: {
+      originalDocumentDataUrl?: string;
+      pageImages?: OcrPageImage[];
+    };
     vendorNameHint?: string;
     vendorTemplateMatched: boolean;
     fieldCandidates: Record<string, string[]>;

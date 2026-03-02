@@ -2,10 +2,6 @@ import { TenantModel } from "../models/Tenant.js";
 import { TenantUserRoleModel, type TenantRole } from "../models/TenantUserRole.js";
 import { UserModel } from "../models/User.js";
 import { HttpError } from "../errors/HttpError.js";
-import { TenantIntegrationModel } from "../models/TenantIntegration.js";
-import { TenantMailboxAssignmentModel } from "../models/TenantMailboxAssignment.js";
-import { ViewerScopeModel } from "../models/ViewerScope.js";
-import { Types } from "mongoose";
 
 export class TenantAdminService {
   async completeOnboarding(input: {
@@ -45,18 +41,7 @@ export class TenantAdminService {
     }
   }
 
-  async setUserEnabled(input: { tenantId: string; userId: string; enabled: boolean; actingUserId?: string }): Promise<void> {
-    if (input.actingUserId && input.userId === input.actingUserId && !input.enabled) {
-      throw new HttpError("You cannot disable your own account.", 400, "cannot_disable_self");
-    }
-    const user = await UserModel.findOne({ _id: input.userId, tenantId: input.tenantId });
-    if (!user) {
-      throw new HttpError("User not found.", 404, "tenant_user_not_found");
-    }
-    await UserModel.updateOne({ _id: input.userId }, { $set: { enabled: input.enabled } });
-  }
-
-  async listTenantUsers(tenantId: string): Promise<Array<{ userId: string; email: string; role: TenantRole; enabled: boolean }>> {
+  async listTenantUsers(tenantId: string): Promise<Array<{ userId: string; email: string; role: TenantRole }>> {
     const roleRecords = await TenantUserRoleModel.find({ tenantId }).lean();
     if (roleRecords.length === 0) {
       return [];
@@ -67,7 +52,6 @@ export class TenantAdminService {
     const userMap = new Map(users.map((user) => [String(user._id), user]));
 
     return roleRecords
-      .filter((roleRecord) => roleRecord.role !== "PLATFORM_ADMIN")
       .map((roleRecord) => {
         const user = userMap.get(roleRecord.userId);
         if (!user) {
@@ -76,17 +60,13 @@ export class TenantAdminService {
         return {
           userId: String(user._id),
           email: user.email,
-          role: roleRecord.role as TenantRole,
-          enabled: user.enabled !== false
+          role: roleRecord.role
         };
       })
-      .filter((value): value is NonNullable<typeof value> => value !== null);
+      .filter((value): value is { userId: string; email: string; role: TenantRole } => value !== null);
   }
 
-  async assignRole(input: { tenantId: string; userId: string; role: TenantRole; actingUserId?: string }): Promise<void> {
-    if (input.actingUserId && input.userId === input.actingUserId && input.role !== "TENANT_ADMIN") {
-      throw new HttpError("You cannot change your own role.", 400, "cannot_demote_self");
-    }
+  async assignRole(input: { tenantId: string; userId: string; role: TenantRole }): Promise<void> {
     await TenantUserRoleModel.findOneAndUpdate(
       {
         tenantId: input.tenantId,
@@ -103,77 +83,6 @@ export class TenantAdminService {
         setDefaultsOnInsert: true
       }
     );
-  }
-
-  async listMailboxes(tenantId: string) {
-    const integrations = await TenantIntegrationModel.find({ tenantId }).lean();
-    const integrationIds = integrations.map((i) => i._id);
-    const assignments = await TenantMailboxAssignmentModel.find({ tenantId, integrationId: { $in: integrationIds } }).lean();
-    const users = await this.listTenantUsers(tenantId);
-    const userMap = new Map(users.map((u) => [u.userId, u.email]));
-
-    return integrations.map((integration) => {
-      const iid = (integration._id as Types.ObjectId).toString();
-      const integrationAssignments = assignments.filter((a) => a.integrationId.toString() === iid);
-      const hasAll = integrationAssignments.some((a) => a.assignedTo === "all");
-      const specificAssignments = integrationAssignments
-        .filter((a) => a.assignedTo !== "all")
-        .map((a) => ({ userId: a.assignedTo, email: userMap.get(a.assignedTo) ?? a.assignedTo }));
-
-      const pollingConfig = (integration as Record<string, unknown>).pollingConfig as { enabled?: boolean; intervalHours?: number; lastPolledAt?: Date; nextPollAfter?: Date } | undefined;
-
-      return {
-        _id: iid,
-        provider: integration.provider,
-        emailAddress: integration.emailAddress,
-        status: integration.status,
-        lastSyncedAt: integration.lastSyncedAt,
-        assignments: hasAll ? ("all" as const) : specificAssignments,
-        ...(pollingConfig ? { pollingConfig: { enabled: pollingConfig.enabled ?? false, intervalHours: pollingConfig.intervalHours ?? 4, lastPolledAt: pollingConfig.lastPolledAt, nextPollAfter: pollingConfig.nextPollAfter } } : {})
-      };
-    });
-  }
-
-  async assignMailbox(tenantId: string, integrationId: string, userId: string): Promise<void> {
-    const oid = new Types.ObjectId(integrationId);
-    const integration = await TenantIntegrationModel.findOne({ _id: oid, tenantId }).lean();
-    if (!integration) {
-      throw new HttpError("Mailbox not found.", 404, "mailbox_not_found");
-    }
-    await TenantMailboxAssignmentModel.updateOne(
-      { tenantId, integrationId: oid, assignedTo: userId },
-      { tenantId, integrationId: oid, assignedTo: userId },
-      { upsert: true }
-    );
-  }
-
-  async removeMailboxAssignment(tenantId: string, integrationId: string, userId: string): Promise<void> {
-    const oid = new Types.ObjectId(integrationId);
-    await TenantMailboxAssignmentModel.deleteOne({ tenantId, integrationId: oid, assignedTo: userId });
-  }
-
-  async deleteMailbox(tenantId: string, integrationId: string): Promise<void> {
-    const oid = new Types.ObjectId(integrationId);
-    const integration = await TenantIntegrationModel.findOne({ _id: oid, tenantId }).lean();
-    if (!integration) {
-      throw new HttpError("Mailbox not found.", 404, "mailbox_not_found");
-    }
-    await TenantMailboxAssignmentModel.deleteMany({ tenantId, integrationId: oid });
-    await TenantIntegrationModel.deleteOne({ _id: oid, tenantId });
-  }
-
-  async getViewerScope(tenantId: string, viewerUserId: string) {
-    const scope = await ViewerScopeModel.findOne({ tenantId, viewerUserId }).lean();
-    return { visibleUserIds: scope?.visibleUserIds ?? [] };
-  }
-
-  async setViewerScope(tenantId: string, viewerUserId: string, visibleUserIds: string[]): Promise<{ visibleUserIds: string[] }> {
-    await ViewerScopeModel.findOneAndUpdate(
-      { tenantId, viewerUserId },
-      { $set: { visibleUserIds } },
-      { upsert: true }
-    );
-    return { visibleUserIds };
   }
 
   async removeUser(input: { tenantId: string; userId: string }): Promise<void> {

@@ -1,6 +1,7 @@
 import axios from "axios";
 import { promises as fs } from "node:fs";
 import path from "node:path";
+import { completeE2ETenantOnboarding, createE2ESessionToken } from "./authHelper.js";
 
 const apiBaseUrl = process.env.E2E_API_BASE_URL ?? "http://127.0.0.1:4000";
 const frontendBaseUrl = process.env.E2E_FRONTEND_BASE_URL ?? "http://127.0.0.1:5173";
@@ -75,6 +76,7 @@ const CONFIDENCE_TONES = new Set(["red", "yellow", "green"]);
 
 describe("local full-stack ingestion e2e", () => {
   let expectedFiles: string[] = [];
+  let sessionToken = "";
 
   beforeAll(async () => {
     expectedFiles = await listInboxFiles(inboxDir);
@@ -89,6 +91,10 @@ describe("local full-stack ingestion e2e", () => {
     const backendHealth = await api.get("/health");
     expect(backendHealth.status).toBe(200);
     expect(backendHealth.data?.ready).toBe(true);
+
+    sessionToken = await createE2ESessionToken(apiBaseUrl);
+    api.defaults.headers.common.Authorization = `Bearer ${sessionToken}`;
+    await completeE2ETenantOnboarding(apiBaseUrl, sessionToken);
 
     const frontend = await axios.get(frontendBaseUrl, { timeout: 30_000, responseType: "text" });
     expect(frontend.status).toBeGreaterThanOrEqual(200);

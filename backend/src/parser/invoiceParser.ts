@@ -6,6 +6,80 @@ export interface ParseResult {
   warnings: string[];
 }
 
+export interface ParseInvoiceOptions {
+  languageHint?: string;
+}
+
+const LANGUAGE_PATTERN_OVERRIDES: Record<string, {
+  invoiceNumber?: RegExp[];
+  invoiceDate?: RegExp[];
+  dueDate?: RegExp[];
+  vendorPrefixes?: string[];
+}> = {
+  fr: {
+    invoiceNumber: [
+      /(?:num[ée]ro|n[°o]|nº)\s*de\s*facture\s*[:\-]?\s*#?\s*([A-Z0-9][A-Z0-9_\-/]{2,})/i
+    ],
+    invoiceDate: [
+      /(?:date\s*de\s*facture)\s*[:\-]?\s*([0-3]?\d[\/.\-][01]?\d[\/.\-](?:\d{4}|\d{2}))/i,
+      /(?:date\s*de\s*facture)\s*[:\-]?\s*([A-Za-zÀ-ÿ]{3,14}\s+[0-3]?\d,?\s+\d{4})/i
+    ],
+    dueDate: [
+      /(?:date\s*d['’]échéance|[ée]ch[ée]ance)\s*[:\-]?\s*([0-3]?\d[\/.\-][01]?\d[\/.\-](?:\d{4}|\d{2}))/i,
+      /(?:date\s*d['’]échéance|[ée]ch[ée]ance)\s*[:\-]?\s*([A-Za-zÀ-ÿ]{3,14}\s+[0-3]?\d,?\s+\d{4})/i
+    ],
+    vendorPrefixes: ["fournisseur", "vendeur", "soci[ée]t[ée]"]
+  },
+  de: {
+    invoiceNumber: [
+      /(?:rechnungsnummer|rechnung\s*nr\.?)\s*[:\-]?\s*#?\s*([A-Z0-9][A-Z0-9_\-/]{2,})/i
+    ],
+    invoiceDate: [
+      /(?:rechnungsdatum|datum)\s*[:\-]?\s*([0-3]?\d[\/.\-][01]?\d[\/.\-](?:\d{4}|\d{2}))/i
+    ],
+    dueDate: [
+      /(?:f[äa]llig(?:keit|keitsdatum)|zahlbar\s*bis)\s*[:\-]?\s*([0-3]?\d[\/.\-][01]?\d[\/.\-](?:\d{4}|\d{2}))/i
+    ],
+    vendorPrefixes: ["lieferant", "anbieter", "firma"]
+  },
+  nl: {
+    invoiceNumber: [
+      /(?:factuurnummer|factuur\s*nr\.?)\s*[:\-]?\s*#?\s*([A-Z0-9][A-Z0-9_\-/]{2,})/i
+    ],
+    invoiceDate: [
+      /(?:factuurdatum|datum)\s*[:\-]?\s*([0-3]?\d[\/.\-][01]?\d[\/.\-](?:\d{4}|\d{2}))/i
+    ],
+    dueDate: [
+      /(?:vervaldatum|te\s*betalen\s*voor)\s*[:\-]?\s*([0-3]?\d[\/.\-][01]?\d[\/.\-](?:\d{4}|\d{2}))/i
+    ],
+    vendorPrefixes: ["leverancier", "verkoper", "bedrijf"]
+  },
+  es: {
+    invoiceNumber: [
+      /(?:n[uú]mero\s*de\s*factura|factura\s*n[oº]\.?)\s*[:\-]?\s*#?\s*([A-Z0-9][A-Z0-9_\-/]{2,})/i
+    ],
+    invoiceDate: [
+      /(?:fecha\s*de\s*factura|fecha)\s*[:\-]?\s*([0-3]?\d[\/.\-][01]?\d[\/.\-](?:\d{4}|\d{2}))/i
+    ],
+    dueDate: [
+      /(?:fecha\s*de\s*vencimiento|vencimiento)\s*[:\-]?\s*([0-3]?\d[\/.\-][01]?\d[\/.\-](?:\d{4}|\d{2}))/i
+    ],
+    vendorPrefixes: ["proveedor", "empresa", "vendedor"]
+  },
+  it: {
+    invoiceNumber: [
+      /(?:numero\s*fattura|fattura\s*n[oº]\.?)\s*[:\-]?\s*#?\s*([A-Z0-9][A-Z0-9_\-/]{2,})/i
+    ],
+    invoiceDate: [
+      /(?:data\s*fattura|data)\s*[:\-]?\s*([0-3]?\d[\/.\-][01]?\d[\/.\-](?:\d{4}|\d{2}))/i
+    ],
+    dueDate: [
+      /(?:scadenza|data\s*di\s*scadenza)\s*[:\-]?\s*([0-3]?\d[\/.\-][01]?\d[\/.\-](?:\d{4}|\d{2}))/i
+    ],
+    vendorPrefixes: ["fornitore", "azienda", "venditore"]
+  }
+};
+
 const invoiceNumberPatterns = [
   /invoice\s*(?:number|no\.?|#)\s*[:\-]?\s*#?\s*([A-Z0-9][A-Z0-9_\-/]{2,})/i,
   /invoice\s*(?:n[o°]\.?|nr)\s*[:\-]?\s*#?\s*([A-Z0-9][A-Z0-9_\-/]{2,})/i,
@@ -20,9 +94,8 @@ const invoiceNumberHintPattern =
 const invoiceNumberTokenPattern = /([A-Z0-9][A-Z0-9_\-/]{2,})/;
 const invoiceNumberBlockedValuePattern = /^(invoice|number|page|aws)$/i;
 
-const explicitVendorLinePattern =
-  /^(vendor|supplier|sold\s*by|bill\s*from|from|company|merchant|hotel\s*details)\s*[:\-]?\s*(.*)$/i;
-const vendorRefinementPattern = /^(?:vendor|supplier|sold\s*by|bill\s*from|from|company|merchant)\s*[:\-]?\s*/i;
+const baseVendorPrefixes = ["vendor", "supplier", "sold\\s*by", "bill\\s*from", "from", "company", "merchant", "hotel\\s*details"];
+const vendorRefinementPattern = /^(?:vendor|supplier|sold\s*by|bill\s*from|from|company|merchant|fournisseur|vendeur|soci[ée]t[ée]|lieferant|anbieter|firma|leverancier|verkoper|bedrijf|proveedor|empresa|vendedor|fornitore|azienda|venditore)\s*[:\-]?\s*/i;
 const legalEntityPattern =
   /\b(ltd|limited|pvt|private|llc|inc|corp|corporation|gmbh|s\.?a\.?r\.?l\.?|plc|pte|company|co\.?)\b/i;
 const genericVendorStopPattern =
@@ -62,20 +135,26 @@ const negativeTotalPattern =
   /(sub\s*total|subtotal|tax(?:able)?|vat|gst|cgst|sgst|igst|mwst|u\s*st|ust|discount|round(?:ing)?\s*off|shipping|freight|delivery|paid|payment\s*received|advance|credit\s*note)/i;
 const amountTokenPattern = /[-+]?(?:\d{1,3}(?:[,\s.]\d{3})+|\d+)(?:[.,]\d{1,2})?/g;
 
-export function parseInvoiceText(text: string): ParseResult {
+export function parseInvoiceText(text: string, options?: ParseInvoiceOptions): ParseResult {
   const warnings: string[] = [];
   const parsed: ParsedInvoiceData = {
     notes: []
   };
+  const languageHint = normalizeLanguageHint(options?.languageHint);
 
   const compactText = normalizeForParsing(text);
+  const resolvedInvoiceNumberPatterns = resolvePatternSet("invoiceNumber", languageHint, invoiceNumberPatterns);
+  const resolvedDatePatterns = resolvePatternSet("invoiceDate", languageHint, datePatterns);
+  const resolvedDueDatePatterns = resolvePatternSet("dueDate", languageHint, dueDatePatterns);
+  const explicitVendorLinePattern = buildExplicitVendorLinePattern(languageHint);
+  const preferDayFirstDates = shouldPreferDayFirstDates(languageHint);
 
-  parsed.invoiceNumber = extractInvoiceNumber(compactText);
+  parsed.invoiceNumber = extractInvoiceNumber(compactText, resolvedInvoiceNumberPatterns);
   if (!parsed.invoiceNumber) {
     warnings.push("Could not confidently detect invoice number.");
   }
 
-  parsed.vendorName = resolveVendorName(compactText);
+  parsed.vendorName = resolveVendorName(compactText, explicitVendorLinePattern);
   if (!parsed.vendorName) {
     warnings.push("Could not confidently detect vendor name.");
   }
@@ -92,14 +171,14 @@ export function parseInvoiceText(text: string): ParseResult {
     parsed.totalAmountMinor = toMinorUnits(totalAmount, parsed.currency);
   }
 
-  const invoiceDateRaw = findFirstMatch(compactText, datePatterns);
+  const invoiceDateRaw = findFirstMatch(compactText, resolvedDatePatterns);
   if (invoiceDateRaw) {
-    parsed.invoiceDate = normalizeDate(invoiceDateRaw) ?? invoiceDateRaw;
+    parsed.invoiceDate = normalizeDate(invoiceDateRaw, { preferDayFirst: preferDayFirstDates }) ?? invoiceDateRaw;
   }
 
-  const dueDateRaw = findFirstMatch(compactText, dueDatePatterns);
+  const dueDateRaw = findFirstMatch(compactText, resolvedDueDatePatterns);
   if (dueDateRaw) {
-    parsed.dueDate = normalizeDate(dueDateRaw) ?? dueDateRaw;
+    parsed.dueDate = normalizeDate(dueDateRaw, { preferDayFirst: preferDayFirstDates }) ?? dueDateRaw;
   }
 
   return {
@@ -176,8 +255,8 @@ export function extractTotalAmount(text: string): number | undefined {
   return pickBestAmountCandidate(fallbackCandidates)?.amount;
 }
 
-function extractInvoiceNumber(text: string): string | undefined {
-  const direct = findFirstMatch(text, invoiceNumberPatterns);
+function extractInvoiceNumber(text: string, patterns: RegExp[]): string | undefined {
+  const direct = findFirstMatch(text, patterns);
   if (direct && isLikelyInvoiceNumber(direct)) {
     return direct;
   }
@@ -228,6 +307,60 @@ function normalizeForParsing(text: string): string {
     .replace(/\n{3,}/g, "\n\n");
 }
 
+function normalizeLanguageHint(value?: string): string | undefined {
+  if (!value) {
+    return undefined;
+  }
+
+  const normalized = value.trim().toLowerCase();
+  if (!normalized) {
+    return undefined;
+  }
+
+  return normalized.split(/[_-]/, 1)[0];
+}
+
+function resolvePatternSet(
+  type: "invoiceNumber" | "invoiceDate" | "dueDate",
+  languageHint: string | undefined,
+  fallback: RegExp[]
+): RegExp[] {
+  if (!languageHint) {
+    return fallback;
+  }
+
+  const languageConfig = LANGUAGE_PATTERN_OVERRIDES[languageHint];
+  if (!languageConfig) {
+    return fallback;
+  }
+
+  const override =
+    type === "invoiceNumber"
+      ? languageConfig.invoiceNumber
+      : type === "invoiceDate"
+        ? languageConfig.invoiceDate
+        : languageConfig.dueDate;
+  if (!override || override.length === 0) {
+    return fallback;
+  }
+
+  return [...override, ...fallback];
+}
+
+function buildExplicitVendorLinePattern(languageHint: string | undefined): RegExp {
+  const languagePrefixes = languageHint ? LANGUAGE_PATTERN_OVERRIDES[languageHint]?.vendorPrefixes ?? [] : [];
+  const prefixes = [...new Set([...baseVendorPrefixes, ...languagePrefixes])];
+  const pattern = prefixes.join("|");
+  return new RegExp(`^(${pattern})\\s*[:\\-]?\\s*(.*)$`, "i");
+}
+
+function shouldPreferDayFirstDates(languageHint: string | undefined): boolean {
+  if (!languageHint) {
+    return false;
+  }
+  return ["fr", "de", "nl", "es", "it", "pt"].includes(languageHint);
+}
+
 function findFirstMatch(text: string, patterns: RegExp[]): string | undefined {
   for (const pattern of patterns) {
     const match = text.match(pattern);
@@ -239,13 +372,13 @@ function findFirstMatch(text: string, patterns: RegExp[]): string | undefined {
   return undefined;
 }
 
-function resolveVendorName(text: string): string | undefined {
+function resolveVendorName(text: string, explicitPattern: RegExp): string | undefined {
   const lines = text
     .split(/\n+/)
     .map((line) => line.trim())
     .filter((line) => line.length > 2);
 
-  const explicit = extractExplicitVendor(lines);
+  const explicit = extractExplicitVendor(lines, explicitPattern);
   if (explicit) {
     return explicit;
   }
@@ -258,10 +391,10 @@ function resolveVendorName(text: string): string | undefined {
   return pickLikelyVendorLine(lines);
 }
 
-function extractExplicitVendor(lines: string[]): string | undefined {
+function extractExplicitVendor(lines: string[], explicitPattern: RegExp): string | undefined {
   for (let index = 0; index < lines.length; index += 1) {
     const line = lines[index];
-    const match = line.match(explicitVendorLinePattern);
+    const match = line.match(explicitPattern);
     if (!match) {
       continue;
     }
@@ -442,23 +575,29 @@ function extractCurrency(text: string): string | undefined {
   return currencyBySymbol[symbolMatch[0]];
 }
 
-function normalizeDate(input: string): string | undefined {
+function normalizeDate(input: string, options?: { preferDayFirst?: boolean }): string | undefined {
   const sanitized = input.replace(/,/g, "").trim();
+  const dayFirst = sanitized.match(/^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{4}|\d{2})$/);
+  if (options?.preferDayFirst && dayFirst) {
+    return formatDayFirstDate(dayFirst);
+  }
+
   const parsed = new Date(sanitized);
   if (!Number.isNaN(parsed.valueOf())) {
     return parsed.toISOString().slice(0, 10);
   }
 
-  const dayFirst = sanitized.match(/^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{4}|\d{2})$/);
   if (!dayFirst) {
     return undefined;
   }
+  return formatDayFirstDate(dayFirst);
+}
 
+function formatDayFirstDate(dayFirst: RegExpMatchArray): string {
   const day = dayFirst[1].padStart(2, "0");
   const month = dayFirst[2].padStart(2, "0");
   const rawYear = dayFirst[3];
   const year = rawYear.length === 2 ? `20${rawYear}` : rawYear;
-
   return `${year}-${month}-${day}`;
 }
 

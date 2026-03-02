@@ -20,7 +20,7 @@ export interface DetectedInvoiceLanguage {
   signals: string[];
 }
 
-interface PreOcrLanguageInput {
+export interface PreOcrLanguageInput {
   attachmentName: string;
   sourceKey: string;
   mimeType: string;

@@ -9,8 +9,7 @@ const demoConfigSchema = z.object({
     z.object({
       id: z.string().length(24),
       name: z.string().min(1),
-      onboardingStatus: z.enum(["pending", "completed"]).default("completed"),
-      mode: z.enum(["test", "live"]).default("test")
+      onboardingStatus: z.enum(["pending", "completed"]).default("completed")
     })
   ),
   users: z.array(
@@ -26,14 +25,13 @@ const demoConfigSchema = z.object({
 
 type DemoConfig = z.infer<typeof demoConfigSchema>;
 
-interface LocalDemoTenant {
+export interface LocalDemoTenant {
   id: string;
   name: string;
   onboardingStatus: "pending" | "completed";
-  mode: "test" | "live";
 }
 
-interface LocalDemoUser {
+export interface LocalDemoUser {
   email: string;
   password: string;
   displayName: string;
@@ -41,7 +39,7 @@ interface LocalDemoUser {
   role: TenantRole;
 }
 
-interface LocalDemoUsersConfig {
+export interface LocalDemoUsersConfig {
   tenants: LocalDemoTenant[];
   users: LocalDemoUser[];
 }
@@ -67,8 +65,7 @@ export function loadLocalDemoUsersConfig(): LocalDemoUsersConfig {
   const normalizedTenants = parsed.tenants.map((tenant) => ({
     id: tenant.id,
     name: tenant.name.trim(),
-    onboardingStatus: tenant.onboardingStatus,
-    mode: tenant.mode
+    onboardingStatus: tenant.onboardingStatus
   }));
   const normalizedUsers = parsed.users.map((user) => ({
     email: user.email.trim().toLowerCase(),
@@ -84,6 +81,15 @@ export function loadLocalDemoUsersConfig(): LocalDemoUsersConfig {
   };
   cachedConfigPath = configPath;
   return cachedConfig;
+}
+
+export function findLocalDemoUserByEmail(email: string): LocalDemoUser | null {
+  const normalized = email.trim().toLowerCase();
+  if (!normalized) {
+    return null;
+  }
+  const config = loadLocalDemoUsersConfig();
+  return config.users.find((entry) => entry.email === normalized) ?? null;
 }
 
 function resolveConfigPath(rawPath: string): string {

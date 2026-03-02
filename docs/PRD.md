@@ -61,22 +61,37 @@ Build a minimal, modular application that ingests invoices, extracts structured 
 - Tally export integration using correct API envelope/payload format.
 - Keep approved selection behavior stable for export flow.
 
-6. Checkpointing and Idempotency
+6. Authentication, Tenant Admin, and Platform Admin
+- OAuth2 authorization-code login for all users.
+- Tenant bootstrap on first login with explicit onboarding gate.
+- Tenant RBAC: `TENANT_ADMIN` and `MEMBER`.
+- Tenant invite flow with single-use token lifecycle.
+- Platform admin access controlled by OAuth email allowlist.
+- Platform admin view must expose tenant usage only (counts/status/health metadata), never invoice content or OCR payloads.
+
+7. Email Integration for Invites and Mailbox
+- Invite email sender must be abstraction-driven and provider-pluggable.
+- Local default invite sender should simulate SendGrid Mail Send API through MailHog wrapper for integration testing.
+- Provider compatibility target: SendGrid Mail Send contract (`/v3/mail/send`, Bearer auth, personalizations/content payload).
+
+8. Checkpointing and Idempotency
 - Store per-tenant + per-source checkpoint marker in MongoDB.
 - Update checkpoint after each processed file.
 - Crash-safe resume from last checkpoint.
 - Avoid duplicate processing across runs.
 
-7. Infra
+9. Infra
 - Terraform-based AWS provisioning.
 - Spot-instance worker pattern for periodic processing.
 - Provision a production Mongo-compatible DB module (DocumentDB) and use that connection for worker runtime in deployed environments.
 - Use reusable IAM, worker, and DB modules with app-level manifest overrides (`app_manifest`) for future app onboarding.
 - Use `tfvars` for deploy-time configuration and credentials.
 
-8. Testing
+10. Testing
 - Unit tests for parser, confidence, exporter, mapping, and helpers.
 - End-to-end tests for folder ingestion, checkpointing, resume behavior, and OCR engine/extraction-source consistency.
+- End-to-end tests for invite delivery formatting through simulated SendGrid->MailHog path.
+- End-to-end tests for platform-admin authorization and tenant-usage-only visibility.
 - Enforced quality gate: no dead code (Knip) and 100% branch coverage for covered logic modules.
 
 ## 5. Non-Functional Requirements
@@ -87,8 +102,8 @@ Build a minimal, modular application that ingests invoices, extracts structured 
 - Infra: Terraform (modular, extensible)
 - Keep code minimal and maintainable.
 - Runtime wiring must be composable through a manifest file (`APP_MANIFEST_PATH`) with env fallback.
-- Runtime mode switch must be a single variable: `ENV=local|prod`.
-- In `ENV=local`, run OCR/SLM locally on host macOS and use `docker compose up` for backend, frontend, and database.
+- Runtime mode switch must be a single variable: `ENV=local|stg|prod`.
+- In `ENV=local`, run OCR/SLM locally on host macOS and use `docker compose up` for backend, frontend, database, local STS, and MailHog.
 - Backend readiness must be blocked until required OCR + SLM capabilities are healthy.
 - Prepare for multitenancy by partitioning data and ingestion workload lanes (`standard` vs `heavy`) to protect low-usage tenants from heavy-usage impact.
 

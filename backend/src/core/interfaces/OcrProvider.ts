@@ -25,7 +25,11 @@ export interface OcrResult {
   pageImages?: OcrPageImage[];
 }
 
+export interface OcrExtractionOptions {
+  languageHint?: string;
+}
+
 export interface OcrProvider {
   readonly name: string;
-  extractText(buffer: Buffer, mimeType: string): Promise<OcrResult>;
+  extractText(buffer: Buffer, mimeType: string, options?: OcrExtractionOptions): Promise<OcrResult>;
 }

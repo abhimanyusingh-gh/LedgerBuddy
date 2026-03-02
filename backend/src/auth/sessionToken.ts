@@ -11,7 +11,7 @@ interface SessionTokenPayload {
   exp: number;
 }
 
-interface CreateSessionTokenInput {
+export interface CreateSessionTokenInput {
   userId: string;
   email: string;
   tenantId: string;
@@ -21,7 +21,7 @@ interface CreateSessionTokenInput {
   secret: string;
 }
 
-interface VerifiedSessionToken {
+export interface VerifiedSessionToken {
   userId: string;
   email: string;
   tenantId: string;

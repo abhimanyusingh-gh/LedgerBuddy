@@ -9,8 +9,149 @@ import type {
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:4000/api";
 const backendBaseUrl = apiBaseUrl.replace(/\/api\/?$/, "");
+const SESSION_TOKEN_KEY = "invoice_processor_session_token";
 
 const apiClient = axios.create({ baseURL: apiBaseUrl });
+apiClient.interceptors.request.use((config) => {
+  const token = getStoredSessionToken();
+  if (token) {
+    config.headers = config.headers ?? {};
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
+export interface SessionContextResponse {
+  user: {
+    id: string;
+    email: string;
+    role: "TENANT_ADMIN" | "MEMBER";
+    isPlatformAdmin: boolean;
+  };
+  tenant: {
+    id: string;
+    name: string;
+    onboarding_status: "pending" | "completed";
+  };
+  flags: {
+    requires_tenant_setup: boolean;
+    requires_reauth: boolean;
+    requires_admin_action: boolean;
+    requires_email_confirmation: boolean;
+  };
+}
+
+export interface TenantUserSummary {
+  userId: string;
+  email: string;
+  role: "TENANT_ADMIN" | "MEMBER";
+}
+
+export interface PlatformTenantUsageSummary {
+  tenantId: string;
+  tenantName: string;
+  onboardingStatus: "pending" | "completed";
+  userCount: number;
+  totalDocuments: number;
+  parsedDocuments: number;
+  approvedDocuments: number;
+  exportedDocuments: number;
+  needsReviewDocuments: number;
+  failedDocuments: number;
+  gmailConnectionState: "CONNECTED" | "NEEDS_REAUTH" | "DISCONNECTED";
+  lastIngestedAt: string | null;
+  createdAt: string;
+}
+
+export interface PlatformTenantOnboardResult {
+  tenantId: string;
+  tenantName: string;
+  adminUserId: string;
+  adminEmail: string;
+}
+
+export function getStoredSessionToken(): string {
+  return window.localStorage.getItem(SESSION_TOKEN_KEY) ?? "";
+}
+
+export function setStoredSessionToken(token: string): void {
+  const normalized = token.trim();
+  if (normalized.length === 0) {
+    window.localStorage.removeItem(SESSION_TOKEN_KEY);
+    return;
+  }
+  window.localStorage.setItem(SESSION_TOKEN_KEY, normalized);
+}
+
+export function clearStoredSessionToken(): void {
+  window.localStorage.removeItem(SESSION_TOKEN_KEY);
+}
+
+export function getAuthLoginUrl(nextPath = "/", loginHint = ""): string {
+  const url = new URL("/auth/login", backendBaseUrl);
+  url.searchParams.set("next", nextPath);
+  const normalizedLoginHint = loginHint.trim().toLowerCase();
+  if (normalizedLoginHint.length > 0) {
+    url.searchParams.set("login_hint", normalizedLoginHint);
+  }
+  return url.toString();
+}
+
+export async function loginWithCredentials(email: string, password: string): Promise<string> {
+  const response = await axios.post<{ token?: string }>(`${backendBaseUrl}/auth/token`, {
+    email,
+    password
+  });
+  const token = typeof response.data?.token === "string" ? response.data.token.trim() : "";
+  if (!token) {
+    throw new Error("Login did not return a session token.");
+  }
+  return token;
+}
+
+export async function fetchSessionContext(): Promise<SessionContextResponse> {
+  const response = await apiClient.get<SessionContextResponse>("/session");
+  return response.data;
+}
+
+export async function completeTenantOnboarding(payload: { tenantName: string; adminEmail: string }): Promise<void> {
+  await apiClient.post("/tenant/onboarding/complete", payload);
+}
+
+export async function acceptTenantInvite(token: string): Promise<void> {
+  await apiClient.post("/tenant/invites/accept", { token });
+}
+
+export async function fetchTenantUsers(): Promise<TenantUserSummary[]> {
+  const response = await apiClient.get<{ items?: TenantUserSummary[] }>("/admin/users");
+  return Array.isArray(response.data?.items) ? response.data.items : [];
+}
+
+export async function inviteTenantUser(email: string): Promise<void> {
+  await apiClient.post("/admin/users/invite", { email });
+}
+
+export async function assignTenantUserRole(userId: string, role: "TENANT_ADMIN" | "MEMBER"): Promise<void> {
+  await apiClient.post(`/admin/users/${userId}/role`, { role });
+}
+
+export async function removeTenantUser(userId: string): Promise<void> {
+  await apiClient.delete(`/admin/users/${userId}`);
+}
+
+export async function fetchPlatformTenantUsage(): Promise<PlatformTenantUsageSummary[]> {
+  const response = await apiClient.get<{ items?: PlatformTenantUsageSummary[] }>("/platform/tenants/usage");
+  return Array.isArray(response.data?.items) ? response.data.items : [];
+}
+
+export async function onboardTenantAdmin(payload: {
+  tenantName: string;
+  adminEmail: string;
+  adminDisplayName?: string;
+}): Promise<PlatformTenantOnboardResult> {
+  const response = await apiClient.post<PlatformTenantOnboardResult>("/platform/tenants/onboard-admin", payload);
+  return response.data;
+}
 
 export async function fetchInvoices(status?: string) {
   const pageSize = 100;
@@ -55,15 +196,17 @@ export async function fetchInvoiceById(invoiceId: string) {
 }
 
 export function getInvoiceBlockCropUrl(invoiceId: string, blockIndex: number): string {
-  return apiClient.getUri({
+  const raw = apiClient.getUri({
     url: `/invoices/${invoiceId}/ocr-blocks/${blockIndex}/crop`
   });
+  return appendAuthTokenQuery(raw);
 }
 
 export function getInvoiceFieldOverlayUrl(invoiceId: string, field: string): string {
-  return apiClient.getUri({
+  const raw = apiClient.getUri({
     url: `/invoices/${invoiceId}/source-overlays/${field}`
   });
+  return appendAuthTokenQuery(raw);
 }
 
 export async function approveInvoices(ids: string[], approvedBy: string) {
@@ -100,12 +243,17 @@ export async function fetchIngestionStatus() {
 }
 
 export async function fetchGmailConnectionStatus() {
-  const response = await apiClient.get<GmailConnectionStatus>("/mailbox/gmail/connection");
+  const response = await apiClient.get<GmailConnectionStatus>("/integrations/gmail");
   return sanitizeGmailConnectionStatus(response.data);
 }
 
-export function getGmailConnectUrl(): string {
-  return `${backendBaseUrl}/connect/gmail`;
+export async function fetchGmailConnectUrl(): Promise<string> {
+  const response = await apiClient.get<{ connectUrl: string }>("/integrations/gmail/connect-url");
+  const connectUrl = typeof response.data?.connectUrl === "string" ? response.data.connectUrl.trim() : "";
+  if (!connectUrl) {
+    throw new Error("Gmail connect URL was not returned.");
+  }
+  return connectUrl;
 }
 
 interface UpdateInvoiceParsedPayload {
@@ -206,4 +354,15 @@ function sanitizeGmailConnectionStatus(value: unknown): GmailConnectionStatus {
     lastErrorReason: typeof data.lastErrorReason === "string" ? data.lastErrorReason : undefined,
     lastSyncedAt: typeof data.lastSyncedAt === "string" ? data.lastSyncedAt : undefined
   };
+}
+
+function appendAuthTokenQuery(url: string): string {
+  const token = getStoredSessionToken();
+  if (!token) {
+    return url;
+  }
+
+  const resolved = new URL(url, backendBaseUrl);
+  resolved.searchParams.set("authToken", token);
+  return resolved.toString();
 }

@@ -14,6 +14,7 @@ interface ExtractionAgentInput {
   expectedMaxTotal: number;
   expectedMaxDueDays: number;
   autoSelectMin: number;
+  languageHint?: string;
   referenceDate?: Date;
 }
 
@@ -62,7 +63,9 @@ export function runInvoiceExtractionAgent(input: ExtractionAgentInput): Extracti
   }
 
   const attempts = expandedCandidates.map((candidate) => {
-    const parseResult = parseInvoiceText(candidate.text);
+    const parseResult = parseInvoiceText(candidate.text, {
+      languageHint: input.languageHint
+    });
     const confidence = assessInvoiceConfidence({
       ocrConfidence: candidate.confidence,
       parsed: parseResult.parsed,

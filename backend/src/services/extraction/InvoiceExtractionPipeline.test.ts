@@ -1,5 +1,5 @@
 import type { FieldVerifier, FieldVerifierResult } from "../../core/interfaces/FieldVerifier.ts";
-import type { OcrBlock, OcrProvider } from "../../core/interfaces/OcrProvider.ts";
+import type { OcrBlock, OcrExtractionOptions, OcrProvider } from "../../core/interfaces/OcrProvider.ts";
 import { InvoiceExtractionPipeline, ExtractionPipelineError } from "./InvoiceExtractionPipeline.ts";
 import { InMemoryVendorTemplateStore } from "./vendorTemplateStore.ts";
 
@@ -14,6 +14,12 @@ const SAMPLE_TEXT = [
 
 class StubOcrProvider implements OcrProvider {
   readonly name = "stub-ocr";
+  lastRequest:
+    | {
+        mimeType: string;
+        languageHint?: string;
+      }
+    | undefined;
 
   constructor(
     private readonly payload: {
@@ -24,7 +30,15 @@ class StubOcrProvider implements OcrProvider {
     }
   ) {}
 
-  async extractText(): Promise<{ text: string; confidence?: number; provider: string; blocks?: OcrBlock[] }> {
+  async extractText(
+    _buffer: Buffer,
+    mimeType: string,
+    options?: OcrExtractionOptions
+  ): Promise<{ text: string; confidence?: number; provider: string; blocks?: OcrBlock[] }> {
+    this.lastRequest = {
+      mimeType,
+      languageHint: options?.languageHint
+    };
     if (this.payload.throwError) {
       throw new Error("stub ocr failed");
     }
@@ -78,6 +92,7 @@ describe("InvoiceExtractionPipeline", () => {
     expect(result.parseResult.parsed.vendorName).toBe("ACME Corp");
     expect(result.parseResult.parsed.totalAmountMinor).toBe(125000);
     expect(result.metadata.ocrGate).toBe("high");
+    expect(result.metadata.documentLanguage).toBe("en");
     expect(result.processingIssues).toEqual([]);
     expect(verifier.verify).not.toHaveBeenCalled();
 
@@ -136,6 +151,7 @@ describe("InvoiceExtractionPipeline", () => {
         ocrText: expect.stringContaining("Invoice Number: INV-2001"),
         ocrBlocks: expect.any(Array),
         hints: expect.objectContaining({
+          documentLanguage: "en",
           fieldRegions: expect.any(Object)
         })
       })
@@ -197,5 +213,71 @@ describe("InvoiceExtractionPipeline", () => {
     await expect(pipeline.extract(buildInput())).rejects.toMatchObject<Partial<ExtractionPipelineError>>({
       code: "FAILED_OCR"
     });
+  });
+
+  it("passes pre-OCR language hint to OCR provider when file hints are available", async () => {
+    const ocrProvider = new StubOcrProvider({
+      text: SAMPLE_TEXT,
+      confidence: 0.95
+    });
+    const pipeline = new InvoiceExtractionPipeline(
+      ocrProvider,
+      new StubFieldVerifier({ parsed: {}, issues: [], changedFields: [] }),
+      new InMemoryVendorTemplateStore()
+    );
+
+    const result = await pipeline.extract({
+      ...buildInput(),
+      attachmentName: "Facture-client-2026.pdf",
+      mimeType: "application/pdf"
+    });
+
+    expect(ocrProvider.lastRequest?.languageHint).toBe("fr");
+    expect(result.metadata.preOcrLanguage).toBe("fr");
+    expect(result.metadata.documentLanguage).toBe("en");
+  });
+
+  it("adds OCR key-value grounding candidate when enabled", async () => {
+    const ocrProvider = new StubOcrProvider({
+      text: "42183017\nUSD 1250.00",
+      confidence: 0.93,
+      blocks: [
+        { text: "Invoice Number", page: 1, bbox: [10, 10, 120, 34], bboxNormalized: [0.02, 0.02, 0.18, 0.04] },
+        { text: "42183017", page: 1, bbox: [180, 10, 320, 34], bboxNormalized: [0.19, 0.02, 0.32, 0.04] },
+        { text: "Total Amount", page: 1, bbox: [10, 50, 120, 78], bboxNormalized: [0.02, 0.05, 0.18, 0.08] },
+        { text: "USD 1250.00", page: 1, bbox: [180, 50, 320, 78], bboxNormalized: [0.19, 0.05, 0.32, 0.08] }
+      ]
+    });
+
+    const pipeline = new InvoiceExtractionPipeline(
+      ocrProvider,
+      new StubFieldVerifier({ parsed: {}, issues: [], changedFields: [] }),
+      new InMemoryVendorTemplateStore(),
+      { enableOcrKeyValueGrounding: true }
+    );
+    const result = await pipeline.extract(buildInput());
+
+    expect(result.attempts.some((attempt) => attempt.source === "ocr-key-value-grounding")).toBe(true);
+  });
+
+  it("can disable OCR key-value grounding candidate for baseline benchmarking", async () => {
+    const ocrProvider = new StubOcrProvider({
+      text: "42183017\nUSD 1250.00",
+      confidence: 0.93,
+      blocks: [
+        { text: "Invoice Number", page: 1, bbox: [10, 10, 120, 34], bboxNormalized: [0.02, 0.02, 0.18, 0.04] },
+        { text: "42183017", page: 1, bbox: [180, 10, 320, 34], bboxNormalized: [0.19, 0.02, 0.32, 0.04] }
+      ]
+    });
+
+    const pipeline = new InvoiceExtractionPipeline(
+      ocrProvider,
+      new StubFieldVerifier({ parsed: {}, issues: [], changedFields: [] }),
+      new InMemoryVendorTemplateStore(),
+      { enableOcrKeyValueGrounding: false }
+    );
+    const result = await pipeline.extract(buildInput());
+
+    expect(result.attempts.some((attempt) => attempt.source === "ocr-key-value-grounding")).toBe(false);
   });
 });

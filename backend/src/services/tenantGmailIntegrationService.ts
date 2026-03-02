@@ -2,7 +2,6 @@ import { createHash, randomBytes } from "node:crypto";
 import { env } from "../config/env.js";
 import { OAuthStateModel } from "../models/OAuthState.js";
 import { TenantIntegrationModel } from "../models/TenantIntegration.js";
-import { TenantMailboxAssignmentModel } from "../models/TenantMailboxAssignment.js";
 import {
   exchangeGoogleAuthorizationCode,
   fetchGoogleUserEmail,
@@ -93,11 +92,10 @@ export class TenantGmailIntegrationService {
     );
     const encryptedRefreshToken = encryptSecret(tokenResult.refreshToken, env.REFRESH_TOKEN_ENCRYPTION_SECRET);
 
-    const integration = await TenantIntegrationModel.findOneAndUpdate(
+    await TenantIntegrationModel.findOneAndUpdate(
       {
         tenantId: oauthState.tenantId,
-        provider: PROVIDER,
-        emailAddress
+        provider: PROVIDER
       },
       {
         tenantId: oauthState.tenantId,
@@ -114,12 +112,6 @@ export class TenantGmailIntegrationService {
         new: true,
         setDefaultsOnInsert: true
       }
-    );
-
-    await TenantMailboxAssignmentModel.updateOne(
-      { tenantId: oauthState.tenantId, integrationId: integration._id, assignedTo: "all" },
-      { tenantId: oauthState.tenantId, integrationId: integration._id, assignedTo: "all" },
-      { upsert: true }
     );
 
     return {
@@ -257,60 +249,6 @@ export class TenantGmailIntegrationService {
       return;
     }
 
-    await integration.save();
-  }
-
-  async updatePollingConfig(
-    integrationId: string,
-    tenantId: string,
-    input: { enabled: boolean; intervalHours: number }
-  ): Promise<void> {
-    const integration = await TenantIntegrationModel.findOne({ _id: integrationId, tenantId });
-    if (!integration) {
-      throw new HttpError("Integration not found.", 404, "integration_not_found");
-    }
-    if (integration.status !== "connected") {
-      throw new HttpError("Polling can only be enabled on connected integrations.", 400, "integration_not_connected");
-    }
-
-    const { ALLOWED_POLLING_INTERVALS_HOURS } = await import("../models/TenantIntegration.js");
-    if (!ALLOWED_POLLING_INTERVALS_HOURS.includes(input.intervalHours as 1 | 2 | 4 | 8)) {
-      throw new HttpError(`Polling interval must be one of: ${ALLOWED_POLLING_INTERVALS_HOURS.join(", ")} hours.`, 400, "invalid_polling_interval");
-    }
-
-    const now = new Date();
-    const nextPollAfter = input.enabled ? new Date(now.getTime() + input.intervalHours * 3600_000) : undefined;
-
-    integration.set("pollingConfig", {
-      enabled: input.enabled,
-      intervalHours: input.intervalHours,
-      lastPolledAt: integration.get("pollingConfig")?.lastPolledAt ?? undefined,
-      nextPollAfter
-    });
-    await integration.save();
-  }
-
-  async getPollingEligibleIntegrations(): Promise<Array<{ tenantId: string; integrationId: string }>> {
-    const now = new Date();
-    const integrations = await TenantIntegrationModel.find({
-      provider: "gmail",
-      status: "connected",
-      "pollingConfig.enabled": true,
-      "pollingConfig.nextPollAfter": { $lte: now }
-    }).select({ tenantId: 1 }).lean();
-
-    return integrations.map((i) => ({
-      tenantId: i.tenantId,
-      integrationId: String(i._id)
-    }));
-  }
-
-  async markPollingCompleted(integrationId: string): Promise<void> {
-    const integration = await TenantIntegrationModel.findById(integrationId);
-    if (!integration?.pollingConfig) return;
-    const now = new Date();
-    integration.pollingConfig.lastPolledAt = now;
-    integration.pollingConfig.nextPollAfter = new Date(now.getTime() + (integration.pollingConfig.intervalHours ?? 4) * 3600_000);
     await integration.save();
   }
 }

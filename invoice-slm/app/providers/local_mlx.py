@@ -148,7 +148,10 @@ def build_prompt(tokenizer: Any, payload: dict[str, Any], strict: bool) -> str:
       "if unknown keep empty string or 0."
     )
 
-  user_message = f"{instruction}\nINPUT_JSON:{json.dumps(payload, ensure_ascii=True, separators=(',', ':'))}\nOUTPUT_JSON:"
+  prompt_payload = sanitize_payload_for_prompt(payload)
+  user_message = (
+    f"{instruction}\nINPUT_JSON:{json.dumps(prompt_payload, ensure_ascii=True, separators=(',', ':'))}\nOUTPUT_JSON:"
+  )
   return str(
     tokenizer.apply_chat_template(
       [
@@ -173,6 +176,45 @@ def extract_generation_text(output: Any) -> str:
       if isinstance(value, str):
         return cleanup_generation_text(value)
   return cleanup_generation_text(str(output))
+
+
+def sanitize_payload_for_prompt(payload: dict[str, Any]) -> dict[str, Any]:
+  if not isinstance(payload, dict):
+    return {}
+
+  cloned = dict(payload)
+  document_context = cloned.get("documentContext")
+  if isinstance(document_context, dict):
+    sanitized_context: dict[str, Any] = {}
+    original_doc = document_context.get("originalDocumentDataUrl")
+    if isinstance(original_doc, str) and original_doc.startswith("data:"):
+      sanitized_context["originalDocumentMimeType"] = original_doc.split(";", 1)[0].replace("data:", "")
+      sanitized_context["originalDocumentPreview"] = original_doc[:180]
+      sanitized_context["originalDocumentLength"] = len(original_doc)
+
+    page_images = document_context.get("pageImages")
+    if isinstance(page_images, list):
+      summaries: list[dict[str, Any]] = []
+      for entry in page_images[:3]:
+        if not isinstance(entry, dict):
+          continue
+        summary = {
+          "page": entry.get("page"),
+          "mimeType": entry.get("mimeType"),
+          "width": entry.get("width"),
+          "height": entry.get("height"),
+          "dpi": entry.get("dpi")
+        }
+        data_url = entry.get("dataUrl")
+        if isinstance(data_url, str) and data_url.startswith("data:"):
+          summary["dataUrlPreview"] = data_url[:140]
+          summary["dataUrlLength"] = len(data_url)
+        summaries.append(summary)
+      sanitized_context["pageImages"] = summaries
+
+    cloned["documentContext"] = sanitized_context
+
+  return cloned
 
 
 def cleanup_generation_text(value: str) -> str:

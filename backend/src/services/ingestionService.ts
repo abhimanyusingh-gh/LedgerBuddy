@@ -52,6 +52,7 @@ interface IngestionServiceOptions {
 
 interface RunOnceRuntimeOptions {
   onProgress?: (progress: IngestionRunProgress) => Promise<void> | void;
+  tenantId?: string;
 }
 
 export class IngestionService {
@@ -96,13 +97,30 @@ export class IngestionService {
 
     await emitProgress(true);
 
+    const runtimeTenantId =
+      runtimeOptions?.tenantId && runtimeOptions.tenantId.trim().length > 0 ? runtimeOptions.tenantId.trim() : "";
     const prioritizedSources = [...this.sources].sort(compareSourcePriority);
-    for (const source of prioritizedSources) {
-      const checkpoint = await CheckpointModel.findOne({ sourceKey: source.key, tenantId: source.tenantId }).lean();
+    const tenantMatchedSources =
+      runtimeTenantId.length > 0
+        ? prioritizedSources.filter((source) => source.tenantId === runtimeTenantId)
+        : prioritizedSources;
+    const tenantScopedSources =
+      runtimeTenantId.length > 0 && tenantMatchedSources.length > 0 ? tenantMatchedSources : prioritizedSources;
+
+    if (runtimeTenantId.length > 0 && tenantMatchedSources.length === 0) {
+      logger.warn("ingestion.run.tenant_source_fallback", {
+        tenantId: runtimeTenantId,
+        sourceCount: prioritizedSources.length
+      });
+    }
+
+    for (const source of tenantScopedSources) {
+      const effectiveTenantId = runtimeTenantId || source.tenantId;
+      const checkpoint = await CheckpointModel.findOne({ sourceKey: source.key, tenantId: effectiveTenantId }).lean();
       const sourceFiles = await source.fetchNewFiles(checkpoint?.marker ?? null);
-      const files = await this.filterAlreadyProcessedFiles(source, sourceFiles);
+      const files = await this.filterAlreadyProcessedFiles(source, sourceFiles, effectiveTenantId);
       logger.info("ingestion.source.scan", {
-        tenantId: source.tenantId,
+        tenantId: effectiveTenantId,
         workloadTier: source.workloadTier,
         sourceType: source.type,
         sourceKey: source.key,
@@ -116,11 +134,12 @@ export class IngestionService {
 
       let nextMarker = checkpoint?.marker ?? null;
       for (const file of files) {
-        const processed = await this.processFile(file);
+        const scopedFile = file.tenantId === effectiveTenantId ? file : { ...file, tenantId: effectiveTenantId };
+        const processed = await this.processFile(scopedFile);
         logger.info("ingestion.file.result", {
-          sourceKey: file.sourceKey,
-          sourceDocumentId: file.sourceDocumentId,
-          attachmentName: file.attachmentName,
+          sourceKey: scopedFile.sourceKey,
+          sourceDocumentId: scopedFile.sourceDocumentId,
+          attachmentName: scopedFile.attachmentName,
           result: processed
         });
         if (processed === "created") {
@@ -137,21 +156,21 @@ export class IngestionService {
         processedFiles += 1;
         await emitProgress(true);
 
-        if (file.checkpointValue !== nextMarker) {
+        if (scopedFile.checkpointValue !== nextMarker) {
           await CheckpointModel.findOneAndUpdate(
-            { sourceKey: source.key, tenantId: source.tenantId },
-            { sourceKey: source.key, tenantId: source.tenantId, marker: file.checkpointValue },
+            { sourceKey: source.key, tenantId: effectiveTenantId },
+            { sourceKey: source.key, tenantId: effectiveTenantId, marker: scopedFile.checkpointValue },
             { upsert: true, new: true }
           );
-          nextMarker = file.checkpointValue;
+          nextMarker = scopedFile.checkpointValue;
         }
 
         if (this.afterFileProcessed) {
           await this.afterFileProcessed({
-            tenantId: file.tenantId,
-            workloadTier: file.workloadTier,
+            tenantId: effectiveTenantId,
+            workloadTier: scopedFile.workloadTier,
             sourceKey: source.key,
-            checkpointValue: file.checkpointValue,
+            checkpointValue: scopedFile.checkpointValue,
             result: processed
           });
         }
@@ -163,14 +182,18 @@ export class IngestionService {
     return summary;
   }
 
-  private async filterAlreadyProcessedFiles(source: IngestionSource, files: IngestedFile[]): Promise<IngestedFile[]> {
+  private async filterAlreadyProcessedFiles(
+    source: IngestionSource,
+    files: IngestedFile[],
+    effectiveTenantId: string
+  ): Promise<IngestedFile[]> {
     if (files.length === 0 || source.type !== "folder") {
       return files;
     }
 
     const existingDocs = await InvoiceModel.find({
       sourceType: source.type,
-      tenantId: source.tenantId,
+      tenantId: effectiveTenantId,
       sourceKey: source.key,
       sourceDocumentId: { $in: files.map((file) => file.sourceDocumentId) }
     })

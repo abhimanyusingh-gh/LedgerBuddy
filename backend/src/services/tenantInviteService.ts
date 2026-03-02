@@ -5,15 +5,11 @@ import { TenantInviteModel } from "../models/TenantInvite.js";
 import { TenantUserRoleModel } from "../models/TenantUserRole.js";
 import { UserModel } from "../models/User.js";
 import { HttpError } from "../errors/HttpError.js";
-import type { KeycloakAdminClient } from "../keycloak/KeycloakAdminClient.js";
 
 const INVITE_TTL_MS = 24 * 60 * 60 * 1000;
 
 export class TenantInviteService {
-  constructor(
-    private readonly inviteEmailSender: InviteEmailSenderBoundary,
-    private readonly keycloakAdmin: KeycloakAdminClient
-  ) {}
+  constructor(private readonly inviteEmailSender: InviteEmailSenderBoundary) {}
 
   async createInvite(input: {
     tenantId: string;
@@ -56,17 +52,6 @@ export class TenantInviteService {
       token,
       expiresAt
     });
-
-    // Register in Keycloak if not already present; send password setup email
-    const alreadyExists = await this.keycloakAdmin.userExists(normalizedEmail);
-    if (!alreadyExists) {
-      const kcUserId = await this.keycloakAdmin.createUser(normalizedEmail, "", false);
-      try {
-        await this.keycloakAdmin.executeActionsEmail(kcUserId, ["UPDATE_PASSWORD"]);
-      } catch {
-        // Non-critical: KC SMTP may not be configured in local dev
-      }
-    }
 
     return {
       inviteId: String(invite._id),
@@ -120,13 +105,13 @@ export class TenantInviteService {
     const inviteUrl = `${env.INVITE_BASE_URL.replace(/\/+$/, "")}/invite?token=${encodeURIComponent(input.token)}`;
     const expiresAt = input.expiresAt.toISOString();
     const textBody = [
-      "You were invited to join a tenant in BillForge.",
+      "You were invited to join a tenant in Invoice Processor.",
       "",
       `Accept invite: ${inviteUrl}`,
       `Expires at: ${expiresAt}`
     ].join("\n");
     const htmlBody = [
-      "<p>You were invited to join a tenant in BillForge.</p>",
+      "<p>You were invited to join a tenant in Invoice Processor.</p>",
       `<p><strong>Accept invite:</strong> <a href="${inviteUrl}">${inviteUrl}</a></p>`,
       `<p><strong>Expires at:</strong> ${expiresAt}</p>`
     ].join("");
@@ -134,7 +119,7 @@ export class TenantInviteService {
     await this.inviteEmailSender.send({
       from: env.INVITE_FROM,
       to: input.email,
-      subject: "You were invited to BillForge",
+      subject: "You were invited to Invoice Processor",
       text: textBody,
       html: htmlBody
     });
