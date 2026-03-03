@@ -1910,7 +1910,12 @@ pre {
 .source-preview-image {
   position: relative;
   width: 100%;
-  aspect-ratio: 1.32 / 1;
+  min-height: 300px;
+  max-height: min(72vh, 920px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.45rem;
   background:
     linear-gradient(180deg, rgba(31, 122, 108, 0.06), rgba(203, 92, 42, 0.05)),
     #fbfaf5;
@@ -1918,9 +1923,24 @@ pre {
 
 .source-preview-image img {
   width: 100%;
-  height: 100%;
-  object-fit: cover;
+  height: auto;
+  max-height: min(70vh, 880px);
+  object-fit: contain;
+  object-position: center;
   display: block;
+}
+
+.source-preview-canvas {
+  position: relative;
+  width: 100%;
+}
+
+.source-preview-box {
+  position: absolute;
+  border: 2px solid #1f7a6c;
+  background: rgba(31, 122, 108, 0.2);
+  box-shadow: 0 0 0 1px rgba(31, 122, 108, 0.24);
+  pointer-events: none;
 }
 
 .muted {

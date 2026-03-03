@@ -6,12 +6,15 @@ import type {
   InvoiceListResponse,
   TallyExportResponse
 } from "./types";
+import { normalizeApiError } from "./apiError";
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:4000/api";
 const backendBaseUrl = apiBaseUrl.replace(/\/api\/?$/, "");
 const SESSION_TOKEN_KEY = "invoice_processor_session_token";
 
 const apiClient = axios.create({ baseURL: apiBaseUrl });
+const backendClient = axios.create({ baseURL: backendBaseUrl });
+
 apiClient.interceptors.request.use((config) => {
   const token = getStoredSessionToken();
   if (token) {
@@ -20,6 +23,16 @@ apiClient.interceptors.request.use((config) => {
   }
   return config;
 });
+
+apiClient.interceptors.response.use(
+  (response) => response,
+  (error) => Promise.reject(normalizeApiError(error))
+);
+
+backendClient.interceptors.response.use(
+  (response) => response,
+  (error) => Promise.reject(normalizeApiError(error))
+);
 
 export interface SessionContextResponse {
   user: {
@@ -98,7 +111,7 @@ export function getAuthLoginUrl(nextPath = "/", loginHint = ""): string {
 }
 
 export async function loginWithCredentials(email: string, password: string): Promise<string> {
-  const response = await axios.post<{ token?: string }>(`${backendBaseUrl}/auth/token`, {
+  const response = await backendClient.post<{ token?: string }>("/auth/token", {
     email,
     password
   });
@@ -205,6 +218,16 @@ export function getInvoiceBlockCropUrl(invoiceId: string, blockIndex: number): s
 export function getInvoiceFieldOverlayUrl(invoiceId: string, field: string): string {
   const raw = apiClient.getUri({
     url: `/invoices/${invoiceId}/source-overlays/${field}`
+  });
+  return appendAuthTokenQuery(raw);
+}
+
+export function getInvoicePreviewUrl(invoiceId: string, page = 1): string {
+  const raw = apiClient.getUri({
+    url: `/invoices/${invoiceId}/preview`,
+    params: {
+      page: Math.max(1, Math.round(page))
+    }
   });
   return appendAuthTokenQuery(raw);
 }

@@ -118,6 +118,18 @@ async function verifyInvoiceOverlayFlow(page: Page, attachmentName: string): Pro
   await expect(dialog.getByRole("heading", { name: "Value Source Highlights" })).toBeVisible();
   await expect(dialog.locator(".source-preview-image img")).toBeVisible();
   await expect
+    .poll(
+      async () =>
+        dialog
+          .locator(".source-preview-image img")
+          .first()
+          .evaluate((element) => window.getComputedStyle(element).objectFit),
+      {
+        message: `expected source preview to render full invoice without cover-cropping for ${attachmentName}`
+      }
+    )
+    .toBe("contain");
+  await expect
     .poll(async () => dialog.locator(".source-highlight-chip").count(), {
       message: `expected source field chips for ${attachmentName}`
     })

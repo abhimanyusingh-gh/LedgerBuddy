@@ -16,6 +16,7 @@ import {
   fetchTenantUsers,
   getInvoiceBlockCropUrl,
   getInvoiceFieldOverlayUrl,
+  getInvoicePreviewUrl,
   getStoredSessionToken,
   inviteTenantUser,
   runEmailSimulationIngestion,
@@ -63,6 +64,7 @@ import {
   STATUSES
 } from "./invoiceView";
 import { useInvoiceDetail } from "./hooks/useInvoiceDetail";
+import { getUserFacingErrorMessage, isAuthenticationError } from "./apiError";
 
 export function App() {
   const [authLoading, setAuthLoading] = useState(true);
@@ -283,6 +285,10 @@ export function App() {
       getInvoiceFieldOverlayUrl
     );
   }, [popupInvoice]);
+  const popupSourceHighlights = useMemo(
+    () => (popupInvoice ? getInvoiceSourceHighlights(popupInvoice) : []),
+    [popupInvoice]
+  );
 
   const canEditActiveInvoice = Boolean(activeInvoice && activeInvoice.status !== "EXPORTED");
   const ingestionProgressPercent = useMemo(() => {
@@ -352,6 +358,10 @@ export function App() {
   const gmailConnected = gmailConnectionState === "CONNECTED";
   const gmailEmailAddress = gmailConnection?.emailAddress ?? "";
 
+  function resolveErrorMessage(error: unknown, fallback: string): string {
+    return getUserFacingErrorMessage(error, fallback);
+  }
+
   async function bootstrapSession() {
     setAuthLoading(true);
     const params = new URLSearchParams(window.location.search);
@@ -393,7 +403,7 @@ export function App() {
       const users = await fetchTenantUsers();
       setTenantUsers(users);
     } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : "Failed to load tenant users.");
+      setError(resolveErrorMessage(loadError, "Failed to load tenant users."));
     }
   }
 
@@ -405,7 +415,7 @@ export function App() {
       const usage = await fetchPlatformTenantUsage();
       setPlatformUsage(usage);
     } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : "Failed to load tenant usage overview.");
+      setError(resolveErrorMessage(loadError, "Failed to load tenant usage overview."));
     }
   }
 
@@ -514,11 +524,11 @@ export function App() {
         void refreshPopupInvoiceDetail();
       }
     } catch (loadError) {
-      if (loadError instanceof Error && /401|Authentication required|bearer token/i.test(loadError.message)) {
+      if (isAuthenticationError(loadError)) {
         clearStoredSessionToken();
         setSession(null);
       } else {
-        setError(loadError instanceof Error ? loadError.message : "Failed to fetch invoices");
+        setError(resolveErrorMessage(loadError, "Failed to fetch invoices."));
       }
     } finally {
       setLoading(false);
@@ -557,7 +567,7 @@ export function App() {
       const connectUrl = await fetchGmailConnectUrl();
       window.location.assign(connectUrl);
     } catch (connectError) {
-      setError(connectError instanceof Error ? connectError.message : "Failed to start Gmail connection flow.");
+      setError(resolveErrorMessage(connectError, "Failed to start Gmail connection flow."));
     }
   }
 
@@ -576,7 +586,7 @@ export function App() {
       }
       await loadInvoices();
     } catch (approveError) {
-      setError(approveError instanceof Error ? approveError.message : "Approval failed");
+      setError(resolveErrorMessage(approveError, "Approval failed."));
     }
   }
 
@@ -605,7 +615,7 @@ export function App() {
       setSelectedIds((currentSelectedIds) => removeSelectedIds(currentSelectedIds, successfullyExportedIds));
       await loadInvoices();
     } catch (exportError) {
-      setError(exportError instanceof Error ? exportError.message : "Export failed");
+      setError(resolveErrorMessage(exportError, "Export failed."));
     }
   }
 
@@ -615,7 +625,7 @@ export function App() {
       const status = await runIngestion();
       setIngestionStatus(status);
     } catch (ingestError) {
-      setError(ingestError instanceof Error ? ingestError.message : "Ingestion run failed");
+      setError(resolveErrorMessage(ingestError, "Ingestion run failed."));
     }
   }
 
@@ -625,7 +635,7 @@ export function App() {
       const status = await runEmailSimulationIngestion();
       setIngestionStatus(status);
     } catch (ingestError) {
-      setError(ingestError instanceof Error ? ingestError.message : "Email simulation ingestion failed");
+      setError(resolveErrorMessage(ingestError, "Email simulation ingestion failed."));
     }
   }
 
@@ -654,7 +664,7 @@ export function App() {
       setLoginPassword("");
       await bootstrapSession();
     } catch (loginError) {
-      setError(loginError instanceof Error ? loginError.message : "Login failed.");
+      setError(resolveErrorMessage(loginError, "Login failed."));
       clearStoredSessionToken();
       setSession(null);
     } finally {
@@ -675,7 +685,7 @@ export function App() {
       const refreshed = await fetchSessionContext();
       setSession(refreshed);
     } catch (setupError) {
-      setError(setupError instanceof Error ? setupError.message : "Failed to complete onboarding.");
+      setError(resolveErrorMessage(setupError, "Failed to complete onboarding."));
     }
   }
 
@@ -686,7 +696,7 @@ export function App() {
       setInviteEmail("");
       await loadTenantUsers();
     } catch (inviteError) {
-      setError(inviteError instanceof Error ? inviteError.message : "Failed to invite user.");
+      setError(resolveErrorMessage(inviteError, "Failed to invite user."));
     }
   }
 
@@ -713,7 +723,7 @@ export function App() {
       });
       await loadPlatformUsage();
     } catch (onboardError) {
-      setError(onboardError instanceof Error ? onboardError.message : "Failed to onboard tenant admin.");
+      setError(resolveErrorMessage(onboardError, "Failed to onboard tenant admin."));
     }
   }
 
@@ -723,7 +733,7 @@ export function App() {
       await assignTenantUserRole(userId, role);
       await loadTenantUsers();
     } catch (assignError) {
-      setError(assignError instanceof Error ? assignError.message : "Failed to update role.");
+      setError(resolveErrorMessage(assignError, "Failed to update role."));
     }
   }
 
@@ -733,7 +743,7 @@ export function App() {
       await removeTenantUser(userId);
       await loadTenantUsers();
     } catch (removeError) {
-      setError(removeError instanceof Error ? removeError.message : "Failed to remove user.");
+      setError(resolveErrorMessage(removeError, "Failed to remove user."));
     }
   }
 
@@ -799,7 +809,7 @@ export function App() {
         await loadPlatformUsage();
       }
     } catch (saveError) {
-      setError(saveError instanceof Error ? saveError.message : "Failed to update parsed invoice fields");
+      setError(resolveErrorMessage(saveError, "Failed to update parsed invoice fields."));
     } finally {
       setSavingParsedFields(false);
     }
@@ -1409,7 +1419,7 @@ export function App() {
             </p>
             <div className="popup-content">
               {popupInvoiceDetailLoading ? <p className="muted">Loading full invoice details...</p> : null}
-              {Object.keys(popupOverlayUrlByField).length > 0 ? (
+              {popupSourceHighlights.length > 0 ? (
                 <div className="source-preview-section">
                   <button
                     type="button"
@@ -1419,7 +1429,11 @@ export function App() {
                     {popupSourcePreviewExpanded ? "Hide Value Source Highlights" : "Show Value Source Highlights"}
                   </button>
                   {popupSourcePreviewExpanded ? (
-                    <InvoiceSourceViewer invoice={popupInvoice} overlayUrlByField={popupOverlayUrlByField} />
+                    <InvoiceSourceViewer
+                      invoice={popupInvoice}
+                      overlayUrlByField={popupOverlayUrlByField}
+                      resolvePreviewUrl={(page) => getInvoicePreviewUrl(popupInvoice._id, page)}
+                    />
                   ) : null}
                 </div>
               ) : null}

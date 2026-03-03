@@ -17,6 +17,7 @@ interface ProvenanceEntry {
   page?: unknown;
   bbox?: unknown;
   bboxNormalized?: unknown;
+  bboxModel?: unknown;
   blockIndex?: unknown;
 }
 
@@ -56,8 +57,10 @@ export function getInvoiceSourceHighlights(invoice: Invoice): SourceHighlight[] 
     }
 
     const pageBlocks = blocks.filter((block) => block.page === page);
+    const bboxModel = normalizeBox(provenance.bboxModel) ?? matchedBlock?.block.bboxModel;
     const bboxNormalized =
       normalizeBox(provenance.bboxNormalized) ??
+      normalizeModelBox(bboxModel) ??
       matchedBlock?.block.bboxNormalized ??
       normalizeBoxWithinPage(bbox, pageBlocks);
     if (!bboxNormalized) {
@@ -176,6 +179,25 @@ function normalizeBoxWithinPage(
   );
 
   return clampNormalizedBox([box[0] / maxX, box[1] / maxY, box[2] / maxX, box[3] / maxY]);
+}
+
+function normalizeModelBox(
+  value: [number, number, number, number] | undefined
+): [number, number, number, number] | undefined {
+  if (!value) {
+    return undefined;
+  }
+
+  const [x1, y1, x2, y2] = value;
+  if (![x1, y1, x2, y2].every((entry) => Number.isFinite(entry))) {
+    return undefined;
+  }
+  if (x2 <= x1 || y2 <= y1) {
+    return undefined;
+  }
+
+  const scale = 999;
+  return clampNormalizedBox([x1 / scale, y1 / scale, x2 / scale, y2 / scale]);
 }
 
 function clampNormalizedBox(box: [number, number, number, number]): [number, number, number, number] | undefined {
