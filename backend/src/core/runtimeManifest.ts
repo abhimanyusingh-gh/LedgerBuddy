@@ -362,7 +362,7 @@ function createDefaultManifest(): RuntimeManifest {
       }
     },
     fileStore: {
-      provider: env.isLocalMlEnv ? "local" : "s3",
+      provider: (env.S3_FILE_STORE_BUCKET?.trim() ?? "").length > 0 ? "s3" : "local",
       local: {
         rootPath: env.LOCAL_FILE_STORE_ROOT
       },

@@ -6,7 +6,8 @@ const exportBatchSchema = new Schema(
     total: { type: Number, required: true },
     successCount: { type: Number, required: true },
     failureCount: { type: Number, required: true },
-    requestedBy: { type: String, required: true }
+    requestedBy: { type: String, required: true },
+    fileKey: { type: String }
   },
   {
     timestamps: true

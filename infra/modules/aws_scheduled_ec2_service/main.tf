@@ -41,6 +41,17 @@ resource "aws_launch_template" "this" {
 
   vpc_security_group_ids = [aws_security_group.this.id]
 
+  metadata_options {
+    http_endpoint               = "enabled"
+    http_tokens                 = "required"
+    http_put_response_hop_limit = 1
+    instance_metadata_tags      = "enabled"
+  }
+
+  monitoring {
+    enabled = true
+  }
+
   dynamic "instance_market_options" {
     for_each = var.market_type == "spot" ? [1] : []
     content {
@@ -65,6 +76,12 @@ resource "aws_launch_template" "this" {
     resource_type = "instance"
 
     tags = merge(var.tags, { Name = var.name })
+  }
+
+  tag_specifications {
+    resource_type = "volume"
+
+    tags = merge(var.tags, { Name = "${var.name}-volume" })
   }
 
   tags = var.tags

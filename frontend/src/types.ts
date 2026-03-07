@@ -82,6 +82,16 @@ export interface TallyExportResponse {
   items: ExportResultItem[];
 }
 
+export interface TallyFileExportResponse {
+  batchId?: string;
+  fileKey?: string;
+  filename?: string;
+  total: number;
+  includedCount: number;
+  skippedCount: number;
+  skippedItems: ExportResultItem[];
+}
+
 export interface IngestionJobStatus {
   state: "idle" | "running" | "completed" | "failed";
   running: boolean;

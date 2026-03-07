@@ -4,7 +4,8 @@ import type {
   IngestionJobStatus,
   Invoice,
   InvoiceListResponse,
-  TallyExportResponse
+  TallyExportResponse,
+  TallyFileExportResponse
 } from "./types";
 import { normalizeApiError } from "./apiError";
 
@@ -234,6 +235,21 @@ export async function exportToTally(ids?: string[]) {
   });
 
   return response.data;
+}
+
+export async function generateTallyXmlFile(ids?: string[]) {
+  const response = await apiClient.post<TallyFileExportResponse>("/exports/tally/download", {
+    ids,
+    requestedBy: "ui"
+  });
+  return response.data;
+}
+
+export async function downloadTallyXmlFile(batchId: string): Promise<Blob> {
+  const response = await apiClient.get(`/exports/tally/download/${batchId}`, {
+    responseType: "blob"
+  });
+  return response.data as Blob;
 }
 
 export async function runIngestion() {

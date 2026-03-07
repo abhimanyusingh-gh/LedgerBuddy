@@ -10,6 +10,7 @@ jest.mock("axios", () => ({
 import {
   TallyExporter,
   buildTallyPurchaseVoucherPayload,
+  buildTallyBatchImportXml,
   formatTallyDate,
   parseTallyImportResponse,
   resolveInvoiceTotalAmountMinor
@@ -540,6 +541,184 @@ describe("TallyExporter.exportInvoices", () => {
         error: "Unknown export failure"
       }
     ]);
+  });
+});
+
+describe("buildTallyBatchImportXml", () => {
+  it("wraps multiple vouchers in a single import envelope", () => {
+    const xml = buildTallyBatchImportXml("Demo Company", [
+      {
+        companyName: "Demo Company",
+        purchaseLedgerName: "Purchase",
+        voucherNumber: "INV-1001",
+        partyLedgerName: "Vendor A",
+        amountMinor: 120000,
+        currency: "USD",
+        date: "20260219",
+        narration: "Invoice 1"
+      },
+      {
+        companyName: "Demo Company",
+        purchaseLedgerName: "Purchase",
+        voucherNumber: "INV-1002",
+        partyLedgerName: "Vendor B",
+        amountMinor: 50000,
+        currency: "USD",
+        date: "20260220",
+        narration: "Invoice 2"
+      }
+    ]);
+
+    expect(xml).toMatch(/<TALLYREQUEST>Import<\/TALLYREQUEST>/);
+    expect(xml).toMatch(/<SVCURRENTCOMPANY>Demo Company<\/SVCURRENTCOMPANY>/);
+    const voucherMatches = xml.match(/<VOUCHER /g);
+    expect(voucherMatches).toHaveLength(2);
+    expect(xml).toContain("<VOUCHERNUMBER>INV-1001</VOUCHERNUMBER>");
+    expect(xml).toContain("<VOUCHERNUMBER>INV-1002</VOUCHERNUMBER>");
+    expect(xml).toContain("<LEDGERNAME>Vendor A</LEDGERNAME>");
+    expect(xml).toContain("<LEDGERNAME>Vendor B</LEDGERNAME>");
+  });
+
+  it("produces same voucher structure as single-voucher builder", () => {
+    const input = {
+      companyName: "Demo Company",
+      purchaseLedgerName: "Purchase",
+      voucherNumber: "INV-1001",
+      partyLedgerName: "ACME Vendor",
+      amountMinor: 120000,
+      currency: "USD",
+      date: "20260219",
+      narration: "Imported invoice"
+    };
+
+    const singleXml = buildTallyPurchaseVoucherPayload(input);
+    const batchXml = buildTallyBatchImportXml("Demo Company", [input]);
+
+    expect(singleXml).toContain("<VOUCHERNUMBER>INV-1001</VOUCHERNUMBER>");
+    expect(batchXml).toContain("<VOUCHERNUMBER>INV-1001</VOUCHERNUMBER>");
+    expect(singleXml).toContain("<AMOUNT>-1200.00</AMOUNT>");
+    expect(batchXml).toContain("<AMOUNT>-1200.00</AMOUNT>");
+    expect(singleXml).toContain("<AMOUNT>1200.00</AMOUNT>");
+    expect(batchXml).toContain("<AMOUNT>1200.00</AMOUNT>");
+  });
+});
+
+describe("TallyExporter.generateImportFile", () => {
+  it("generates import file with valid invoices", () => {
+    const exporter = new TallyExporter({
+      endpoint: "http://example.test/tally",
+      companyName: "Demo",
+      purchaseLedgerName: "Purchase"
+    });
+
+    const invoices = [
+      createInvoiceStub({
+        _id: "file-1",
+        parsed: {
+          invoiceNumber: "INV-F1",
+          vendorName: "Vendor A",
+          currency: "USD",
+          totalAmountMinor: 10000
+        }
+      }),
+      createInvoiceStub({
+        _id: "file-2",
+        parsed: {
+          invoiceNumber: "INV-F2",
+          vendorName: "Vendor B",
+          currency: "USD",
+          totalAmountMinor: 20000
+        }
+      })
+    ];
+
+    const result = exporter.generateImportFile(invoices);
+    expect(result.includedCount).toBe(2);
+    expect(result.skippedItems).toEqual([]);
+    expect(result.contentType).toBe("text/xml");
+    expect(result.filename).toMatch(/^tally-import-.*\.xml$/);
+
+    const xml = result.content.toString("utf-8");
+    expect(xml).toContain("<VOUCHERNUMBER>INV-F1</VOUCHERNUMBER>");
+    expect(xml).toContain("<VOUCHERNUMBER>INV-F2</VOUCHERNUMBER>");
+  });
+
+  it("skips invoices with invalid amounts and includes them in skippedItems", () => {
+    const exporter = new TallyExporter({
+      endpoint: "http://example.test/tally",
+      companyName: "Demo",
+      purchaseLedgerName: "Purchase"
+    });
+
+    const invoices = [
+      createInvoiceStub({
+        _id: "file-ok",
+        parsed: {
+          invoiceNumber: "INV-OK",
+          vendorName: "Vendor",
+          currency: "USD",
+          totalAmountMinor: 5000
+        }
+      }),
+      createInvoiceStub({
+        _id: "file-bad",
+        parsed: { invoiceNumber: "INV-BAD", vendorName: "Vendor" },
+        ocrText: "no amount"
+      })
+    ];
+
+    const result = exporter.generateImportFile(invoices);
+    expect(result.includedCount).toBe(1);
+    expect(result.skippedItems).toHaveLength(1);
+    expect(result.skippedItems[0]).toEqual({
+      invoiceId: "file-bad",
+      success: false,
+      error: "Invalid invoice total amount for Tally export."
+    });
+  });
+
+  it("uses fallback values when parsed fields are missing", () => {
+    const exporter = new TallyExporter({
+      endpoint: "http://example.test/tally",
+      companyName: "Demo",
+      purchaseLedgerName: "Purchase"
+    });
+
+    const invoices = [
+      createInvoiceStub({
+        _id: "file-fallback",
+        parsed: { totalAmountMinor: 5000 },
+        ocrText: "some text"
+      })
+    ];
+
+    const result = exporter.generateImportFile(invoices);
+    expect(result.includedCount).toBe(1);
+
+    const xml = result.content.toString("utf-8");
+    expect(xml).toContain("<VOUCHERNUMBER>file-fallback</VOUCHERNUMBER>");
+    expect(xml).toContain("<PARTYLEDGERNAME>Unknown Vendor</PARTYLEDGERNAME>");
+  });
+
+  it("returns empty content when all invoices are skipped", () => {
+    const exporter = new TallyExporter({
+      endpoint: "http://example.test/tally",
+      companyName: "Demo",
+      purchaseLedgerName: "Purchase"
+    });
+
+    const invoices = [
+      createInvoiceStub({
+        _id: "file-bad2",
+        parsed: { vendorName: "Vendor" },
+        ocrText: "nothing"
+      })
+    ];
+
+    const result = exporter.generateImportFile(invoices);
+    expect(result.includedCount).toBe(0);
+    expect(result.content).toHaveLength(0);
+    expect(result.skippedItems).toHaveLength(1);
   });
 });
 

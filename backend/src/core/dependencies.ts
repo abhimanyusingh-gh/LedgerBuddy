@@ -72,7 +72,7 @@ export async function buildDependencies(): Promise<Dependencies> {
   const emailSimulationService = new EmailSimulationService();
 
   const exporter = buildExporter(manifest);
-  const exportService = exporter ? new ExportService(exporter) : null;
+  const exportService = exporter ? new ExportService(exporter, fileStore) : null;
 
   return {
     ingestionService,

@@ -9,6 +9,6 @@ output "bucket_arn" {
 }
 
 output "region" {
-  value       = data.aws_region.current.name
+  value       = data.aws_region.current.id
   description = "AWS region where bucket is created."
 }

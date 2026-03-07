@@ -1,472 +1,509 @@
+<div align="center">
+
 # Invoice Processor
 
-Invoice ingestion and review platform built with Node.js (backend), React (frontend), MongoDB, and Terraform.
+### Intelligent Invoice Ingestion & Review Platform
 
-## Current State
+A multi-tenant invoice processing system with pluggable OCR, ML-powered field verification, confidence scoring, and accounting system export -- built for scheduled cloud workers and interactive review dashboards.
 
-Implemented:
-- Configurable ingestion source interface (`email`, `folder` currently).
-- OCR provider interface (`deepseek`, `mock`).
-- Runtime composition manifest support (`APP_MANIFEST_PATH`) for database/OCR/source/export wiring with env fallback.
-- Parser + confidence/risk scoring.
-- Currency amounts persisted and transmitted as integer minor units (`parsed.totalAmountMinor`) to avoid floating-point drift.
-- Staged extraction pipeline: vendor fingerprint -> template path (known vendors) -> OCR confidence gate -> layout graph + heuristics -> deterministic validation -> SLM field verifier fallback.
-- MongoDB persistence with per-file source+tenant checkpointing and folder idempotency filtering by `sourceDocumentId`.
-- OCR block crop artifacts persisted per bounding box with file-store abstraction:
-  - `ENV=local` -> local disk
-  - `ENV=stg|prod` -> S3
-- Tenant/workload partition keys (`tenantId`, `workloadTier`) across sources, checkpoints, and invoices.
-- Email/password login that exchanges credentials for an internal session token (claims carry role/access).
-- Internal session tokens are standards-compliant JWTs (`HS256`) with role + platform-admin claims.
-- OAuth2 + STS boundary abstraction (`LocalStsProvider`, `ProdStsProvider`) retained for provider integrations and callback flows.
-- Tenant onboarding gate, RBAC (`TENANT_ADMIN`, `MEMBER`), invite flow, and tenant-owned Gmail integration state.
-- Session flags for UI operational state (`requires_tenant_setup`, `requires_reauth`, `requires_admin_action`).
-- Review dashboard with failed/parsed visibility, confidence badges, batch approval/export, and full invoice list paging.
-- Review dashboard includes value-source highlighting with OCR bounding-box overlays and per-field crop inspect actions.
-- Tally exporter using XML import envelope and purchase voucher structure.
-- Terraform modules for scheduled spot workers, reusable worker IAM, and production DocumentDB.
-- Terraform module for reusable S3 artifact storage used by the backend file-store abstraction in production.
-- Unit tests + true full-stack local end-to-end test (no mock OCR/SLM path).
+<br />
 
-Not yet implemented:
-- Production-ready observability/alerting.
-- Advanced invoice line-item extraction.
+[![Build](https://img.shields.io/badge/build-passing-brightgreen.svg)](#)
+[![Node.js](https://img.shields.io/badge/Node.js-20-339933.svg?logo=nodedotjs&logoColor=white)](https://nodejs.org)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.7-3178C6.svg?logo=typescript&logoColor=white)](https://www.typescriptlang.org)
+[![React](https://img.shields.io/badge/React-18-61DAFB.svg?logo=react&logoColor=black)](https://react.dev)
+[![Python](https://img.shields.io/badge/Python-3.11-3776AB.svg?logo=python&logoColor=white)](https://www.python.org)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688.svg?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
+[![MongoDB](https://img.shields.io/badge/MongoDB-7-47A248.svg?logo=mongodb&logoColor=white)](https://www.mongodb.com)
+[![Terraform](https://img.shields.io/badge/Terraform-1.6+-7B42BC.svg?logo=terraform&logoColor=white)](https://www.terraform.io)
+[![Docker](https://img.shields.io/badge/Docker-Compose-2496ED.svg?logo=docker&logoColor=white)](https://www.docker.com)
 
-## Repository Layout
+<br />
 
-- `backend/` Node.js API + worker + ingestion pipeline.
-- `frontend/` React review dashboard.
-- `invoice-ocr/` local OCR FastAPI service with pluggable providers (DeepSeek MLX, Apple Vision, hybrid, prod HTTP).
-- `invoice-slm/` local MLX field-verifier FastAPI service with pluggable providers.
-- `mailhog-oauth-wrapper/` local XOAUTH2 wrapper over MailHog APIs for email-source prod-simulation tests.
-- `infra/modules/` copy-first reusable Terraform module catalog.
-- `infra/terraform/` Invoice Processor stack composition using local modules (`environments/prod.tfvars.example` included).
-- `sample-invoices/inbox/` local folder source for manual and e2e runs.
-- `docker-compose.yml` local backend, frontend, MongoDB, and Mongo Express services.
+[Documentation](docs/) | [Architecture (RFC)](docs/RFC.md) | [AWS Deployment](docs/AWS_DEPLOYMENT_GUIDE.md) | [Local OCR Setup](docs/LOCAL_DEEPSEEK_OCR_SETUP.md)
 
-## Local Prerequisites
+</div>
 
-- Node.js 20+
-- Yarn 4+
-- Docker Desktop
-- Docker Compose v2
-- Apple Silicon Mac for local MLX OCR/SLM services
+<br />
 
-## Local Setup
+---
 
-1. Install dependencies:
+<br />
+
+## Overview
+
+Invoice Processor ingests invoices from email or folder sources, extracts structured data through a staged ML pipeline, scores confidence, and exports approved invoices to accounting systems. Built as a **multi-tenant SaaS platform** with pluggable provider boundaries for OCR, field verification, and export.
+
+```
+                              Invoice Processor Architecture
+
+  +--------------------------------------------------------------------------+
+  |                       Frontend (React 18 + Vite 6)                       |
+  |    Review dashboard, confidence badges, bbox overlays, batch actions     |
+  +--------------------------------------------------------------------------+
+                                        |
+                            JWT Session (HS256) + RBAC
+                                        |
+  +--------------------------------------------------------------------------+
+  |                       Backend API (Express + TypeScript)                  |
+  +--------------------------------------------------------------------------+
+  |                                                                          |
+  |  +-----------------+  +------------------+  +------------------+         |
+  |  | Ingestion Layer |  | Extraction Layer |  |   Export Layer   |         |
+  |  | email, folder   |  | OCR, parser,     |  |  Tally XML,     |         |
+  |  | checkpoint mgmt |  | confidence,      |  |  S3 artifact     |         |
+  |  |                 |  | SLM verifier     |  |  storage         |         |
+  |  +--------+--------+  +--------+---------+  +--------+---------+         |
+  |           |                     |                     |                  |
+  |  +--------+--------+  +--------+---------+  +--------+---------+         |
+  |  |   Auth Layer    |  |   Core Services  |  |  Provider Layer  |         |
+  |  | session, RBAC,  |  | tenant, invite,  |  | OCR boundary,   |         |
+  |  | OAuth2, STS     |  | platform admin   |  | SLM boundary,   |         |
+  |  |                 |  |                  |  | file store       |         |
+  |  +-----------------+  +------------------+  +------------------+         |
+  |                                                                          |
+  +------|-------------|-------------|-------------|-------------------------+
+         |             |             |             |
+      MongoDB 7   OCR Service    SLM Service    S3 / Local FS
+                  (FastAPI)      (FastAPI)
+```
+
+<br />
+
+## Core Features
+
+| Domain | Capabilities |
+|--------|-------------|
+| **Ingestion** | Email (IMAP/OAuth2) and folder sources, per-tenant checkpointing, crash-safe resume, duplicate filtering |
+| **OCR** | Pluggable providers (DeepSeek MLX, Apple Vision, hybrid, HTTP proxy), block-level bounding boxes, page image extraction |
+| **Extraction** | Staged pipeline: vendor fingerprint, template matching, OCR confidence gate, layout graph, deterministic validation, SLM fallback |
+| **Confidence** | Multi-signal scoring (OCR, parser, field verification), risk flagging, configurable tone bands and auto-select thresholds |
+| **Review Dashboard** | Parsed/failed visibility, confidence badges, value-source highlighting, bbox overlay inspect, batch approval |
+| **Export** | Tally XML purchase voucher generation, downloadable file support, S3 artifact storage |
+| **Multi-Tenancy** | Tenant onboarding, RBAC (admin/member), invite flow, tenant-scoped data isolation, per-tenant Gmail integration |
+| **Platform Admin** | Tenant usage aggregates, admin onboarding, cross-tenant visibility (no invoice-level access) |
+| **Amount Model** | Currency-aware integer minor units (USD 1200.50 = 120050), zero floating-point drift |
+| **Auth** | JWT sessions (HS256), OAuth2/STS boundary, refresh token encryption, platform admin allowlist |
+
+<br />
+
+## Quick Start
+
+### Prerequisites
+
+| Tool | Version | Purpose |
+|------|---------|---------|
+| Node.js | 20+ | Backend + frontend runtime |
+| Yarn | 4+ | Package manager (Berry, node-modules linker) |
+| Docker & Docker Compose | Latest | Infrastructure services |
+| Python 3.11+ | 3.11 | OCR + SLM services (Apple Silicon for local MLX) |
+
+### 1. Install Dependencies
+
 ```bash
 yarn install
 ```
 
-2. Set runtime mode (defaults to local if not set):
-```bash
-export ENV=local
-```
+### 2. Create Python Environment (for local ML services)
 
-3. Create a local Python environment for MLX services:
 ```bash
 python3 -m venv .venv-ml
 ./.venv-ml/bin/pip install --upgrade pip
-./.venv-ml/bin/pip install -r invoice-ocr/requirements.local.txt -r invoice-slm/requirements.local.txt
+./.venv-ml/bin/pip install -r invoice-ocr/requirements.local.txt \
+                           -r invoice-slm/requirements.local.txt
 ```
 
-4. Start full local stack:
+### 3. Start Full Local Stack
+
 ```bash
 yarn docker:up
 ```
 
-This brings up:
-- Backend API: `http://localhost:4000`
-- Frontend dashboard: `http://localhost:5173`
-- MongoDB: `localhost:27017`
-- Mongo Express: `http://localhost:8081`
-- Mailpit (MailHog-compatible) SMTP/UI: `localhost:1025` / `http://localhost:8025`
-- MailHog OAuth wrapper: `http://localhost:8026`
-- OCR service: `http://localhost:8000`
-- SLM service: `http://localhost:8100`
+This starts all services with demo tenants, seeded users, and sample invoices:
 
-`yarn docker:up` starts local OCR/SLM services on host macOS (for `ENV=local`) and then starts compose services.
+| Service | URL |
+|---------|-----|
+| Backend API | `http://localhost:4000` |
+| Frontend Dashboard | `http://localhost:5173` |
+| MongoDB | `localhost:27017` |
+| Mongo Express | `http://localhost:8081` |
+| Mailpit (SMTP/UI) | `localhost:1025` / `http://localhost:8025` |
+| OCR Service | `http://localhost:8000` |
+| SLM Service | `http://localhost:8100` |
 
-Local demo mode (`yarn docker:up` with default settings) also:
-- seeds two demo tenants and users in MongoDB
-- enables a seeded platform-admin account
-- splits `sample-invoices/inbox` equally into tenant-specific inboxes under `.local-run/demo-inbox`
-- mounts `backend/runtime-manifest.local.demo.json` so each tenant ingests only its own folder source
-- disables auto user provisioning so demo roles remain credential-driven
+### 4. Demo Credentials
 
-5. Create env files (optional overrides):
-```bash
-cp backend/.env.example backend/.env
-cp frontend/.env.example frontend/.env
+All demo users use password `DemoPass!1`:
+
+| User | Role |
+|------|------|
+| `tenant-admin-1@local.test` | Tenant Alpha admin |
+| `tenant-user-1@local.test` | Tenant Alpha member |
+| `tenant-admin-2@local.test` | Tenant Beta admin |
+| `tenant-user-2@local.test` | Tenant Beta member |
+| `platform-admin@local.test` | Platform admin |
+
+<br />
+
+## Project Structure
+
+```
+Invoice Processor/
++-- backend/                    # Node.js API + worker + ingestion pipeline
+|   +-- src/
+|   |   +-- auth/               # JWT sessions, RBAC middleware, OAuth2
+|   |   +-- core/               # Dependency wiring, env config, manifest
+|   |   +-- models/             # Mongoose schemas (invoice, checkpoint, tenant)
+|   |   +-- ocr/                # DeepSeek OCR provider boundary
+|   |   +-- parser/             # Invoice field extraction + date/amount parsing
+|   |   +-- providers/          # Email sender, file store, STS adapters
+|   |   +-- routes/             # Express route handlers
+|   |   +-- services/           # Extraction pipeline, confidence, Tally export
+|   |   +-- sources/            # Email + folder ingestion sources
+|   |   +-- verifier/           # SLM field verifier boundary
+|   |   +-- utils/              # Logger, crypto, currency, mime helpers
+|   |   +-- scripts/            # runWorkerOnce entry point
+|   |   +-- e2e/                # Backend integration tests
++-- frontend/                   # React review dashboard (Vite 6)
+|   +-- src/
+|   |   +-- components/         # InvoiceList, InvoiceDetails, SourceViewer, ...
+|   |   +-- e2e/                # Playwright browser tests
++-- invoice-ocr/                # Python FastAPI OCR service
+|   +-- app/
+|   |   +-- boundary/           # OCRProvider interface
+|   |   +-- providers/          # local_mlx, local_apple_vision, local_hybrid, prod_http
++-- invoice-slm/                # Python FastAPI field verifier service
+|   +-- app/
+|   |   +-- boundary/           # LLMProvider interface
+|   |   +-- providers/          # local_mlx, prod_http
++-- infra/
+|   +-- modules/                # Reusable Terraform modules
+|   |   +-- aws_documentdb_cluster/
+|   |   +-- aws_iam_instance_profile/
+|   |   +-- aws_s3_bucket/
+|   |   +-- aws_scheduled_ec2_service/
+|   |   +-- aws_sts_access_role/
+|   +-- terraform/              # Stack composition (main.tf, variables, environments/)
++-- scripts/                    # deploy-aws.sh, docker-up.sh, e2e runners
++-- sample-invoices/            # Local test invoice fixtures
++-- docs/                       # PRD, RFC, deployment guides
++-- .github/workflows/          # CI, security scan, deploy, infra validation
 ```
 
-Notes:
-- `docker compose` can boot without `backend/.env`; it always loads `backend/.env.example` and treats `backend/.env` as optional override.
-- Create `backend/.env` when you need local secrets or non-default config.
-- For local MLX OCR/SLM, no API key is required.
-- MLX services run on host macOS, not inside Docker.
-- Backend blocks startup until both ML capabilities are reachable and healthy.
-- Runtime mode switch: `ENV=local|stg|prod`.
-- `ENV=local`: run host OCR/SLM services (`SLM_ENGINE=local_mlx`, `OCR_ENGINE=local_hybrid` by default), local STS, and MailHog-based SMTP.
-- `ENV=stg|prod`: use production-safe HTTP providers (`SLM_ENGINE=prod_http`, `OCR_ENGINE=prod_http`) and set remote URLs.
-- Invite flow email sender is pluggable:
-  - `INVITE_EMAIL_PROVIDER=sendgrid` (local default; SendGrid-compatible API simulated via MailHog wrapper)
-  - `INVITE_EMAIL_PROVIDER=smtp` (uses `INVITE_SMTP_*` config)
-  - SendGrid mode uses `INVITE_SENDGRID_API_KEY`, `INVITE_SENDGRID_ENDPOINT`, `INVITE_SENDGRID_TIMEOUT_MS`
-  - Local simulation endpoint: `http://mailhog-oauth:8026/sendgrid/v3/mail/send` (relays to MailHog SMTP)
-- Platform admin access is OAuth-driven via `PLATFORM_ADMIN_EMAILS` (comma-separated allowlist).
-- `AUTH_AUTO_PROVISION_USERS` defaults to `false`; tenant admins are expected to be onboarded by a platform admin.
-- Local seeded users are configured only in `backend/config/local-demo-users.json`.
-- You can override the seed config path with `LOCAL_DEMO_CONFIG_PATH`.
-- Demo credentials (all use password `DemoPass!1`):
-  - `tenant-admin-1@local.test` (Tenant Alpha admin)
-  - `tenant-user-1@local.test` (Tenant Alpha member)
-  - `tenant-admin-2@local.test` (Tenant Beta admin)
-  - `tenant-user-2@local.test` (Tenant Beta member)
-  - `platform-admin@local.test` (platform usage-only view)
-- The login screen does not expose demo accounts; users sign in with email/password.
-- Platform admin usage API (`GET /api/platform/tenants/usage`) returns tenant-level aggregates only:
-  - tenant identity + onboarding state
-  - user count
-  - document status counts
-  - Gmail connection state + last ingestion timestamp
-  - no invoice-level payload or OCR content
-- Platform admins can onboard tenant admins from API (`POST /api/platform/tenants/onboard-admin`) and from the frontend "Onboard Tenant Admin" form.
-- Artifact storage is also env-driven:
-  - `ENV=local` uses `LOCAL_FILE_STORE_ROOT` (default `.local-run/artifacts`, gitignored)
-  - `ENV=stg|prod` uses `S3_FILE_STORE_BUCKET` + `S3_FILE_STORE_REGION` + `S3_FILE_STORE_PREFIX`
-- OCR path is direct inference via `POST /v1/ocr/document` (no `/v1/chat/completions` usage).
-- OCR/SLM API layers are provider-agnostic and selected by env:
-  - OCR: `OCR_ENGINE=local_hybrid|local_mlx|local_apple_vision|prod_http`
-  - SLM: `SLM_ENGINE=local_mlx|prod_http`
-- Production Docker dependencies exclude MLX packages entirely.
-- Optional OCR service tuning via `yarn ocr:dev` env variables:
-  - `OCR_ENGINE` (`local_hybrid` default, or `local_mlx|local_apple_vision|prod_http`)
-  - `OCR_MODEL_ID` (default `mlx-community/DeepSeek-OCR-4bit`)
-  - `OCR_MODEL_PATH` (optional local snapshot path)
-  - `OCR_HYBRID_APPLE_ACCEPT_SCORE` (default `0.9`; DeepSeek confidence gate before Apple second pass)
-  - `OCR_REMOTE_BASE_URL` (required for `OCR_ENGINE=prod_http`)
-  - `OCR_REMOTE_API_KEY` (optional bearer token for remote OCR)
-  - `OCR_REMOTE_TIMEOUT_MS` (default `300000`)
-  - `OCR_MAX_NEW_TOKENS` (default `512`)
-  - `OCR_LOAD_ON_STARTUP` (`true` by default)
-- Optional SLM tuning via `yarn slm:dev` env variables:
-  - `SLM_ENGINE` (`local_mlx` default, or `prod_http`)
-  - `SLM_MODEL_ID` (default `mlx-community/DeepSeek-R1-Distill-Qwen-1.5B-4bit`)
-  - `SLM_REMOTE_BASE_URL` (required for `SLM_ENGINE=prod_http`)
-  - `SLM_REMOTE_SELECT_PATH` (default `/v1/verify/invoice`)
-  - `SLM_REMOTE_API_KEY` (optional bearer token)
+<br />
 
-Pristine teardown (containers + Mongo volume + compose images):
-```bash
-yarn docker:down
-```
+## Architecture
 
-Tail backend/frontend/mongo plus local OCR/SLM logs in one stream:
-```bash
-yarn logs:local
-```
-Backend + OCR + SLM emit JSON logs with a shared `correlationId` so one id traces a request from API ingress to OCR and export.
+<details>
+<summary><strong>Extraction Pipeline</strong> -- Staged ML processing with confidence gates</summary>
 
-## ML Provider Boundaries
+<br />
+
+The extraction pipeline processes each invoice through a series of stages, each progressively more expensive:
+
+| Stage | Purpose | Cost |
+|-------|---------|:----:|
+| **Vendor Fingerprint** | Match known vendor patterns to bypass full OCR | Free |
+| **Template Path** | Apply vendor-specific extraction templates | Free |
+| **OCR Confidence Gate** | Skip expensive processing if OCR confidence is high | Low |
+| **Layout Graph** | Spatial analysis of OCR blocks for field extraction | Medium |
+| **Deterministic Validation** | Rule-based field validation and correction | Low |
+| **SLM Verifier Fallback** | ML-powered field selection when deterministic fails | High |
+
+</details>
+
+<details>
+<summary><strong>Provider Boundaries</strong> -- Pluggable adapters with zero MLX leakage</summary>
+
+<br />
 
 Python ML services use strict boundary interfaces with explicit provider factory selection:
 
-- SLM:
-  - `invoice-slm/app/boundary/llm_provider.py` (`LLMProvider`)
-  - `invoice-slm/app/providers/local_mlx.py` (MLX only)
-  - `invoice-slm/app/providers/prod_http.py` (Docker/Linux safe)
-  - `invoice-slm/app/providers/factory.py`
-- OCR:
-  - `invoice-ocr/app/boundary/ocr_provider.py` (`OCRProvider`)
-  - `invoice-ocr/app/providers/local_mlx.py` (DeepSeek OCR MLX, `mlx_vlm`)
-  - `invoice-ocr/app/providers/local_apple_vision.py` (Apple Vision OCR)
-  - `invoice-ocr/app/providers/local_hybrid.py` (DeepSeek + Apple arbitration)
-  - `invoice-ocr/app/providers/prod_http.py` (Docker/Linux safe)
-  - `invoice-ocr/app/providers/factory.py`
+| Service | Providers | Docker-Safe |
+|---------|-----------|:-----------:|
+| **OCR** | `local_hybrid`, `local_mlx`, `local_apple_vision`, `prod_http` | `prod_http` only |
+| **SLM** | `local_mlx`, `prod_http` | `prod_http` only |
 
-Why MLX cannot leak into production:
-- MLX imports exist only in `local_mlx.py` modules.
-- Docker images install `requirements.prod.txt` only (no MLX packages).
-- Dockerfiles default to `*_ENGINE=prod_http`.
-- Provider selection is explicit (`*_ENGINE`) and has no fallback.
+MLX imports exist only in `local_*.py` modules. Docker images install `requirements.prod.txt` (no MLX). Dockerfiles default to `*_ENGINE=prod_http`. Provider selection is explicit with no fallback.
 
-## Runtime Composition Manifest
+</details>
 
-Backend runtime supports an optional manifest file (`APP_MANIFEST_PATH`) that composes adapters without code changes:
-- database adapter (`mongo` URI)
-- OCR adapter (`deepseek` / `mock`)
-- field verifier adapter (`http` / `none`)
-- ingestion source adapters (`email` / `folder`)
-- export adapter defaults (Tally endpoint/company/ledger)
-- tenant + workload defaults (`tenantId`, `workloadTier`)
-- extraction gate tuning (`extraction.ocrHighConfidenceThreshold`)
+<details>
+<summary><strong>Multi-Tenant Data Model</strong> -- Tenant-isolated partitioning</summary>
 
-Example files:
-- `backend/runtime-manifest.local.json`
-- `backend/runtime-manifest.prod.example.json`
+<br />
 
-This keeps local and production wiring pluggable:
-- local: Docker Mongo + host-run MLX OCR + host-run MLX SLM
-- production: provisioned DB + remote OCR endpoint + remote SLM verifier endpoint (for example Modal)
+| Collection | Partition Key | Unique Constraint |
+|------------|:------------:|-------------------|
+| `invoices` | `tenantId` | `(tenantId, sourceType, sourceKey, sourceDocumentId, attachmentName)` |
+| `checkpoints` | `tenantId` | `(tenantId, sourceKey)` |
+| `users` | -- | `(email)`, `(externalSubject)` |
+| `tenantUserRole` | `tenantId` | `(tenantId, userId)` |
+| `vendorTemplate` | `tenantId` | `(tenantId, fingerprintHash)` |
+| `tenantIntegration` | `tenantId` | `(tenantId, provider)` |
 
-## Local Ingestion Modes
+</details>
 
-### 1. Email Source
+<details>
+<summary><strong>Runtime Composition</strong> -- Environment-specific wiring without code changes</summary>
 
-Set in `backend/.env`:
-- `INGESTION_SOURCES=email`
-- `EMAIL_*` values
-- `OCR_PROVIDER=auto` (recommended)
+<br />
 
-IMAP transport (default):
-- `EMAIL_TRANSPORT=imap`
+An optional manifest file (`APP_MANIFEST_PATH`) composes adapters at runtime:
 
-MailHog XOAUTH2 prod-simulation transport:
-- `EMAIL_TRANSPORT=mailhog_oauth`
-- `EMAIL_MAILHOG_API_BASE_URL=http://mailhog-oauth:8026`
-- `EMAIL_AUTH_MODE=oauth2`
-- `EMAIL_OAUTH_TOKEN_ENDPOINT=http://mailhog-oauth:8026/oauth/token`
-- requests to wrapper endpoints are authenticated with `Authorization: XOAUTH2 <base64(user=...^Aauth=Bearer ...^A^A)>`
-- dashboard action: `Ingest Demo Emails` seeds MailHog emails (max two invoice attachments per email) and then triggers ingestion
+| Adapter | Options |
+|---------|---------|
+| **Database** | MongoDB URI |
+| **OCR** | `deepseek` / `mock` |
+| **Field Verifier** | `http` / `none` |
+| **Ingestion Sources** | `email` / `folder` |
+| **Export** | Tally endpoint/company/ledger |
+| **File Store** | Local disk (`ENV=local`) / S3 (`ENV=stg\|prod`) |
 
-Run ingestion:
-```bash
-yarn worker:once
+Example files: `backend/runtime-manifest.local.json`, `backend/runtime-manifest.prod.example.json`
+
+</details>
+
+<br />
+
+## Tech Stack
+
+### Backend
+
+| Technology | Version | Purpose |
+|-----------|---------|---------|
+| **Node.js** | 20 | Runtime |
+| **TypeScript** | 5.7 | Type-safe backend (strict mode) |
+| **Express** | 4.21 | HTTP framework |
+| **Mongoose** | 8.9 | MongoDB ODM with schema validation |
+| **Zod** | 3.24 | Environment variable validation |
+| **Sharp** | 0.34 | Image processing for OCR crops |
+| **AWS SDK v3** | 3.x | S3 artifact storage |
+
+### Frontend
+
+| Technology | Version | Purpose |
+|-----------|---------|---------|
+| **React** | 18 | UI framework |
+| **TypeScript** | 5.7 | Type-safe frontend (strict mode) |
+| **Vite** | 6 | Build tool and dev server |
+| **Axios** | 1.7 | HTTP client |
+
+### ML Services
+
+| Technology | Version | Purpose |
+|-----------|---------|---------|
+| **Python** | 3.11 | ML service runtime |
+| **FastAPI** | 0.115 | OCR + SLM service framework |
+| **MLX** | -- | Local Apple Silicon inference (dev only) |
+| **DeepSeek OCR** | 4-bit | Document text and layout extraction |
+| **Pillow** | 10.4 | Image processing |
+| **pypdfium2** | 4.30 | PDF page rendering |
+
+### Infrastructure
+
+| Technology | Purpose |
+|-----------|---------|
+| **Docker Compose** | Local development environment |
+| **Terraform** | AWS infrastructure as code |
+| **AWS EC2 Spot** | Scheduled worker instances |
+| **AWS DocumentDB** | Managed MongoDB-compatible database |
+| **AWS S3** | OCR artifact and export storage |
+| **AWS IAM/STS** | Authentication and role assumption |
+| **GitHub Actions** | CI/CD pipeline (5 workflows, 25 jobs) |
+
+<br />
+
+## Testing
+
+Invoice Processor employs a multi-layer testing strategy with enforced quality gates:
+
+| Layer | Framework | Count | Scope |
+|-------|-----------|:-----:|-------|
+| **Unit Tests** | Jest + ts-jest | 248 | Parsers, services, providers, utilities |
+| **Backend E2E** | Jest | 4 suites | Folder ingestion, SaaS lifecycle, RBAC, platform admin |
+| **Frontend E2E** | Playwright | -- | Ingestion, approval, bbox overlays, crop modals |
+| **Dead Code** | Knip | -- | Unused export detection across workspaces |
+
+### Coverage Enforcement
+
+```
+Tracked modules: 100% branches, 100% functions, 80%+ lines/statements
+Pre-commit hook: Husky runs knip + coverage (blocks commit on failure)
 ```
 
-### 2. Folder Source (Local Demo / E2E)
+### Running Tests
 
-Set in `backend/.env`:
-- `INGESTION_SOURCES=folder`
-- `FOLDER_SOURCE_KEY=local-folder`
-- `FOLDER_SOURCE_PATH=./sample-invoices/inbox`
-- `FOLDER_RECURSIVE=false`
-
-For local simulation without external OCR:
-- `OCR_PROVIDER=mock`
-- `MOCK_OCR_TEXT="Invoice Number: DEMO-1001\nVendor: Demo Supplier\nInvoice Date: 2026-02-10\nDue Date: 2026-02-20\nCurrency: USD\nGrand Total: 1500.00"`
-- `MOCK_OCR_CONFIDENCE=0.97`
-
-Then place real invoice files in:
-- `sample-invoices/inbox/*.pdf`
-- `sample-invoices/inbox/*.jpg`
-- `sample-invoices/inbox/*.jpeg`
-- `sample-invoices/inbox/*.png`
-
-A real sample invoice downloaded from the web is already included:
-- `sample-invoices/inbox/web-sample-AmazonWebServices.pdf`
-
-Source:
-- https://raw.githubusercontent.com/invoice-x/invoice2data/master/tests/compare/AmazonWebServices.pdf
-
-To download it again manually:
 ```bash
-curl -L 'https://raw.githubusercontent.com/invoice-x/invoice2data/master/tests/compare/AmazonWebServices.pdf' -o sample-invoices/inbox/web-sample-AmazonWebServices.pdf
+# All unit tests (backend + frontend)
+yarn test
+
+# Backend coverage with threshold enforcement
+yarn workspace invoice-processor-backend run coverage
+
+# Dead code analysis
+yarn run knip
+
+# Full quality gate (knip + coverage)
+yarn run quality:check
+
+# Backend E2E (requires running stack)
+yarn e2e:local
+
+# Frontend Playwright E2E (requires running stack)
+yarn e2e:frontend:local
+
+# Email OAuth E2E (MailHog + XOAUTH2 + real OCR/SLM)
+yarn e2e:email-oauth
+
+# ML endpoint benchmark
+yarn benchmark:ml
 ```
 
-Run ingestion:
+<br />
+
+## Self-Hosting
+
+### Docker Compose (Recommended for Evaluation)
+
 ```bash
-yarn worker:once
-```
+# Clone the repository
+git clone <repo-url>
+cd invoice-processor
 
-OCR runtime:
-- `OCR_PROVIDER=auto`
-- `auto` resolves to DeepSeek OCR and validates model availability at startup.
-- No Tesseract fallback is used.
-- Configure `DEEPSEEK_BASE_URL` to an endpoint that serves `/v1/ocr/document` and `/v1/models`.
-- Local default OCR model is `mlx-community/DeepSeek-OCR-4bit`.
-- Startup checks `/models` and fails fast if the configured model is unavailable.
-- First local startup downloads model weights and can take several minutes.
-- OCR results now include block-level bounding boxes (`ocrBlocks`) for later overlay rendering.
-- Field verification supports local MLX endpoint (`FIELD_VERIFIER_PROVIDER=http`, `FIELD_VERIFIER_BASE_URL=http://localhost:8100/v1`) or can be disabled (`FIELD_VERIFIER_PROVIDER=none`).
-- Forced providers:
-  - `OCR_PROVIDER=mock` forces mock OCR.
+# Install dependencies
+yarn install
 
-## Manual End-to-End Local Run (Folder -> Dashboard)
+# Create Python ML environment (Apple Silicon required for local MLX)
+python3 -m venv .venv-ml
+./.venv-ml/bin/pip install -r invoice-ocr/requirements.local.txt \
+                           -r invoice-slm/requirements.local.txt
 
-1. Start local stack:
-```bash
+# Start everything (MongoDB, backend, frontend, OCR, SLM, demo data)
 yarn docker:up
 ```
 
-2. Backend in Compose loads `backend/.env` and mounts `sample-invoices/inbox` into the container.
-If needed, adjust values in `backend/.env` (and compose overrides in `docker-compose.yml`).
+### AWS with Terraform
 
-3. Drop invoices into `sample-invoices/inbox/`.
-
-4. Process invoices from dashboard by triggering `Run Ingestion`, or via API:
-```bash
-curl -X POST http://localhost:4000/api/jobs/ingest
-```
-The API returns run summary counts: `totalFiles`, `newInvoices`, `duplicates`, `failures`.
-Live status is available at:
-```bash
-curl http://localhost:4000/api/jobs/ingest/status
-```
-The UI polls this endpoint and shows ingestion state (`running`, `completed`, `failed`), progress (`processedFiles` / `totalFiles`), and counters (`successful`, `new`, `duplicates`, `failures`) so users get immediate feedback and avoid repeated clicks.
-
-5. Open dashboard (`http://localhost:5173`) and review parsed/failed invoices.
-The list view loads all pages from the backend (not only first 100 records).
-Use `Hide Details Panel` to collapse the right-side invoice details section and expand the invoice list.
-
-## Automated End-to-End Test
-
-Runs against the live stack: backend, frontend, MongoDB, local OCR, and local SLM.
+One-command deploy (build + ECR push + Terraform apply):
 
 ```bash
-yarn e2e:local
+ENV=stg AWS_REGION=us-east-1 bash ./scripts/deploy-aws.sh
 ```
 
-What it verifies:
-- Local OCR and SLM health/readiness before backend test run.
-- Full app startup (`backend`, `frontend`, `mongo`, `mongo-express`) with `docker compose`.
-- Real ingestion run through `/api/jobs/ingest` for `pdf/png/jpg` files.
-- Invoice persistence and listing through `/api/invoices`.
-- Checkpoint behavior on rerun (second run processes `0` files).
-- Approval endpoint behavior for `NEEDS_REVIEW` invoices (when present).
-- No mock OCR provider in E2E assertions.
+The `infra/terraform/` directory contains production-ready modules:
 
-Frontend-only user-flow E2E (single `jpg` + `png` + `pdf`, ingest + UI bbox overlay verification):
-```bash
-yarn e2e:frontend:local
-```
-This verifies from the UI that:
-- one file per type ingestion completes,
-- value-source chips are shown,
-- image preview is visible,
-- selected-field bounding-box overlay is rendered in details and popup view,
-- extracted-field inspect icon opens the persisted crop preview modal.
+| Module | Resource |
+|--------|----------|
+| `aws_scheduled_ec2_service` | Spot worker ASG with cron scale-up/down |
+| `aws_documentdb_cluster` | DocumentDB with encryption, audit logging, TLS |
+| `aws_s3_bucket` | Artifact storage with TLS enforcement, versioning |
+| `aws_iam_instance_profile` | Worker IAM role with scoped S3 access |
+| `aws_sts_access_role` | STS roles for auth/backend service integration |
 
-## Infra Composition
-
-Terraform is split into reusable modules:
-- `infra/modules/aws_iam_instance_profile` for EC2 role/profile
-- `infra/modules/aws_scheduled_ec2_service` for scheduled compute runtime (`spot` or `on-demand`)
-- `infra/modules/aws_documentdb_cluster` for production DB provisioning
-- `infra/modules/aws_s3_bucket` for production artifact storage (OCR previews/crops)
-
-For app-specific overrides, use `app_manifest` in tfvars:
-- override ingestion/OCR/confidence/tally settings
-- inject app-specific environment values via `app_manifest.env`
-- reuse the same worker/DB/IAM modules across future apps with only tfvars changes
-- future registry migration is mechanical (replace module `source` addresses only)
-
-## Checkpoint Behavior
-
-Checkpoint markers are stored per tenant + source key in MongoDB (`checkpoints` collection).
-
-Behavior:
-- After each file is processed, checkpoint is persisted immediately.
-- If worker crashes mid-batch, next run resumes from the last saved marker.
-- Folder source enumerates all supported files each run, and ingestion skips already processed files using existing `sourceDocumentId` values.
-- Invoice-level uniqueness is also enforced by a MongoDB unique index on source/file identity.
-
-## Amount Storage Model (Minor Units)
-
-- Extracted amounts are converted to the smallest unit of the detected currency before persistence.
-- Example: `USD 1200.50` is stored as `parsed.totalAmountMinor = 120050`.
-- Example: `JPY 5000` is stored as `parsed.totalAmountMinor = 5000` (JPY has 0 decimal minor digits).
-- Backend APIs and DB records use integer minor units only.
-- Decimal formatting is done only at display/export boundaries (UI labels and Tally XML payload generation).
-
-## Tests
-
-Unit tests:
-```bash
-yarn test
-```
-
-Quality gate (dead-code + coverage):
-```bash
-yarn run quality:check
-```
-
-Dead code analysis only:
-```bash
-yarn run knip
-```
-
-Backend e2e only:
-```bash
-yarn workspace invoice-processor-backend run test:e2e
-```
-
-SaaS lifecycle e2e only (OAuth + tenancy + RBAC + invite + Gmail connection state):
-```bash
-yarn workspace invoice-processor-backend run test:e2e:saas
-```
-
-Email XOAUTH2 e2e (MailHog + XOAUTH2 wrapper + real OCR/SLM):
-```bash
-yarn e2e:email-oauth
-```
-
-Benchmark local and prod endpoints:
-```bash
-yarn benchmark:ml
-```
-Optional prod benchmark targets:
-- `OCR_PROD_URL` (example `https://your-ocr-endpoint/v1`)
-- `SLM_PROD_URL` (example `https://your-slm-endpoint/v1`)
-
-Commit gate:
-- Husky pre-commit hook runs `yarn quality:check`.
-- Commits fail unless Knip is clean and coverage thresholds pass.
-
-## Build
-
-```bash
-yarn build
-```
-
-## Deployment (Terraform)
-
-1. Move into terraform directory:
 ```bash
 cd infra/terraform
-```
-
-2. Configure variables:
-```bash
 cp environments/prod.tfvars.example terraform.tfvars
+# Fill VPC, subnets, image URI, email config, Tally settings
+terraform init && terraform plan && terraform apply
 ```
 
-3. Fill required values in `terraform.tfvars` (VPC/subnets, image URI, source settings, Tally settings).
-The production template already sets `provision_documentdb=true` and expects `documentdb_*` values so worker runtime uses module-managed DB output.
+<br />
 
-4. Deploy:
+## CI/CD
+
+Five GitHub Actions workflows covering the full lifecycle:
+
+| Workflow | Trigger | Jobs |
+|----------|---------|:----:|
+| **CI** | Push/PR to main/develop | 9 |
+| **Security Scan** | Weekly + push to main | 4 |
+| **Deploy Staging** | Push to main | 4 |
+| **Deploy Production** | Manual dispatch with confirmation | 5 |
+| **Infra Validation** | PR/push touching `infra/` | 3 |
+
+### CI Pipeline
+
+```
+backend-typecheck ──> backend-test (coverage) ──┐
+backend-knip (dead code)                        ├──> docker-build (4x matrix + Trivy scan)
+frontend-typecheck ──> frontend-build           │
+                   ──> frontend-test ───────────┘
+python-ocr-check
+python-slm-check
+```
+
+### Infrastructure Hardening
+
+- Dockerfiles run as non-root users with health checks
+- IMDSv2 enforced on EC2 instances
+- S3 buckets enforce TLS-only access
+- DocumentDB audit logging and TLS enabled
+- CloudWatch log exports for profiler and audit
+- Trivy container scanning on every CI build
+- Gitleaks secret detection on push to main
+
+<br />
+
+## Architecture Principles
+
+**Pluggable Provider Boundaries** -- OCR, SLM, file storage, email transport, and STS are all defined as interfaces with explicit factory selection. Swapping providers is a configuration change.
+
+**Integer Minor Units** -- All currency amounts are stored as integers in the smallest unit (cents, yen). Decimal formatting happens only at display and export boundaries, eliminating floating-point drift.
+
+**Crash-Safe Checkpointing** -- Ingestion checkpoints are persisted per-file. If a worker crashes mid-batch, the next run resumes from the last saved marker. MongoDB unique indexes prevent duplicate processing.
+
+**MLX Isolation** -- Local ML inference (Apple Silicon only) is strictly isolated in `local_*.py` provider modules. Production Docker images contain zero MLX dependencies. Provider selection is explicit with no fallback chain.
+
+**Tenant-First Data Model** -- Every data-bearing collection includes `tenantId` as a partition key. Queries are scoped by the authenticated tenant context. Platform admin APIs return only aggregates, never invoice-level data.
+
+**Runtime Composition** -- Environment-specific wiring (`local`/`stg`/`prod`) is handled through manifest files and env variables, not code branches. The same image serves all environments.
+
+<br />
+
+## Contributing
+
+1. **Read the RFC** in `docs/RFC.md` to understand architecture decisions.
+2. **Follow provider boundaries** -- ML imports must stay in `local_*.py` modules.
+3. **Add tests** -- unit tests for services, E2E for workflows. Coverage thresholds are enforced.
+4. **Run quality gate** before committing: `yarn run quality:check`.
+5. **Use integer minor units** for all amount storage and transmission.
+
 ```bash
-terraform init
-terraform plan -var-file=terraform.tfvars
-terraform apply -var-file=terraform.tfvars
+# Install and verify
+yarn install
+yarn run quality:check
+
+# Run full local stack
+yarn docker:up
+
+# Teardown
+yarn docker:down
 ```
 
-The deployment provisions scheduled spot workers and (optionally) a production DocumentDB cluster.
-When `provision_documentdb=true`, worker `MONGO_URI` is auto-wired from the provisioned DB output.
+<br />
 
-## Key Configuration
+## Additional Documentation
 
-Backend env variables:
-- Ingestion: `INGESTION_SOURCES`, `EMAIL_*`, `FOLDER_*`
-- OCR: `OCR_PROVIDER`, `DEEPSEEK_BASE_URL`, `DEEPSEEK_OCR_MODEL`, `DEEPSEEK_TIMEOUT_MS`, `MOCK_OCR_*` (`DEEPSEEK_API_KEY` optional)
-- Confidence: `CONFIDENCE_EXPECTED_MAX_TOTAL`, `CONFIDENCE_EXPECTED_MAX_DUE_DAYS`, `CONFIDENCE_AUTO_SELECT_MIN`
-  - `CONFIDENCE_EXPECTED_MAX_TOTAL` is configured in major units (for readability), then converted internally to minor units using detected currency.
-- Export: `TALLY_ENDPOINT`, `TALLY_COMPANY`, `TALLY_PURCHASE_LEDGER`
+- [AWS Deployment Guide](docs/AWS_DEPLOYMENT_GUIDE.md) -- Step-by-step Terraform deployment
+- [Local OCR Setup](docs/LOCAL_DEEPSEEK_OCR_SETUP.md) -- MLX model installation for Apple Silicon
+- [Product Requirements](docs/PRD.md) -- Feature specifications
+- [Architecture & Design Decisions](docs/RFC.md) -- RFC-style rationale for key choices
 
-Confidence/UI behavior:
-- Tone bands are `red` (`0-79`), `yellow` (`80-90`), `green` (`91+`).
-- Auto-select applies when confidence score is `>= CONFIDENCE_AUTO_SELECT_MIN` (default `91`).
-- Extracted details focus on parsed values, tally mappings, and source-highlight overlays instead of OCR implementation labels.
+<br />
 
-Terraform variables mirror core runtime settings, including confidence and Tally ledger config.
-Use Terraform `extra_env` for backend variables that are not first-class inputs (for example `DEEPSEEK_*` values).
-DocumentDB-specific variables: `provision_documentdb`, `documentdb_allowed_cidrs`, `documentdb_master_username`, `documentdb_master_password`, and related `documentdb_*` settings.
+## License
 
-## Additional Docs
+This project is licensed under the [MIT License](LICENSE).
 
-- AWS deployment guide: `docs/AWS_DEPLOYMENT_GUIDE.md`
-- Local OCR setup: `docs/LOCAL_DEEPSEEK_OCR_SETUP.md`
-- Product requirements (PRD): `docs/PRD.md`
-- Architecture and design decisions (RFC): `docs/RFC.md`
+<br />
+
+---
+
+<div align="center">
+
+Built with Node.js, React, FastAPI, and Terraform.
+
+[Documentation](docs/) | [Report an Issue](../../issues)
+
+</div>

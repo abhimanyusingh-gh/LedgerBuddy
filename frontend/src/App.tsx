@@ -4,7 +4,9 @@ import {
   assignTenantUserRole,
   clearStoredSessionToken,
   completeTenantOnboarding,
+  downloadTallyXmlFile,
   exportToTally,
+  generateTallyXmlFile,
   fetchGmailConnectUrl,
   fetchGmailConnectionStatus,
   fetchIngestionStatus,
@@ -614,6 +616,46 @@ export function App() {
     }
   }
 
+  async function handleDownloadXml() {
+    if (selectedExportableIds.length === 0) {
+      setError("Select at least one APPROVED invoice before generating XML.");
+      return;
+    }
+
+    if (selectedNonExportableCount > 0) {
+      setError("Only APPROVED invoices can be exported. Deselect non-approved invoices and retry.");
+      return;
+    }
+
+    try {
+      setError(null);
+      const fileResult = await generateTallyXmlFile(selectedExportableIds);
+
+      if (!fileResult.batchId) {
+        setError("No approved invoices found for export.");
+        return;
+      }
+
+      const blob = await downloadTallyXmlFile(fileResult.batchId);
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = fileResult.filename ?? "tally-import.xml";
+      document.body.appendChild(anchor);
+      anchor.click();
+      document.body.removeChild(anchor);
+      URL.revokeObjectURL(url);
+
+      const exportedIds = selectedExportableIds.filter(
+        (id) => !fileResult.skippedItems.some((item) => item.invoiceId === id)
+      );
+      setSelectedIds((currentSelectedIds) => removeSelectedIds(currentSelectedIds, exportedIds));
+      await loadInvoices();
+    } catch (downloadError) {
+      setError(resolveErrorMessage(downloadError, "XML file generation failed."));
+    }
+  }
+
   async function handleIngest() {
     try {
       setError(null);
@@ -1082,6 +1124,14 @@ export function App() {
                     disabled={requiresTenantSetup || selectedExportableIds.length === 0 || selectedNonExportableCount > 0}
                   >
                     Export To Tally ({selectedExportableIds.length})
+                  </button>
+                  <button
+                    type="button"
+                    className="app-button app-button-secondary"
+                    onClick={handleDownloadXml}
+                    disabled={requiresTenantSetup || selectedExportableIds.length === 0 || selectedNonExportableCount > 0}
+                  >
+                    Download XML ({selectedExportableIds.length})
                   </button>
                   <button
                     type="button"

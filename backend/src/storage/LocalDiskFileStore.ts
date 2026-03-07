@@ -1,6 +1,6 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
-import type { FileStore, FileStoreObjectRef, FileStorePutInput } from "../core/interfaces/FileStore.js";
+import type { FileStore, FileStoreGetResult, FileStoreObjectRef, FileStorePutInput } from "../core/interfaces/FileStore.js";
 import { isPathInsideRoot } from "../utils/previewStorage.js";
 
 interface LocalDiskFileStoreOptions {
@@ -14,6 +14,19 @@ export class LocalDiskFileStore implements FileStore {
 
   constructor(options: LocalDiskFileStoreOptions) {
     this.rootPath = path.resolve(options.rootPath);
+  }
+
+  async getObject(key: string): Promise<FileStoreGetResult> {
+    const normalizedKey = normalizeKey(key);
+    const filePath = path.resolve(this.rootPath, normalizedKey);
+    if (!isPathInsideRoot(this.rootPath, filePath)) {
+      throw new Error(`Refusing to read object outside local store root: '${key}'`);
+    }
+    const body = await fs.readFile(filePath);
+    return {
+      body,
+      contentType: "application/octet-stream"
+    };
   }
 
   async putObject(input: FileStorePutInput): Promise<FileStoreObjectRef> {

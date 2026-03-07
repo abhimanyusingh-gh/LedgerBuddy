@@ -22,8 +22,8 @@ permissions:
 
 env:
   AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
-  ECR_REPOSITORY: ${{ vars.ECR_REPOSITORY || 'billforge-backend' }}
-  PROJECT_NAME: billforge
+  ECR_REPOSITORY: ${{ vars.ECR_REPOSITORY || 'invoice-processor-backend' }}
+  PROJECT_NAME: invoice-processor
 
 jobs:
   validate:

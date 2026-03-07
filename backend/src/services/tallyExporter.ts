@@ -1,5 +1,5 @@
 import axios from "axios";
-import type { AccountingExporter, ExportResultItem } from "../core/interfaces/AccountingExporter.js";
+import type { AccountingExporter, ExportFileResult, ExportResultItem } from "../core/interfaces/AccountingExporter.js";
 import type { InvoiceDocument } from "../models/Invoice.js";
 import { extractTotalAmount } from "../parser/invoiceParser.js";
 import { logger } from "../utils/logger.js";
@@ -137,6 +137,59 @@ export class TallyExporter implements AccountingExporter {
     });
     return results;
   }
+
+  generateImportFile(invoices: InvoiceDocument[]): ExportFileResult {
+    const inputs: VoucherPayloadInput[] = [];
+    const skippedItems: ExportResultItem[] = [];
+
+    for (const invoice of invoices) {
+      const invoiceId = String(invoice._id);
+      const resolvedAmount = resolveInvoiceTotalAmountMinor(
+        invoice.parsed?.totalAmountMinor,
+        invoice.parsed?.currency,
+        invoice.ocrText
+      );
+      if (resolvedAmount === null) {
+        skippedItems.push({
+          invoiceId,
+          success: false,
+          error: "Invalid invoice total amount for Tally export."
+        });
+        continue;
+      }
+
+      inputs.push({
+        companyName: this.config.companyName,
+        purchaseLedgerName: this.config.purchaseLedgerName,
+        voucherNumber: invoice.parsed?.invoiceNumber ?? invoiceId,
+        partyLedgerName: invoice.parsed?.vendorName ?? "Unknown Vendor",
+        amountMinor: resolvedAmount,
+        currency: invoice.parsed?.currency ?? undefined,
+        date: formatTallyDate(invoice.parsed?.invoiceDate, invoice.receivedAt),
+        narration: buildNarration(invoice)
+      });
+    }
+
+    if (inputs.length === 0) {
+      return {
+        content: Buffer.alloc(0),
+        contentType: "text/xml",
+        filename: `tally-import-${Date.now()}.xml`,
+        includedCount: 0,
+        skippedItems
+      };
+    }
+
+    const xml = buildTallyBatchImportXml(this.config.companyName, inputs);
+    const timestamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
+    return {
+      content: Buffer.from(xml, "utf-8"),
+      contentType: "text/xml",
+      filename: `tally-import-${timestamp}.xml`,
+      includedCount: inputs.length,
+      skippedItems
+    };
+  }
 }
 
 export function resolveInvoiceTotalAmountMinor(
@@ -163,6 +216,16 @@ export function resolveInvoiceTotalAmountMinor(
 
 export function buildTallyPurchaseVoucherPayload(input: VoucherPayloadInput): string {
   const companyName = xmlEscape(input.companyName);
+  return wrapVouchersInEnvelope(companyName, [buildVoucherElement(input)]);
+}
+
+export function buildTallyBatchImportXml(companyName: string, inputs: VoucherPayloadInput[]): string {
+  const escapedCompany = xmlEscape(companyName);
+  const elements = inputs.map(buildVoucherElement);
+  return wrapVouchersInEnvelope(escapedCompany, elements);
+}
+
+function buildVoucherElement(input: VoucherPayloadInput): string {
   const voucherNumber = xmlEscape(input.voucherNumber);
   const partyLedgerName = xmlEscape(input.partyLedgerName);
   const purchaseLedgerName = xmlEscape(input.purchaseLedgerName);
@@ -170,21 +233,6 @@ export function buildTallyPurchaseVoucherPayload(input: VoucherPayloadInput): st
   const amount = formatAmount(Math.abs(input.amountMinor), input.currency);
 
   return [
-    "<ENVELOPE>",
-    "  <HEADER>",
-    "    <VERSION>1</VERSION>",
-    "    <TALLYREQUEST>Import</TALLYREQUEST>",
-    "    <TYPE>Data</TYPE>",
-    "    <ID>Vouchers</ID>",
-    "  </HEADER>",
-    "  <BODY>",
-    "    <DESC>",
-    "      <STATICVARIABLES>",
-    `        <SVCURRENTCOMPANY>${companyName}</SVCURRENTCOMPANY>`,
-    "      </STATICVARIABLES>",
-    "    </DESC>",
-    "    <DATA>",
-    "      <TALLYMESSAGE xmlns:UDF=\"TallyUDF\">",
     "        <VOUCHER VCHTYPE=\"Purchase\" ACTION=\"Create\" OBJVIEW=\"Accounting Voucher View\">",
     `          <DATE>${input.date}</DATE>`,
     "          <VOUCHERTYPENAME>Purchase</VOUCHERTYPENAME>",
@@ -205,7 +253,28 @@ export function buildTallyPurchaseVoucherPayload(input: VoucherPayloadInput): st
     "            <ISDEEMEDPOSITIVE>No</ISDEEMEDPOSITIVE>",
     `            <AMOUNT>${amount}</AMOUNT>`,
     "          </LEDGERENTRIES.LIST>",
-    "        </VOUCHER>",
+    "        </VOUCHER>"
+  ].join("\n");
+}
+
+function wrapVouchersInEnvelope(escapedCompanyName: string, voucherElements: string[]): string {
+  return [
+    "<ENVELOPE>",
+    "  <HEADER>",
+    "    <VERSION>1</VERSION>",
+    "    <TALLYREQUEST>Import</TALLYREQUEST>",
+    "    <TYPE>Data</TYPE>",
+    "    <ID>Vouchers</ID>",
+    "  </HEADER>",
+    "  <BODY>",
+    "    <DESC>",
+    "      <STATICVARIABLES>",
+    `        <SVCURRENTCOMPANY>${escapedCompanyName}</SVCURRENTCOMPANY>`,
+    "      </STATICVARIABLES>",
+    "    </DESC>",
+    "    <DATA>",
+    "      <TALLYMESSAGE xmlns:UDF=\"TallyUDF\">",
+    ...voucherElements,
     "      </TALLYMESSAGE>",
     "    </DATA>",
     "  </BODY>",

@@ -50,8 +50,12 @@ module "artifact_bucket" {
 }
 
 locals {
-  sts_enabled                   = contains(["stg", "prod"], var.environment)
-  common_tags                   = { Project = var.project_name }
+  sts_enabled = contains(["stg", "prod"], var.environment)
+  common_tags = {
+    Project     = var.project_name
+    Environment = var.environment
+    ManagedBy   = "terraform"
+  }
   final_ami_id                  = var.ami_id != "" ? var.ami_id : data.aws_ami.amazon_linux.id
   resolved_mongo_uri            = var.provision_documentdb ? module.documentdb[0].connection_uri : var.mongo_uri
   resolved_artifact_bucket_name = var.provision_artifact_bucket ? module.artifact_bucket[0].bucket_name : var.artifact_bucket_name

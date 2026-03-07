@@ -11,6 +11,30 @@ This guide deploys the backend worker on AWS Spot instances and a production Doc
 - AWS CLI configured (`aws configure`).
 - Docker and Yarn installed locally.
 
+## Quick Deploy Script (Recommended)
+
+Run one command from repo root to build, push, and apply:
+
+```bash
+ENV=stg \
+AWS_REGION=us-east-1 \
+TFVARS_FILE=infra/terraform/environments/stg.tfvars \
+bash ./scripts/deploy-aws.sh
+```
+
+The script performs:
+- AWS credential validation (`aws sts get-caller-identity`)
+- backend image build for `linux/amd64`
+- ECR repository create-if-missing + image push
+- Terraform `init`, `validate`, `plan`, and `apply` with the pushed image URI
+
+Optional overrides:
+- `PROJECT_NAME` (default `invoice-processor`)
+- `ECR_REPOSITORY` (default `${PROJECT_NAME}-backend`)
+- `IMAGE_TAG` (default `<git-sha>-<timestamp>`)
+- `TERRAFORM_DIR` (default `infra/terraform`)
+- `TERRAFORM_AUTO_APPROVE` (`true`/`false`, default `true`)
+
 ## 2. Build and Push Backend Image to ECR
 
 1. Create ECR repo (one time):

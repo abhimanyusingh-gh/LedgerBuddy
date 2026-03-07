@@ -1,5 +1,6 @@
 import { Types } from "mongoose";
 import type { AccountingExporter } from "../core/interfaces/AccountingExporter.js";
+import type { FileStore } from "../core/interfaces/FileStore.js";
 import { ExportBatchModel } from "../models/ExportBatch.js";
 import { InvoiceModel } from "../models/Invoice.js";
 import { logger } from "../utils/logger.js";
@@ -11,7 +12,10 @@ interface ExportRequest {
 }
 
 export class ExportService {
-  constructor(private readonly exporter: AccountingExporter) {}
+  constructor(
+    private readonly exporter: AccountingExporter,
+    private readonly fileStore?: FileStore
+  ) {}
 
   async exportApprovedInvoices(request: ExportRequest) {
     logger.info("export.run.start", {
@@ -107,5 +111,108 @@ export class ExportService {
       failureCount: summary.failureCount
     });
     return summary;
+  }
+
+  async generateExportFile(request: ExportRequest) {
+    if (!this.exporter.generateImportFile) {
+      throw new Error(`${this.exporter.system} exporter does not support file generation.`);
+    }
+    if (!this.fileStore) {
+      throw new Error("File store is required for export file generation.");
+    }
+
+    const query: Record<string, unknown> = {
+      status: "APPROVED",
+      tenantId: request.tenantId
+    };
+    if (request.ids && request.ids.length > 0) {
+      query._id = {
+        $in: request.ids.filter((id) => Types.ObjectId.isValid(id)).map((id) => new Types.ObjectId(id))
+      };
+    }
+
+    const invoices = await InvoiceModel.find(query);
+    if (invoices.length === 0) {
+      return {
+        batchId: undefined,
+        fileKey: undefined,
+        filename: undefined,
+        total: 0,
+        includedCount: 0,
+        skippedCount: 0,
+        skippedItems: []
+      };
+    }
+
+    const fileResult = this.exporter.generateImportFile(invoices);
+    const fileKey = `tally-exports/${request.tenantId}/${fileResult.filename}`;
+
+    await this.fileStore.putObject({
+      key: fileKey,
+      body: fileResult.content,
+      contentType: fileResult.contentType,
+      metadata: {
+        requestedBy: request.requestedBy,
+        tenantId: request.tenantId
+      }
+    });
+
+    const batch = await ExportBatchModel.create({
+      system: this.exporter.system,
+      total: invoices.length,
+      successCount: fileResult.includedCount,
+      failureCount: fileResult.skippedItems.length,
+      requestedBy: request.requestedBy,
+      fileKey
+    });
+
+    const skippedIds = new Set(fileResult.skippedItems.map((item) => item.invoiceId));
+    await Promise.all(
+      invoices.map(async (invoice) => {
+        if (skippedIds.has(String(invoice._id))) {
+          return;
+        }
+        invoice.status = "EXPORTED";
+        invoice.export = {
+          system: this.exporter.system,
+          batchId: String(batch._id),
+          exportedAt: new Date(),
+          externalReference: fileKey
+        };
+        await invoice.save();
+      })
+    );
+
+    logger.info("export.file.complete", {
+      targetSystem: this.exporter.system,
+      batchId: String(batch._id),
+      fileKey,
+      total: invoices.length,
+      includedCount: fileResult.includedCount,
+      skippedCount: fileResult.skippedItems.length
+    });
+
+    return {
+      batchId: String(batch._id),
+      fileKey,
+      filename: fileResult.filename,
+      total: invoices.length,
+      includedCount: fileResult.includedCount,
+      skippedCount: fileResult.skippedItems.length,
+      skippedItems: fileResult.skippedItems
+    };
+  }
+
+  async downloadExportFile(batchId: string): Promise<{ body: Buffer; contentType: string; filename: string } | null> {
+    if (!this.fileStore) {
+      throw new Error("File store is required for export file retrieval.");
+    }
+    const batch = await ExportBatchModel.findById(batchId);
+    if (!batch?.fileKey) {
+      return null;
+    }
+    const file = await this.fileStore.getObject(batch.fileKey);
+    const filename = batch.fileKey.split("/").pop() ?? "tally-export.xml";
+    return { ...file, filename };
   }
 }

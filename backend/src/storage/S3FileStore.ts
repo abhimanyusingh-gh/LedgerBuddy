@@ -1,5 +1,5 @@
-import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
-import type { FileStore, FileStoreObjectRef, FileStorePutInput } from "../core/interfaces/FileStore.js";
+import { GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import type { FileStore, FileStoreGetResult, FileStoreObjectRef, FileStorePutInput } from "../core/interfaces/FileStore.js";
 
 interface S3FileStoreOptions {
   bucket: string;
@@ -33,6 +33,21 @@ export class S3FileStore implements FileStore {
       endpoint: options.endpoint?.trim() || undefined,
       forcePathStyle: options.forcePathStyle ?? false
     });
+  }
+
+  async getObject(key: string): Promise<FileStoreGetResult> {
+    const fullKey = this.prefix ? `${this.prefix}/${normalizeKey(key)}` : normalizeKey(key);
+    const response = await this.client.send(
+      new GetObjectCommand({
+        Bucket: this.bucket,
+        Key: fullKey
+      })
+    );
+    const bytes = await response.Body?.transformToByteArray();
+    return {
+      body: Buffer.from(bytes ?? new Uint8Array()),
+      contentType: response.ContentType ?? "application/octet-stream"
+    };
   }
 
   async putObject(input: FileStorePutInput): Promise<FileStoreObjectRef> {

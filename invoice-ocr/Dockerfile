@@ -13,7 +13,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
   libxext6 \
   libxrender1 \
   libxcb1 \
+  curl \
   && rm -rf /var/lib/apt/lists/*
+
+RUN groupadd -r appgroup && useradd -r -g appgroup -d /app appuser
 
 COPY invoice-ocr/requirements.base.txt /app/requirements.base.txt
 COPY invoice-ocr/requirements.prod.txt /app/requirements.txt
@@ -22,6 +25,13 @@ RUN pip install --no-cache-dir --upgrade pip && pip install --no-cache-dir -r /a
 COPY invoice-ocr/server.py /app/server.py
 COPY invoice-ocr/app /app/app
 
+RUN chown -R appuser:appgroup /app
+
+USER appuser
+
 EXPOSE 8000
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD curl -f http://localhost:8000/health || exit 1
 
 CMD ["uvicorn", "server:app", "--host", "0.0.0.0", "--port", "8000"]

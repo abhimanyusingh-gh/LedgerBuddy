@@ -1,4 +1,4 @@
-FROM node:20-alpine AS base
+FROM node:20-alpine AS builder
 WORKDIR /app
 
 COPY package.json package.json
@@ -14,4 +14,27 @@ WORKDIR /app/backend
 
 RUN yarn run build
 
-CMD ["node", "dist/server.js"]
+FROM node:20-alpine AS runtime
+WORKDIR /app
+
+RUN addgroup -g 1001 -S appgroup && \
+    adduser -u 1001 -S appuser -G appgroup
+
+COPY package.json package.json
+COPY yarn.lock yarn.lock
+COPY .yarnrc.yml .yarnrc.yml
+COPY backend/package.json backend/package.json
+COPY frontend/package.json frontend/package.json
+
+RUN corepack enable && yarn workspaces focus invoice-processor-backend --production
+
+COPY --from=builder /app/backend/dist /app/backend/dist
+
+USER appuser
+
+EXPOSE 4000
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD wget --no-verbose --tries=1 --spider http://localhost:4000/health || exit 1
+
+CMD ["node", "backend/dist/server.js"]
