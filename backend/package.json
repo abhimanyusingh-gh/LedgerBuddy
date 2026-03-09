@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "ENV=${ENV:-local} tsx watch src/server.ts",
+    "dev": "[ -f .env ] || cp .env.example .env; ENV=${ENV:-local} tsx watch src/server.ts",
     "build": "tsc -p tsconfig.json",
     "start": "ENV=${ENV:-local} node dist/server.js",
     "worker:once": "ENV=${ENV:-local} tsx src/scripts/runWorkerOnce.ts",
