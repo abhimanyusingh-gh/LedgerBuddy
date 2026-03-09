@@ -13,9 +13,9 @@ import { decryptSecret, encryptSecret } from "../utils/secretCrypto.js";
 import { createE2ESessionTokenWithOptions } from "./authHelper.js";
 import { buildXoauth2AuthorizationHeader } from "../sources/email/xoauth2.js";
 
-const apiBaseUrl = process.env.E2E_API_BASE_URL ?? "http://127.0.0.1:4000";
-const mailhogApiBaseUrl = process.env.E2E_MAILHOG_API_BASE_URL ?? "http://127.0.0.1:8025";
-const mongoUri = process.env.E2E_MONGO_URI ?? "mongodb://127.0.0.1:27017/billforge";
+const apiBaseUrl = process.env.E2E_API_BASE_URL ?? "http://127.0.0.1:4100";
+const mailhogApiBaseUrl = process.env.E2E_MAILHOG_API_BASE_URL ?? "http://127.0.0.1:8125";
+const mongoUri = process.env.E2E_MONGO_URI ?? "mongodb://127.0.0.1:27018/billforge";
 
 const sessionSecret = process.env.APP_SESSION_SIGNING_SECRET ?? "local-dev-session-signing-secret-change-me";
 const refreshTokenSecret = process.env.REFRESH_TOKEN_ENCRYPTION_SECRET ?? "local-dev-refresh-token-secret-32-chars";
@@ -328,7 +328,7 @@ describe("saas lifecycle e2e", () => {
     expect(refreshToken.length).toBeGreaterThan(10);
 
     const tokenResponse = await axios.post(
-      `${apiBaseUrl.replace(/:\d+$/, ":8090")}/oauth2/token`,
+      `${apiBaseUrl.replace(/:\d+$/, ":8190")}/oauth2/token`,
       new URLSearchParams({
         grant_type: "refresh_token",
         client_id: localOauthClientId,

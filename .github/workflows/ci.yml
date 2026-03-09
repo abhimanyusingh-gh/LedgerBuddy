@@ -32,7 +32,7 @@ jobs:
       mongo:
         image: mongo:7
         ports:
-          - 27017:27017
+          - 27018:27017
         options: >-
           --health-cmd "mongosh --eval 'db.runCommand({ ping: 1 })'"
           --health-interval 10s
@@ -40,7 +40,7 @@ jobs:
           --health-retries 5
     env:
       ENV: local
-      MONGO_URI: mongodb://127.0.0.1:27017/billforge_test
+      MONGO_URI: mongodb://127.0.0.1:27018/billforge_test
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -125,7 +125,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       OCR_ENGINE: prod_http
-      OCR_REMOTE_BASE_URL: http://localhost:8000/v1
+      OCR_REMOTE_BASE_URL: http://localhost:8200/v1
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -150,7 +150,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       SLM_ENGINE: prod_http
-      SLM_REMOTE_BASE_URL: http://localhost:8100/v1
+      SLM_REMOTE_BASE_URL: http://localhost:8300/v1
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5

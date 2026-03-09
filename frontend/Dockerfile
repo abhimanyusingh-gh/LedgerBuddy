@@ -12,7 +12,7 @@ RUN corepack enable && yarn install
 COPY frontend frontend
 
 WORKDIR /app/frontend
-ARG VITE_API_BASE_URL=http://localhost:4000/api
+ARG VITE_API_BASE_URL=http://localhost:4100/api
 ENV VITE_API_BASE_URL=${VITE_API_BASE_URL}
 RUN yarn run build
 

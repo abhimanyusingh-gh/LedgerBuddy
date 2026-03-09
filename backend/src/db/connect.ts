@@ -12,3 +12,11 @@ export async function connectToDatabase() {
   await mongoose.connect(runtimeManifest.database.uri);
   connected = true;
 }
+
+export async function disconnectFromDatabase() {
+  if (!connected) {
+    return;
+  }
+  await mongoose.disconnect();
+  connected = false;
+}

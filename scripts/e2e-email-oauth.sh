@@ -13,10 +13,10 @@ else
   exit 1
 fi
 
-E2E_API_BASE_URL="${E2E_API_BASE_URL:-http://127.0.0.1:4000}"
-E2E_OCR_HEALTH_URL="${E2E_OCR_HEALTH_URL:-http://127.0.0.1:8000/v1/health}"
-E2E_SLM_HEALTH_URL="${E2E_SLM_HEALTH_URL:-http://127.0.0.1:8100/v1/health}"
-E2E_MAILHOG_WRAPPER_URL="${E2E_MAILHOG_WRAPPER_URL:-http://127.0.0.1:8026}"
+E2E_API_BASE_URL="${E2E_API_BASE_URL:-http://127.0.0.1:4100}"
+E2E_OCR_HEALTH_URL="${E2E_OCR_HEALTH_URL:-http://127.0.0.1:8200/v1/health}"
+E2E_SLM_HEALTH_URL="${E2E_SLM_HEALTH_URL:-http://127.0.0.1:8300/v1/health}"
+E2E_MAILHOG_WRAPPER_URL="${E2E_MAILHOG_WRAPPER_URL:-http://127.0.0.1:8126}"
 E2E_EMAIL_USERNAME="${E2E_EMAIL_USERNAME:-ap@example.com}"
 
 EMAIL_OAUTH_CLIENT_ID="${EMAIL_OAUTH_CLIENT_ID:-mailhog-client}"
@@ -180,14 +180,14 @@ start_local_service_if_needed \
   "$E2E_OCR_HEALTH_URL" \
   "$OCR_PID_FILE" \
   "$OCR_LOG_FILE" \
-  "$PYTHON_BIN" -m uvicorn app.api:app --app-dir invoice-ocr --host 0.0.0.0 --port 8000
+  "$PYTHON_BIN" -m uvicorn app.api:app --app-dir invoice-ocr --host 0.0.0.0 --port 8200
 
 start_local_service_if_needed \
   "SLM" \
   "$E2E_SLM_HEALTH_URL" \
   "$SLM_PID_FILE" \
   "$SLM_LOG_FILE" \
-  "$PYTHON_BIN" -m uvicorn app.api:app --app-dir invoice-slm --host 0.0.0.0 --port 8100
+  "$PYTHON_BIN" -m uvicorn app.api:app --app-dir invoice-slm --host 0.0.0.0 --port 8300
 
 ENV=local \
 APP_MANIFEST_PATH=runtime-manifest.e2e.email-oauth.json \

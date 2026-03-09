@@ -45,7 +45,7 @@ describe("InvoiceSourceViewer", () => {
       <InvoiceSourceViewer
         invoice={baseInvoice}
         overlayUrlByField={{}}
-        resolvePreviewUrl={() => "http://localhost:4000/api/invoices/inv-1/preview?page=1"}
+        resolvePreviewUrl={() => "http://localhost:4100/api/invoices/inv-1/preview?page=1"}
       />
     );
 
@@ -68,7 +68,7 @@ describe("InvoiceSourceViewer", () => {
       <InvoiceSourceViewer
         invoice={emailInvoice}
         overlayUrlByField={{}}
-        resolvePreviewUrl={() => "http://localhost:4000/api/invoices/inv-1/preview?page=1"}
+        resolvePreviewUrl={() => "http://localhost:4100/api/invoices/inv-1/preview?page=1"}
       />
     );
 
@@ -87,7 +87,7 @@ describe("InvoiceSourceViewer", () => {
       <InvoiceSourceViewer
         invoice={invoiceWithoutFields}
         overlayUrlByField={{}}
-        resolvePreviewUrl={() => "http://localhost:4000/api/invoices/inv-1/preview?page=1"}
+        resolvePreviewUrl={() => "http://localhost:4100/api/invoices/inv-1/preview?page=1"}
       />
     );
 

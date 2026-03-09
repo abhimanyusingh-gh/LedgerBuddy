@@ -121,7 +121,7 @@ invoiceSchema.index(
   { unique: true }
 );
 
-invoiceSchema.index({ status: 1, createdAt: -1 });
+invoiceSchema.index({ tenantId: 1, status: 1, createdAt: -1 });
 
 type Invoice = InferSchemaType<typeof invoiceSchema>;
 export type InvoiceDocument = HydratedDocument<Invoice>;

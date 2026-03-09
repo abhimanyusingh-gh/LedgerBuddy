@@ -1,7 +1,7 @@
 import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
 import axios from "axios";
 
-const apiBaseUrl = process.env.E2E_API_BASE_URL ?? "http://127.0.0.1:4000";
+const apiBaseUrl = process.env.E2E_API_BASE_URL ?? "http://127.0.0.1:4100";
 const tenantAdminEmail = process.env.E2E_TENANT_ADMIN_EMAIL ?? "tenant-admin-1@local.test";
 const platformAdminEmail = process.env.E2E_PLATFORM_ADMIN_EMAIL ?? "platform-admin@local.test";
 const loginPassword = process.env.E2E_LOGIN_PASSWORD ?? "DemoPass!1";

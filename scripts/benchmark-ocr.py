@@ -49,7 +49,7 @@ def parse_sample(entry: str) -> tuple[str, str]:
 def main() -> int:
   parser = argparse.ArgumentParser(description="Benchmark OCR endpoint latency")
   parser.add_argument("--label", required=True)
-  parser.add_argument("--base-url", required=True, help="OCR base URL, e.g. http://127.0.0.1:8000/v1")
+  parser.add_argument("--base-url", required=True, help="OCR base URL, e.g. http://127.0.0.1:8200/v1")
   parser.add_argument("--model", default="deepseek-ai/DeepSeek-OCR")
   parser.add_argument("--max-tokens", type=int, default=192)
   parser.add_argument("--timeout-seconds", type=int, default=1800)

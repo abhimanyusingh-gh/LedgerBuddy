@@ -14,13 +14,13 @@ else
 fi
 
 ENV_MODE="${ENV:-local}"
-BACKEND_HEALTH_URL="${BACKEND_HEALTH_URL:-http://127.0.0.1:4000/health}"
-FRONTEND_URL="${FRONTEND_URL:-http://127.0.0.1:5173}"
-OCR_HEALTH_URL="${OCR_HEALTH_URL:-http://127.0.0.1:8000/v1/health}"
-SLM_HEALTH_URL="${SLM_HEALTH_URL:-http://127.0.0.1:8100/v1/health}"
+BACKEND_HEALTH_URL="${BACKEND_HEALTH_URL:-http://127.0.0.1:4100/health}"
+FRONTEND_URL="${FRONTEND_URL:-http://127.0.0.1:5174}"
+OCR_HEALTH_URL="${OCR_HEALTH_URL:-http://127.0.0.1:8200/v1/health}"
+SLM_HEALTH_URL="${SLM_HEALTH_URL:-http://127.0.0.1:8300/v1/health}"
 DEFAULT_DEMO_INBOX_PATH="$ROOT_DIR/.local-run/demo-inbox"
 INVOICE_INBOX_PATH="${INVOICE_INBOX_PATH:-$DEFAULT_DEMO_INBOX_PATH}"
-DEFAULT_LOCAL_MANIFEST_PATH="runtime-manifest.local.demo.json"
+DEFAULT_LOCAL_MANIFEST_PATH="backend/runtime-manifest.local.demo.json"
 APP_MANIFEST_PATH_VALUE="${APP_MANIFEST_PATH:-}"
 LOCAL_DEMO_SEED_VALUE="${LOCAL_DEMO_SEED:-}"
 AUTH_AUTO_PROVISION_USERS_VALUE="${AUTH_AUTO_PROVISION_USERS:-}"
@@ -198,7 +198,11 @@ if [[ "$ENV_MODE" == "local" || "$ENV_MODE" == "dev" ]]; then
     fi
   fi
   if [[ -z "$AUTH_AUTO_PROVISION_USERS_VALUE" ]]; then
-    AUTH_AUTO_PROVISION_USERS_VALUE="false"
+    if [[ "$local_demo_mode" == "true" ]]; then
+      AUTH_AUTO_PROVISION_USERS_VALUE="true"
+    else
+      AUTH_AUTO_PROVISION_USERS_VALUE="false"
+    fi
   fi
   if [[ "$INVOICE_INBOX_PATH" == "$DEFAULT_DEMO_INBOX_PATH" ]]; then
     prepare_local_demo_inbox "$ROOT_DIR/sample-invoices/inbox" "$INVOICE_INBOX_PATH"
@@ -212,14 +216,14 @@ if [[ "$ENV_MODE" == "local" || "$ENV_MODE" == "dev" ]]; then
     "$OCR_HEALTH_URL" \
     "$OCR_PID_FILE" \
     "$OCR_LOG_FILE" \
-    "$PYTHON_BIN" -m uvicorn app.api:app --app-dir invoice-ocr --host 0.0.0.0 --port 8000
+    "$PYTHON_BIN" -m uvicorn app.api:app --app-dir invoice-ocr --host 0.0.0.0 --port 8200
 
   start_local_service_if_needed \
     "SLM" \
     "$SLM_HEALTH_URL" \
     "$SLM_PID_FILE" \
     "$SLM_LOG_FILE" \
-    "$PYTHON_BIN" -m uvicorn app.api:app --app-dir invoice-slm --host 0.0.0.0 --port 8100
+    "$PYTHON_BIN" -m uvicorn app.api:app --app-dir invoice-slm --host 0.0.0.0 --port 8300
 fi
 
 INVOICE_INBOX_PATH="$INVOICE_INBOX_PATH" \

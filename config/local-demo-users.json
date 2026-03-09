@@ -1,63 +1,51 @@
 {
   "tenants": [
     {
-      "id": "665e0a1b2f3a4b5c6d7e8f01",
-      "name": "ACME Corporation",
+      "id": "65f0000000000000000000a1",
+      "name": "Tenant Alpha",
       "onboardingStatus": "completed"
     },
     {
-      "id": "665e0a1b2f3a4b5c6d7e8f02",
-      "name": "Pinnacle Industries",
-      "onboardingStatus": "completed"
-    },
-    {
-      "id": "665e0a1b2f3a4b5c6d7e8f03",
-      "name": "Platform Operations",
+      "id": "65f0000000000000000000b2",
+      "name": "Tenant Beta",
       "onboardingStatus": "completed"
     }
   ],
   "users": [
     {
-      "email": "admin@acme.test",
-      "password": "AcmeAdmin1!",
-      "displayName": "ACME Admin",
-      "tenantId": "665e0a1b2f3a4b5c6d7e8f01",
+      "email": "tenant-admin-1@local.test",
+      "password": "DemoPass!1",
+      "displayName": "Tenant Admin 1",
+      "tenantId": "65f0000000000000000000a1",
       "role": "TENANT_ADMIN"
     },
     {
-      "email": "alice@acme.test",
-      "password": "AliceAcme1!",
-      "displayName": "Alice Nguyen",
-      "tenantId": "665e0a1b2f3a4b5c6d7e8f01",
+      "email": "tenant-user-1@local.test",
+      "password": "DemoPass!1",
+      "displayName": "Tenant User 1",
+      "tenantId": "65f0000000000000000000a1",
       "role": "MEMBER"
     },
     {
-      "email": "bob@acme.test",
-      "password": "BobAcme1!",
-      "displayName": "Bob Martinez",
-      "tenantId": "665e0a1b2f3a4b5c6d7e8f01",
-      "role": "MEMBER"
-    },
-    {
-      "email": "admin@pinnacle.test",
-      "password": "PinnacleAdmin1!",
-      "displayName": "Pinnacle Admin",
-      "tenantId": "665e0a1b2f3a4b5c6d7e8f02",
+      "email": "tenant-admin-2@local.test",
+      "password": "DemoPass!1",
+      "displayName": "Tenant Admin 2",
+      "tenantId": "65f0000000000000000000b2",
       "role": "TENANT_ADMIN"
     },
     {
-      "email": "carol@pinnacle.test",
-      "password": "CarolPinnacle1!",
-      "displayName": "Carol Chen",
-      "tenantId": "665e0a1b2f3a4b5c6d7e8f02",
+      "email": "tenant-user-2@local.test",
+      "password": "DemoPass!1",
+      "displayName": "Tenant User 2",
+      "tenantId": "65f0000000000000000000b2",
       "role": "MEMBER"
     },
     {
       "email": "platform-admin@local.test",
-      "password": "PlatformAdmin1!",
-      "displayName": "Platform Administrator",
-      "tenantId": "665e0a1b2f3a4b5c6d7e8f03",
-      "role": "TENANT_ADMIN"
+      "password": "DemoPass!1",
+      "displayName": "Platform Admin",
+      "tenantId": "65f0000000000000000000a1",
+      "role": "MEMBER"
     }
   ]
 }

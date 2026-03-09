@@ -16,6 +16,8 @@ const tenantSchema = new Schema(
   }
 );
 
+tenantSchema.index({ createdAt: 1 });
+
 type Tenant = InferSchemaType<typeof tenantSchema>;
 
 export const TenantModel = model<Tenant>("Tenant", tenantSchema);

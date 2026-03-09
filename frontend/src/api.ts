@@ -9,7 +9,7 @@ import type {
 } from "./types";
 import { normalizeApiError } from "./apiError";
 
-const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:4000/api";
+const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:4100/api";
 const backendBaseUrl = apiBaseUrl.replace(/\/api\/?$/, "");
 const SESSION_TOKEN_KEY = "billforge_session_token";
 

@@ -6,8 +6,8 @@ cd "$ROOT_DIR"
 
 E2E_INBOX_DIR="${E2E_INBOX_DIR:-}"
 SOURCE_INBOX_DIR="${SOURCE_INBOX_DIR:-$ROOT_DIR/sample-invoices/inbox}"
-E2E_API_BASE_URL="${E2E_API_BASE_URL:-http://127.0.0.1:4000}"
-E2E_FRONTEND_BASE_URL="${E2E_FRONTEND_BASE_URL:-http://127.0.0.1:5173}"
+E2E_API_BASE_URL="${E2E_API_BASE_URL:-http://127.0.0.1:4100}"
+E2E_FRONTEND_BASE_URL="${E2E_FRONTEND_BASE_URL:-http://127.0.0.1:5174}"
 
 cleanup() {
   yarn docker:down >/dev/null 2>&1 || true

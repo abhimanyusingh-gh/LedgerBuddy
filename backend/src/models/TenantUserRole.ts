@@ -15,6 +15,7 @@ const tenantUserRoleSchema = new Schema(
 );
 
 tenantUserRoleSchema.index({ tenantId: 1, userId: 1 }, { unique: true });
+tenantUserRoleSchema.index({ tenantId: 1, role: 1 });
 
 type TenantUserRole = InferSchemaType<typeof tenantUserRoleSchema>;
 

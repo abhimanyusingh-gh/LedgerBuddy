@@ -2,9 +2,9 @@ import axios from "axios";
 import mongoose from "mongoose";
 import { createE2ESessionTokenWithOptions, completeE2ETenantOnboarding } from "./authHelper.js";
 
-const apiBaseUrl = process.env.E2E_API_BASE_URL ?? "http://127.0.0.1:4000";
-const mailhogApiBaseUrl = process.env.E2E_MAILHOG_API_BASE_URL ?? "http://127.0.0.1:8025";
-const mongoUri = process.env.E2E_MONGO_URI ?? "mongodb://127.0.0.1:27017/billforge";
+const apiBaseUrl = process.env.E2E_API_BASE_URL ?? "http://127.0.0.1:4100";
+const mailhogApiBaseUrl = process.env.E2E_MAILHOG_API_BASE_URL ?? "http://127.0.0.1:8125";
+const mongoUri = process.env.E2E_MONGO_URI ?? "mongodb://127.0.0.1:27018/billforge";
 
 const api = axios.create({
   baseURL: apiBaseUrl,
@@ -47,7 +47,7 @@ describe("sendgrid invite formatting e2e", () => {
     const inviteMessage = await pollInviteMessage(inviteeEmail, inviteStartMs);
     expect(inviteMessage.subject).toContain("You were invited to BillForge");
     expect(inviteMessage.decodedBody).toContain("You were invited to join a tenant in BillForge.");
-    expect(inviteMessage.decodedBody).toMatch(/Accept invite:\s+http:\/\/localhost:5173\/invite\?token=/i);
+    expect(inviteMessage.decodedBody).toMatch(/Accept invite:\s+http:\/\/localhost:5174\/invite\?token=/i);
     expect(inviteMessage.decodedBody).toContain("Expires at:");
     expect(inviteMessage.decodedBody).toContain("<strong>Accept invite:</strong>");
   });

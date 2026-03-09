@@ -66,7 +66,7 @@ export class ExportService {
 
     const resultMap = new Map(results.map((item) => [item.invoiceId, item]));
 
-    await Promise.all(
+    const saveResults = await Promise.allSettled(
       invoices.map(async (invoice) => {
         const result = resultMap.get(String(invoice._id));
         if (!result) {
@@ -95,6 +95,13 @@ export class ExportService {
         await invoice.save();
       })
     );
+    for (const r of saveResults) {
+      if (r.status === "rejected") {
+        logger.error("export.invoice.save.failed", {
+          error: r.reason instanceof Error ? r.reason.message : String(r.reason)
+        });
+      }
+    }
 
     const summary = {
       batchId: String(batch._id),
@@ -167,7 +174,7 @@ export class ExportService {
     });
 
     const skippedIds = new Set(fileResult.skippedItems.map((item) => item.invoiceId));
-    await Promise.all(
+    const fileSaveResults = await Promise.allSettled(
       invoices.map(async (invoice) => {
         if (skippedIds.has(String(invoice._id))) {
           return;
@@ -182,6 +189,13 @@ export class ExportService {
         await invoice.save();
       })
     );
+    for (const r of fileSaveResults) {
+      if (r.status === "rejected") {
+        logger.error("export.file.invoice.save.failed", {
+          error: r.reason instanceof Error ? r.reason.message : String(r.reason)
+        });
+      }
+    }
 
     logger.info("export.file.complete", {
       targetSystem: this.exporter.system,

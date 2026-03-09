@@ -173,27 +173,43 @@ This starts all services with demo tenants, seeded users, and sample invoices:
 
 | Service | URL |
 |---------|-----|
-| Backend API | `http://localhost:4000` |
-| Frontend Dashboard | `http://localhost:5173` |
-| MongoDB | `localhost:27017` |
-| Mongo Express | `http://localhost:8081` |
-| Mailpit (SMTP/UI) | `localhost:1025` / `http://localhost:8025` |
-| MinIO (S3) | `http://localhost:9000` / Console: `http://localhost:9001` |
-| OCR Service | `http://localhost:8000` |
-| SLM Service | `http://localhost:8100` |
-| Keycloak (opt-in) | `http://localhost:8080` (use `--profile keycloak`) |
+| Backend API | `http://localhost:4100` |
+| Frontend Dashboard | `http://localhost:5174` |
+| MongoDB | `localhost:27018` |
+| Mongo Express | `http://localhost:8181` |
+| Mailpit (SMTP/UI) | `localhost:1125` / `http://localhost:8125` |
+| MinIO (S3) | `http://localhost:9100` / Console: `http://localhost:9101` |
+| OCR Service | `http://localhost:8200` |
+| SLM Service | `http://localhost:8300` |
+| Keycloak (opt-in) | `http://localhost:8180` (use `--profile keycloak`) |
 
 ### 4. Demo Credentials
 
-All demo users use password `DemoPass!1`:
+**Local-STS (default)** — all demo users use password `DemoPass!1`:
 
-| User | Role |
-|------|------|
-| `tenant-admin-1@local.test` | Tenant Alpha admin |
-| `tenant-user-1@local.test` | Tenant Alpha member |
-| `tenant-admin-2@local.test` | Tenant Beta admin |
-| `tenant-user-2@local.test` | Tenant Beta member |
-| `platform-admin@local.test` | Platform admin |
+| User | Role | Tenant |
+|------|------|--------|
+| `tenant-admin-1@local.test` | Tenant admin | Tenant Alpha |
+| `tenant-user-1@local.test` | Member | Tenant Alpha |
+| `tenant-admin-2@local.test` | Tenant admin | Tenant Beta |
+| `tenant-user-2@local.test` | Member | Tenant Beta |
+| `platform-admin@local.test` | Platform admin | — |
+
+**Keycloak (opt-in `--profile keycloak`)**:
+
+| User | Password | Role |
+|------|----------|------|
+| `admin@demo.test` | `admin123` | Platform admin |
+| `user@demo.test` | `user123` | Member |
+| `tenant-admin@acme.test` | `admin123` | Tenant admin |
+
+**Service credentials (local dev only)**:
+
+| Service | Username | Password |
+|---------|----------|----------|
+| MinIO (S3) Console | `minioadmin` | `minioadmin` |
+| Mongo Express | _(no auth)_ | _(no auth)_ |
+| Keycloak Admin | `admin` | `admin` |
 
 <br />
 

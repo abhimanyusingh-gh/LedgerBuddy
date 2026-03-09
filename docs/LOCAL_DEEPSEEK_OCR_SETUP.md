@@ -22,21 +22,21 @@ Defaults:
 - SLM model: `mlx-community/DeepSeek-R1-Distill-Qwen-1.5B-4bit`
 
 `yarn docker:up` starts:
-- local OCR service (`8000`) using host macOS providers
-- local MLX SLM service (`8100`)
-- `backend` (`4000`)
-- `frontend` (`5173`)
-- `mongo` (`27017`)
-- `mongo-express` (`8081`)
+- local OCR service (`8200`) using host macOS providers
+- local MLX SLM service (`8300`)
+- `backend` (`4100`)
+- `frontend` (`5174`)
+- `mongo` (`27018`)
+- `mongo-express` (`8181`)
 
 ## 3. Health endpoints
 
-- OCR: `http://localhost:8000/v1/health`
-- OCR models: `http://localhost:8000/v1/models`
-- OCR extract: `http://localhost:8000/v1/ocr/document`
-- SLM: `http://localhost:8100/v1/health`
-- SLM verify: `http://localhost:8100/v1/verify/invoice`
-- Backend: `http://localhost:4000/health`
+- OCR: `http://localhost:8200/v1/health`
+- OCR models: `http://localhost:8200/v1/models`
+- OCR extract: `http://localhost:8200/v1/ocr/document`
+- SLM: `http://localhost:8300/v1/health`
+- SLM verify: `http://localhost:8300/v1/verify/invoice`
+- Backend: `http://localhost:4100/health`
 
 Backend readiness is blocked until OCR + SLM are reachable and ready.
 

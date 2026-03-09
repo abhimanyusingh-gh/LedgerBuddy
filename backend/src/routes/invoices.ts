@@ -166,7 +166,7 @@ export function createInvoiceRouter(invoiceService: InvoiceService) {
 
       res.type(invoice.mimeType);
       res.setHeader("Content-Disposition", `inline; filename="${sanitizeContentDispositionName(invoice.attachmentName)}"`);
-      res.sendFile(filePath);
+      safeSendFile(res, filePath, next);
     } catch (error) {
       next(error);
     }
@@ -191,7 +191,7 @@ export function createInvoiceRouter(invoiceService: InvoiceService) {
         if (previewPath) {
           await assertPathReadable(previewPath);
           res.type(previewPath.endsWith(".jpg") || previewPath.endsWith(".jpeg") ? "image/jpeg" : "image/png");
-          res.sendFile(previewPath);
+          safeSendFile(res, previewPath, next);
           return;
         }
 
@@ -214,7 +214,7 @@ export function createInvoiceRouter(invoiceService: InvoiceService) {
         }
         await assertPathReadable(imagePath);
         res.type(invoice.mimeType);
-        res.sendFile(imagePath);
+        safeSendFile(res, imagePath, next);
         return;
       }
 
@@ -230,7 +230,7 @@ export function createInvoiceRouter(invoiceService: InvoiceService) {
 
       await assertPathReadable(previewPath);
       res.type(previewPath.endsWith(".jpg") || previewPath.endsWith(".jpeg") ? "image/jpeg" : "image/png");
-      res.sendFile(previewPath);
+      safeSendFile(res, previewPath, next);
     } catch (error) {
       next(error);
     }
@@ -261,7 +261,7 @@ export function createInvoiceRouter(invoiceService: InvoiceService) {
         return;
       }
 
-      await sendStoredImage(res, cropPath, "OCR block crop image");
+      await sendStoredImage(res, cropPath, "OCR block crop image", next);
     } catch (error) {
       next(error);
     }
@@ -292,7 +292,7 @@ export function createInvoiceRouter(invoiceService: InvoiceService) {
         return;
       }
 
-      await sendStoredImage(res, overlayPath, "Source overlay image");
+      await sendStoredImage(res, overlayPath, "Source overlay image", next);
     } catch (error) {
       next(error);
     }
@@ -436,7 +436,7 @@ function getS3Client(): S3Client {
   return s3Client;
 }
 
-async function sendStoredImage(res: Response, value: string, label: string): Promise<void> {
+async function sendStoredImage(res: Response, value: string, label: string, next?: (err: unknown) => void): Promise<void> {
   if (value.startsWith("s3://")) {
     const objectRef = parseS3Path(value);
     if (!objectRef) {
@@ -466,6 +466,13 @@ async function sendStoredImage(res: Response, value: string, label: string): Pro
     }
 
     if (response.Body instanceof Readable) {
+      response.Body.on("error", () => {
+        if (!res.headersSent) {
+          res.status(502).json({ message: `${label} stream failed.` });
+        } else {
+          res.destroy();
+        }
+      });
       response.Body.pipe(res);
       return;
     }
@@ -483,7 +490,11 @@ async function sendStoredImage(res: Response, value: string, label: string): Pro
 
   await assertPathReadable(resolved);
   res.type(inferImageMimeType(resolved));
-  res.sendFile(resolved);
+  if (next) {
+    safeSendFile(res, resolved, next);
+  } else {
+    res.sendFile(resolved);
+  }
 }
 
 async function assertPathReadable(filePath: string): Promise<void> {
@@ -492,6 +503,14 @@ async function assertPathReadable(filePath: string): Promise<void> {
 
 function isString(value: unknown): value is string {
   return typeof value === "string";
+}
+
+function safeSendFile(res: Response, filePath: string, next: (err: unknown) => void): void {
+  res.sendFile(filePath, (err) => {
+    if (err && !res.headersSent) {
+      next(err);
+    }
+  });
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

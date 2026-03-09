@@ -74,7 +74,7 @@ export class DeepSeekOcrProvider implements OcrProvider {
     this.timeoutMs = options?.timeoutMs ?? readTimeoutMsFromEnv();
     this.prompt = normalizePrompt(options?.prompt ?? process.env.DEEPSEEK_OCR_PROMPT ?? DEFAULT_PROMPT);
     this.maxTokens = normalizeMaxTokens(options?.maxTokens ?? readMaxTokensFromEnv());
-    const baseUrl = options?.baseUrl ?? process.env.DEEPSEEK_BASE_URL ?? "http://localhost:8000/v1";
+    const baseUrl = options?.baseUrl ?? process.env.DEEPSEEK_BASE_URL ?? "http://localhost:8200/v1";
     this.httpClient = options?.httpClient ?? axios.create({ baseURL: baseUrl });
   }
 
