@@ -1,4 +1,4 @@
-# RFC: Invoice Processor Architecture
+# RFC: BillForge Architecture
 
 ## 1. Status
 

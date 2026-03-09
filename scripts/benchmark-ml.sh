@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-OCR_LOCAL_URL=${OCR_LOCAL_URL:-http://127.0.0.1:8000/v1}
-SLM_LOCAL_URL=${SLM_LOCAL_URL:-http://127.0.0.1:8100/v1}
+OCR_LOCAL_URL=${OCR_LOCAL_URL:-http://127.0.0.1:8200/v1}
+SLM_LOCAL_URL=${SLM_LOCAL_URL:-http://127.0.0.1:8300/v1}
 PYTHON_BIN=${PYTHON_BIN:-python3}
 if [[ -x "./.venv-ml/bin/python" ]]; then
   PYTHON_BIN="./.venv-ml/bin/python"

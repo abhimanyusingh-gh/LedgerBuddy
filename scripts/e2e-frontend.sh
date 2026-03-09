@@ -6,8 +6,8 @@ cd "$ROOT_DIR"
 
 E2E_INBOX_DIR="${E2E_INBOX_DIR:-}"
 SOURCE_INBOX_DIR="${SOURCE_INBOX_DIR:-$ROOT_DIR/sample-invoices/inbox}"
-E2E_API_BASE_URL="${E2E_API_BASE_URL:-http://127.0.0.1:4000}"
-E2E_FRONTEND_BASE_URL="${E2E_FRONTEND_BASE_URL:-http://127.0.0.1:5173}"
+E2E_API_BASE_URL="${E2E_API_BASE_URL:-http://127.0.0.1:4100}"
+E2E_FRONTEND_BASE_URL="${E2E_FRONTEND_BASE_URL:-http://127.0.0.1:5174}"
 
 cleanup() {
   yarn docker:down >/dev/null 2>&1 || true
@@ -31,7 +31,7 @@ copy_first_match() {
 
 prepare_frontend_e2e_inbox() {
   if [[ -z "$E2E_INBOX_DIR" ]]; then
-    E2E_INBOX_DIR="$(mktemp -d /tmp/invoice-processor-frontend-e2e-inbox.XXXXXX)"
+    E2E_INBOX_DIR="$(mktemp -d /tmp/billforge-frontend-e2e-inbox.XXXXXX)"
   fi
   mkdir -p "$E2E_INBOX_DIR"
   rm -f "$E2E_INBOX_DIR"/*
@@ -48,4 +48,4 @@ INVOICE_INBOX_PATH="$E2E_INBOX_DIR" ENV=local yarn docker:up
 E2E_API_BASE_URL="$E2E_API_BASE_URL" \
 E2E_FRONTEND_BASE_URL="$E2E_FRONTEND_BASE_URL" \
 E2E_EXPECT_TOTAL_FILES=3 \
-yarn workspace invoice-processor-frontend run test:e2e
+yarn workspace billforge-frontend run test:e2e

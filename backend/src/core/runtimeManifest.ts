@@ -100,6 +100,12 @@ export interface RuntimeManifest {
     tallyEndpoint: string;
     tallyCompany: string;
     tallyPurchaseLedger: string;
+    tallyGstLedgers: {
+      cgstLedger: string;
+      sgstLedger: string;
+      igstLedger: string;
+      cessLedger: string;
+    };
   };
 }
 
@@ -171,7 +177,15 @@ const runtimeManifestSchema = z.object({
     .object({
       tallyEndpoint: z.string().optional(),
       tallyCompany: z.string().optional(),
-      tallyPurchaseLedger: z.string().optional()
+      tallyPurchaseLedger: z.string().optional(),
+      tallyGstLedgers: z
+        .object({
+          cgstLedger: z.string().optional(),
+          sgstLedger: z.string().optional(),
+          igstLedger: z.string().optional(),
+          cessLedger: z.string().optional()
+        })
+        .optional()
     })
     .optional(),
   sources: z
@@ -283,7 +297,13 @@ export function loadRuntimeManifest(): RuntimeManifest {
     export: {
       tallyEndpoint: parsed.export?.tallyEndpoint ?? defaults.export.tallyEndpoint,
       tallyCompany: parsed.export?.tallyCompany ?? defaults.export.tallyCompany,
-      tallyPurchaseLedger: parsed.export?.tallyPurchaseLedger ?? defaults.export.tallyPurchaseLedger
+      tallyPurchaseLedger: parsed.export?.tallyPurchaseLedger ?? defaults.export.tallyPurchaseLedger,
+      tallyGstLedgers: {
+        cgstLedger: parsed.export?.tallyGstLedgers?.cgstLedger ?? defaults.export.tallyGstLedgers.cgstLedger,
+        sgstLedger: parsed.export?.tallyGstLedgers?.sgstLedger ?? defaults.export.tallyGstLedgers.sgstLedger,
+        igstLedger: parsed.export?.tallyGstLedgers?.igstLedger ?? defaults.export.tallyGstLedgers.igstLedger,
+        cessLedger: parsed.export?.tallyGstLedgers?.cessLedger ?? defaults.export.tallyGstLedgers.cessLedger
+      }
     },
     sources:
       parsed.sources?.map((entry) =>
@@ -380,7 +400,13 @@ function createDefaultManifest(): RuntimeManifest {
     export: {
       tallyEndpoint: env.TALLY_ENDPOINT ?? "",
       tallyCompany: env.TALLY_COMPANY ?? "",
-      tallyPurchaseLedger: env.TALLY_PURCHASE_LEDGER
+      tallyPurchaseLedger: env.TALLY_PURCHASE_LEDGER,
+      tallyGstLedgers: {
+        cgstLedger: env.TALLY_CGST_LEDGER,
+        sgstLedger: env.TALLY_SGST_LEDGER,
+        igstLedger: env.TALLY_IGST_LEDGER,
+        cessLedger: env.TALLY_CESS_LEDGER
+      }
     }
   };
 }

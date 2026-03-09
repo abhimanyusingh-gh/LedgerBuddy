@@ -29,7 +29,7 @@ The script performs:
 - Terraform `init`, `validate`, `plan`, and `apply` with the pushed image URI
 
 Optional overrides:
-- `PROJECT_NAME` (default `invoice-processor`)
+- `PROJECT_NAME` (default `billforge`)
 - `ECR_REPOSITORY` (default `${PROJECT_NAME}-backend`)
 - `IMAGE_TAG` (default `<git-sha>-<timestamp>`)
 - `TERRAFORM_DIR` (default `infra/terraform`)
@@ -39,7 +39,7 @@ Optional overrides:
 
 1. Create ECR repo (one time):
 ```bash
-aws ecr create-repository --repository-name invoice-processor-backend --region <AWS_REGION>
+aws ecr create-repository --repository-name billforge-backend --region <AWS_REGION>
 ```
 
 2. Authenticate Docker to ECR:
@@ -49,9 +49,9 @@ aws ecr get-login-password --region <AWS_REGION> | docker login --username AWS -
 
 3. Build and push image:
 ```bash
-docker build -t invoice-processor-backend -f backend/Dockerfile .
-docker tag invoice-processor-backend:latest <ACCOUNT_ID>.dkr.ecr.<AWS_REGION>.amazonaws.com/invoice-processor-backend:latest
-docker push <ACCOUNT_ID>.dkr.ecr.<AWS_REGION>.amazonaws.com/invoice-processor-backend:latest
+docker build -t billforge-backend -f backend/Dockerfile .
+docker tag billforge-backend:latest <ACCOUNT_ID>.dkr.ecr.<AWS_REGION>.amazonaws.com/billforge-backend:latest
+docker push <ACCOUNT_ID>.dkr.ecr.<AWS_REGION>.amazonaws.com/billforge-backend:latest
 ```
 
 ## 3. Configure Terraform Variables
@@ -129,7 +129,7 @@ provision_documentdb = true
 documentdb_allowed_cidrs        = ["10.0.0.0/16"]
 documentdb_master_username      = "invoice_admin"
 documentdb_master_password      = "replace-with-strong-password"
-documentdb_db_name              = "invoice_processor"
+documentdb_db_name              = "billforge"
 documentdb_instance_class       = "db.t3.medium"
 documentdb_instance_count       = 1
 documentdb_deletion_protection  = true
@@ -165,7 +165,7 @@ terraform apply -var-file=terraform.tfvars
 2. Trigger one run immediately (optional):
 ```bash
 aws autoscaling update-auto-scaling-group \
-  --auto-scaling-group-name invoice-processor-worker-asg \
+  --auto-scaling-group-name billforge-worker-asg \
   --desired-capacity 1 \
   --min-size 0 \
   --max-size 1 \

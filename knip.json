@@ -1,15 +1,12 @@
 {
   "$schema": "https://unpkg.com/knip@latest/schema.json",
+  "ignore": ["local-sts/**", "mailhog-oauth-wrapper/**"],
   "workspaces": {
     "backend": {
-      "entry": ["src/server.ts", "src/scripts/runWorkerOnce.ts"],
-      "project": ["src/**/*.ts"],
-      "ignore": ["src/**/*.test.ts", "src/types/mailparser.d.ts"]
+      "project": ["src/**/*.ts"]
     },
     "frontend": {
-      "entry": ["src/main.tsx"],
-      "project": ["src/**/*.ts", "src/**/*.tsx"],
-      "ignore": ["src/**/*.test.ts", "src/**/*.test.tsx", "src/vite-env.d.ts"]
+      "project": ["src/**/*.ts", "src/**/*.tsx"]
     }
   }
 }

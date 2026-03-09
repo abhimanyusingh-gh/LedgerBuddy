@@ -3,8 +3,8 @@ import express from "express";
 
 const port = Number(process.env.PORT ?? 8090);
 const issuer = process.env.ISSUER ?? `http://local-sts:${port}`;
-const clientId = process.env.CLIENT_ID ?? "invoice-processor-local-client";
-const clientSecret = process.env.CLIENT_SECRET ?? "invoice-processor-local-secret";
+const clientId = process.env.CLIENT_ID ?? "billforge-local-client";
+const clientSecret = process.env.CLIENT_SECRET ?? "billforge-local-secret";
 const defaultUserEmail = process.env.DEFAULT_USER_EMAIL ?? "admin@local.test";
 const defaultUserName = process.env.DEFAULT_USER_NAME ?? "Local Admin";
 

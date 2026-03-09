@@ -175,7 +175,8 @@ function buildExporter(runtimeManifest: RuntimeManifest): AccountingExporter | n
   return new TallyExporter({
     endpoint: runtimeManifest.export.tallyEndpoint,
     companyName: runtimeManifest.export.tallyCompany,
-    purchaseLedgerName: runtimeManifest.export.tallyPurchaseLedger
+    purchaseLedgerName: runtimeManifest.export.tallyPurchaseLedger,
+    gstLedgers: runtimeManifest.export.tallyGstLedgers
   });
 }
 

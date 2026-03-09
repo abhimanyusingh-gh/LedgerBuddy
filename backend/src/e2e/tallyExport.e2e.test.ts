@@ -1,5 +1,5 @@
 import axios from "axios";
-import { createE2EUserAndLogin, completeE2ETenantOnboarding } from "./authHelper.js";
+import { createE2ESessionToken, completeE2ETenantOnboarding } from "./authHelper.js";
 
 const apiBaseUrl = process.env.E2E_API_BASE_URL ?? "http://127.0.0.1:4100";
 
@@ -15,7 +15,7 @@ describe("Tally Export E2E", () => {
   let sessionToken: string;
 
   beforeAll(async () => {
-    sessionToken = await createE2EUserAndLogin(apiBaseUrl, `tally-e2e-${Date.now()}@local.test`);
+    sessionToken = await createE2ESessionToken(apiBaseUrl);
     await completeE2ETenantOnboarding(apiBaseUrl, sessionToken);
   });
 

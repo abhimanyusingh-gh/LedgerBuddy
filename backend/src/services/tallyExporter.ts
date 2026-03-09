@@ -10,10 +10,18 @@ import {
   toMinorUnits
 } from "../utils/currency.js";
 
+interface TallyGstLedgerConfig {
+  cgstLedger: string;
+  sgstLedger: string;
+  igstLedger: string;
+  cessLedger: string;
+}
+
 interface TallyExporterConfig {
   endpoint: string;
   companyName: string;
   purchaseLedgerName: string;
+  gstLedgers?: TallyGstLedgerConfig;
 }
 
 interface TallyImportSummary {
@@ -25,6 +33,14 @@ interface TallyImportSummary {
   lineErrors: string[];
 }
 
+interface GstAmounts {
+  subtotalMinor: number;
+  cgstMinor?: number;
+  sgstMinor?: number;
+  igstMinor?: number;
+  cessMinor?: number;
+}
+
 interface VoucherPayloadInput {
   companyName: string;
   purchaseLedgerName: string;
@@ -34,6 +50,9 @@ interface VoucherPayloadInput {
   currency?: string;
   date: string;
   narration?: string;
+  gstin?: string;
+  gst?: GstAmounts;
+  gstLedgers?: TallyGstLedgerConfig;
 }
 
 export class TallyExporter implements AccountingExporter {
@@ -83,16 +102,9 @@ export class TallyExporter implements AccountingExporter {
           );
         }
 
-        const voucherPayload = buildTallyPurchaseVoucherPayload({
-          companyName: this.config.companyName,
-          purchaseLedgerName: this.config.purchaseLedgerName,
-          voucherNumber: invoice.parsed?.invoiceNumber ?? invoiceId,
-          partyLedgerName: invoice.parsed?.vendorName ?? "Unknown Vendor",
-          amountMinor: resolvedTotalAmountMinor,
-          currency: invoice.parsed?.currency ?? undefined,
-          date: formatTallyDate(invoice.parsed?.invoiceDate, invoice.receivedAt),
-          narration: buildNarration(invoice)
-        });
+        const voucherPayload = buildTallyPurchaseVoucherPayload(
+          buildVoucherInput(this.config, invoice, invoiceId, resolvedTotalAmountMinor)
+        );
 
         const response = await axios.post(this.config.endpoint, voucherPayload, {
           headers: {
@@ -158,16 +170,7 @@ export class TallyExporter implements AccountingExporter {
         continue;
       }
 
-      inputs.push({
-        companyName: this.config.companyName,
-        purchaseLedgerName: this.config.purchaseLedgerName,
-        voucherNumber: invoice.parsed?.invoiceNumber ?? invoiceId,
-        partyLedgerName: invoice.parsed?.vendorName ?? "Unknown Vendor",
-        amountMinor: resolvedAmount,
-        currency: invoice.parsed?.currency ?? undefined,
-        date: formatTallyDate(invoice.parsed?.invoiceDate, invoice.receivedAt),
-        narration: buildNarration(invoice)
-      });
+      inputs.push(buildVoucherInput(this.config, invoice, invoiceId, resolvedAmount));
     }
 
     if (inputs.length === 0) {
@@ -229,10 +232,10 @@ function buildVoucherElement(input: VoucherPayloadInput): string {
   const voucherNumber = xmlEscape(input.voucherNumber);
   const partyLedgerName = xmlEscape(input.partyLedgerName);
   const purchaseLedgerName = xmlEscape(input.purchaseLedgerName);
-  const narration = xmlEscape(input.narration ?? "Invoice import from Invoice Processor");
-  const amount = formatAmount(Math.abs(input.amountMinor), input.currency);
+  const narration = xmlEscape(input.narration ?? "Invoice import from BillForge");
+  const totalAmount = formatAmount(Math.abs(input.amountMinor), input.currency);
 
-  return [
+  const lines: string[] = [
     "        <VOUCHER VCHTYPE=\"Purchase\" ACTION=\"Create\" OBJVIEW=\"Accounting Voucher View\">",
     `          <DATE>${input.date}</DATE>`,
     "          <VOUCHERTYPENAME>Purchase</VOUCHERTYPENAME>",
@@ -240,21 +243,91 @@ function buildVoucherElement(input: VoucherPayloadInput): string {
     "          <PERSISTEDVIEW>Accounting Voucher View</PERSISTEDVIEW>",
     "          <ISINVOICE>No</ISINVOICE>",
     `          <PARTYLEDGERNAME>${partyLedgerName}</PARTYLEDGERNAME>`,
-    `          <NARRATION>${narration}</NARRATION>`,
+    `          <NARRATION>${narration}</NARRATION>`
+  ];
+
+  if (input.gstin) {
+    lines.push(`          <PARTYGSTIN>${xmlEscape(input.gstin)}</PARTYGSTIN>`);
+  }
+
+  // Party/Vendor credit entry (total amount, negative = credit)
+  lines.push(
     "          <LEDGERENTRIES.LIST>",
     `            <LEDGERNAME>${partyLedgerName}</LEDGERNAME>`,
     "            <ISDEEMEDPOSITIVE>Yes</ISDEEMEDPOSITIVE>",
     "            <ISPARTYLEDGER>Yes</ISPARTYLEDGER>",
     "            <ISLASTDEEMEDPOSITIVE>Yes</ISLASTDEEMEDPOSITIVE>",
-    `            <AMOUNT>-${amount}</AMOUNT>`,
-    "          </LEDGERENTRIES.LIST>",
-    "          <LEDGERENTRIES.LIST>",
-    `            <LEDGERNAME>${purchaseLedgerName}</LEDGERNAME>`,
-    "            <ISDEEMEDPOSITIVE>No</ISDEEMEDPOSITIVE>",
-    `            <AMOUNT>${amount}</AMOUNT>`,
-    "          </LEDGERENTRIES.LIST>",
-    "        </VOUCHER>"
-  ].join("\n");
+    `            <AMOUNT>-${totalAmount}</AMOUNT>`,
+    "          </LEDGERENTRIES.LIST>"
+  );
+
+  if (input.gst && input.gstLedgers) {
+    // GST-aware: Purchase = subtotal, then individual tax entries
+    const subtotal = formatAmount(Math.abs(input.gst.subtotalMinor), input.currency);
+    lines.push(
+      "          <LEDGERENTRIES.LIST>",
+      `            <LEDGERNAME>${purchaseLedgerName}</LEDGERNAME>`,
+      "            <ISDEEMEDPOSITIVE>No</ISDEEMEDPOSITIVE>",
+      `            <AMOUNT>${subtotal}</AMOUNT>`,
+      "          </LEDGERENTRIES.LIST>"
+    );
+
+    if (isPositiveMinorUnits(input.gst.cgstMinor)) {
+      const cgst = formatAmount(Math.abs(input.gst.cgstMinor!), input.currency);
+      lines.push(
+        "          <LEDGERENTRIES.LIST>",
+        `            <LEDGERNAME>${xmlEscape(input.gstLedgers.cgstLedger)}</LEDGERNAME>`,
+        "            <ISDEEMEDPOSITIVE>No</ISDEEMEDPOSITIVE>",
+        `            <AMOUNT>${cgst}</AMOUNT>`,
+        "          </LEDGERENTRIES.LIST>"
+      );
+    }
+
+    if (isPositiveMinorUnits(input.gst.sgstMinor)) {
+      const sgst = formatAmount(Math.abs(input.gst.sgstMinor!), input.currency);
+      lines.push(
+        "          <LEDGERENTRIES.LIST>",
+        `            <LEDGERNAME>${xmlEscape(input.gstLedgers.sgstLedger)}</LEDGERNAME>`,
+        "            <ISDEEMEDPOSITIVE>No</ISDEEMEDPOSITIVE>",
+        `            <AMOUNT>${sgst}</AMOUNT>`,
+        "          </LEDGERENTRIES.LIST>"
+      );
+    }
+
+    if (isPositiveMinorUnits(input.gst.igstMinor)) {
+      const igst = formatAmount(Math.abs(input.gst.igstMinor!), input.currency);
+      lines.push(
+        "          <LEDGERENTRIES.LIST>",
+        `            <LEDGERNAME>${xmlEscape(input.gstLedgers.igstLedger)}</LEDGERNAME>`,
+        "            <ISDEEMEDPOSITIVE>No</ISDEEMEDPOSITIVE>",
+        `            <AMOUNT>${igst}</AMOUNT>`,
+        "          </LEDGERENTRIES.LIST>"
+      );
+    }
+
+    if (isPositiveMinorUnits(input.gst.cessMinor)) {
+      const cess = formatAmount(Math.abs(input.gst.cessMinor!), input.currency);
+      lines.push(
+        "          <LEDGERENTRIES.LIST>",
+        `            <LEDGERNAME>${xmlEscape(input.gstLedgers.cessLedger)}</LEDGERNAME>`,
+        "            <ISDEEMEDPOSITIVE>No</ISDEEMEDPOSITIVE>",
+        `            <AMOUNT>${cess}</AMOUNT>`,
+        "          </LEDGERENTRIES.LIST>"
+      );
+    }
+  } else {
+    // Non-GST: purchase debit = total amount
+    lines.push(
+      "          <LEDGERENTRIES.LIST>",
+      `            <LEDGERNAME>${purchaseLedgerName}</LEDGERNAME>`,
+      "            <ISDEEMEDPOSITIVE>No</ISDEEMEDPOSITIVE>",
+      `            <AMOUNT>${totalAmount}</AMOUNT>`,
+      "          </LEDGERENTRIES.LIST>"
+    );
+  }
+
+  lines.push("        </VOUCHER>");
+  return lines.join("\n");
 }
 
 function wrapVouchersInEnvelope(escapedCompanyName: string, voucherElements: string[]): string {
@@ -410,6 +483,39 @@ function isAxiosErrorLike(
   error: unknown
 ): error is { message: string; response?: { data?: unknown } } {
   return typeof error === "object" && error !== null && "message" in error;
+}
+
+function buildVoucherInput(
+  config: TallyExporterConfig,
+  invoice: InvoiceDocument,
+  invoiceId: string,
+  resolvedAmountMinor: number
+): VoucherPayloadInput {
+  const input: VoucherPayloadInput = {
+    companyName: config.companyName,
+    purchaseLedgerName: config.purchaseLedgerName,
+    voucherNumber: invoice.parsed?.invoiceNumber ?? invoiceId,
+    partyLedgerName: invoice.parsed?.vendorName ?? "Unknown Vendor",
+    amountMinor: resolvedAmountMinor,
+    currency: invoice.parsed?.currency ?? undefined,
+    date: formatTallyDate(invoice.parsed?.invoiceDate, invoice.receivedAt),
+    narration: buildNarration(invoice)
+  };
+
+  const gst = invoice.parsed?.gst;
+  if (gst && config.gstLedgers) {
+    input.gstin = gst.gstin ?? undefined;
+    input.gst = {
+      subtotalMinor: gst.subtotalMinor ?? resolvedAmountMinor,
+      cgstMinor: gst.cgstMinor ?? undefined,
+      sgstMinor: gst.sgstMinor ?? undefined,
+      igstMinor: gst.igstMinor ?? undefined,
+      cessMinor: gst.cessMinor ?? undefined
+    };
+    input.gstLedgers = config.gstLedgers;
+  }
+
+  return input;
 }
 
 function buildNarration(invoice: InvoiceDocument): string {

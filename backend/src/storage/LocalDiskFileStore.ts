@@ -23,10 +23,17 @@ export class LocalDiskFileStore implements FileStore {
       throw new Error(`Refusing to read object outside local store root: '${key}'`);
     }
     const body = await fs.readFile(filePath);
-    return {
-      body,
-      contentType: "application/octet-stream"
-    };
+    const metaPath = filePath + ".meta.json";
+    let contentType = "application/octet-stream";
+    try {
+      const meta = JSON.parse(await fs.readFile(metaPath, "utf-8"));
+      if (typeof meta.contentType === "string" && meta.contentType.length > 0) {
+        contentType = meta.contentType;
+      }
+    } catch {
+      // No metadata file — fall back to generic content type
+    }
+    return { body, contentType };
   }
 
   async putObject(input: FileStorePutInput): Promise<FileStoreObjectRef> {
@@ -38,6 +45,7 @@ export class LocalDiskFileStore implements FileStore {
 
     await fs.mkdir(path.dirname(filePath), { recursive: true });
     await fs.writeFile(filePath, input.body);
+    await fs.writeFile(filePath + ".meta.json", JSON.stringify({ contentType: input.contentType }));
 
     return {
       key: normalizedKey,

@@ -33,7 +33,7 @@ variable "master_password" {
 variable "db_name" {
   type        = string
   description = "Logical database name included in generated connection URI."
-  default     = "invoice_processor"
+  default     = "billforge"
 }
 
 variable "engine_version" {

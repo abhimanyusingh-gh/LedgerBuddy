@@ -3,7 +3,7 @@
   "defaultWorkloadTier": "standard",
   "database": {
     "provider": "mongo",
-    "uri": "mongodb://mongo:27017/invoice_processor"
+    "uri": "mongodb://mongo:27017/billforge"
   },
   "ocr": {
     "provider": "deepseek",

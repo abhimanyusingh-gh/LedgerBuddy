@@ -9,6 +9,16 @@ export const InvoiceStatuses = [
 
 export type InvoiceStatus = (typeof InvoiceStatuses)[number];
 
+export interface GstBreakdown {
+  gstin?: string;
+  subtotalMinor?: number;
+  cgstMinor?: number;
+  sgstMinor?: number;
+  igstMinor?: number;
+  cessMinor?: number;
+  totalTaxMinor?: number;
+}
+
 export interface ParsedInvoiceData {
   invoiceNumber?: string;
   vendorName?: string;
@@ -17,4 +27,5 @@ export interface ParsedInvoiceData {
   totalAmountMinor?: number;
   currency?: string;
   notes?: string[];
+  gst?: GstBreakdown;
 }

@@ -47,14 +47,14 @@ export class MailboxNotificationService {
     await transport.sendMail({
       from: env.MAILBOX_ALERT_FROM,
       to: recipient,
-      subject: "Invoice Processor mailbox requires reconnection",
+      subject: "BillForge mailbox requires reconnection",
       text: [
         "We lost access to your Gmail mailbox.",
         "",
         `Account: ${input.emailAddress}`,
         `Reason: ${input.reason}`,
         "",
-        "Please reconnect the mailbox from the Invoice Processor UI."
+        "Please reconnect the mailbox from the BillForge UI."
       ].join("\n")
     });
 

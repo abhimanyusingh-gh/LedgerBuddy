@@ -69,7 +69,7 @@ describe("getInvoiceSourceHighlights", () => {
           text: "INV-42",
           page: 1,
           bbox: [220, 90, 420, 130],
-          cropPath: "/tmp/invoice-processor-artifacts/tenant-a/local-folder/hash/ocr-blocks/page-1/block-1.png"
+          cropPath: "/tmp/billforge-artifacts/tenant-a/local-folder/hash/ocr-blocks/page-1/block-1.png"
         },
         {
           text: "Acme Corp",
@@ -111,5 +111,81 @@ describe("getInvoiceSourceHighlights", () => {
     expect(invoiceNumber?.bbox).toEqual([120, 90, 700, 220]);
     expect(invoiceNumber?.bboxNormalized[0]).toBeCloseTo(120 / 999, 3);
     expect(invoiceNumber?.bboxNormalized[2]).toBeCloseTo(700 / 999, 3);
+  });
+
+  it("falls back to normalizeBoxWithinPage when provenance has only pixel bbox", () => {
+    const invoice: Invoice = {
+      ...baseInvoice,
+      ocrBlocks: [
+        { text: "Acme Corp", page: 1, bbox: [60, 40, 280, 80] },
+        { text: "INV-42", page: 1, bbox: [220, 90, 420, 130] }
+      ],
+      metadata: {
+        fieldProvenance: JSON.stringify({
+          vendorName: {
+            source: "heuristic",
+            page: 1,
+            bbox: [60, 40, 280, 80]
+          }
+        })
+      }
+    };
+
+    const highlights = getInvoiceSourceHighlights(invoice);
+    const vendor = highlights.find((entry) => entry.fieldKey === "vendorName");
+
+    expect(vendor).toBeDefined();
+    expect(vendor!.bboxNormalized[0]).toBeGreaterThanOrEqual(0);
+    expect(vendor!.bboxNormalized[2]).toBeLessThanOrEqual(1);
+    expect(vendor!.bboxNormalized[3]).toBeLessThanOrEqual(1);
+  });
+
+  it("clamps out-of-range bboxNormalized values to [0,1]", () => {
+    const invoice: Invoice = {
+      ...baseInvoice,
+      metadata: {
+        fieldProvenance: JSON.stringify({
+          vendorName: {
+            source: "heuristic",
+            page: 1,
+            bbox: [100, 120, 380, 180],
+            bboxNormalized: [-0.05, 0.12, 1.05, 0.18]
+          }
+        })
+      }
+    };
+
+    const highlights = getInvoiceSourceHighlights(invoice);
+    const vendor = highlights.find((entry) => entry.fieldKey === "vendorName");
+
+    expect(vendor).toBeDefined();
+    expect(vendor!.bboxNormalized[0]).toBeGreaterThanOrEqual(0);
+    expect(vendor!.bboxNormalized[2]).toBeLessThanOrEqual(1);
+  });
+
+  it("produces normalized values in [0,1] from model box coordinates", () => {
+    const invoice: Invoice = {
+      ...baseInvoice,
+      metadata: {
+        fieldProvenance: JSON.stringify({
+          totalAmountMinor: {
+            source: "heuristic",
+            page: 1,
+            bboxModel: [500, 200, 800, 400]
+          }
+        })
+      }
+    };
+
+    const highlights = getInvoiceSourceHighlights(invoice);
+    const total = highlights.find((entry) => entry.fieldKey === "totalAmountMinor");
+
+    expect(total).toBeDefined();
+    for (const val of total!.bboxNormalized) {
+      expect(val).toBeGreaterThanOrEqual(0);
+      expect(val).toBeLessThanOrEqual(1);
+    }
+    expect(total!.bboxNormalized[0]).toBeCloseTo(500 / 999, 3);
+    expect(total!.bboxNormalized[2]).toBeCloseTo(800 / 999, 3);
   });
 });

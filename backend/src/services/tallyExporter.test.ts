@@ -50,7 +50,7 @@ describe("buildTallyPurchaseVoucherPayload", () => {
       date: "20260220"
     });
 
-    expect(xml).toContain("<NARRATION>Invoice import from Invoice Processor</NARRATION>");
+    expect(xml).toContain("<NARRATION>Invoice import from BillForge</NARRATION>");
   });
 });
 
@@ -719,6 +719,300 @@ describe("TallyExporter.generateImportFile", () => {
     expect(result.includedCount).toBe(0);
     expect(result.content).toHaveLength(0);
     expect(result.skippedItems).toHaveLength(1);
+  });
+});
+
+describe("GST voucher XML generation", () => {
+  const gstLedgers = {
+    cgstLedger: "Input CGST",
+    sgstLedger: "Input SGST",
+    igstLedger: "Input IGST",
+    cessLedger: "Input Cess"
+  };
+
+  it("generates intra-state voucher with CGST and SGST ledger entries", () => {
+    const xml = buildTallyPurchaseVoucherPayload({
+      companyName: "Demo Company",
+      purchaseLedgerName: "Purchase",
+      voucherNumber: "INV-GST-1",
+      partyLedgerName: "Vendor India",
+      amountMinor: 118000,
+      currency: "INR",
+      date: "20260301",
+      narration: "GST intra-state purchase",
+      gstin: "29ABCDE1234F1Z5",
+      gst: {
+        subtotalMinor: 100000,
+        cgstMinor: 9000,
+        sgstMinor: 9000
+      },
+      gstLedgers
+    });
+
+    expect(xml).toContain("<PARTYGSTIN>29ABCDE1234F1Z5</PARTYGSTIN>");
+    expect(xml).toContain("<AMOUNT>-1180.00</AMOUNT>");
+    // Purchase entry = subtotal
+    expect(xml).toContain("<LEDGERNAME>Purchase</LEDGERNAME>");
+    expect(xml).toContain("<AMOUNT>1000.00</AMOUNT>");
+    // CGST entry
+    expect(xml).toContain("<LEDGERNAME>Input CGST</LEDGERNAME>");
+    expect(xml).toContain("<AMOUNT>90.00</AMOUNT>");
+    // SGST entry
+    expect(xml).toContain("<LEDGERNAME>Input SGST</LEDGERNAME>");
+    expect(xml).toContain("<AMOUNT>90.00</AMOUNT>");
+    // No IGST or Cess entries
+    expect(xml).not.toContain("Input IGST");
+    expect(xml).not.toContain("Input Cess");
+  });
+
+  it("generates inter-state voucher with IGST ledger entry", () => {
+    const xml = buildTallyPurchaseVoucherPayload({
+      companyName: "Demo Company",
+      purchaseLedgerName: "Purchase",
+      voucherNumber: "INV-GST-2",
+      partyLedgerName: "Vendor Interstate",
+      amountMinor: 118000,
+      currency: "INR",
+      date: "20260302",
+      gstin: "07FGHIJ5678K2Z3",
+      gst: {
+        subtotalMinor: 100000,
+        igstMinor: 18000
+      },
+      gstLedgers
+    });
+
+    expect(xml).toContain("<PARTYGSTIN>07FGHIJ5678K2Z3</PARTYGSTIN>");
+    expect(xml).toContain("<LEDGERNAME>Input IGST</LEDGERNAME>");
+    expect(xml).toContain("<AMOUNT>180.00</AMOUNT>");
+    expect(xml).not.toContain("Input CGST");
+    expect(xml).not.toContain("Input SGST");
+  });
+
+  it("includes cess ledger entry when cess is present", () => {
+    const xml = buildTallyPurchaseVoucherPayload({
+      companyName: "Demo Company",
+      purchaseLedgerName: "Purchase",
+      voucherNumber: "INV-GST-3",
+      partyLedgerName: "Vendor Cess",
+      amountMinor: 130000,
+      currency: "INR",
+      date: "20260303",
+      gst: {
+        subtotalMinor: 100000,
+        cgstMinor: 9000,
+        sgstMinor: 9000,
+        cessMinor: 12000
+      },
+      gstLedgers
+    });
+
+    expect(xml).toContain("<LEDGERNAME>Input Cess</LEDGERNAME>");
+    expect(xml).toContain("<AMOUNT>120.00</AMOUNT>");
+  });
+
+  it("omits GSTIN tag when gstin is not provided", () => {
+    const xml = buildTallyPurchaseVoucherPayload({
+      companyName: "Demo Company",
+      purchaseLedgerName: "Purchase",
+      voucherNumber: "INV-GST-4",
+      partyLedgerName: "Vendor No GSTIN",
+      amountMinor: 118000,
+      currency: "INR",
+      date: "20260304",
+      gst: {
+        subtotalMinor: 100000,
+        cgstMinor: 9000,
+        sgstMinor: 9000
+      },
+      gstLedgers
+    });
+
+    expect(xml).not.toContain("<PARTYGSTIN>");
+    expect(xml).toContain("<LEDGERNAME>Input CGST</LEDGERNAME>");
+  });
+
+  it("uses total amount as subtotal when subtotalMinor is missing", () => {
+    const xml = buildTallyPurchaseVoucherPayload({
+      companyName: "Demo Company",
+      purchaseLedgerName: "Purchase",
+      voucherNumber: "INV-GST-6",
+      partyLedgerName: "Vendor NoSubtotal",
+      amountMinor: 118000,
+      currency: "INR",
+      date: "20260306",
+      gst: {
+        subtotalMinor: 0,
+        cgstMinor: 9000,
+        sgstMinor: 9000
+      },
+      gstLedgers
+    });
+
+    // subtotalMinor=0 is falsy but it's a valid value (0.00 purchase)
+    expect(xml).toContain("<AMOUNT>0.00</AMOUNT>");
+    expect(xml).toContain("<LEDGERNAME>Input CGST</LEDGERNAME>");
+  });
+
+  it("falls back to non-GST structure when gstLedgers is not configured", () => {
+    const xml = buildTallyPurchaseVoucherPayload({
+      companyName: "Demo Company",
+      purchaseLedgerName: "Purchase",
+      voucherNumber: "INV-GST-5",
+      partyLedgerName: "Vendor Fallback",
+      amountMinor: 118000,
+      currency: "INR",
+      date: "20260305"
+    });
+
+    // Should have simple two-entry structure
+    expect(xml).toContain("<AMOUNT>-1180.00</AMOUNT>");
+    expect(xml).toContain("<AMOUNT>1180.00</AMOUNT>");
+    expect(xml).not.toContain("Input CGST");
+  });
+});
+
+describe("TallyExporter with GST config", () => {
+  beforeEach(() => {
+    axiosPostMock.mockReset();
+  });
+
+  it("generates GST voucher XML when invoice has GST data and exporter has gstLedgers", async () => {
+    axiosPostMock.mockResolvedValue({
+      data: "<ENVELOPE><HEADER><STATUS>1</STATUS></HEADER><BODY><DATA><IMPORTRESULT><CREATED>1</CREATED><ALTERED>0</ALTERED><ERRORS>0</ERRORS><LASTVCHID>100</LASTVCHID></IMPORTRESULT></DATA></BODY></ENVELOPE>"
+    });
+
+    const exporter = new TallyExporter({
+      endpoint: "http://example.test/tally",
+      companyName: "Demo",
+      purchaseLedgerName: "Purchase",
+      gstLedgers: {
+        cgstLedger: "Input CGST",
+        sgstLedger: "Input SGST",
+        igstLedger: "Input IGST",
+        cessLedger: "Input Cess"
+      }
+    });
+
+    const invoice = createInvoiceStub({
+      _id: "gst-inv-1",
+      parsed: {
+        invoiceNumber: "GST-INV-1",
+        vendorName: "GST Vendor",
+        currency: "INR",
+        totalAmountMinor: 118000,
+        gst: {
+          gstin: "29ABCDE1234F1Z5",
+          subtotalMinor: 100000,
+          cgstMinor: 9000,
+          sgstMinor: 9000,
+          totalTaxMinor: 18000
+        }
+      }
+    });
+
+    const result = await exporter.exportInvoices([invoice]);
+    expect(result).toEqual([
+      { invoiceId: "gst-inv-1", success: true, externalReference: "100" }
+    ]);
+
+    const payload = String(axiosPostMock.mock.calls[0]?.[1] ?? "");
+    expect(payload).toContain("<PARTYGSTIN>29ABCDE1234F1Z5</PARTYGSTIN>");
+    expect(payload).toContain("<LEDGERNAME>Input CGST</LEDGERNAME>");
+    expect(payload).toContain("<LEDGERNAME>Input SGST</LEDGERNAME>");
+    expect(payload).toContain("<AMOUNT>1000.00</AMOUNT>");
+  });
+
+  it("uses total amount as subtotal when GST subtotalMinor is missing", async () => {
+    axiosPostMock.mockResolvedValue({
+      data: "<ENVELOPE><HEADER><STATUS>1</STATUS></HEADER><BODY><DATA><IMPORTRESULT><CREATED>1</CREATED><ALTERED>0</ALTERED><ERRORS>0</ERRORS><LASTVCHID>101</LASTVCHID></IMPORTRESULT></DATA></BODY></ENVELOPE>"
+    });
+
+    const exporter = new TallyExporter({
+      endpoint: "http://example.test/tally",
+      companyName: "Demo",
+      purchaseLedgerName: "Purchase",
+      gstLedgers: {
+        cgstLedger: "Input CGST",
+        sgstLedger: "Input SGST",
+        igstLedger: "Input IGST",
+        cessLedger: "Input Cess"
+      }
+    });
+
+    const invoice = createInvoiceStub({
+      _id: "gst-inv-nosub",
+      parsed: {
+        invoiceNumber: "GST-NOSUB",
+        vendorName: "Vendor No Sub",
+        currency: "INR",
+        totalAmountMinor: 118000,
+        gst: {
+          cgstMinor: 9000,
+          sgstMinor: 9000
+        }
+      }
+    });
+
+    await exporter.exportInvoices([invoice]);
+
+    const payload = String(axiosPostMock.mock.calls[0]?.[1] ?? "");
+    // subtotalMinor falls back to resolvedAmountMinor (118000 = 1180.00)
+    expect(payload).toContain("<AMOUNT>1180.00</AMOUNT>");
+    expect(payload).toContain("<LEDGERNAME>Input CGST</LEDGERNAME>");
+  });
+
+  it("generates GST import file with multiple invoices", () => {
+    const exporter = new TallyExporter({
+      endpoint: "http://example.test/tally",
+      companyName: "Demo",
+      purchaseLedgerName: "Purchase",
+      gstLedgers: {
+        cgstLedger: "Input CGST",
+        sgstLedger: "Input SGST",
+        igstLedger: "Input IGST",
+        cessLedger: "Input Cess"
+      }
+    });
+
+    const invoices = [
+      createInvoiceStub({
+        _id: "gst-file-1",
+        parsed: {
+          invoiceNumber: "GST-F1",
+          vendorName: "Vendor A",
+          currency: "INR",
+          totalAmountMinor: 118000,
+          gst: {
+            subtotalMinor: 100000,
+            cgstMinor: 9000,
+            sgstMinor: 9000
+          }
+        }
+      }),
+      createInvoiceStub({
+        _id: "gst-file-2",
+        parsed: {
+          invoiceNumber: "GST-F2",
+          vendorName: "Vendor B",
+          currency: "INR",
+          totalAmountMinor: 236000,
+          gst: {
+            subtotalMinor: 200000,
+            igstMinor: 36000
+          }
+        }
+      })
+    ];
+
+    const result = exporter.generateImportFile(invoices);
+    expect(result.includedCount).toBe(2);
+
+    const xml = result.content.toString("utf-8");
+    expect(xml).toContain("<LEDGERNAME>Input CGST</LEDGERNAME>");
+    expect(xml).toContain("<LEDGERNAME>Input IGST</LEDGERNAME>");
+    expect(xml).toContain("<VOUCHERNUMBER>GST-F1</VOUCHERNUMBER>");
+    expect(xml).toContain("<VOUCHERNUMBER>GST-F2</VOUCHERNUMBER>");
   });
 });
 

@@ -3616,6 +3616,61 @@ __metadata:
   languageName: node
   linkType: hard
 
+"billforge-backend@workspace:backend":
+  version: 0.0.0-use.local
+  resolution: "billforge-backend@workspace:backend"
+  dependencies:
+    "@aws-sdk/client-s3": "npm:^3.893.0"
+    "@types/cors": "npm:^2.8.17"
+    "@types/express": "npm:^4.17.21"
+    "@types/jest": "npm:^29.5.14"
+    "@types/node": "npm:^22.10.2"
+    "@types/nodemailer": "npm:^7.0.11"
+    axios: "npm:^1.7.9"
+    cors: "npm:^2.8.5"
+    dotenv: "npm:^16.4.7"
+    express: "npm:^4.21.2"
+    imapflow: "npm:^1.0.181"
+    jest: "npm:^29.7.0"
+    mailparser: "npm:^3.7.2"
+    mongoose: "npm:^8.9.1"
+    nodemailer: "npm:^8.0.1"
+    sharp: "npm:^0.34.4"
+    ts-jest: "npm:^29.2.5"
+    tsx: "npm:^4.19.2"
+    typescript: "npm:^5.7.2"
+    zod: "npm:^3.24.1"
+  languageName: unknown
+  linkType: soft
+
+"billforge-frontend@workspace:frontend":
+  version: 0.0.0-use.local
+  resolution: "billforge-frontend@workspace:frontend"
+  dependencies:
+    "@playwright/test": "npm:^1.58.2"
+    "@types/jest": "npm:^29.5.14"
+    "@types/react": "npm:^18.3.18"
+    "@types/react-dom": "npm:^18.3.5"
+    "@vitejs/plugin-react": "npm:^4.3.4"
+    axios: "npm:^1.7.9"
+    jest: "npm:^29.7.0"
+    react: "npm:^18.3.1"
+    react-dom: "npm:^18.3.1"
+    ts-jest: "npm:^29.2.5"
+    typescript: "npm:^5.7.2"
+    vite: "npm:^6.0.5"
+  languageName: unknown
+  linkType: soft
+
+"billforge@workspace:.":
+  version: 0.0.0-use.local
+  resolution: "billforge@workspace:."
+  dependencies:
+    husky: "npm:^9.1.7"
+    knip: "npm:^5.66.1"
+  languageName: unknown
+  linkType: soft
+
 "body-parser@npm:~1.20.3":
   version: 1.20.4
   resolution: "body-parser@npm:1.20.4"
@@ -5084,61 +5139,6 @@ __metadata:
   checksum: 10c0/4e531f648b29039fb7426fb94075e6545faa1eb9fe83c29f0b6d9e7263aceb4289d2d4557db0d428188eeb449cc7c5e77b0a0b2c4e248ff2a65933a0dee49ef2
   languageName: node
   linkType: hard
-
-"invoice-processor-backend@workspace:backend":
-  version: 0.0.0-use.local
-  resolution: "invoice-processor-backend@workspace:backend"
-  dependencies:
-    "@aws-sdk/client-s3": "npm:^3.893.0"
-    "@types/cors": "npm:^2.8.17"
-    "@types/express": "npm:^4.17.21"
-    "@types/jest": "npm:^29.5.14"
-    "@types/node": "npm:^22.10.2"
-    "@types/nodemailer": "npm:^7.0.11"
-    axios: "npm:^1.7.9"
-    cors: "npm:^2.8.5"
-    dotenv: "npm:^16.4.7"
-    express: "npm:^4.21.2"
-    imapflow: "npm:^1.0.181"
-    jest: "npm:^29.7.0"
-    mailparser: "npm:^3.7.2"
-    mongoose: "npm:^8.9.1"
-    nodemailer: "npm:^8.0.1"
-    sharp: "npm:^0.34.4"
-    ts-jest: "npm:^29.2.5"
-    tsx: "npm:^4.19.2"
-    typescript: "npm:^5.7.2"
-    zod: "npm:^3.24.1"
-  languageName: unknown
-  linkType: soft
-
-"invoice-processor-frontend@workspace:frontend":
-  version: 0.0.0-use.local
-  resolution: "invoice-processor-frontend@workspace:frontend"
-  dependencies:
-    "@playwright/test": "npm:^1.58.2"
-    "@types/jest": "npm:^29.5.14"
-    "@types/react": "npm:^18.3.18"
-    "@types/react-dom": "npm:^18.3.5"
-    "@vitejs/plugin-react": "npm:^4.3.4"
-    axios: "npm:^1.7.9"
-    jest: "npm:^29.7.0"
-    react: "npm:^18.3.1"
-    react-dom: "npm:^18.3.1"
-    ts-jest: "npm:^29.2.5"
-    typescript: "npm:^5.7.2"
-    vite: "npm:^6.0.5"
-  languageName: unknown
-  linkType: soft
-
-"invoice-processor@workspace:.":
-  version: 0.0.0-use.local
-  resolution: "invoice-processor@workspace:."
-  dependencies:
-    husky: "npm:^9.1.7"
-    knip: "npm:^5.66.1"
-  languageName: unknown
-  linkType: soft
 
 "ip-address@npm:^10.0.1":
   version: 10.1.0

@@ -1,6 +1,6 @@
 <div align="center">
 
-# Invoice Processor
+# BillForge
 
 ### Intelligent Invoice Ingestion & Review Platform
 
@@ -32,40 +32,89 @@ A multi-tenant invoice processing system with pluggable OCR, ML-powered field ve
 
 ## Overview
 
-Invoice Processor ingests invoices from email or folder sources, extracts structured data through a staged ML pipeline, scores confidence, and exports approved invoices to accounting systems. Built as a **multi-tenant SaaS platform** with pluggable provider boundaries for OCR, field verification, and export.
+BillForge ingests invoices from email or folder sources, extracts structured data through a staged ML pipeline, scores confidence, and exports approved invoices to accounting systems. Built as a **multi-tenant SaaS platform** with pluggable provider boundaries for OCR, field verification, and export.
 
+### System Architecture
+
+```mermaid
+graph TB
+    subgraph Frontend["Frontend — React 18 + Vite 6"]
+        Dashboard["Review Dashboard"]
+        ConfBadges["Confidence Badges"]
+        BboxOverlay["BBox Overlays"]
+        BatchActions["Batch Approval"]
+    end
+
+    subgraph Auth["Auth Layer"]
+        JWT["JWT Session HS256"]
+        RBAC["RBAC Middleware"]
+        OAuth["OAuth2 / STS"]
+    end
+
+    subgraph Backend["Backend API — Express + TypeScript"]
+        direction TB
+        subgraph Ingestion["Ingestion"]
+            EmailSrc["Email IMAP/OAuth2"]
+            FolderSrc["Folder Watch"]
+            Checkpoint["Checkpoint Mgmt"]
+        end
+        subgraph Extraction["Extraction Pipeline"]
+            OCRGate["OCR + Confidence Gate"]
+            Parser["Field Parser"]
+            SLMVerifier["SLM Verifier Fallback"]
+        end
+        subgraph Export["Export"]
+            TallyXML["Tally XML Builder"]
+            GSTLedger["GST Ledger Entries"]
+            S3Store["S3 Artifact Storage"]
+        end
+        subgraph Core["Core Services"]
+            TenantSvc["Tenant Management"]
+            InviteSvc["Invite Flow"]
+            PlatformSvc["Platform Admin"]
+        end
+    end
+
+    subgraph External["External Services"]
+        MongoDB[("MongoDB 7")]
+        OCRService["OCR Service — FastAPI"]
+        SLMService["SLM Service — FastAPI"]
+        S3["S3 / MinIO"]
+        Tally["Tally ERP"]
+    end
+
+    Frontend -->|"JWT + RBAC"| Auth
+    Auth --> Backend
+    Ingestion --> OCRService
+    Extraction --> OCRService
+    Extraction --> SLMService
+    Export --> S3
+    Export --> Tally
+    Backend --> MongoDB
 ```
-                              Invoice Processor Architecture
 
-  +--------------------------------------------------------------------------+
-  |                       Frontend (React 18 + Vite 6)                       |
-  |    Review dashboard, confidence badges, bbox overlays, batch actions     |
-  +--------------------------------------------------------------------------+
-                                        |
-                            JWT Session (HS256) + RBAC
-                                        |
-  +--------------------------------------------------------------------------+
-  |                       Backend API (Express + TypeScript)                  |
-  +--------------------------------------------------------------------------+
-  |                                                                          |
-  |  +-----------------+  +------------------+  +------------------+         |
-  |  | Ingestion Layer |  | Extraction Layer |  |   Export Layer   |         |
-  |  | email, folder   |  | OCR, parser,     |  |  Tally XML,     |         |
-  |  | checkpoint mgmt |  | confidence,      |  |  S3 artifact     |         |
-  |  |                 |  | SLM verifier     |  |  storage         |         |
-  |  +--------+--------+  +--------+---------+  +--------+---------+         |
-  |           |                     |                     |                  |
-  |  +--------+--------+  +--------+---------+  +--------+---------+         |
-  |  |   Auth Layer    |  |   Core Services  |  |  Provider Layer  |         |
-  |  | session, RBAC,  |  | tenant, invite,  |  | OCR boundary,   |         |
-  |  | OAuth2, STS     |  | platform admin   |  | SLM boundary,   |         |
-  |  |                 |  |                  |  | file store       |         |
-  |  +-----------------+  +------------------+  +------------------+         |
-  |                                                                          |
-  +------|-------------|-------------|-------------|-------------------------+
-         |             |             |             |
-      MongoDB 7   OCR Service    SLM Service    S3 / Local FS
-                  (FastAPI)      (FastAPI)
+### Invoice Processing Pipeline
+
+```mermaid
+flowchart LR
+    A["Invoice\nPDF / Image"] --> B["AI Parsing\nOCR + Layout"]
+    B --> C["Structured JSON\nField Extraction"]
+    C --> D["Confidence\nScoring"]
+    D --> E{"Review\nRequired?"}
+    E -->|"High Confidence"| F["Auto-Approve"]
+    E -->|"Needs Review"| G["Human Review\nDashboard"]
+    G --> F
+    F --> H["Tally Mapping\nGST Ledgers"]
+    H --> I["Generate\nTally XML"]
+    I --> J["File Export\nS3 Storage"]
+    I --> K["Direct POST\nto Tally"]
+
+    style A fill:#e1f5fe
+    style D fill:#fff3e0
+    style F fill:#e8f5e9
+    style H fill:#f3e5f5
+    style J fill:#e0f2f1
+    style K fill:#e0f2f1
 ```
 
 <br />
@@ -79,11 +128,12 @@ Invoice Processor ingests invoices from email or folder sources, extracts struct
 | **Extraction** | Staged pipeline: vendor fingerprint, template matching, OCR confidence gate, layout graph, deterministic validation, SLM fallback |
 | **Confidence** | Multi-signal scoring (OCR, parser, field verification), risk flagging, configurable tone bands and auto-select thresholds |
 | **Review Dashboard** | Parsed/failed visibility, confidence badges, value-source highlighting, bbox overlay inspect, batch approval |
-| **Export** | Tally XML purchase voucher generation, downloadable file support, S3 artifact storage |
+| **Export** | Tally XML purchase voucher generation with GST ledger entries (CGST/SGST/IGST/Cess), downloadable file or direct POST, S3 artifact storage |
 | **Multi-Tenancy** | Tenant onboarding, RBAC (admin/member), invite flow, tenant-scoped data isolation, per-tenant Gmail integration |
 | **Platform Admin** | Tenant usage aggregates, admin onboarding, cross-tenant visibility (no invoice-level access) |
 | **Amount Model** | Currency-aware integer minor units (USD 1200.50 = 120050), zero floating-point drift |
-| **Auth** | JWT sessions (HS256), OAuth2/STS boundary, refresh token encryption, platform admin allowlist |
+| **Auth** | JWT sessions (HS256), OAuth2/STS boundary, Keycloak support, refresh token encryption, platform admin allowlist |
+| **India / GST** | Country-aware tenant config (IN default), GSTIN tracking, CGST/SGST/IGST/Cess ledger mapping in Tally exports |
 
 <br />
 
@@ -123,32 +173,50 @@ This starts all services with demo tenants, seeded users, and sample invoices:
 
 | Service | URL |
 |---------|-----|
-| Backend API | `http://localhost:4000` |
-| Frontend Dashboard | `http://localhost:5173` |
-| MongoDB | `localhost:27017` |
-| Mongo Express | `http://localhost:8081` |
-| Mailpit (SMTP/UI) | `localhost:1025` / `http://localhost:8025` |
-| OCR Service | `http://localhost:8000` |
-| SLM Service | `http://localhost:8100` |
+| Backend API | `http://localhost:4100` |
+| Frontend Dashboard | `http://localhost:5174` |
+| MongoDB | `localhost:27018` |
+| Mongo Express | `http://localhost:8181` |
+| Mailpit (SMTP/UI) | `localhost:1125` / `http://localhost:8125` |
+| MinIO (S3) | `http://localhost:9100` / Console: `http://localhost:9101` |
+| OCR Service | `http://localhost:8200` |
+| SLM Service | `http://localhost:8300` |
+| Keycloak (opt-in) | `http://localhost:8180` (use `--profile keycloak`) |
 
 ### 4. Demo Credentials
 
-All demo users use password `DemoPass!1`:
+**Local-STS (default)** — all demo users use password `DemoPass!1`:
 
-| User | Role |
-|------|------|
-| `tenant-admin-1@local.test` | Tenant Alpha admin |
-| `tenant-user-1@local.test` | Tenant Alpha member |
-| `tenant-admin-2@local.test` | Tenant Beta admin |
-| `tenant-user-2@local.test` | Tenant Beta member |
-| `platform-admin@local.test` | Platform admin |
+| User | Role | Tenant |
+|------|------|--------|
+| `tenant-admin-1@local.test` | Tenant admin | Tenant Alpha |
+| `tenant-user-1@local.test` | Member | Tenant Alpha |
+| `tenant-admin-2@local.test` | Tenant admin | Tenant Beta |
+| `tenant-user-2@local.test` | Member | Tenant Beta |
+| `platform-admin@local.test` | Platform admin | — |
+
+**Keycloak (opt-in `--profile keycloak`)**:
+
+| User | Password | Role |
+|------|----------|------|
+| `admin@demo.test` | `admin123` | Platform admin |
+| `user@demo.test` | `user123` | Member |
+| `tenant-admin@acme.test` | `admin123` | Tenant admin |
+
+**Service credentials (local dev only)**:
+
+| Service | Username | Password |
+|---------|----------|----------|
+| MinIO (S3) Console | `minioadmin` | `minioadmin` |
+| Mongo Express | _(no auth)_ | _(no auth)_ |
+| Keycloak Admin | `admin` | `admin` |
 
 <br />
 
 ## Project Structure
 
 ```
-Invoice Processor/
+BillForge/
 +-- backend/                    # Node.js API + worker + ingestion pipeline
 |   +-- src/
 |   |   +-- auth/               # JWT sessions, RBAC middleware, OAuth2
@@ -183,6 +251,7 @@ Invoice Processor/
 |   |   +-- aws_s3_bucket/
 |   |   +-- aws_scheduled_ec2_service/
 |   |   +-- aws_sts_access_role/
+|   |   +-- aws_keycloak/
 |   +-- terraform/              # Stack composition (main.tf, variables, environments/)
 +-- scripts/                    # deploy-aws.sh, docker-up.sh, e2e runners
 +-- sample-invoices/            # Local test invoice fixtures
@@ -305,7 +374,10 @@ Example files: `backend/runtime-manifest.local.json`, `backend/runtime-manifest.
 | Technology | Purpose |
 |-----------|---------|
 | **Docker Compose** | Local development environment |
+| **MinIO** | S3-compatible local object storage |
+| **Keycloak** | OIDC/OAuth2 identity provider (opt-in profile) |
 | **Terraform** | AWS infrastructure as code |
+| **AWS ECS Fargate** | Keycloak production deployment |
 | **AWS EC2 Spot** | Scheduled worker instances |
 | **AWS DocumentDB** | Managed MongoDB-compatible database |
 | **AWS S3** | OCR artifact and export storage |
@@ -316,7 +388,7 @@ Example files: `backend/runtime-manifest.local.json`, `backend/runtime-manifest.
 
 ## Testing
 
-Invoice Processor employs a multi-layer testing strategy with enforced quality gates:
+BillForge employs a multi-layer testing strategy with enforced quality gates:
 
 | Layer | Framework | Count | Scope |
 |-------|-----------|:-----:|-------|
@@ -339,7 +411,7 @@ Pre-commit hook: Husky runs knip + coverage (blocks commit on failure)
 yarn test
 
 # Backend coverage with threshold enforcement
-yarn workspace invoice-processor-backend run coverage
+yarn workspace billforge-backend run coverage
 
 # Dead code analysis
 yarn run knip
@@ -369,7 +441,7 @@ yarn benchmark:ml
 ```bash
 # Clone the repository
 git clone <repo-url>
-cd invoice-processor
+cd billforge
 
 # Install dependencies
 yarn install
@@ -400,6 +472,7 @@ The `infra/terraform/` directory contains production-ready modules:
 | `aws_s3_bucket` | Artifact storage with TLS enforcement, versioning |
 | `aws_iam_instance_profile` | Worker IAM role with scoped S3 access |
 | `aws_sts_access_role` | STS roles for auth/backend service integration |
+| `aws_keycloak` | ECS Fargate Keycloak with ALB, health checks, PostgreSQL |
 
 ```bash
 cd infra/terraform

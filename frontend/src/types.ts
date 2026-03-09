@@ -92,6 +92,25 @@ export interface TallyFileExportResponse {
   skippedItems: ExportResultItem[];
 }
 
+export interface ExportBatchSummary {
+  batchId: string;
+  system: string;
+  total: number;
+  successCount: number;
+  failureCount: number;
+  requestedBy: string;
+  hasFile: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ExportHistoryResponse {
+  items: ExportBatchSummary[];
+  page: number;
+  limit: number;
+  total: number;
+}
+
 export interface IngestionJobStatus {
   state: "idle" | "running" | "completed" | "failed";
   running: boolean;

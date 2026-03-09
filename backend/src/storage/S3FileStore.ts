@@ -28,10 +28,14 @@ export class S3FileStore implements FileStore {
     }
 
     this.prefix = normalizePrefix(options.prefix ?? "");
+    const endpoint = options.endpoint?.trim() || undefined;
     this.client = new S3Client({
       region,
-      endpoint: options.endpoint?.trim() || undefined,
-      forcePathStyle: options.forcePathStyle ?? false
+      endpoint,
+      forcePathStyle: options.forcePathStyle ?? false,
+      ...(endpoint
+        ? { credentials: { accessKeyId: process.env.AWS_ACCESS_KEY_ID ?? "test", secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY ?? "test" } }
+        : {})
     });
   }
 

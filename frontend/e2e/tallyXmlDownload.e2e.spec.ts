@@ -35,8 +35,7 @@ test.describe("Tally XML download", () => {
   test("downloads XML from toolbar, validates Tally envelope structure", async ({ page }) => {
     await seedAuthToken(page, authToken);
     await page.goto("/", { waitUntil: "domcontentloaded" });
-    await page.getByRole("button", { name: /^Invoices$/i }).click();
-    await expect(page.locator("table tbody")).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Invoice Workspace" })).toBeVisible();
 
     // Wait for invoices to load
     await expect.poll(async () => page.locator("tbody tr").count()).toBeGreaterThan(0);
@@ -91,8 +90,7 @@ test.describe("Tally XML download", () => {
 
     await seedAuthToken(page, authToken);
     await page.goto("/", { waitUntil: "domcontentloaded" });
-    await page.getByRole("button", { name: /^Invoices$/i }).click();
-    await expect(page.locator("table tbody")).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Invoice Workspace" })).toBeVisible();
 
     // Navigate to Exports tab
     const exportsTab = page.getByRole("button", { name: /Exports/i });
@@ -131,8 +129,7 @@ test.describe("Tally XML download", () => {
   test("export history shows batch metadata after generation", async ({ page, request }) => {
     await seedAuthToken(page, authToken);
     await page.goto("/", { waitUntil: "domcontentloaded" });
-    await page.getByRole("button", { name: /^Invoices$/i }).click();
-    await expect(page.locator("table tbody")).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Invoice Workspace" })).toBeVisible();
 
     // Navigate to Exports tab
     const exportsTab = page.getByRole("button", { name: /Exports/i });
@@ -168,7 +165,7 @@ async function expectBackendReady(request: APIRequestContext): Promise<void> {
 
 async function createE2ESessionToken(apiRoot: string): Promise<string> {
   const response = await axios.post<{ token?: string }>(
-    `${apiRoot}/api/auth/token`,
+    `${apiRoot}/auth/token`,
     { email: loginEmail, password: loginPassword },
     { timeout: 30_000, validateStatus: () => true }
   );
@@ -240,7 +237,7 @@ async function ensureApprovedInvoicesExist(request: APIRequestContext, token: st
   const data = (await list.json()) as InvoiceListResponse;
 
   const pendingIds = data.items
-    .filter((item) => item.status === "PARSED" || item.status === "NEEDS_REVIEW")
+    .filter((item) => item.status === "PENDING_REVIEW" || item.status === "VERIFIED")
     .map((item) => item._id);
 
   if (pendingIds.length === 0) {

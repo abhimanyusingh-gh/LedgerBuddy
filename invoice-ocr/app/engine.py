@@ -90,9 +90,14 @@ def normalize_bbox(value: Any) -> list[float] | None:
   if not isinstance(value, list) or len(value) != 4:
     return None
   try:
-    return [float(entry) for entry in value]
+    coords = [float(entry) for entry in value]
   except Exception:
     return None
+  x1, y1 = min(coords[0], coords[2]), min(coords[1], coords[3])
+  x2, y2 = max(coords[0], coords[2]), max(coords[1], coords[3])
+  if x1 == x2 or y1 == y2:
+    return None
+  return [x1, y1, x2, y2]
 
 
 def normalize_remote_confidence(value: Any) -> float | None:
@@ -235,6 +240,8 @@ def parse_grounding_blocks(raw_text: str, image_width: int = 1000, image_height:
     det_entries = parse_det_coordinates(match.group("det"))
     for entry in det_entries:
       bbox_model = [clamp_model_coordinate(entry[0]), clamp_model_coordinate(entry[1]), clamp_model_coordinate(entry[2]), clamp_model_coordinate(entry[3])]
+      if bbox_model[0] >= bbox_model[2] or bbox_model[1] >= bbox_model[3]:
+        continue
       bbox_pixels = model_bbox_to_pixels(bbox_model, image_width, image_height)
       bbox_normalized = [
         round(max(0.0, min(1.0, bbox_pixels[0] / max(1, image_width))), 6),

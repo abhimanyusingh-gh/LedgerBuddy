@@ -14,7 +14,7 @@ provider "aws" {
 
   default_tags {
     tags = {
-      Project   = "invoice-processor"
+      Project   = "billforge"
       ManagedBy = "terraform"
     }
   }

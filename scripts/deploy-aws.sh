@@ -5,7 +5,7 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
 TERRAFORM_DIR="${TERRAFORM_DIR:-infra/terraform}"
-PROJECT_NAME="${PROJECT_NAME:-invoice-processor}"
+PROJECT_NAME="${PROJECT_NAME:-billforge}"
 ECR_REPOSITORY="${ECR_REPOSITORY:-${PROJECT_NAME}-backend}"
 TERRAFORM_AUTO_APPROVE="${TERRAFORM_AUTO_APPROVE:-true}"
 
@@ -101,7 +101,7 @@ echo "Running Terraform init/validate/plan/apply"
 terraform -chdir="$TERRAFORM_DIR" init -input=false
 terraform -chdir="$TERRAFORM_DIR" validate
 
-PLAN_FILE="$(mktemp -t invoice-processor-plan.XXXXXX)"
+PLAN_FILE="$(mktemp -t billforge-plan.XXXXXX)"
 cleanup() {
   rm -f "$PLAN_FILE"
 }

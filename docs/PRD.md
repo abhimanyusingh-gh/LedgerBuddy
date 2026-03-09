@@ -1,4 +1,4 @@
-# PRD: Invoice Processor
+# PRD: BillForge
 
 ## 1. Problem
 

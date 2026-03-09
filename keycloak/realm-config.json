@@ -3,20 +3,13 @@
   "realm": "billforge",
   "enabled": true,
   "displayName": "BillForge",
-  "sslRequired": "none",
+  "sslRequired": "external",
   "registrationAllowed": false,
   "loginWithEmailAllowed": true,
   "duplicateEmailsAllowed": false,
   "resetPasswordAllowed": true,
   "editUsernameAllowed": false,
   "bruteForceProtected": true,
-  "permanentLockout": false,
-  "maxFailureWaitSeconds": 900,
-  "minimumQuickLoginWaitSeconds": 60,
-  "waitIncrementSeconds": 60,
-  "quickLoginCheckMilliSeconds": 1000,
-  "maxDeltaTimeSeconds": 43200,
-  "failureFactor": 5,
   "accessTokenLifespan": 3600,
   "ssoSessionIdleTimeout": 28800,
   "ssoSessionMaxLifespan": 86400,
@@ -40,18 +33,10 @@
         "description": "Standard member with basic access",
         "composite": false,
         "clientRole": false
-      },
-      {
-        "name": "viewer",
-        "description": "Read-only access to invoices and reports",
-        "composite": false,
-        "clientRole": false
       }
     ]
   },
-  "defaultRoles": [
-    "member"
-  ],
+  "defaultRoles": ["member"],
   "clients": [
     {
       "clientId": "billforge-app",
@@ -65,22 +50,22 @@
       "protocol": "openid-connect",
       "secret": "billforge-local-secret",
       "redirectUris": [
-        "http://localhost:4100/api/auth/callback",
-        "http://localhost:4100/api/connect/gmail/callback",
-        "http://localhost:5177/*"
+        "http://localhost:4100/auth/callback",
+        "http://localhost:5174/*"
       ],
       "webOrigins": [
         "http://localhost:4100",
-        "http://localhost:5177"
+        "http://localhost:5174"
       ],
       "attributes": {
         "pkce.code.challenge.method": "S256",
-        "post.logout.redirect.uris": "http://localhost:5177/*",
+        "post.logout.redirect.uris": "http://localhost:5174/*",
         "oauth2.device.authorization.grant.enabled": "false",
         "backchannel.logout.session.required": "true",
         "access.token.lifespan": "3600"
       },
       "defaultClientScopes": [
+        "openid",
         "profile",
         "email",
         "roles"
@@ -120,23 +105,48 @@
       ]
     }
   ],
-  "users": [
+  "clientScopes": [
     {
-      "username": "service-account-billforge-app",
-      "serviceAccountClientId": "billforge-app",
-      "enabled": true,
-      "emailVerified": true,
-      "clientRoles": {
-        "realm-management": [
-          "manage-users",
-          "view-users",
-          "impersonation"
-        ]
+      "name": "openid",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true"
       }
     },
     {
-      "username": "platform-admin@local.test",
-      "email": "platform-admin@local.test",
+      "name": "profile",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true"
+      }
+    },
+    {
+      "name": "email",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true"
+      }
+    },
+    {
+      "name": "roles",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true"
+      }
+    },
+    {
+      "name": "offline_access",
+      "protocol": "openid-connect",
+      "attributes": {
+        "consent.screen.text": "Allow offline access",
+        "display.on.consent.screen": "true"
+      }
+    }
+  ],
+  "users": [
+    {
+      "username": "admin@demo.test",
+      "email": "admin@demo.test",
       "emailVerified": true,
       "enabled": true,
       "firstName": "Platform",
@@ -144,118 +154,52 @@
       "credentials": [
         {
           "type": "password",
-          "value": "DemoPass!1",
+          "value": "admin123",
           "temporary": false
         }
       ],
-      "realmRoles": [
-        "platform_admin",
-        "member"
-      ]
+      "realmRoles": ["platform_admin", "member"]
     },
     {
-      "username": "tenant-admin-1@local.test",
-      "email": "tenant-admin-1@local.test",
+      "username": "user@demo.test",
+      "email": "user@demo.test",
       "emailVerified": true,
       "enabled": true,
-      "firstName": "Tenant Admin",
-      "lastName": "1",
+      "firstName": "Demo",
+      "lastName": "User",
       "credentials": [
         {
           "type": "password",
-          "value": "DemoPass!1",
+          "value": "user123",
           "temporary": false
         }
       ],
-      "realmRoles": [
-        "tenant_admin",
-        "member"
-      ]
+      "realmRoles": ["member"]
     },
     {
-      "username": "tenant-user-1@local.test",
-      "email": "tenant-user-1@local.test",
+      "username": "tenant-admin@acme.test",
+      "email": "tenant-admin@acme.test",
       "emailVerified": true,
       "enabled": true,
-      "firstName": "Tenant User",
-      "lastName": "1",
+      "firstName": "ACME",
+      "lastName": "Admin",
+      "attributes": {
+        "tenant": ["acme-corp"]
+      },
       "credentials": [
         {
           "type": "password",
-          "value": "DemoPass!1",
+          "value": "admin123",
           "temporary": false
         }
       ],
-      "realmRoles": [
-        "member"
-      ]
-    },
-    {
-      "username": "tenant-admin-2@local.test",
-      "email": "tenant-admin-2@local.test",
-      "emailVerified": true,
-      "enabled": true,
-      "firstName": "Tenant Admin",
-      "lastName": "2",
-      "credentials": [
-        {
-          "type": "password",
-          "value": "DemoPass!1",
-          "temporary": false
-        }
-      ],
-      "realmRoles": [
-        "tenant_admin",
-        "member"
-      ]
-    },
-    {
-      "username": "tenant-user-2@local.test",
-      "email": "tenant-user-2@local.test",
-      "emailVerified": true,
-      "enabled": true,
-      "firstName": "Tenant User",
-      "lastName": "2",
-      "credentials": [
-        {
-          "type": "password",
-          "value": "DemoPass!1",
-          "temporary": false
-        }
-      ],
-      "realmRoles": [
-        "member"
-      ]
-    },
-    {
-      "username": "mahir.n@globalhealthx.co",
-      "email": "mahir.n@globalhealthx.co",
-      "emailVerified": true,
-      "enabled": true,
-      "firstName": "Mahir",
-      "lastName": "N",
-      "credentials": [
-        {
-          "type": "password",
-          "value": "Mahir@GIH13",
-          "temporary": false
-        }
-      ],
-      "realmRoles": [
-        "tenant_admin",
-        "member"
-      ]
+      "realmRoles": ["tenant_admin", "member"]
     }
   ],
   "scopeMappings": [
     {
       "client": "billforge-app",
-      "roles": [
-        "platform_admin",
-        "tenant_admin",
-        "member",
-        "viewer"
-      ]
+      "roles": ["platform_admin", "tenant_admin", "member"]
     }
   ],
   "smtpServer": {},

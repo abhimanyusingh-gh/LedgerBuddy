@@ -15,10 +15,10 @@ fi
 
 E2E_INBOX_DIR="${E2E_INBOX_DIR:-}"
 SOURCE_INBOX_DIR="${SOURCE_INBOX_DIR:-$ROOT_DIR/sample-invoices/inbox}"
-E2E_API_BASE_URL="${E2E_API_BASE_URL:-http://127.0.0.1:4000}"
-E2E_FRONTEND_BASE_URL="${E2E_FRONTEND_BASE_URL:-http://127.0.0.1:5173}"
-E2E_OCR_HEALTH_URL="${E2E_OCR_HEALTH_URL:-http://127.0.0.1:8000/v1/health}"
-E2E_SLM_HEALTH_URL="${E2E_SLM_HEALTH_URL:-http://127.0.0.1:8100/v1/health}"
+E2E_API_BASE_URL="${E2E_API_BASE_URL:-http://127.0.0.1:4100}"
+E2E_FRONTEND_BASE_URL="${E2E_FRONTEND_BASE_URL:-http://127.0.0.1:5174}"
+E2E_OCR_HEALTH_URL="${E2E_OCR_HEALTH_URL:-http://127.0.0.1:8200/v1/health}"
+E2E_SLM_HEALTH_URL="${E2E_SLM_HEALTH_URL:-http://127.0.0.1:8300/v1/health}"
 RUN_DIR="$ROOT_DIR/.local-run"
 OCR_PID_FILE="$RUN_DIR/e2e-ocr.pid"
 SLM_PID_FILE="$RUN_DIR/e2e-slm.pid"
@@ -53,7 +53,7 @@ trap cleanup EXIT
 
 prepare_e2e_inbox() {
   if [[ -z "$E2E_INBOX_DIR" ]]; then
-    E2E_INBOX_DIR="$(mktemp -d /tmp/invoice-processor-e2e-inbox.XXXXXX)"
+    E2E_INBOX_DIR="$(mktemp -d /tmp/billforge-e2e-inbox.XXXXXX)"
   fi
 
   mkdir -p "$E2E_INBOX_DIR"
@@ -211,14 +211,14 @@ start_local_service_if_needed \
   "$E2E_OCR_HEALTH_URL" \
   "$OCR_PID_FILE" \
   "$OCR_LOG_FILE" \
-  "$PYTHON_BIN" -m uvicorn app.api:app --app-dir invoice-ocr --host 0.0.0.0 --port 8000
+  "$PYTHON_BIN" -m uvicorn app.api:app --app-dir invoice-ocr --host 0.0.0.0 --port 8200
 
 start_local_service_if_needed \
   "SLM" \
   "$E2E_SLM_HEALTH_URL" \
   "$SLM_PID_FILE" \
   "$SLM_LOG_FILE" \
-  "$PYTHON_BIN" -m uvicorn app.api:app --app-dir invoice-slm --host 0.0.0.0 --port 8100
+  "$PYTHON_BIN" -m uvicorn app.api:app --app-dir invoice-slm --host 0.0.0.0 --port 8300
 
 INVOICE_INBOX_PATH="$E2E_INBOX_DIR" ENV=local "${COMPOSE_CMD[@]}" up -d --build --remove-orphans backend frontend mongo mongo-express
 wait_for_http_contains "$E2E_API_BASE_URL/health" "\"ready\":true" "backend" 600
@@ -229,10 +229,10 @@ E2E_FRONTEND_BASE_URL="$E2E_FRONTEND_BASE_URL" \
 E2E_OCR_HEALTH_URL="$E2E_OCR_HEALTH_URL" \
 E2E_SLM_HEALTH_URL="$E2E_SLM_HEALTH_URL" \
 E2E_INBOX_DIR="$E2E_INBOX_DIR" \
-yarn workspace invoice-processor-backend run test:e2e
+yarn workspace billforge-backend run test:e2e
 
 E2E_API_BASE_URL="$E2E_API_BASE_URL" \
 E2E_FRONTEND_BASE_URL="$E2E_FRONTEND_BASE_URL" \
 E2E_EXPECT_TOTAL_FILES=3 \
 E2E_SKIP_INGEST=true \
-yarn workspace invoice-processor-frontend run test:e2e
+yarn workspace billforge-frontend run test:e2e

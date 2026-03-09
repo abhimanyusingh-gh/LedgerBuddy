@@ -5,8 +5,8 @@ import { createE2ESessionTokenWithOptions, completeE2ETenantOnboarding } from ".
 import { InvoiceModel } from "../models/Invoice.js";
 import { TenantIntegrationModel } from "../models/TenantIntegration.js";
 
-const apiBaseUrl = process.env.E2E_API_BASE_URL ?? "http://127.0.0.1:4000";
-const mongoUri = process.env.E2E_MONGO_URI ?? "mongodb://127.0.0.1:27017/invoice_processor";
+const apiBaseUrl = process.env.E2E_API_BASE_URL ?? "http://127.0.0.1:4100";
+const mongoUri = process.env.E2E_MONGO_URI ?? "mongodb://127.0.0.1:27018/billforge";
 const platformAdminEmail = process.env.E2E_PLATFORM_ADMIN_EMAIL ?? "platform-admin@local.test";
 
 const api = axios.create({

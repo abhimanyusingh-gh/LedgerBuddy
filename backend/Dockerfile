@@ -26,9 +26,11 @@ COPY .yarnrc.yml .yarnrc.yml
 COPY backend/package.json backend/package.json
 COPY frontend/package.json frontend/package.json
 
-RUN corepack enable && yarn workspaces focus invoice-processor-backend --production
+RUN corepack enable && yarn workspaces focus billforge-backend --production
 
 COPY --from=builder /app/backend/dist /app/backend/dist
+COPY backend/runtime-manifest.*.json /app/backend/
+COPY config /app/config
 
 USER appuser
 

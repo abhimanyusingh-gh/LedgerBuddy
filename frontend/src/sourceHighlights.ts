@@ -58,11 +58,12 @@ export function getInvoiceSourceHighlights(invoice: Invoice): SourceHighlight[] 
     }
 
     const pageBlocks = blocks.filter((block) => block.page === page);
-    const bboxNormalized =
+    const rawNormalized =
       normalizeBox(provenance.bboxNormalized) ??
       normalizeModelBox(bboxModel) ??
-      matchedBlock?.block.bboxNormalized ??
+      normalizeBox(matchedBlock?.block.bboxNormalized) ??
       normalizeBoxWithinPage(bbox, pageBlocks);
+    const bboxNormalized = rawNormalized ? clampNormalizedBox(rawNormalized) : undefined;
     if (!bboxNormalized) {
       continue;
     }

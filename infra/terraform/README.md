@@ -1,4 +1,4 @@
-# Invoice Processor Stack
+# BillForge Stack
 
 This folder is the product stack composition layer.
 

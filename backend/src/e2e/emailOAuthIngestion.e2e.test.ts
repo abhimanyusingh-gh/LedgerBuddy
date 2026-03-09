@@ -4,8 +4,8 @@ import path from "node:path";
 import { buildXoauth2AuthorizationHeader } from "../sources/email/xoauth2.js";
 import { completeE2ETenantOnboarding, createE2ESessionToken } from "./authHelper.js";
 
-const apiBaseUrl = process.env.E2E_API_BASE_URL ?? "http://127.0.0.1:4000";
-const wrapperBaseUrl = process.env.E2E_MAILHOG_WRAPPER_URL ?? "http://127.0.0.1:8026";
+const apiBaseUrl = process.env.E2E_API_BASE_URL ?? "http://127.0.0.1:4100";
+const wrapperBaseUrl = process.env.E2E_MAILHOG_WRAPPER_URL ?? "http://127.0.0.1:8126";
 const oauthClientId = process.env.E2E_EMAIL_OAUTH_CLIENT_ID ?? "mailhog-client";
 const oauthClientSecret = process.env.E2E_EMAIL_OAUTH_CLIENT_SECRET ?? "mailhog-secret";
 const oauthRefreshToken = process.env.E2E_EMAIL_OAUTH_REFRESH_TOKEN ?? "mailhog-refresh";

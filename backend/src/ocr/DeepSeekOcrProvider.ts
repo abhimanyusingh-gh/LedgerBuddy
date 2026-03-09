@@ -74,7 +74,7 @@ export class DeepSeekOcrProvider implements OcrProvider {
     this.timeoutMs = options?.timeoutMs ?? readTimeoutMsFromEnv();
     this.prompt = normalizePrompt(options?.prompt ?? process.env.DEEPSEEK_OCR_PROMPT ?? DEFAULT_PROMPT);
     this.maxTokens = normalizeMaxTokens(options?.maxTokens ?? readMaxTokensFromEnv());
-    const baseUrl = options?.baseUrl ?? process.env.DEEPSEEK_BASE_URL ?? "http://localhost:8000/v1";
+    const baseUrl = options?.baseUrl ?? process.env.DEEPSEEK_BASE_URL ?? "http://localhost:8200/v1";
     this.httpClient = options?.httpClient ?? axios.create({ baseURL: baseUrl });
   }
 
@@ -402,7 +402,7 @@ function normalizeBlocks(value: unknown): OcrBlock[] | undefined {
 
     const bboxNormalized =
       normalizeBox(entry.bboxNormalized) ?? normalizeBox(entry.bbox_normalized) ?? normalizeBox(entry.bboxNorm);
-    const bboxModel = normalizeBox(entry.bboxModel) ?? normalizeBox(entry.bbox_model);
+    const bboxModel = normalizeModelBox(entry.bboxModel) ?? normalizeModelBox(entry.bbox_model);
     const blockType = normalizeText(entry.blockType) ?? normalizeText(entry.type);
     const page = normalizePageNumber(entry.page);
 
@@ -462,7 +462,27 @@ function normalizeBox(value: unknown): [number, number, number, number] | undefi
   if (!numbers.every((entry) => Number.isFinite(entry))) {
     return undefined;
   }
-  return [numbers[0], numbers[1], numbers[2], numbers[3]];
+  const x1 = Math.min(numbers[0], numbers[2]);
+  const y1 = Math.min(numbers[1], numbers[3]);
+  const x2 = Math.max(numbers[0], numbers[2]);
+  const y2 = Math.max(numbers[1], numbers[3]);
+  if (x1 === x2 || y1 === y2) {
+    return undefined;
+  }
+  return [x1, y1, x2, y2];
+}
+
+function normalizeModelBox(value: unknown): [number, number, number, number] | undefined {
+  const box = normalizeBox(value);
+  if (!box) {
+    return undefined;
+  }
+  return [
+    Math.max(0, Math.min(999, box[0])),
+    Math.max(0, Math.min(999, box[1])),
+    Math.max(0, Math.min(999, box[2])),
+    Math.max(0, Math.min(999, box[3]))
+  ];
 }
 
 function normalizePageNumber(value: unknown): number {

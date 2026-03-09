@@ -53,7 +53,7 @@ def post_json(url: str, payload: dict, timeout_seconds: int) -> dict:
 def main() -> int:
   parser = argparse.ArgumentParser(description="Benchmark SLM verifier endpoint latency")
   parser.add_argument("--label", required=True)
-  parser.add_argument("--base-url", required=True, help="SLM base URL, e.g. http://127.0.0.1:8100/v1")
+  parser.add_argument("--base-url", required=True, help="SLM base URL, e.g. http://127.0.0.1:8300/v1")
   parser.add_argument("--runs", type=int, default=3)
   parser.add_argument("--timeout-seconds", type=int, default=1200)
   args = parser.parse_args()

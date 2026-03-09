@@ -1922,17 +1922,16 @@ pre {
 }
 
 .source-preview-image img {
-  width: 100%;
-  height: auto;
+  max-width: 100%;
   max-height: min(70vh, 880px);
-  object-fit: contain;
-  object-position: center;
+  height: auto;
   display: block;
 }
 
 .source-preview-canvas {
   position: relative;
-  width: 100%;
+  display: inline-block;
+  max-width: 100%;
 }
 
 .source-preview-box {
@@ -1945,6 +1944,73 @@ pre {
 
 .muted {
   color: var(--ink-soft);
+}
+
+/* Export History Dashboard */
+.export-history-section {
+  margin-top: 1.5rem;
+  padding: 1rem 1.2rem;
+  background: #ffffff;
+  border: 1px solid rgba(215, 209, 191, 0.6);
+  border-radius: 10px;
+}
+
+.export-history-section h3 {
+  margin: 0 0 0.8rem;
+  font-size: 1.05rem;
+}
+
+.export-history-table-wrap {
+  overflow-x: auto;
+}
+
+.export-history-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.export-history-table thead tr {
+  background: #f8fafc;
+}
+
+.export-history-table th {
+  padding: 0.7rem 0.75rem;
+  border-bottom: 1px solid #e2e8f0;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.75rem;
+  color: #64748b;
+  text-align: left;
+}
+
+.export-history-table td {
+  padding: 0.6rem 0.75rem;
+  border-bottom: 1px solid rgba(215, 209, 191, 0.4);
+}
+
+.export-history-error {
+  color: #b91c1c;
+  font-size: 0.85rem;
+  margin: 0.3rem 0;
+}
+
+.export-no-file {
+  color: #94a3b8;
+  font-style: italic;
+}
+
+.export-history-pagination {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  justify-content: center;
+  margin-top: 0.8rem;
+  font-size: 0.85rem;
+}
+
+.app-button-sm {
+  padding: 0.3rem 0.6rem;
+  font-size: 0.8rem;
 }
 
 @media (max-width: 980px) {

@@ -1,7 +1,7 @@
 import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
 import axios from "axios";
 
-const apiBaseUrl = process.env.E2E_API_BASE_URL ?? "http://127.0.0.1:4000";
+const apiBaseUrl = process.env.E2E_API_BASE_URL ?? "http://127.0.0.1:4100";
 const skipIngest = process.env.E2E_SKIP_INGEST === "true";
 const expectedTotalFiles = Number(process.env.E2E_EXPECT_TOTAL_FILES ?? "3");
 const loginEmail = process.env.E2E_LOGIN_EMAIL ?? "tenant-admin-1@local.test";
@@ -254,7 +254,7 @@ function authHeaders(token: string): Record<string, string> {
 
 async function seedAuthToken(page: Page, token: string): Promise<void> {
   await page.addInitScript((value) => {
-    window.localStorage.setItem("invoice_processor_session_token", value);
+    window.localStorage.setItem("billforge_session_token", value);
   }, token);
 }
 
