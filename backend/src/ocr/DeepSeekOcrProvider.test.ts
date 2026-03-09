@@ -838,4 +838,121 @@ describe("DeepSeekOcrProvider", () => {
     const result = await provider.extractText(Buffer.from("img"), "image/png");
     expect(result.blocks).toBeUndefined();
   });
+
+  it("auto-corrects inverted coordinate order in bbox", async () => {
+    const post = jest.fn(async () => ({
+      data: {
+        rawText: "text",
+        blocks: [
+          {
+            text: "Vendor Name",
+            bbox: [300, 400, 100, 200],
+            page: 1
+          }
+        ]
+      }
+    }));
+
+    const provider = new DeepSeekOcrProvider({ httpClient: { post } });
+    const result = await provider.extractText(Buffer.from("img"), "image/png");
+    expect(result.blocks![0].bbox).toEqual([100, 200, 300, 400]);
+  });
+
+  it("rejects zero-area bbox where x1 equals x2", async () => {
+    const post = jest.fn(async () => ({
+      data: {
+        rawText: "text",
+        blocks: [
+          {
+            text: "Collapsed box",
+            bbox: [100, 200, 100, 400],
+            page: 1
+          }
+        ]
+      }
+    }));
+
+    const provider = new DeepSeekOcrProvider({ httpClient: { post } });
+    const result = await provider.extractText(Buffer.from("img"), "image/png");
+    expect(result.blocks).toBeUndefined();
+  });
+
+  it("rejects zero-area bbox where y1 equals y2", async () => {
+    const post = jest.fn(async () => ({
+      data: {
+        rawText: "text",
+        blocks: [
+          {
+            text: "Flat box",
+            bbox: [100, 200, 300, 200],
+            page: 1
+          }
+        ]
+      }
+    }));
+
+    const provider = new DeepSeekOcrProvider({ httpClient: { post } });
+    const result = await provider.extractText(Buffer.from("img"), "image/png");
+    expect(result.blocks).toBeUndefined();
+  });
+
+  it("clamps bboxModel coordinates to 0-999 range", async () => {
+    const post = jest.fn(async () => ({
+      data: {
+        rawText: "text",
+        blocks: [
+          {
+            text: "Wide box",
+            bbox: [10, 20, 30, 40],
+            bboxModel: [-5, 100, 1200, 800],
+            page: 1
+          }
+        ]
+      }
+    }));
+
+    const provider = new DeepSeekOcrProvider({ httpClient: { post } });
+    const result = await provider.extractText(Buffer.from("img"), "image/png");
+    expect(result.blocks![0].bboxModel).toEqual([0, 100, 999, 800]);
+  });
+
+  it("auto-corrects inverted bboxModel coordinate order", async () => {
+    const post = jest.fn(async () => ({
+      data: {
+        rawText: "text",
+        blocks: [
+          {
+            text: "Inverted model",
+            bbox: [10, 20, 30, 40],
+            bboxModel: [800, 600, 100, 200],
+            page: 1
+          }
+        ]
+      }
+    }));
+
+    const provider = new DeepSeekOcrProvider({ httpClient: { post } });
+    const result = await provider.extractText(Buffer.from("img"), "image/png");
+    expect(result.blocks![0].bboxModel).toEqual([100, 200, 800, 600]);
+  });
+
+  it("auto-corrects inverted bboxNormalized coordinate order", async () => {
+    const post = jest.fn(async () => ({
+      data: {
+        rawText: "text",
+        blocks: [
+          {
+            text: "Inverted normalized",
+            bbox: [10, 20, 30, 40],
+            bboxNormalized: [0.8, 0.9, 0.1, 0.2],
+            page: 1
+          }
+        ]
+      }
+    }));
+
+    const provider = new DeepSeekOcrProvider({ httpClient: { post } });
+    const result = await provider.extractText(Buffer.from("img"), "image/png");
+    expect(result.blocks![0].bboxNormalized).toEqual([0.1, 0.2, 0.8, 0.9]);
+  });
 });
