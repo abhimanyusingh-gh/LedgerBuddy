@@ -1,5 +1,6 @@
 import axios from "axios";
 import type {
+  ExportHistoryResponse,
   GmailConnectionStatus,
   IngestionJobStatus,
   Invoice,
@@ -250,6 +251,23 @@ export async function downloadTallyXmlFile(batchId: string): Promise<Blob> {
     responseType: "blob"
   });
   return response.data as Blob;
+}
+
+export async function fetchExportHistory(page = 1, limit = 20): Promise<ExportHistoryResponse> {
+  const response = await apiClient.get<ExportHistoryResponse>("/exports/tally/history", {
+    params: { page, limit }
+  });
+  return sanitizeExportHistoryResponse(response.data);
+}
+
+function sanitizeExportHistoryResponse(value: unknown): ExportHistoryResponse {
+  const data = stripNulls(value) as Partial<ExportHistoryResponse>;
+  return {
+    items: Array.isArray(data.items) ? data.items : [],
+    page: typeof data.page === "number" && Number.isFinite(data.page) ? data.page : 1,
+    limit: typeof data.limit === "number" && Number.isFinite(data.limit) ? data.limit : 20,
+    total: typeof data.total === "number" && Number.isFinite(data.total) ? data.total : 0
+  };
 }
 
 export async function runIngestion() {

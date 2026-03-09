@@ -42,7 +42,8 @@ import { PlatformOverviewHero } from "./components/platformAdmin/PlatformOvervie
 import { PlatformStatsSection } from "./components/platformAdmin/PlatformStatsSection";
 import { PlatformUsageOverviewSection } from "./components/platformAdmin/PlatformUsageOverviewSection";
 import { TenantAdminTopNav } from "./components/tenantAdmin/TenantAdminTopNav";
-import { TenantViewTabs } from "./components/tenantAdmin/TenantViewTabs";
+import { TenantViewTabs, type TenantViewTab } from "./components/tenantAdmin/TenantViewTabs";
+import { ExportHistoryDashboard } from "./components/ExportHistoryDashboard";
 import { TenantWorkspaceHero } from "./components/tenantAdmin/TenantWorkspaceHero";
 import { formatOcrConfidenceLabel, getExtractedFieldRows } from "./extractedFields";
 import { getInvoiceSourceHighlights } from "./sourceHighlights";
@@ -111,7 +112,7 @@ export function App() {
   const [loginEmail, setLoginEmail] = useState<string>("");
   const [loginPassword, setLoginPassword] = useState<string>("");
   const [loginSubmitting, setLoginSubmitting] = useState(false);
-  const [showTenantConfig, setShowTenantConfig] = useState(false);
+  const [activeTab, setActiveTab] = useState<TenantViewTab>("dashboard");
   const [selectedPlatformTenantId, setSelectedPlatformTenantId] = useState<string | null>(null);
   const [platformStatsCollapsed, setPlatformStatsCollapsed] = useState(false);
   const [platformOnboardCollapsed, setPlatformOnboardCollapsed] = useState(false);
@@ -144,7 +145,7 @@ export function App() {
 
   useEffect(() => {
     if (!session) {
-      setShowTenantConfig(false);
+      setActiveTab("dashboard");
       return;
     }
     if (session.user.isPlatformAdmin) {
@@ -184,7 +185,7 @@ export function App() {
 
   useEffect(() => {
     if (session?.user.role !== "TENANT_ADMIN") {
-      setShowTenantConfig(false);
+      setActiveTab("dashboard");
     }
   }, [session?.user.role]);
 
@@ -683,7 +684,7 @@ export function App() {
     setTenantUsers([]);
     setActiveId(null);
     setPopupInvoiceId(null);
-    setShowTenantConfig(false);
+    setActiveTab("dashboard");
   }
 
   async function handleLogin() {
@@ -900,10 +901,9 @@ export function App() {
             failedInvoices={failedCount}
           />
           <TenantViewTabs
-            showTenantConfig={showTenantConfig}
+            activeTab={activeTab}
             canViewTenantConfig={isTenantAdmin}
-            onShowDashboard={() => setShowTenantConfig(false)}
-            onShowTenantConfig={() => setShowTenantConfig(true)}
+            onTabChange={setActiveTab}
           />
         </>
       ) : null}
@@ -942,7 +942,11 @@ export function App() {
           </div>
         ) : null}
 
-        {showTenantConfig && isTenantAdmin && !isPlatformAdmin ? (
+        {activeTab === "exports" && isTenantAdmin && !isPlatformAdmin ? (
+          <ExportHistoryDashboard visible={true} />
+        ) : null}
+
+        {activeTab === "config" && isTenantAdmin && !isPlatformAdmin ? (
           <>
             {gmailNeedsReauth ? (
               <div className="mailbox-banner" role="alert">
@@ -1027,7 +1031,7 @@ export function App() {
           </>
         ) : null}
 
-        {!showTenantConfig ? (
+        {activeTab === "dashboard" ? (
           <>
             {isPlatformAdmin ? (
               <>

@@ -57,6 +57,7 @@ export class ExportService {
     const failureCount = results.length - successCount;
 
     const batch = await ExportBatchModel.create({
+      tenantId: request.tenantId,
       system: this.exporter.system,
       total: results.length,
       successCount,
@@ -165,6 +166,7 @@ export class ExportService {
     });
 
     const batch = await ExportBatchModel.create({
+      tenantId: request.tenantId,
       system: this.exporter.system,
       total: invoices.length,
       successCount: fileResult.includedCount,
@@ -217,11 +219,45 @@ export class ExportService {
     };
   }
 
-  async downloadExportFile(batchId: string): Promise<{ body: Buffer; contentType: string; filename: string } | null> {
+  async listExportHistory(params: { tenantId: string; page: number; limit: number }) {
+    const query = { tenantId: params.tenantId };
+    const skip = (params.page - 1) * params.limit;
+
+    const [items, total] = await Promise.all([
+      ExportBatchModel.find(query).sort({ createdAt: -1 }).skip(skip).limit(params.limit).lean(),
+      ExportBatchModel.countDocuments(query)
+    ]);
+
+    return {
+      items: items.map((item) => ({
+        batchId: String(item._id),
+        system: item.system,
+        total: item.total,
+        successCount: item.successCount,
+        failureCount: item.failureCount,
+        requestedBy: item.requestedBy,
+        hasFile: Boolean(item.fileKey),
+        createdAt: item.createdAt,
+        updatedAt: item.updatedAt
+      })),
+      page: params.page,
+      limit: params.limit,
+      total
+    };
+  }
+
+  async downloadExportFile(
+    batchId: string,
+    tenantId?: string
+  ): Promise<{ body: Buffer; contentType: string; filename: string } | null> {
     if (!this.fileStore) {
       throw new Error("File store is required for export file retrieval.");
     }
-    const batch = await ExportBatchModel.findById(batchId);
+    const query: Record<string, unknown> = { _id: batchId };
+    if (tenantId) {
+      query.tenantId = tenantId;
+    }
+    const batch = await ExportBatchModel.findOne(query);
     if (!batch?.fileKey) {
       return null;
     }

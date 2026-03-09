@@ -1,16 +1,12 @@
+export type TenantViewTab = "dashboard" | "config" | "exports";
+
 interface TenantViewTabsProps {
-  showTenantConfig: boolean;
+  activeTab: TenantViewTab;
   canViewTenantConfig: boolean;
-  onShowDashboard: () => void;
-  onShowTenantConfig: () => void;
+  onTabChange: (tab: TenantViewTab) => void;
 }
 
-export function TenantViewTabs({
-  showTenantConfig,
-  canViewTenantConfig,
-  onShowDashboard,
-  onShowTenantConfig
-}: TenantViewTabsProps) {
+export function TenantViewTabs({ activeTab, canViewTenantConfig, onTabChange }: TenantViewTabsProps) {
   if (!canViewTenantConfig) {
     return null;
   }
@@ -19,17 +15,24 @@ export function TenantViewTabs({
     <div className="tenant-view-tabs" role="tablist" aria-label="Tenant workspace sections">
       <button
         type="button"
-        className={showTenantConfig ? "tenant-view-tab" : "tenant-view-tab tenant-view-tab-active"}
-        onClick={onShowDashboard}
+        className={activeTab === "dashboard" ? "tenant-view-tab tenant-view-tab-active" : "tenant-view-tab"}
+        onClick={() => onTabChange("dashboard")}
       >
         Dashboard
       </button>
       <button
         type="button"
-        className={showTenantConfig ? "tenant-view-tab tenant-view-tab-active" : "tenant-view-tab"}
-        onClick={onShowTenantConfig}
+        className={activeTab === "config" ? "tenant-view-tab tenant-view-tab-active" : "tenant-view-tab"}
+        onClick={() => onTabChange("config")}
       >
         Tenant Config
+      </button>
+      <button
+        type="button"
+        className={activeTab === "exports" ? "tenant-view-tab tenant-view-tab-active" : "tenant-view-tab"}
+        onClick={() => onTabChange("exports")}
+      >
+        Exports
       </button>
     </div>
   );

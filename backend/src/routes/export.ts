@@ -66,6 +66,32 @@ export function createExportRouter(exportService: ExportService | null) {
     }
   });
 
+  router.get("/exports/tally/history", async (req, res, next) => {
+    try {
+      const authContext = req.authContext;
+      if (!authContext) {
+        res.status(401).json({ message: "Authentication required." });
+        return;
+      }
+      if (!exportService) {
+        res.status(400).json({ message: "Tally exporter is not configured." });
+        return;
+      }
+
+      const page = Math.max(Number(req.query.page ?? 1), 1);
+      const limit = Math.min(Math.max(Number(req.query.limit ?? 20), 1), 100);
+
+      const result = await exportService.listExportHistory({
+        tenantId: authContext.tenantId,
+        page,
+        limit
+      });
+      res.json(result);
+    } catch (error) {
+      next(error);
+    }
+  });
+
   router.get("/exports/tally/download/:batchId", async (req, res, next) => {
     try {
       const authContext = req.authContext;
@@ -78,7 +104,7 @@ export function createExportRouter(exportService: ExportService | null) {
         return;
       }
 
-      const file = await exportService.downloadExportFile(req.params.batchId);
+      const file = await exportService.downloadExportFile(req.params.batchId, authContext.tenantId);
       if (!file) {
         res.status(404).json({ message: "Export file not found." });
         return;
