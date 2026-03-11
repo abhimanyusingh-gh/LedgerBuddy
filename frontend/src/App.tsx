@@ -97,6 +97,7 @@ export function App() {
   });
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [popupSourcePreviewExpanded, setPopupSourcePreviewExpanded] = useState(false);
+  const [popupRawOcrExpanded, setPopupRawOcrExpanded] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<(typeof STATUSES)[number]>("ALL");
@@ -1488,6 +1489,20 @@ export function App() {
                 <h3>Extracted Invoice Fields</h3>
                 <ExtractedFieldsTable rows={popupExtractedRows} cropUrlByField={popupCropUrlByField} />
               </div>
+              {popupInvoice.ocrText ? (
+                <div>
+                  <button
+                    type="button"
+                    className="source-preview-toggle"
+                    onClick={() => setPopupRawOcrExpanded((v) => !v)}
+                  >
+                    {popupRawOcrExpanded ? "Hide Raw OCR Text" : "Show Raw OCR Text"}
+                  </button>
+                  {popupRawOcrExpanded ? (
+                    <pre className="raw-ocr-text">{popupInvoice.ocrText}</pre>
+                  ) : null}
+                </div>
+              ) : null}
               <div>
                 <h3>Export Mapping</h3>
                 <TallyMappingTable rows={popupTallyMappings} />

@@ -105,17 +105,21 @@ async function verifyInvoiceOverlayFlow(page: Page, attachmentName: string): Pro
   await expect(row).toBeVisible();
 
   const detailsPanel = page.locator(".detail-panel");
-  await expect(detailsPanel.getByRole("heading", { name: "Value Source Highlights" })).toHaveCount(0);
+  await expect(detailsPanel.getByRole("heading", { name: "Source Preview" })).toHaveCount(0);
 
   await row.locator("button.file-label").dispatchEvent("click");
   const dialog = page.getByRole("dialog");
   await expect(dialog).toBeVisible();
   await expect(dialog.getByRole("heading", { name: "Value Source Highlights" })).toHaveCount(0);
-  const revealButton = dialog.getByRole("button", { name: "Show Value Source Highlights" });
+  const revealButton = dialog.getByRole("button", { name: "Show Source Preview" });
   await expect(revealButton).toBeVisible();
   await revealButton.click();
 
   await expect(dialog.getByRole("heading", { name: "Value Source Highlights" })).toBeVisible();
+
+  // Verify zoom controls are visible
+  await expect(dialog.getByRole("button", { name: "Zoom in" })).toBeVisible();
+  await expect(dialog.getByRole("button", { name: "Zoom out" })).toBeVisible();
   await expect(dialog.locator(".source-preview-image img")).toBeVisible();
   await expect
     .poll(

@@ -95,4 +95,68 @@ describe("InvoiceSourceViewer", () => {
     expect(html).toContain("No extracted value highlights are available yet.");
     expect(html).toContain("/api/invoices/inv-1/preview?page=1");
   });
+
+  it("renders zoom controls when source preview has highlights", () => {
+    const html = renderToStaticMarkup(
+      <InvoiceSourceViewer
+        invoice={baseInvoice}
+        overlayUrlByField={{}}
+        resolvePreviewUrl={() => "http://localhost:4100/api/invoices/inv-1/preview?page=1"}
+      />
+    );
+
+    expect(html).toContain('aria-label="Zoom in"');
+    expect(html).toContain('aria-label="Zoom out"');
+    expect(html).toContain("100%");
+    expect(html).toContain("source-zoom-controls");
+  });
+
+  it("renders zoom controls on default preview (no highlights)", () => {
+    const invoiceWithoutFields: Invoice = {
+      ...baseInvoice,
+      parsed: {},
+      metadata: {}
+    };
+
+    const html = renderToStaticMarkup(
+      <InvoiceSourceViewer
+        invoice={invoiceWithoutFields}
+        overlayUrlByField={{}}
+        resolvePreviewUrl={() => "http://localhost:4100/api/invoices/inv-1/preview?page=1"}
+      />
+    );
+
+    expect(html).toContain("source-zoom-controls");
+    expect(html).toContain('aria-label="Zoom in"');
+    expect(html).toContain("scale(1)");
+  });
+
+  it("initial canvas transform is scale(1)", () => {
+    const html = renderToStaticMarkup(
+      <InvoiceSourceViewer
+        invoice={baseInvoice}
+        overlayUrlByField={{}}
+        resolvePreviewUrl={() => "http://localhost:4100/api/invoices/inv-1/preview?page=1"}
+      />
+    );
+
+    expect(html).toContain("scale(1)");
+    expect(html).toContain("transform-origin:top left");
+  });
+
+  it("bbox uses percentage positioning independent of zoom transform", () => {
+    const html = renderToStaticMarkup(
+      <InvoiceSourceViewer
+        invoice={baseInvoice}
+        overlayUrlByField={{}}
+        resolvePreviewUrl={() => "http://localhost:4100/api/invoices/inv-1/preview?page=1"}
+      />
+    );
+
+    expect(html).toContain("source-preview-box");
+    expect(html).toContain("left:20%");
+    expect(html).toContain("top:10%");
+    expect(html).toContain("width:20%");
+    expect(html).toContain("height:10%");
+  });
 });
