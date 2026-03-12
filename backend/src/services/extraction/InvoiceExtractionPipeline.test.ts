@@ -96,7 +96,7 @@ describe("InvoiceExtractionPipeline", () => {
     expect(result.metadata.ocrGate).toBe("high");
     expect(result.metadata.documentLanguage).toBe("en");
     expect(result.processingIssues).toEqual([]);
-    expect(verifier.verify).not.toHaveBeenCalled();
+    expect(verifier.verify).toHaveBeenCalled();
 
     const cached = await store.findByFingerprint("tenant-a", result.metadata.vendorFingerprint ?? "");
     expect(cached?.vendorName).toBe("ACME Corp");
@@ -172,49 +172,6 @@ describe("InvoiceExtractionPipeline", () => {
         })
       })
     );
-    const verifierCalls = (verifier.verify as unknown as jest.Mock).mock.calls as Array<
-      Array<{
-        hints?: {
-          documentContext?: unknown;
-        };
-      }>
-    >;
-    expect(verifierCalls[0]?.[0]?.hints?.documentContext).toBeUndefined();
-  });
-
-  it("does not include full document context for strict verifier mode", async () => {
-    const store = new InMemoryVendorTemplateStore();
-    const verifier = new StubFieldVerifier({
-      parsed: {
-        totalAmountMinor: 1200
-      },
-      issues: [],
-      changedFields: ["totalAmountMinor"]
-    });
-    const pipeline = new InvoiceExtractionPipeline(
-      new StubOcrProvider({
-        text: SAMPLE_TEXT,
-        confidence: 0.97
-      }),
-      verifier,
-      store
-    );
-
-    await pipeline.extract({
-      ...buildInput(),
-      expectedMaxTotal: 5
-    });
-
-    expect(verifier.verify).toHaveBeenCalledTimes(1);
-    expect(verifier.verify).toHaveBeenCalledWith(
-      expect.objectContaining({
-        mode: "strict",
-        hints: expect.objectContaining({
-          documentLanguage: "en"
-        })
-      })
-    );
-
     const verifierCalls = (verifier.verify as unknown as jest.Mock).mock.calls as Array<
       Array<{
         hints?: {

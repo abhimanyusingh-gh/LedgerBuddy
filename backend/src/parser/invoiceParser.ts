@@ -77,6 +77,18 @@ const LANGUAGE_PATTERN_OVERRIDES: Record<string, {
       /(?:scadenza|data\s*di\s*scadenza)\s*[:\-]?\s*([0-3]?\d[\/.\-][01]?\d[\/.\-](?:\d{4}|\d{2}))/i
     ],
     vendorPrefixes: ["fornitore", "azienda", "venditore"]
+  },
+  hi: {
+    invoiceNumber: [
+      /(?:बिल\s*(?:संख्या|नं\.?|क्र\.?)|चालान\s*(?:संख्या|नं\.?|क्र\.?))\s*[:\-]?\s*#?\s*([A-Z0-9][A-Z0-9_\-/]{2,})/i
+    ],
+    invoiceDate: [
+      /(?:बिल\s*(?:की\s*)?(?:तारीख|दिनांक)|चालान\s*(?:की\s*)?(?:तारीख|दिनांक)|दिनांक)\s*[:\-]?\s*([0-3]?\d[\/.\-][01]?\d[\/.\-](?:\d{4}|\d{2}))/i
+    ],
+    dueDate: [
+      /(?:देय\s*(?:तारीख|दिनांक)|भुगतान\s*(?:की\s*)?(?:अंतिम\s*)?(?:तारीख|दिनांक))\s*[:\-]?\s*([0-3]?\d[\/.\-][01]?\d[\/.\-](?:\d{4}|\d{2}))/i
+    ],
+    vendorPrefixes: ["विक्रेता", "कंपनी", "फर्म", "आपूर्तिकर्ता"]
   }
 };
 
@@ -99,7 +111,7 @@ const vendorRefinementPattern = /^(?:vendor|supplier|sold\s*by|bill\s*from|from|
 const legalEntityPattern =
   /\b(ltd|limited|pvt|private|llc|inc|corp|corporation|gmbh|s\.?a\.?r\.?l\.?|plc|pte|company|co\.?)\b/i;
 const genericVendorStopPattern =
-  /\b(facture|factuur|invoice|receipt|payment|statement|description|charges|summary|account|customer)\b/i;
+  /\b(facture|factuur|invoice|receipt|payment|statement|description|charges|summary|account|customer|memo|quotation)\b/i;
 const blockedVendorPrefixPattern =
   /^(guest\s*name|billing\s*address|shipping\s*address|warehouse\s*address|order\s*id|order\s*date|booking\s*id|payment\s*mode|invoice\s*date|due\s*date|date)\b/i;
 const addressSignalPattern =
@@ -111,7 +123,7 @@ const currencyPatterns = [
   /\b(USD|EUR|GBP|INR|AUD|CAD|JPY|AED|SGD|CHF|CNY)\b/i,
   /([$€£₹])/g
 ];
-const currencyBySymbol: Record<string, string> = {
+export const currencyBySymbol: Record<string, string> = {
   $: "USD",
   "€": "EUR",
   "£": "GBP",
@@ -120,7 +132,8 @@ const currencyBySymbol: Record<string, string> = {
 
 const datePatterns = [
   /(?:invoice\s*date|bill\s*date|date)\s*[:\-]?\s*([0-3]?\d[\/.-][01]?\d[\/.-](?:\d{4}|\d{2}))/i,
-  /(?:invoice\s*date|bill\s*date|date)\s*[:\-]?\s*([A-Za-z]{3,9}\s+[0-3]?\d,?\s+\d{4})/i
+  /(?:invoice\s*date|bill\s*date|date)\s*[:\-]?\s*([A-Za-z]{3,9}\s+[0-3]?\d,?\s+\d{4})/i,
+  /(?:invoice\s*date|bill\s*date|date)\s*[:\-]?\s*(\d{4}[\/.-]\d{2})/i
 ];
 
 const dueDatePatterns = [
@@ -130,7 +143,7 @@ const dueDatePatterns = [
 
 const strongTotalPattern =
   /(grand\s*total|amount\s*payable|amount\s*due|balance\s*due|total\s*due|invoice\s*total|net\s*payable|total\s*payable|amt\s*due|betrag)/i;
-const weakTotalPattern = /\b(total|payable|balance|amount\s*due|amt\s*due)\b/i;
+const weakTotalPattern = /\b(total|payable|balance|amount\s*due|amt\s*due|amount)\b/i;
 const negativeTotalPattern =
   /(sub\s*total|subtotal|tax(?:able)?|vat|gst|cgst|sgst|igst|mwst|u\s*st|ust|discount|round(?:ing)?\s*off|shipping|freight|delivery|paid|payment\s*received|advance|credit\s*note)/i;
 const amountTokenPattern = /[-+]?(?:\d{1,3}(?:[,\s.]\d{3})+|\d+)(?:[.,]\d{1,2})?/g;
@@ -181,6 +194,12 @@ export function parseInvoiceText(text: string, options?: ParseInvoiceOptions): P
     parsed.dueDate = normalizeDate(dueDateRaw, { preferDayFirst: preferDayFirstDates }) ?? dueDateRaw;
   }
 
+  // Last-resort extraction when main parsing found nothing useful
+  const hasNoFields = !parsed.invoiceNumber && !parsed.vendorName && parsed.totalAmountMinor === undefined && !parsed.invoiceDate;
+  if (hasNoFields && compactText.trim().length > 20) {
+    lastResortExtraction(compactText, parsed, warnings, preferDayFirstDates);
+  }
+
   return {
     parsed,
     warnings
@@ -204,7 +223,10 @@ export function extractTotalAmount(text: string): number | undefined {
       continue;
     }
 
-    const values = extractAmountValuesFromLine(line);
+    let values = extractAmountValuesFromLine(line);
+    if (values.length === 0 && index + 1 < lines.length) {
+      values = extractAmountValuesFromLine(lines[index + 1]);
+    }
     if (values.length === 0) {
       continue;
     }
@@ -287,6 +309,41 @@ function extractInvoiceNumber(text: string, patterns: RegExp[]): string | undefi
     const nextValue = nextLine.match(invoiceNumberTokenPattern)?.[1];
     if (nextValue && isLikelyInvoiceNumber(nextValue)) {
       return nextValue;
+    }
+  }
+
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index];
+    if (!/^\s*no\.?\s*[:\-]/i.test(line)) {
+      continue;
+    }
+
+    const inlineValue = line.replace(/^\s*no\.?\s*[:\-]\s*/i, "").match(invoiceNumberTokenPattern)?.[1];
+    if (inlineValue && isLikelyInvoiceNumber(inlineValue)) {
+      return inlineValue;
+    }
+
+    if (index > 0) {
+      const prevLine = lines[index - 1];
+      if (/\bdate\b/i.test(prevLine) && index > 1) {
+        const prevPrevValue = lines[index - 2].match(invoiceNumberTokenPattern)?.[1];
+        if (prevPrevValue && isLikelyInvoiceNumber(prevPrevValue)) {
+          return prevPrevValue;
+        }
+      } else if (!/\bdate\b/i.test(prevLine)) {
+        const prevValue = prevLine.match(invoiceNumberTokenPattern)?.[1];
+        if (prevValue && isLikelyInvoiceNumber(prevValue)) {
+          return prevValue;
+        }
+      }
+    }
+
+    const nextLine = lines[index + 1];
+    if (nextLine && !weakTotalPattern.test(nextLine) && !strongTotalPattern.test(nextLine)) {
+      const nextVal = nextLine.match(invoiceNumberTokenPattern)?.[1];
+      if (nextVal && isLikelyInvoiceNumber(nextVal)) {
+        return nextVal;
+      }
     }
   }
 
@@ -442,7 +499,7 @@ function pickLikelyVendorLine(lines: string[]): string | undefined {
   let bestCandidate: { value: string; score: number } | null = null;
 
   for (const [index, rawLine] of scopedLines.entries()) {
-    const candidate = sanitizeVendorCandidate(rawLine);
+    const candidate = sanitizeVendorCandidate(rawLine, { relaxed: true });
     if (!candidate) {
       continue;
     }
@@ -499,14 +556,14 @@ function pickLikelyVendorLine(lines: string[]): string | undefined {
     }
   }
 
-  if (!bestCandidate || bestCandidate.score < 10) {
+  if (!bestCandidate || bestCandidate.score < 0) {
     return undefined;
   }
 
   return bestCandidate.value;
 }
 
-function sanitizeVendorCandidate(rawValue: string, options?: { allowSingleWord?: boolean }): string | undefined {
+function sanitizeVendorCandidate(rawValue: string, options?: { allowSingleWord?: boolean; relaxed?: boolean }): string | undefined {
   const normalized = rawValue
     .replace(vendorRefinementPattern, "")
     .replace(/^[^:]+:\s*/g, (prefix) => (blockedVendorPrefixPattern.test(prefix) ? "" : prefix))
@@ -526,16 +583,18 @@ function sanitizeVendorCandidate(rawValue: string, options?: { allowSingleWord?:
     return undefined;
   }
 
-  if (addressSignalPattern.test(normalized)) {
-    return undefined;
-  }
+  if (!options?.relaxed) {
+    if (addressSignalPattern.test(normalized)) {
+      return undefined;
+    }
 
-  if (nonVendorSignalPattern.test(normalized)) {
-    return undefined;
-  }
+    if (nonVendorSignalPattern.test(normalized)) {
+      return undefined;
+    }
 
-  if (genericVendorStopPattern.test(normalized) && !legalEntityPattern.test(normalized)) {
-    return undefined;
+    if (genericVendorStopPattern.test(normalized) && !legalEntityPattern.test(normalized)) {
+      return undefined;
+    }
   }
 
   if (normalized.split(",").length > 3) {
@@ -576,6 +635,11 @@ function normalizeDate(input: string, options?: { preferDayFirst?: boolean }): s
   const dayFirst = sanitized.match(/^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{4}|\d{2})$/);
   if (options?.preferDayFirst && dayFirst) {
     return formatDayFirstDate(dayFirst);
+  }
+
+  const concatenated = sanitized.match(/^(\d{2})(\d{2})[\/.\-](\d{2,4})$/);
+  if (concatenated) {
+    return formatDayFirstDate(concatenated);
   }
 
   const parsed = new Date(sanitized);
@@ -676,7 +740,7 @@ function splitConcatenatedAmountToken(token: string): string[] {
   return [token];
 }
 
-function parseAmountToken(token: string): number | null {
+export function parseAmountToken(token: string): number | null {
   const raw = token.replace(/[^0-9,.\-+]/g, "");
   const sign = raw.startsWith("-") ? -1 : 1;
   let working = raw.replace(/^[-+]/, "");
@@ -779,4 +843,55 @@ function isLikelyInvoiceNumber(value: string): boolean {
   }
 
   return normalized.length >= 6;
+}
+
+function lastResortExtraction(
+  text: string,
+  parsed: ParsedInvoiceData,
+  warnings: string[],
+  preferDayFirst: boolean
+): void {
+  const lines = text.split(/\n+/).map((l) => l.trim()).filter(Boolean);
+
+  // Try to find any date-like string
+  if (!parsed.invoiceDate) {
+    const dateMatch = text.match(/\b(\d{1,2}[\/.\-]\d{1,2}[\/.\-]\d{2,4})\b/);
+    if (dateMatch) {
+      parsed.invoiceDate = normalizeDate(dateMatch[1], { preferDayFirst }) ?? dateMatch[1];
+      warnings.push("Invoice date found via last-resort extraction.");
+    }
+  }
+
+  // Try to find any money-like string (with currency symbol or large number with decimals)
+  if (parsed.totalAmountMinor === undefined) {
+    const moneyMatch = text.match(/[$€£₹]\s*([\d,.\s]+\.\d{2})\b/) ??
+      text.match(/\b([\d,]+\.\d{2})\b/);
+    if (moneyMatch) {
+      const amount = parseAmountToken(moneyMatch[1]);
+      if (amount !== null && amount > 0) {
+        parsed.totalAmountMinor = toMinorUnits(amount, parsed.currency);
+        warnings.push("Total amount found via last-resort extraction.");
+      }
+    }
+  }
+
+  // Try to find a currency symbol
+  if (!parsed.currency) {
+    const symbolMatch = text.match(/[$€£₹]/);
+    if (symbolMatch) {
+      parsed.currency = currencyBySymbol[symbolMatch[0]];
+    }
+  }
+
+  // Try to find a vendor-like line: first non-trivial uppercase or title-case line
+  if (!parsed.vendorName) {
+    for (const line of lines.slice(0, 8)) {
+      const clean = line.replace(/[^\w\s.&]/g, "").trim();
+      if (clean.length >= 4 && clean.length <= 60 && !nonVendorSignalPattern.test(clean) && !addressSignalPattern.test(clean)) {
+        parsed.vendorName = clean;
+        warnings.push("Vendor name found via last-resort extraction.");
+        break;
+      }
+    }
+  }
 }

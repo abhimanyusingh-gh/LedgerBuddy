@@ -99,7 +99,10 @@ const invoiceSchema = new Schema(
 
     approval: {
       approvedBy: { type: String },
-      approvedAt: { type: Date }
+      approvedAt: { type: Date },
+      userId: { type: String },
+      email: { type: String },
+      role: { type: String }
     },
 
     export: {

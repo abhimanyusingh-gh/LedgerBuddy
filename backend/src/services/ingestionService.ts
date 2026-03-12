@@ -60,6 +60,7 @@ export class IngestionService {
   private readonly afterFileProcessed?: IngestionServiceOptions["afterFileProcessed"];
   private readonly pipeline: InvoiceExtractionPipeline;
   private readonly fileStore?: FileStore;
+  private pauseRequested = false;
 
   constructor(
     private readonly sources: IngestionSource[],
@@ -73,7 +74,12 @@ export class IngestionService {
       new InvoiceExtractionPipeline(this.ocrProvider, new NoopFieldVerifier(), new MongoVendorTemplateStore());
   }
 
-  async runOnce(runtimeOptions?: RunOnceRuntimeOptions): Promise<IngestionRunSummary> {
+  requestPause(): void {
+    this.pauseRequested = true;
+  }
+
+  async runOnce(runtimeOptions?: RunOnceRuntimeOptions): Promise<IngestionRunSummary & { paused?: boolean }> {
+    this.pauseRequested = false;
     const summary: IngestionRunSummary = {
       totalFiles: 0,
       newInvoices: 0,
@@ -81,6 +87,7 @@ export class IngestionService {
       failures: 0
     };
     let processedFiles = 0;
+    let paused = false;
     logger.info("ingestion.run.start", { sourceCount: this.sources.length });
 
     const emitProgress = async (running = true) => {
@@ -175,12 +182,19 @@ export class IngestionService {
             result: processed
           });
         }
+
+        if (this.pauseRequested) {
+          paused = true;
+          logger.info("ingestion.run.paused", { ...summary, processedFiles });
+          await emitProgress(false);
+          return { ...summary, paused };
+        }
       }
     }
 
     logger.info("ingestion.run.complete", { ...summary, processedFiles });
     await emitProgress(false);
-    return summary;
+    return { ...summary, paused };
   }
 
   private async filterAlreadyProcessedFiles(

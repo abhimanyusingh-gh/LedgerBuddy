@@ -10,6 +10,7 @@ import { templateFromParsed, type VendorTemplateSnapshot, type VendorTemplateSto
 import type { PipelineExtractionResult } from "./types.js";
 import { logger } from "../../utils/logger.js";
 import { detectInvoiceLanguage, detectInvoiceLanguageBeforeOcr, type DetectedInvoiceLanguage } from "./languageDetection.js";
+import { currencyBySymbol, parseAmountToken } from "../../parser/invoiceParser.js";
 
 type PipelineErrorCode = "FAILED_OCR" | "FAILED_PARSE";
 
@@ -286,10 +287,10 @@ export class InvoiceExtractionPipeline {
     const fieldCandidates = buildFieldCandidates(heuristicResult.text, parsed, template);
     const fieldRegions = buildFieldRegions(ocrBlocks, fieldCandidates);
 
-    const shouldVerify = !ocrGateHigh || !validation.valid;
+    const shouldVerify = this.fieldVerifier.name !== "noop";
     const verifierChangedFields: string[] = [];
     if (shouldVerify) {
-      const mode: FieldVerificationMode = ocrGateHigh ? "strict" : "relaxed";
+      const mode: FieldVerificationMode = "relaxed";
       const verifierOutput = await this.fieldVerifier.verify({
         parsed,
         ocrText: heuristicResult.text,
@@ -555,7 +556,7 @@ function buildFieldCandidates(
     ...collectMatches(text, /\b(USD|EUR|GBP|INR|AUD|CAD|JPY|AED|SGD|CHF|CNY)\b/gi).map((entry) =>
       entry.toUpperCase()
     ),
-    ...collectMatches(text, /([$€£₹])/g).map((symbol) => symbolToCurrency(symbol))
+    ...collectMatches(text, /([$€£₹])/g).map((symbol) => currencyBySymbol[symbol] ?? "")
   ]);
 
   const totalMatches = uniqueStrings([
@@ -564,8 +565,9 @@ function buildFieldCandidates(
       text,
       /(?:grand\s*total|invoice\s*total|amount\s*due|balance\s*due|total\s*due|amount\s*payable)\s*[:\-]?\s*([-+]?(?:\d{1,3}(?:[,\s.]\d{3})+|\d+)(?:[.,]\d{1,2})?)/gi
     ).map((value) => {
-      const minor = parseAmountToMinorUnits(value);
-      return minor !== undefined ? String(minor) : "";
+      const major = parseAmountToken(value);
+      if (major === null || major <= 0) return "";
+      return String(Math.round(major * 100));
     })
   ]);
 
@@ -657,55 +659,6 @@ function collectMatches(text: string, pattern: RegExp): string[] {
 
 function uniqueStrings(values: Array<string | undefined>): string[] {
   return [...new Set(values.map((value) => value?.trim() ?? "").filter((value) => value.length > 0))];
-}
-
-function symbolToCurrency(symbol: string): string {
-  if (symbol === "$") {
-    return "USD";
-  }
-  if (symbol === "€") {
-    return "EUR";
-  }
-  if (symbol === "£") {
-    return "GBP";
-  }
-  if (symbol === "₹") {
-    return "INR";
-  }
-  return "";
-}
-
-function parseAmountToMinorUnits(value: string): number | undefined {
-  const cleaned = value.replace(/\s+/g, "");
-  if (!cleaned) {
-    return undefined;
-  }
-
-  let normalized = cleaned.replace(/[^0-9,.\-+]/g, "");
-  if (!normalized) {
-    return undefined;
-  }
-
-  const negative = normalized.startsWith("-");
-  normalized = normalized.replace(/^[+-]/, "");
-  if (normalized.includes(",") && normalized.includes(".")) {
-    if (normalized.lastIndexOf(",") > normalized.lastIndexOf(".")) {
-      normalized = normalized.replace(/\./g, "").replace(",", ".");
-    } else {
-      normalized = normalized.replace(/,/g, "");
-    }
-  } else if (normalized.includes(",")) {
-    const fractionalDigits = normalized.split(",").at(-1)?.length ?? 0;
-    normalized = fractionalDigits <= 2 ? normalized.replace(",", ".") : normalized.replace(/,/g, "");
-  }
-
-  const parsed = Number(normalized);
-  if (!Number.isFinite(parsed) || parsed <= 0) {
-    return undefined;
-  }
-
-  const minor = Math.round(parsed * 100);
-  return negative ? -minor : minor;
 }
 
 function calibrateDocumentConfidence(
@@ -862,19 +815,17 @@ function inferHeuristicConfidence(field: keyof ParsedInvoiceData, value: unknown
   return 0.82;
 }
 
+const VALIDATION_KEY_BY_FIELD: Record<string, string> = {
+  totalAmountMinor: "total amount",
+  vendorName: "vendor",
+  invoiceNumber: "invoice number",
+  currency: "currency",
+  dueDate: "due date",
+  invoiceDate: "invoice date"
+};
+
 function inferValidationBonus(field: keyof ParsedInvoiceData, validationText: string): number {
-  const key =
-    field === "totalAmountMinor"
-      ? "total amount"
-      : field === "vendorName"
-        ? "vendor"
-        : field === "invoiceNumber"
-          ? "invoice number"
-          : field === "currency"
-            ? "currency"
-            : field === "dueDate"
-              ? "due date"
-              : "invoice date";
+  const key = VALIDATION_KEY_BY_FIELD[field] ?? field;
   return validationText.includes(key) ? 0.7 : 1;
 }
 

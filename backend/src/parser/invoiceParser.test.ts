@@ -327,6 +327,8 @@ describe("parseInvoiceText", () => {
 
     const result = parseInvoiceText(text);
     expect(result.parsed.vendorName).toBeDefined();
+    expect(typeof result.parsed.vendorName).toBe("string");
+    expect(result.parsed.vendorName!.length).toBeGreaterThan(2);
   });
 
   it("falls back from short explicit vendor labels to a stronger vendor candidate", () => {
@@ -353,6 +355,56 @@ describe("parseInvoiceText", () => {
     expect(result.parsed.vendorName).toBe("OMEGA INDUSTRIES LTD");
   });
 
+  it("penalises document-type labels like CASH MEMO in vendor scoring", () => {
+    const text = [
+      "Raju Ram",
+      "CASH MEMO",
+      "Cell: 9351812576",
+      "SHREE RAJARAM MOBILES",
+      "Invoice Number: INV-999",
+      "Grand Total: 300.00"
+    ].join("\n");
+    const result = parseInvoiceText(text);
+
+    expect(result.parsed.vendorName).toBe("SHREE RAJARAM MOBILES");
+  });
+
+  it("extracts invoice number from standalone No.: label with backward search", () => {
+    const text = [
+      "SHREE RAJARAM MOBILES",
+      "401",
+      "Date: 11/10/25",
+      "No.:",
+      "Grand Total: 300.00"
+    ].join("\n");
+    const result = parseInvoiceText(text);
+
+    expect(result.parsed.invoiceNumber).toBe("401");
+  });
+
+  it("extracts invoice number inline from No.: label", () => {
+    const text = [
+      "SHREE RAJARAM MOBILES",
+      "No.: 8812",
+      "Grand Total: 300.00"
+    ].join("\n");
+    const result = parseInvoiceText(text);
+
+    expect(result.parsed.invoiceNumber).toBe("8812");
+  });
+
+  it("normalises concatenated DDMM/YY date format from OCR", () => {
+    const text = [
+      "Invoice Number: INV-500",
+      "Vendor: ACME LTD",
+      "Date: 1110/25",
+      "Grand Total: 100.00"
+    ].join("\n");
+    const result = parseInvoiceText(text);
+
+    expect(result.parsed.invoiceDate).toBe("2025-10-11");
+  });
+
   it("evaluates vendor scores across all index bands and scoring penalties", () => {
     const text = [
       "ALPHA TRADING LLC",
@@ -376,6 +428,8 @@ describe("parseInvoiceText", () => {
 
     const result = parseInvoiceText(text);
     expect(result.parsed.vendorName).toBeDefined();
+    expect(typeof result.parsed.vendorName).toBe("string");
+    expect(result.parsed.vendorName!.length).toBeGreaterThan(2);
   });
 });
 
@@ -457,6 +511,16 @@ describe("extractTotalAmount additional branch paths", () => {
 
   it("parses multi-dot tokens where final segment is fractional", () => {
     expect(extractTotalAmount("Grand Total: 1.234.5")).toBe(1234.5);
+  });
+
+  it("extracts total from next line when label has no amount", () => {
+    const text = ["Total", "500.00"].join("\n");
+    expect(extractTotalAmount(text)).toBe(500);
+  });
+
+  it("extracts amount from standalone Amount label on next line", () => {
+    const text = ["Header", "Amount", "300 -", "Authorised"].join("\n");
+    expect(extractTotalAmount(text)).toBe(300);
   });
 
   it("drops non-finite parsed amounts", () => {
