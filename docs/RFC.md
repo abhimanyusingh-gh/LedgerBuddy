@@ -144,6 +144,29 @@ The system must ingest invoices from configurable sources, extract data from mix
 - All containers, volumes, and networks use the `billforge` prefix for consistent resource naming.
 - Reason: deterministic resource names across environments, avoids directory-derived names that change when the repo is cloned to a different path.
 
+21. Invoice Type Classification
+- The SLM classifies the invoice type during its existing verification pass (no extra LLM call).
+- Closed set of 10 categories: `standard`, `gst-tax-invoice`, `vat-invoice`, `receipt`, `utility-bill`, `professional-service`, `purchase-order`, `credit-note`, `proforma`, `other`.
+- Classification is stored in invoice metadata and used as a grouping key for extraction learnings.
+- Reason: enables type-specific correction learnings without an additional inference call.
+
+22. LLM-Assisted Re-Extraction
+- When confidence score < configurable threshold (default 85%) and page images are available, the pipeline triggers a second SLM call in `strict` mode with `llmAssist: true` and up to 3 page images.
+- Strict mode only fills empty or clearly incorrect fields -- it does not override existing good extractions.
+- After successful LLM assist, the effective OCR confidence is floored at 0.88 for confidence recalculation, reflecting that vision-based re-extraction is more reliable than the original OCR confidence suggests.
+- Controlled by `LLM_ASSIST_CONFIDENCE_THRESHOLD` env var (0 disables the feature).
+- Graceful failure: if the LLM assist call fails, the pipeline continues with the original extraction.
+- Reason: improves extraction quality on low-confidence documents while keeping the cost bounded (only triggered when needed, capped at 3 pages).
+
+23. Extraction Learning Feedback Loop
+- Correction learnings are stored per-tenant, keyed by invoice type (broad patterns) and vendor fingerprint (vendor-specific patterns).
+- Schema: `{ tenantId, groupKey, groupType, corrections[] }` with each correction holding `field`, `hint` (max 80 chars), `count`, `lastSeen`.
+- On future SLM verifier calls, prior corrections matching the invoice type and vendor are included as `priorCorrections` in the hints payload.
+- Vendor-specific learnings override type-level learnings for the same field.
+- Capped at 6 corrections per document to bound token footprint (~50-100 tokens per lookup).
+- MongoDB TTL index on `updatedAt` auto-prunes documents not updated within 90 days.
+- Reason: reduces repeated extraction errors for known vendor/type patterns, decreasing the need for the expensive LLM-assist stage over time.
+
 ## 4. Consequences
 
 Positive:

@@ -34,6 +34,9 @@ Build a minimal, modular application that ingests invoices, extracts structured 
 - Extract core fields: invoice number, vendor, dates, currency, total amount.
 - Store amount as integer minor currency unit only (`totalAmountMinor`).
 - Persist OCR engine and extraction source separately for traceability.
+- SLM classifies invoice type during verification (closed set: standard, gst-tax-invoice, vat-invoice, receipt, utility-bill, professional-service, purchase-order, credit-note, proforma, other).
+- LLM-assisted re-extraction: when confidence is below threshold (default 85%) and page images are available, invoke SLM again in strict mode with vision and prior correction hints.
+- Extraction learning feedback loop: record field corrections per tenant, keyed by invoice type and vendor fingerprint. Feed prior learnings to future SLM calls. Cap at 6 corrections per key, auto-prune after 90 days.
 
 3. Confidence and Risk
 - Show extraction confidence in UI.

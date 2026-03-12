@@ -50,8 +50,10 @@ BillForge ingests invoices from email or folder sources, extracts structured dat
 |--------|-------------|
 | **Ingestion** | Email (IMAP/OAuth2) and folder sources, per-tenant checkpointing, crash-safe resume, duplicate filtering |
 | **OCR** | Pluggable providers (DeepSeek MLX, Apple Vision, hybrid, HTTP proxy), block-level bounding boxes, page image extraction |
-| **Extraction** | Staged pipeline: vendor fingerprint, template matching, OCR confidence gate, layout graph, deterministic validation, SLM fallback |
-| **Confidence** | Multi-signal scoring (OCR, parser, field verification), risk flagging, configurable tone bands and auto-select thresholds |
+| **Extraction** | Staged pipeline: vendor fingerprint, template matching, OCR confidence gate, layout graph, deterministic validation, SLM verification, LLM-assisted vision re-extraction for low-confidence results |
+| **Invoice Classification** | SLM classifies invoice type during verification (10 categories: standard, GST, VAT, receipt, utility, professional, PO, credit note, proforma, other) |
+| **Extraction Learning** | Tenant-scoped correction feedback loop: records field corrections keyed by invoice type and vendor, feeds prior learnings to SLM on future extractions, auto-prunes after 90 days |
+| **Confidence** | Multi-signal scoring (OCR, parser, field verification), risk flagging, configurable tone bands and auto-select thresholds, confidence boost after successful LLM vision re-extraction |
 | **Review Dashboard** | Parsed/failed visibility, confidence badges, value-source highlighting, bbox overlay inspect, batch approval |
 | **Export** | Tally XML purchase voucher generation with GST ledger entries (CGST/SGST/IGST/Cess), downloadable file or direct POST, S3 artifact storage |
 | **Multi-Tenancy** | Tenant onboarding, RBAC (admin/member), invite flow, tenant-scoped data isolation, per-tenant Gmail integration |
@@ -149,12 +151,12 @@ BillForge/
 |   +-- src/
 |   |   +-- auth/               # JWT sessions, RBAC middleware, OAuth2
 |   |   +-- core/               # Dependency wiring, env config, manifest
-|   |   +-- models/             # Mongoose schemas (invoice, checkpoint, tenant)
+|   |   +-- models/             # Mongoose schemas (invoice, checkpoint, tenant, extraction learning)
 |   |   +-- ocr/                # DeepSeek OCR provider boundary
 |   |   +-- parser/             # Invoice field extraction + date/amount parsing
 |   |   +-- providers/          # Email sender, file store, STS adapters
 |   |   +-- routes/             # Express route handlers
-|   |   +-- services/           # Extraction pipeline, confidence, Tally export
+|   |   +-- services/           # Extraction pipeline, confidence, learning store, Tally export
 |   |   +-- sources/            # Email + folder ingestion sources
 |   |   +-- verifier/           # SLM field verifier boundary
 |   |   +-- utils/              # Logger, crypto, currency, mime helpers
@@ -205,7 +207,9 @@ The extraction pipeline processes each invoice through a series of stages, each 
 | **OCR Confidence Gate** | Skip expensive processing if OCR confidence is high | Low |
 | **Layout Graph** | Spatial analysis of OCR blocks for field extraction | Medium |
 | **Deterministic Validation** | Rule-based field validation and correction | Low |
-| **SLM Verifier Fallback** | ML-powered field selection when deterministic fails | High |
+| **SLM Verifier (relaxed)** | ML-powered field verification with invoice type classification | High |
+| **LLM Assist (strict)** | Vision-based re-extraction with page images when confidence < 85% | Higher |
+| **Extraction Learning** | Record corrections and feed prior learnings to future SLM calls | Free |
 
 </details>
 
@@ -237,6 +241,7 @@ MLX imports exist only in `local_*.py` modules. Docker images install `requireme
 | `users` | -- | `(email)`, `(externalSubject)` |
 | `tenantUserRole` | `tenantId` | `(tenantId, userId)` |
 | `vendorTemplate` | `tenantId` | `(tenantId, fingerprintHash)` |
+| `extractionLearnings` | `tenantId` | `(tenantId, groupKey, groupType)` |
 | `tenantIntegration` | `tenantId` | `(tenantId, provider)` |
 
 </details>
@@ -253,6 +258,7 @@ An optional manifest file (`APP_MANIFEST_PATH`) composes adapters at runtime:
 | **Database** | MongoDB URI |
 | **OCR** | `deepseek` / `mock` |
 | **Field Verifier** | `http` / `none` |
+| **LLM Assist** | Confidence threshold (default 85, 0 = disabled) |
 | **Ingestion Sources** | `email` / `folder` |
 | **Export** | Tally endpoint/company/ledger |
 | **File Store** | Local disk (`ENV=local`) / S3 (`ENV=stg\|prod`) |
@@ -320,7 +326,7 @@ BillForge employs a multi-layer testing strategy with enforced quality gates:
 
 | Layer | Framework | Count | Scope |
 |-------|-----------|:-----:|-------|
-| **Unit Tests** | Jest + ts-jest | 314 | Parsers, services, providers, utilities (265 backend + 49 frontend) |
+| **Unit Tests** | Jest + ts-jest | 329 | Parsers, services, providers, utilities (280 backend + 49 frontend) |
 | **Backend E2E** | Jest | 4 suites | Folder ingestion, SaaS lifecycle, RBAC, platform admin |
 | **Frontend E2E** | Playwright | -- | Ingestion, approval, bbox overlays, crop modals |
 | **Dead Code** | Knip | -- | Unused export detection across workspaces |
