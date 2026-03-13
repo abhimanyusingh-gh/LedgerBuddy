@@ -113,7 +113,7 @@ export function App() {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [popupInvoiceId, setPopupInvoiceId] = useState<string | null>(null);
-  const [detailsPanelVisible, setDetailsPanelVisible] = useState(true);
+  const [detailsPanelVisible, setDetailsPanelVisible] = useState(false);
   const [gmailConnection, setGmailConnection] = useState<GmailConnectionStatus | null>(null);
   const [loginEmail, setLoginEmail] = useState<string>("");
   const [loginPassword, setLoginPassword] = useState<string>("");
