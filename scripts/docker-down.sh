@@ -39,4 +39,8 @@ if [[ "$KEEP_ML" != "true" ]]; then
   stop_pid_file "SLM" "$RUN_DIR/slm.pid"
 fi
 
-echo "Docker services are down.${KEEP_ML:+ OCR/SLM services kept running.}"
+if [[ "$KEEP_ML" == "true" ]]; then
+  echo "Docker services are down. OCR/SLM services kept running."
+else
+  echo "All services are down (including OCR/SLM)."
+fi
