@@ -95,8 +95,23 @@ export class AuthService {
     }
 
     const configuredUser = findLocalDemoUserByEmail(normalizedEmail);
-    if (!configuredUser || !safeConstantTimeEquals(configuredUser.password, normalizedPassword)) {
-      throw new HttpError("Invalid email or password.", 401, "auth_credentials_invalid");
+    if (configuredUser) {
+      if (!safeConstantTimeEquals(configuredUser.password, normalizedPassword)) {
+        throw new HttpError("Invalid email or password.", 401, "auth_credentials_invalid");
+      }
+    } else {
+      const dbUser = await UserModel.findOne({ email: normalizedEmail }).select({ passwordHash: 1, emailVerified: 1 }).lean();
+      if (!dbUser?.passwordHash) {
+        throw new HttpError("Invalid email or password.", 401, "auth_credentials_invalid");
+      }
+      const inputHash = createHash("sha256").update(normalizedPassword).digest("base64url");
+      if (!safeConstantTimeEquals(dbUser.passwordHash, inputHash)) {
+        throw new HttpError("Invalid email or password.", 401, "auth_credentials_invalid");
+      }
+
+      if (env.ENV !== "local" && !dbUser.emailVerified) {
+        throw new HttpError("Please verify your email before logging in.", 403, "auth_email_not_verified");
+      }
     }
 
     const context = await this.resolvePrincipalByEmail(normalizedEmail);
@@ -142,10 +157,13 @@ export class AuthService {
   }
 
   async getSessionFlags(context: AuthenticatedRequestContext): Promise<SessionFlagsPayload> {
-    const gmailIntegration = await TenantIntegrationModel.findOne({
-      tenantId: context.tenantId,
-      provider: "gmail"
-    }).lean();
+    const [gmailIntegration, userDoc] = await Promise.all([
+      TenantIntegrationModel.findOne({
+        tenantId: context.tenantId,
+        provider: "gmail"
+      }).lean(),
+      UserModel.findById(context.userId).select({ mustChangePassword: 1, emailVerified: 1 }).lean()
+    ]);
     const requiresReauth = gmailIntegration?.status === "requires_reauth";
     const isAdmin = context.role === "TENANT_ADMIN";
 
@@ -153,7 +171,8 @@ export class AuthService {
       requires_tenant_setup: context.onboardingStatus !== "completed",
       requires_reauth: requiresReauth,
       requires_admin_action: requiresReauth && isAdmin,
-      requires_email_confirmation: false
+      requires_email_confirmation: !userDoc?.emailVerified && env.ENV !== "local",
+      must_change_password: userDoc?.mustChangePassword === true
     };
   }
 
@@ -192,15 +211,7 @@ export class AuthService {
         userId: String(createdUser._id),
         role: "TENANT_ADMIN"
       });
-      return {
-        userId: String(createdUser._id),
-        email: createdUser.email,
-        tenantId: String(tenant._id),
-        tenantName: tenant.name,
-        onboardingStatus: tenant.onboardingStatus,
-        role: "TENANT_ADMIN",
-        isPlatformAdmin: isPlatformAdminEmail(createdUser.email)
-      };
+      return buildContext(createdUser, tenant, "TENANT_ADMIN");
     }
 
     existingUser.externalSubject = input.subject;
@@ -210,27 +221,14 @@ export class AuthService {
     existingUser.lastLoginAt = new Date();
     await existingUser.save();
 
-    const tenant = await TenantModel.findById(existingUser.tenantId).lean();
-    if (!tenant) {
-      throw new Error("User tenant does not exist.");
-    }
-    const roleRecord = await TenantUserRoleModel.findOne({
-      tenantId: existingUser.tenantId,
-      userId: String(existingUser._id)
-    }).lean();
-    if (!roleRecord) {
-      throw new Error("User role does not exist.");
-    }
+    const [tenant, roleRecord] = await Promise.all([
+      TenantModel.findById(existingUser.tenantId).lean(),
+      TenantUserRoleModel.findOne({ tenantId: existingUser.tenantId, userId: String(existingUser._id) }).lean()
+    ]);
+    if (!tenant) throw new Error("User tenant does not exist.");
+    if (!roleRecord) throw new Error("User role does not exist.");
 
-    return {
-      userId: String(existingUser._id),
-      email: existingUser.email,
-      tenantId: existingUser.tenantId,
-      tenantName: tenant.name,
-      onboardingStatus: tenant.onboardingStatus,
-      role: roleRecord.role,
-      isPlatformAdmin: isPlatformAdminEmail(existingUser.email)
-    };
+    return buildContext(existingUser, tenant, roleRecord.role);
   }
 
   private createSessionTokenForContext(context: AuthenticatedRequestContext): string {
@@ -247,49 +245,36 @@ export class AuthService {
 
   private async resolvePrincipalByEmail(email: string): Promise<AuthenticatedRequestContext> {
     const user = await UserModel.findOne({ email }).lean();
-    if (!user) {
-      throw new HttpError("User is not provisioned for this environment.", 403, "auth_user_not_provisioned");
-    }
-
-    const tenant = await TenantModel.findById(user.tenantId).lean();
-    if (!tenant) {
-      throw new HttpError("Tenant not found.", 401, "auth_tenant_missing");
-    }
-
-    const roleRecord = await TenantUserRoleModel.findOne({
-      tenantId: user.tenantId,
-      userId: String(user._id)
-    }).lean();
-    if (!roleRecord) {
-      throw new HttpError("User has no assigned tenant role.", 401, "auth_role_missing");
-    }
-
-    return {
-      userId: String(user._id),
-      email: user.email,
-      tenantId: user.tenantId,
-      tenantName: tenant.name,
-      onboardingStatus: tenant.onboardingStatus,
-      role: roleRecord.role,
-      isPlatformAdmin: isPlatformAdminEmail(user.email)
-    };
+    if (!user) throw new HttpError("User is not provisioned for this environment.", 403, "auth_user_not_provisioned");
+    const [tenant, roleRecord] = await Promise.all([
+      TenantModel.findById(user.tenantId).lean(),
+      TenantUserRoleModel.findOne({ tenantId: user.tenantId, userId: String(user._id) }).lean()
+    ]);
+    if (!tenant) throw new HttpError("Tenant not found.", 401, "auth_tenant_missing");
+    if (!roleRecord) throw new HttpError("User has no assigned tenant role.", 401, "auth_role_missing");
+    return buildContext(user, tenant, roleRecord.role);
   }
+}
+
+function buildContext(
+  user: { _id: unknown; email: string; tenantId: string },
+  tenant: { _id?: unknown; name: string; onboardingStatus: "pending" | "completed" },
+  role: "TENANT_ADMIN" | "MEMBER"
+): AuthenticatedRequestContext {
+  const tenantId = user.tenantId || String(tenant._id);
+  return {
+    userId: String(user._id), email: user.email, tenantId,
+    tenantName: tenant.name, onboardingStatus: tenant.onboardingStatus,
+    role, isPlatformAdmin: isPlatformAdminEmail(user.email)
+  };
 }
 
 function deriveTenantName(email: string): string {
-  const [left] = email.split("@");
-  const trimmed = left?.trim() ?? "";
-  if (trimmed.length === 0) {
-    return "New Tenant";
-  }
-  return trimmed;
+  return email.split("@")[0]?.trim() || "New Tenant";
 }
 
 function normalizeNextPath(value: string): string {
-  if (!value.startsWith("/")) {
-    return "/";
-  }
-  return value;
+  return value.startsWith("/") ? value : "/";
 }
 
 function isPlatformAdminEmail(email: string): boolean {

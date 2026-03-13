@@ -64,24 +64,31 @@ class ProdHttpLLMProvider(LLMProvider):
       raise RuntimeError("Remote SLM returned invalid payload.")
 
     invoice_type = response.get("invoiceType") if isinstance(response.get("invoiceType"), str) else "other"
+    remote_usage = response.get("usage")
 
     selected = response.get("selected")
     if isinstance(selected, dict):
-      return {
+      result: dict[str, Any] = {
         "selected": selected,
         "reasonCodes": response.get("reasonCodes") if isinstance(response.get("reasonCodes"), dict) else {},
         "issues": response.get("issues") if isinstance(response.get("issues"), list) else [],
         "invoiceType": invoice_type
       }
+      if isinstance(remote_usage, dict):
+        result["_usage"] = remote_usage
+      return result
 
     parsed = response.get("parsed")
     if isinstance(parsed, dict):
-      return {
+      result: dict[str, Any] = {
         "selected": parsed,
         "reasonCodes": response.get("reasonCodes") if isinstance(response.get("reasonCodes"), dict) else {},
         "issues": response.get("issues") if isinstance(response.get("issues"), list) else [],
         "invoiceType": invoice_type
       }
+      if isinstance(remote_usage, dict):
+        result["_usage"] = remote_usage
+      return result
 
     raise RuntimeError("Remote SLM payload does not contain selected/parsed output.")
 

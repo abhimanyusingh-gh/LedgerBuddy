@@ -68,6 +68,7 @@ class LocalMlxLLMProvider(LLMProvider):
 
     for strict in (False, True):
       prompt = build_prompt(self.tokenizer, payload, strict=strict)
+      prompt_tokens = len(self.tokenizer.encode(prompt))
       output = generate(
         self.model,
         self.tokenizer,
@@ -76,11 +77,15 @@ class LocalMlxLLMProvider(LLMProvider):
         max_tokens=settings.max_new_tokens
       )
       output_text = extract_generation_text(output)
+      completion_tokens = len(self.tokenizer.encode(output_text))
+      usage = {"promptTokens": prompt_tokens, "completionTokens": completion_tokens}
       parsed = parse_json_object(output_text)
       if parsed is not None:
+        parsed["_usage"] = usage
         return parsed
       recovered = recover_payload_from_text(output_text, payload)
       if recovered is not None:
+        recovered["_usage"] = usage
         return recovered
 
     fallback = recover_payload_from_candidates(payload)

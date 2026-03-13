@@ -15,4 +15,5 @@ export interface SessionFlagsPayload {
   requires_reauth: boolean;
   requires_admin_action: boolean;
   requires_email_confirmation: boolean;
+  must_change_password: boolean;
 }

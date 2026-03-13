@@ -7,7 +7,12 @@ const userSchema = new Schema(
     tenantId: { type: String, required: true },
     displayName: { type: String, required: true },
     encryptedRefreshToken: { type: String },
-    lastLoginAt: { type: Date, required: true }
+    lastLoginAt: { type: Date, required: true },
+    passwordHash: { type: String },
+    tempPassword: { type: String },
+    mustChangePassword: { type: Boolean, default: false },
+    emailVerified: { type: Date },
+    verificationTokenHash: { type: String }
   },
   {
     timestamps: true

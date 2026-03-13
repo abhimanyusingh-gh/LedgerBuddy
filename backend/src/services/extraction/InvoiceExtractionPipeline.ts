@@ -86,6 +86,8 @@ export class InvoiceExtractionPipeline {
     let ocrConfidence: number | undefined;
     let ocrBlocks: OcrBlock[] = [];
     let ocrPageImages: OcrPageImage[] = [];
+    let ocrTokensUsed = 0;
+    let slmTokensUsed = 0;
     const preOcrLanguage = detectInvoiceLanguageBeforeOcr({
       attachmentName: input.attachmentName,
       sourceKey: input.sourceKey,
@@ -113,6 +115,7 @@ export class InvoiceExtractionPipeline {
       ocrProvider = ocrResult.provider || this.ocrProvider.name;
       ocrBlocks = ocrResult.blocks ?? [];
       ocrPageImages = ocrResult.pageImages ?? [];
+      if (ocrResult.tokenUsage?.totalTokens) ocrTokensUsed += ocrResult.tokenUsage.totalTokens;
       const rawText = ocrResult.text.trim();
       const blockText = buildBlocksText(ocrBlocks);
       const calibrated = calibrateDocumentConfidence(ocrResult.confidence, rawText, blockText);
@@ -257,7 +260,9 @@ export class InvoiceExtractionPipeline {
           ocrBlocks,
           ocrPageImages,
           processingIssues: uniqueIssues(processingIssues),
-          metadata
+          metadata,
+          ocrTokens: ocrTokensUsed || undefined,
+          slmTokens: slmTokensUsed || undefined
         };
       }
 
@@ -305,7 +310,7 @@ export class InvoiceExtractionPipeline {
             fingerprint.key
           );
         }
-      } catch { /* ignore */ }
+      } catch {}
 
       const mode: FieldVerificationMode = "relaxed";
       const verifierOutput = await this.fieldVerifier.verify({
@@ -340,6 +345,7 @@ export class InvoiceExtractionPipeline {
         }
       });
 
+      if (verifierOutput.tokenUsage?.totalTokens) slmTokensUsed += verifierOutput.tokenUsage.totalTokens;
       invoiceType = verifierOutput.invoiceType ?? "other";
       metadata.invoiceType = invoiceType;
 
@@ -400,6 +406,7 @@ export class InvoiceExtractionPipeline {
             }
           });
 
+          if (llmVerifierOutput.tokenUsage?.totalTokens) slmTokensUsed += llmVerifierOutput.tokenUsage.totalTokens;
           const llmMerged = mergeParsedWithVerification(parsed, llmVerifierOutput.parsed, "strict");
           const llmChangedFields = detectChangedFields(parsed, llmMerged);
           if (llmChangedFields.length > 0) {
@@ -484,7 +491,9 @@ export class InvoiceExtractionPipeline {
       ocrBlocks,
       ocrPageImages,
       processingIssues: uniqueIssues(processingIssues),
-      metadata
+      metadata,
+      ocrTokens: ocrTokensUsed || undefined,
+      slmTokens: slmTokensUsed || undefined
     };
   }
 

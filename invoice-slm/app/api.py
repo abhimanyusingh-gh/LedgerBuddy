@@ -113,10 +113,13 @@ def verify_invoice(request: VerifyInvoiceRequest) -> VerifyInvoiceResponse:
 
   invoice_type = extract_invoice_type(slm_payload)
 
+  usage = slm_payload.pop("_usage", None) if isinstance(slm_payload, dict) else None
+
   return VerifyInvoiceResponse(
     parsed=merged,
     issues=deduped_issues,
     changedFields=changed_fields,
     reasonCodes=reason_codes,
-    invoiceType=invoice_type
+    invoiceType=invoice_type,
+    usage=usage if isinstance(usage, dict) else None
   )

@@ -17,12 +17,19 @@ export interface OcrPageImage {
   dpi?: number;
 }
 
+export interface TokenUsage {
+  promptTokens?: number;
+  completionTokens?: number;
+  totalTokens?: number;
+}
+
 export interface OcrResult {
   text: string;
   confidence?: number;
   provider: string;
   blocks?: OcrBlock[];
   pageImages?: OcrPageImage[];
+  tokenUsage?: TokenUsage;
 }
 
 export interface OcrExtractionOptions {

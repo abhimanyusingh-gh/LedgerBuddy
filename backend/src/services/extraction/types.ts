@@ -26,4 +26,6 @@ export interface PipelineExtractionResult {
   ocrPageImages: OcrPageImage[];
   processingIssues: string[];
   metadata: Record<string, string>;
+  ocrTokens?: number;
+  slmTokens?: number;
 }

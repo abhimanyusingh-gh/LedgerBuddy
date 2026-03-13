@@ -60,6 +60,8 @@ export class MongoExtractionLearningStore implements ExtractionLearningStore {
   }
 }
 
+const IN_MEMORY_MAX_KEYS = 500;
+
 export class InMemoryExtractionLearningStore implements ExtractionLearningStore {
   private readonly store = new Map<string, CorrectionEntry[]>();
 
@@ -78,6 +80,10 @@ export class InMemoryExtractionLearningStore implements ExtractionLearningStore 
     const key = `${tenantId}|${groupType}|${groupKey}`;
     const existing = this.store.get(key) ?? [];
     this.store.set(key, upsertCorrections(existing, corrections));
+    if (this.store.size > IN_MEMORY_MAX_KEYS) {
+      const oldest = this.store.keys().next().value;
+      if (oldest !== undefined) this.store.delete(oldest);
+    }
   }
 }
 

@@ -64,7 +64,7 @@ describe("saas lifecycle e2e", () => {
     });
     expect(tampered.status).toBe(401);
 
-    const invalidState = await api.get("/auth/callback?code=fake-code&state=invalid-state-token");
+    const invalidState = await api.get("/api/auth/callback?code=fake-code&state=invalid-state-token");
     expect(invalidState.status).toBe(400);
     expect(String(invalidState.data?.message ?? "")).toContain("OAuth state");
 

@@ -20,14 +20,14 @@ const envSchema = z.object({
   PORT: z.coerce.number().default(4000),
   MONGO_URI: z.string().min(1),
   APP_MANIFEST_PATH: z.string().optional(),
-  FRONTEND_BASE_URL: z.string().default("http://localhost:5174"),
+  FRONTEND_BASE_URL: z.string().default("http://localhost:5177"),
 
   STS_CLIENT_ID: z.string().default("billforge-local-client"),
   STS_CLIENT_SECRET: z.string().default("billforge-local-secret"),
   STS_SCOPES: z.string().default("openid profile email offline_access"),
   STS_REDIRECT_URI: z
     .string()
-    .default("http://localhost:4100/auth/callback")
+    .default("http://localhost:4100/api/auth/callback")
     .transform((value) => normalizeUrl(value)),
   STS_LOCAL_PUBLIC_BASE_URL: z
     .string()
@@ -108,7 +108,7 @@ const envSchema = z.object({
   GMAIL_OAUTH_CLIENT_SECRET: z.string().default(""),
   GMAIL_OAUTH_REDIRECT_URI: z
     .string()
-    .default("http://localhost:4100/connect/gmail/callback")
+    .default("http://localhost:4100/api/connect/gmail/callback")
     .transform((value) => normalizeUrl(value)),
   GMAIL_OAUTH_AUTH_URL: z
     .string()
@@ -126,8 +126,8 @@ const envSchema = z.object({
   GMAIL_OAUTH_STATE_TTL_SECONDS: z.coerce.number().default(600),
   GMAIL_OAUTH_HTTP_TIMEOUT_MS: z.coerce.number().default(15000),
   GMAIL_OAUTH_TOKEN_ENCRYPTION_SECRET: z.string().default("local-dev-gmail-oauth-encryption-secret"),
-  GMAIL_OAUTH_SUCCESS_REDIRECT_URL: z.string().default("http://localhost:5174"),
-  GMAIL_OAUTH_FAILURE_REDIRECT_URL: z.string().default("http://localhost:5174"),
+  GMAIL_OAUTH_SUCCESS_REDIRECT_URL: z.string().default("http://localhost:5177"),
+  GMAIL_OAUTH_FAILURE_REDIRECT_URL: z.string().default("http://localhost:5177"),
   EMAIL_MAILBOX: z.string().default("INBOX"),
   EMAIL_FROM_FILTER: z.string().optional(),
 
@@ -188,7 +188,7 @@ const envSchema = z.object({
   INVITE_SENDGRID_ENDPOINT: z.string().default("https://api.sendgrid.com/v3/mail/send"),
   INVITE_SENDGRID_TIMEOUT_MS: z.coerce.number().default(15000),
   INVITE_FROM: z.string().default("no-reply@invoice.local"),
-  INVITE_BASE_URL: z.string().default("http://localhost:5174"),
+  INVITE_BASE_URL: z.string().default("http://localhost:5177"),
   MAILBOX_ALERT_SMTP_HOST: z.string().default(""),
   MAILBOX_ALERT_SMTP_PORT: z.coerce.number().default(587),
   MAILBOX_ALERT_SMTP_SECURE: z

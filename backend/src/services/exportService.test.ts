@@ -24,7 +24,8 @@ function createMockFileStore(): FileStore & { putObject: jest.Mock; getObject: j
   return {
     name: "mock",
     putObject: jest.fn(async () => ({ key: "test-key", path: "test-path", contentType: "text/xml" })),
-    getObject: jest.fn(async () => ({ body: Buffer.from("<xml/>"), contentType: "text/xml" }))
+    getObject: jest.fn(async () => ({ body: Buffer.from("<xml/>"), contentType: "text/xml" })),
+    deleteObject: jest.fn(async () => {})
   };
 }
 
@@ -202,7 +203,7 @@ describe("ExportService", () => {
           { _id: new Types.ObjectId(), status: "APPROVED" }
         ])
       } as never);
-      jest.spyOn(InvoiceModel, "updateOne").mockResolvedValue({} as never);
+      jest.spyOn(InvoiceModel, "bulkWrite").mockResolvedValue({} as never);
 
       const createSpy = jest.spyOn(ExportBatchModel, "create").mockResolvedValue({
         _id: new Types.ObjectId()
@@ -238,7 +239,7 @@ describe("ExportService", () => {
           { _id: new Types.ObjectId(), status: "APPROVED" }
         ])
       } as never);
-      jest.spyOn(InvoiceModel, "updateOne").mockResolvedValue({} as never);
+      jest.spyOn(InvoiceModel, "bulkWrite").mockResolvedValue({} as never);
       jest.spyOn(ExportBatchModel, "create").mockResolvedValue({
         _id: new Types.ObjectId()
       } as never);

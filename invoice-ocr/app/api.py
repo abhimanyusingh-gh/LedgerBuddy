@@ -103,7 +103,7 @@ def ocr_document(request: OcrDocumentRequest) -> dict[str, Any]:
     latencyMs=elapsed_ms
   )
 
-  return {
+  response: dict[str, Any] = {
     "id": f"ocr-{uuid.uuid4().hex}",
     "object": "ocr.document",
     "created": int(time.time()),
@@ -117,6 +117,10 @@ def ocr_document(request: OcrDocumentRequest) -> dict[str, Any]:
     "engineMode": extraction.get("mode", "unknown"),
     "latencyMs": elapsed_ms
   }
+  usage = extraction.get("usage")
+  if isinstance(usage, dict):
+    response["usage"] = usage
+  return response
 
 
 def normalize_confidence(value: Any) -> float | None:

@@ -10,7 +10,7 @@
     "worker:once": "ENV=${ENV:-local} tsx src/scripts/runWorkerOnce.ts",
     "test": "ENV=${ENV:-local} MONGO_URI=${MONGO_URI:-mongodb://127.0.0.1:27018/billforge} jest --config jest.config.cjs --runInBand --testPathIgnorePatterns=/src/e2e/",
     "coverage": "ENV=${ENV:-local} MONGO_URI=${MONGO_URI:-mongodb://127.0.0.1:27018/billforge} jest --config jest.config.cjs --runInBand --testPathIgnorePatterns=/src/e2e/ --coverage",
-    "test:e2e": "ENV=${ENV:-local} MONGO_URI=${MONGO_URI:-mongodb://127.0.0.1:27018/billforge} jest --config jest.config.cjs --runInBand src/e2e/folderIngestion.e2e.test.ts src/e2e/saasLifecycle.e2e.test.ts src/e2e/sendgridInviteFormatting.e2e.test.ts src/e2e/platformAdminUsage.e2e.test.ts",
+    "test:e2e": "ENV=${ENV:-local} MONGO_URI=${MONGO_URI:-mongodb://127.0.0.1:27018/billforge} jest --config jest.config.cjs --runInBand src/e2e/folderIngestion.e2e.test.ts src/e2e/saasLifecycle.e2e.test.ts src/e2e/sendgridInviteFormatting.e2e.test.ts src/e2e/platformAdminUsage.e2e.test.ts src/e2e/tenantLifecycle.e2e.test.ts src/e2e/emailVerification.e2e.test.ts",
     "test:e2e:saas": "ENV=${ENV:-local} MONGO_URI=${MONGO_URI:-mongodb://127.0.0.1:27018/billforge} jest --config jest.config.cjs --runInBand src/e2e/saasLifecycle.e2e.test.ts",
     "test:e2e:email-oauth": "ENV=${ENV:-local} MONGO_URI=${MONGO_URI:-mongodb://127.0.0.1:27018/billforge} jest --config jest.config.cjs --runInBand src/e2e/emailOAuthIngestion.e2e.test.ts"
   },
@@ -20,9 +20,11 @@
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
+    "form-data": "^4.0.5",
     "imapflow": "^1.0.181",
     "mailparser": "^3.7.2",
     "mongoose": "^8.9.1",
+    "multer": "^2.1.1",
     "nodemailer": "^8.0.1",
     "sharp": "^0.34.4",
     "zod": "^3.24.1"
@@ -31,6 +33,7 @@
     "@types/cors": "^2.8.17",
     "@types/express": "^4.17.21",
     "@types/jest": "^29.5.14",
+    "@types/multer": "^2.1.0",
     "@types/node": "^22.10.2",
     "@types/nodemailer": "^7.0.11",
     "jest": "^29.7.0",

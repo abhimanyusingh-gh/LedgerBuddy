@@ -29,10 +29,18 @@ stop_pid_file() {
   rm -f "$pid_file"
 }
 
+KEEP_ML="${KEEP_ML:-true}"
+
 "${COMPOSE_CMD[@]}" down --volumes --rmi local --remove-orphans
 
 RUN_DIR="$ROOT_DIR/.local-run"
-stop_pid_file "OCR" "$RUN_DIR/ocr.pid"
-stop_pid_file "SLM" "$RUN_DIR/slm.pid"
+if [[ "$KEEP_ML" != "true" ]]; then
+  stop_pid_file "OCR" "$RUN_DIR/ocr.pid"
+  stop_pid_file "SLM" "$RUN_DIR/slm.pid"
+fi
 
-echo "Full stack is down."
+if [[ "$KEEP_ML" == "true" ]]; then
+  echo "Docker services are down. OCR/SLM services kept running."
+else
+  echo "All services are down (including OCR/SLM)."
+fi

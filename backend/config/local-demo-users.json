@@ -3,12 +3,20 @@
     {
       "id": "65f0000000000000000000a1",
       "name": "Tenant Alpha",
-      "onboardingStatus": "completed"
+      "onboardingStatus": "completed",
+      "mode": "test"
     },
     {
       "id": "65f0000000000000000000b2",
       "name": "Tenant Beta",
-      "onboardingStatus": "completed"
+      "onboardingStatus": "completed",
+      "mode": "test"
+    },
+    {
+      "id": "65f0000000000000000000c3",
+      "name": "Neelam and Associates",
+      "onboardingStatus": "completed",
+      "mode": "live"
     }
   ],
   "users": [
@@ -46,6 +54,13 @@
       "displayName": "Platform Admin",
       "tenantId": "65f0000000000000000000a1",
       "role": "MEMBER"
+    },
+    {
+      "email": "mahir.n@globalhealthx.co",
+      "password": "Mahir@GIH13",
+      "displayName": "Mahir N",
+      "tenantId": "65f0000000000000000000c3",
+      "role": "TENANT_ADMIN"
     }
   ]
 }

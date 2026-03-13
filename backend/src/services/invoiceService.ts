@@ -6,6 +6,8 @@ import { assessInvoiceConfidence } from "./confidenceAssessment.js";
 import { toMinorUnits } from "../utils/currency.js";
 import type { WorkloadTier } from "../types/tenant.js";
 import type { AuthenticatedRequestContext } from "../types/auth.js";
+import type { FileStore } from "../core/interfaces/FileStore.js";
+import { logger } from "../utils/logger.js";
 
 interface ListInvoicesParams {
   status?: string;
@@ -37,6 +39,12 @@ export class InvoiceUpdateError extends Error {
 }
 
 export class InvoiceService {
+  private readonly fileStore?: FileStore;
+
+  constructor(options?: { fileStore?: FileStore }) {
+    this.fileStore = options?.fileStore;
+  }
+
   async listInvoices(params: ListInvoicesParams) {
     const baseQuery: Record<string, unknown> = { tenantId: params.tenantId };
     if (params.workloadTier) {
@@ -49,6 +57,14 @@ export class InvoiceService {
     }
 
     const skip = (params.page - 1) * params.limit;
+
+    const contentHashFacet = {
+      duplicateHashes: [
+        { $match: { tenantId: params.tenantId, contentHash: { $ne: null } } },
+        { $group: { _id: "$contentHash", count: { $sum: 1 } } },
+        { $match: { count: { $gt: 1 } } }
+      ]
+    };
 
     const [items, counts] = await Promise.all([
       InvoiceModel.find(query)
@@ -64,7 +80,8 @@ export class InvoiceService {
             totalAll: [{ $count: "n" }],
             approved: [{ $match: { status: "APPROVED" } }, { $count: "n" }],
             pending: [{ $match: { status: { $in: ["PARSED", "NEEDS_REVIEW"] } } }, { $count: "n" }],
-            ...(params.status ? { filtered: [{ $match: { status: params.status } }, { $count: "n" }] } : {})
+            ...(params.status ? { filtered: [{ $match: { status: params.status } }, { $count: "n" }] } : {}),
+            ...contentHashFacet
           }
         }
       ])
@@ -76,8 +93,18 @@ export class InvoiceService {
     const pendingAll = facet.pending?.[0]?.n ?? 0;
     const total = params.status ? (facet.filtered?.[0]?.n ?? 0) : totalAll;
 
+    const duplicateHashes = new Set<string>();
+    for (const d of (facet.duplicateHashes ?? [])) duplicateHashes.add(d._id);
+
     return {
-      items: items.map((item) => sanitizeForApi(item)),
+      items: items.map((item) => {
+        const sanitized = sanitizeForApi(item);
+        const hash = (item as Record<string, unknown>).contentHash as string | undefined;
+        if (hash && duplicateHashes.has(hash)) {
+          (sanitized as Record<string, unknown>).possibleDuplicate = true;
+        }
+        return sanitized;
+      }),
       page: params.page,
       limit: params.limit,
       total,
@@ -97,11 +124,12 @@ export class InvoiceService {
   }
 
   async approveInvoices(ids: string[], approvedBy = env.DEFAULT_APPROVER, authContext: AuthenticatedRequestContext) {
-    const validIds = ids.filter((id) => Types.ObjectId.isValid(id)).map((id) => new Types.ObjectId(id));
+    const validIds = toObjectIds(ids);
     if (validIds.length === 0) {
       return 0;
     }
 
+    const now = new Date();
     const result = await InvoiceModel.updateMany(
       {
         _id: { $in: validIds },
@@ -113,7 +141,7 @@ export class InvoiceService {
           status: "APPROVED",
           approval: {
             approvedBy,
-            approvedAt: new Date(),
+            approvedAt: now,
             userId: authContext.userId,
             email: authContext.email,
             role: authContext.role
@@ -121,7 +149,7 @@ export class InvoiceService {
         },
         $push: {
           processingIssues: {
-            $each: [`Approved: ${new Date().toISOString()} by ${authContext.email} (${authContext.userId})`],
+            $each: [`Approved: ${now.toISOString()} by ${authContext.email} (${authContext.userId})`],
             $slice: -50
           }
         }
@@ -129,6 +157,75 @@ export class InvoiceService {
     );
 
     return result.modifiedCount;
+  }
+
+  async retryInvoices(ids: string[], authContext: AuthenticatedRequestContext) {
+    const validIds = toObjectIds(ids);
+    if (validIds.length === 0) {
+      return 0;
+    }
+
+    const now = new Date();
+    const result = await InvoiceModel.updateMany(
+      {
+        _id: { $in: validIds },
+        tenantId: authContext.tenantId,
+        status: { $ne: "EXPORTED" }
+      },
+      {
+        $set: { status: "PENDING" },
+        $push: {
+          processingIssues: {
+            $each: [`Retry requested: ${now.toISOString()} by ${authContext.email}`],
+            $slice: -50
+          }
+        }
+      }
+    );
+
+    return result.modifiedCount;
+  }
+
+  async deleteInvoices(ids: string[], authContext: AuthenticatedRequestContext) {
+    const validIds = toObjectIds(ids);
+    if (validIds.length === 0) {
+      return 0;
+    }
+
+    const filter = {
+      _id: { $in: validIds },
+      tenantId: authContext.tenantId,
+      status: { $ne: "EXPORTED" }
+    };
+
+    let storageKeys: string[] = [];
+    if (this.fileStore) {
+      const docs = await InvoiceModel.find(filter).select({ metadata: 1 }).lean();
+      storageKeys = docs
+        .map((doc) => {
+          const meta = doc.metadata as Map<string, string> | Record<string, string> | undefined;
+          if (meta instanceof Map) return meta.get("uploadKey");
+          return typeof meta === "object" && meta !== null ? (meta as Record<string, string>).uploadKey : undefined;
+        })
+        .filter((key): key is string => typeof key === "string" && key.length > 0);
+    }
+
+    const result = await InvoiceModel.deleteMany(filter);
+
+    if (this.fileStore && storageKeys.length > 0) {
+      for (const key of storageKeys) {
+        try {
+          await this.fileStore.deleteObject(key);
+        } catch (error) {
+          logger.warn("invoice.delete.storage.cleanup.failed", {
+            key,
+            error: error instanceof Error ? error.message : String(error)
+          });
+        }
+      }
+    }
+
+    return result.deletedCount;
   }
 
   async updateInvoiceParsedFields(
@@ -463,7 +560,12 @@ function stripNulls(value: unknown): unknown {
   }
 
   if (Array.isArray(value)) {
-    return value.map((entry) => stripNulls(entry)).filter((entry) => entry !== undefined);
+    const result: unknown[] = [];
+    for (const entry of value) {
+      const sanitized = stripNulls(entry);
+      if (sanitized !== undefined) result.push(sanitized);
+    }
+    return result;
   }
 
   if (!isPlainObject(value)) {
@@ -479,6 +581,14 @@ function stripNulls(value: unknown): unknown {
   }
 
   return output;
+}
+
+function toObjectIds(ids: string[]): Types.ObjectId[] {
+  const result: Types.ObjectId[] = [];
+  for (const id of ids) {
+    if (Types.ObjectId.isValid(id)) result.push(new Types.ObjectId(id));
+  }
+  return result;
 }
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {

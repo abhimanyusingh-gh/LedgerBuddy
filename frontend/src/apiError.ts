@@ -152,6 +152,14 @@ function sanitizeRawMessage(message: string | undefined): string | undefined {
     return undefined;
   }
 
+  if (/ECONNREFUSED|ETIMEDOUT|ENOTFOUND|socket hang up/i.test(trimmed)) {
+    return undefined;
+  }
+
+  if (/^Error:|^TypeError:|^RangeError:|^SyntaxError:/i.test(trimmed)) {
+    return undefined;
+  }
+
   return trimmed;
 }
 

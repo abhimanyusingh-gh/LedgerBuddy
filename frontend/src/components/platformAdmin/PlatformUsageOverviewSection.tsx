@@ -1,3 +1,4 @@
+import { useState } from "react";
 import type { PlatformTenantUsageSummary } from "../../api";
 import { PlatformSection } from "./PlatformSection";
 
@@ -18,6 +19,7 @@ export function PlatformUsageOverviewSection({
   onRefresh,
   onSelectTenant
 }: PlatformUsageOverviewSectionProps) {
+  const [revealedTenantId, setRevealedTenantId] = useState<string | null>(null);
   return (
     <PlatformSection
       title="Platform Tenant Usage Overview"
@@ -35,6 +37,8 @@ export function PlatformUsageOverviewSection({
           <thead>
             <tr>
               <th>Tenant</th>
+              <th>Admin Email</th>
+              <th>Password</th>
               <th>Onboarding</th>
               <th>Users</th>
               <th>Documents</th>
@@ -42,6 +46,8 @@ export function PlatformUsageOverviewSection({
               <th>Exported</th>
               <th>Needs Review</th>
               <th>Failed</th>
+              <th>OCR Tokens</th>
+              <th>SLM Tokens</th>
               <th>Gmail</th>
               <th className="align-right">Last Ingested</th>
             </tr>
@@ -54,6 +60,21 @@ export function PlatformUsageOverviewSection({
                 onClick={() => onSelectTenant(entry.tenantId)}
               >
                 <td className="tenant-name-cell">{entry.tenantName}</td>
+                <td>{entry.adminEmail ?? "-"}</td>
+                <td>
+                  {entry.adminTempPassword ? (
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+                      <code>{revealedTenantId === entry.tenantId ? entry.adminTempPassword : "\u2022\u2022\u2022\u2022\u2022\u2022"}</code>
+                      <button
+                        type="button"
+                        style={{ background: "none", border: "none", cursor: "pointer", padding: 0 }}
+                        onClick={(e) => { e.stopPropagation(); setRevealedTenantId(revealedTenantId === entry.tenantId ? null : entry.tenantId); }}
+                      >
+                        <span className="material-symbols-outlined" style={{ fontSize: 18 }}>{revealedTenantId === entry.tenantId ? "visibility_off" : "visibility"}</span>
+                      </button>
+                    </span>
+                  ) : "-"}
+                </td>
                 <td>{entry.onboardingStatus}</td>
                 <td>{entry.userCount}</td>
                 <td>{entry.totalDocuments}</td>
@@ -61,6 +82,8 @@ export function PlatformUsageOverviewSection({
                 <td>{entry.exportedDocuments}</td>
                 <td>{entry.needsReviewDocuments}</td>
                 <td className="platform-failed-cell">{entry.failedDocuments}</td>
+                <td>{entry.ocrTokensTotal.toLocaleString()}</td>
+                <td>{entry.slmTokensTotal.toLocaleString()}</td>
                 <td>{entry.gmailConnectionState}</td>
                 <td className="align-right">{entry.lastIngestedAt ? new Date(entry.lastIngestedAt).toLocaleString() : "-"}</td>
               </tr>

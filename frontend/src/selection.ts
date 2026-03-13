@@ -1,6 +1,10 @@
 import type { Invoice } from "./types";
 
 export function isInvoiceSelectable(invoice: Invoice): boolean {
+  return invoice.status !== "EXPORTED" && invoice.status !== "PENDING";
+}
+
+export function isInvoiceRetryable(invoice: Invoice): boolean {
   return invoice.status !== "EXPORTED";
 }
 

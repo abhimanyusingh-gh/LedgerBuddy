@@ -2,11 +2,14 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   approveInvoices,
   assignTenantUserRole,
+  changePassword,
   clearStoredSessionToken,
   completeTenantOnboarding,
+  deleteInvoices,
   downloadTallyXmlFile,
   exportToTally,
   generateTallyXmlFile,
+  retryInvoices,
   fetchGmailConnectUrl,
   fetchGmailConnectionStatus,
   fetchIngestionStatus,
@@ -26,7 +29,8 @@ import {
   setStoredSessionToken,
   removeTenantUser,
   subscribeIngestionSSE,
-  updateInvoiceParsedFields
+  updateInvoiceParsedFields,
+  uploadInvoiceFiles
 } from "./api";
 import type { GmailConnectionStatus, IngestionJobStatus, Invoice } from "./types";
 import type { PlatformTenantUsageSummary } from "./api";
@@ -39,8 +43,6 @@ import { LoginPage } from "./components/login/LoginPage";
 import { PlatformAdminTopNav } from "./components/platformAdmin/PlatformAdminTopNav";
 import { PlatformActivityMonitor } from "./components/platformAdmin/PlatformActivityMonitor";
 import { PlatformOnboardSection } from "./components/platformAdmin/PlatformOnboardSection";
-import { PlatformOverviewHero } from "./components/platformAdmin/PlatformOverviewHero";
-import { PlatformStatsSection } from "./components/platformAdmin/PlatformStatsSection";
 import { PlatformUsageOverviewSection } from "./components/platformAdmin/PlatformUsageOverviewSection";
 import { TenantAdminTopNav } from "./components/tenantAdmin/TenantAdminTopNav";
 import { TenantViewTabs, type TenantViewTab } from "./components/tenantAdmin/TenantViewTabs";
@@ -51,6 +53,7 @@ import { getInvoiceSourceHighlights } from "./sourceHighlights";
 import {
   isInvoiceApprovable,
   isInvoiceExportable,
+  isInvoiceRetryable,
   isInvoiceSelectable,
   mergeSelectedIds,
   removeSelectedIds
@@ -65,11 +68,19 @@ import {
 import { useInvoiceDetail } from "./hooks/useInvoiceDetail";
 import { getUserFacingErrorMessage, isAuthenticationError } from "./apiError";
 
+function selectNewerInvoice(detail: Invoice | null, summary: Invoice | null): Invoice | null {
+  if (!summary) return detail;
+  if (!detail || detail._id !== summary._id) return summary;
+  const dt = Date.parse(detail.updatedAt);
+  const st = Date.parse(summary.updatedAt);
+  return Number.isFinite(dt) && dt >= st ? detail : summary;
+}
+
 export function App() {
   const [authLoading, setAuthLoading] = useState(true);
   const [session, setSession] = useState<{
     user: { id: string; email: string; role: "TENANT_ADMIN" | "MEMBER"; isPlatformAdmin: boolean };
-    tenant: { id: string; name: string; onboarding_status: "pending" | "completed" };
+    tenant: { id: string; name: string; onboarding_status: "pending" | "completed"; mode?: "test" | "live" };
     flags: {
       requires_tenant_setup: boolean;
       requires_reauth: boolean;
@@ -89,7 +100,8 @@ export function App() {
   const [platformOnboardForm, setPlatformOnboardForm] = useState({
     tenantName: "",
     adminEmail: "",
-    adminDisplayName: ""
+    adminDisplayName: "",
+    mode: "test" as string
   });
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [navCounts, setNavCounts] = useState({ total: 0, approved: 0, pending: 0 });
@@ -101,15 +113,13 @@ export function App() {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [popupInvoiceId, setPopupInvoiceId] = useState<string | null>(null);
-  const [detailsPanelVisible, setDetailsPanelVisible] = useState(true);
-  const [detailsPanelCollapsed, setDetailsPanelCollapsed] = useState(false);
+  const [detailsPanelVisible, setDetailsPanelVisible] = useState(false);
   const [gmailConnection, setGmailConnection] = useState<GmailConnectionStatus | null>(null);
   const [loginEmail, setLoginEmail] = useState<string>("");
   const [loginPassword, setLoginPassword] = useState<string>("");
   const [loginSubmitting, setLoginSubmitting] = useState(false);
   const [activeTab, setActiveTab] = useState<TenantViewTab>("dashboard");
   const [selectedPlatformTenantId, setSelectedPlatformTenantId] = useState<string | null>(null);
-  const [platformStatsCollapsed, setPlatformStatsCollapsed] = useState(false);
   const [platformOnboardCollapsed, setPlatformOnboardCollapsed] = useState(false);
   const [platformUsageCollapsed, setPlatformUsageCollapsed] = useState(false);
   const [platformActivityCollapsed, setPlatformActivityCollapsed] = useState(false);
@@ -119,6 +129,10 @@ export function App() {
   const [editListValue, setEditListValue] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [popupMappingExpanded, setPopupMappingExpanded] = useState(false);
+  const [showChangePassword, setShowChangePassword] = useState(false);
+  const [changePasswordForm, setChangePasswordForm] = useState({ currentPassword: "", newPassword: "", confirmPassword: "" });
+  const [platformOnboardResult, setPlatformOnboardResult] = useState<{ tempPassword: string; adminEmail: string } | null>(null);
+  const uploadInputRef = useRef<HTMLInputElement>(null);
   const ingestionWasRunningRef = useRef(false);
   const {
     detail: activeInvoiceDetail,
@@ -196,19 +210,10 @@ export function App() {
     () => invoices.find((invoice) => invoice._id === activeId) ?? null,
     [activeId, invoices]
   );
-  const activeInvoice = useMemo(() => {
-    if (!activeInvoiceSummary) {
-      return activeInvoiceDetail;
-    }
-    if (!activeInvoiceDetail || activeInvoiceDetail._id !== activeInvoiceSummary._id) {
-      return activeInvoiceSummary;
-    }
-    const detailUpdatedAt = Date.parse(activeInvoiceDetail.updatedAt);
-    const summaryUpdatedAt = Date.parse(activeInvoiceSummary.updatedAt);
-    return Number.isFinite(detailUpdatedAt) && detailUpdatedAt >= summaryUpdatedAt
-      ? activeInvoiceDetail
-      : activeInvoiceSummary;
-  }, [activeInvoiceDetail, activeInvoiceSummary]);
+  const activeInvoice = useMemo(
+    () => selectNewerInvoice(activeInvoiceDetail, activeInvoiceSummary),
+    [activeInvoiceDetail, activeInvoiceSummary]
+  );
 
   const platformStats = useMemo(() => {
     return {
@@ -229,19 +234,10 @@ export function App() {
     () => invoices.find((invoice) => invoice._id === popupInvoiceId) ?? null,
     [invoices, popupInvoiceId]
   );
-  const popupInvoice = useMemo(() => {
-    if (!popupInvoiceSummary) {
-      return popupInvoiceDetail;
-    }
-    if (!popupInvoiceDetail || popupInvoiceDetail._id !== popupInvoiceSummary._id) {
-      return popupInvoiceSummary;
-    }
-    const detailUpdatedAt = Date.parse(popupInvoiceDetail.updatedAt);
-    const summaryUpdatedAt = Date.parse(popupInvoiceSummary.updatedAt);
-    return Number.isFinite(detailUpdatedAt) && detailUpdatedAt >= summaryUpdatedAt
-      ? popupInvoiceDetail
-      : popupInvoiceSummary;
-  }, [popupInvoiceDetail, popupInvoiceSummary]);
+  const popupInvoice = useMemo(
+    () => selectNewerInvoice(popupInvoiceDetail, popupInvoiceSummary),
+    [popupInvoiceDetail, popupInvoiceSummary]
+  );
 
   const activeOverlayUrlByField = useMemo(() => {
     if (!activeInvoice) {
@@ -313,6 +309,11 @@ export function App() {
     [selectedInvoices]
   );
 
+  const selectedRetryableIds = useMemo(
+    () => selectedInvoices.filter((invoice) => isInvoiceRetryable(invoice)).map((invoice) => invoice._id),
+    [selectedInvoices]
+  );
+
   const selectedNonExportableCount = useMemo(
     () => selectedInvoices.filter((invoice) => !isInvoiceExportable(invoice)).length,
     [selectedInvoices]
@@ -350,8 +351,8 @@ export function App() {
       return "content content-list-expanded";
     }
 
-    return detailsPanelCollapsed ? "content content-details-collapsed" : "content";
-  }, [detailsPanelVisible, detailsPanelCollapsed]);
+    return "content";
+  }, [detailsPanelVisible]);
 
   const gmailConnectionState = gmailConnection?.connectionState ?? "DISCONNECTED";
   const gmailNeedsReauth = gmailConnectionState === "NEEDS_REAUTH";
@@ -383,6 +384,9 @@ export function App() {
       const sessionContext = await fetchSessionContext();
       setSession(sessionContext);
       setError(null);
+      if ((sessionContext.flags as Record<string, unknown>).must_change_password) {
+        setShowChangePassword(true);
+      }
     } catch {
       clearStoredSessionToken();
       setSession(null);
@@ -596,6 +600,68 @@ export function App() {
     }
   }
 
+  async function handleDelete() {
+    if (selectedIds.length === 0) {
+      return;
+    }
+
+    if (!window.confirm(`Delete ${selectedIds.length} invoice(s)? This cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      setError(null);
+      const response = await deleteInvoices(selectedIds);
+      if (response.deletedCount === 0) {
+        setError("No selected invoices were eligible for deletion (exported invoices cannot be deleted).");
+        return;
+      }
+      setSelectedIds([]);
+      await loadInvoices();
+    } catch (deleteError) {
+      setError(getUserFacingErrorMessage(deleteError, "Deletion failed."));
+    }
+  }
+
+  async function handleDeleteSingle(invoiceId: string, fileName: string) {
+    if (!window.confirm(`Delete "${fileName}"? This cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      setError(null);
+      const response = await deleteInvoices([invoiceId]);
+      if (response.deletedCount === 0) {
+        setError("Invoice could not be deleted (exported invoices cannot be deleted).");
+        return;
+      }
+      setSelectedIds((current) => current.filter((id) => id !== invoiceId));
+      await loadInvoices();
+    } catch (deleteError) {
+      setError(getUserFacingErrorMessage(deleteError, "Deletion failed."));
+    }
+  }
+
+  async function handleRetry() {
+    if (selectedRetryableIds.length === 0) {
+      setError("Select at least one non-exported invoice to retry.");
+      return;
+    }
+
+    try {
+      setError(null);
+      const response = await retryInvoices(selectedRetryableIds);
+      if (response.modifiedCount === 0) {
+        setError("No selected invoices were eligible for retry.");
+        return;
+      }
+      setSelectedIds([]);
+      await loadInvoices();
+    } catch (retryError) {
+      setError(getUserFacingErrorMessage(retryError, "Retry failed."));
+    }
+  }
+
   async function handleExport() {
     if (selectedExportableIds.length === 0) {
       setError("Select at least one APPROVED invoice before export.");
@@ -665,6 +731,20 @@ export function App() {
     }
   }
 
+  async function handleUpload(event: React.ChangeEvent<HTMLInputElement>) {
+    const files = event.target.files;
+    if (!files || files.length === 0) return;
+    try {
+      setError(null);
+      await uploadInvoiceFiles(Array.from(files));
+      await loadInvoices();
+    } catch (uploadError) {
+      setError(getUserFacingErrorMessage(uploadError, "File upload failed."));
+    } finally {
+      if (uploadInputRef.current) uploadInputRef.current.value = "";
+    }
+  }
+
   async function handleIngest() {
     try {
       setError(null);
@@ -685,6 +765,26 @@ export function App() {
     }
   }
 
+  async function handleChangePassword() {
+    if (changePasswordForm.newPassword !== changePasswordForm.confirmPassword) {
+      setError("New password and confirmation do not match.");
+      return;
+    }
+    if (changePasswordForm.newPassword.length < 6) {
+      setError("New password must be at least 6 characters.");
+      return;
+    }
+    try {
+      setError(null);
+      await changePassword(changePasswordForm.currentPassword, changePasswordForm.newPassword);
+      setShowChangePassword(false);
+      setChangePasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
+      await bootstrapSession();
+    } catch (changeError) {
+      setError(getUserFacingErrorMessage(changeError, "Failed to change password."));
+    }
+  }
+
   function handleLogout() {
     clearStoredSessionToken();
     setSession(null);
@@ -693,6 +793,8 @@ export function App() {
     setActiveId(null);
     setPopupInvoiceId(null);
     setActiveTab("dashboard");
+    setShowChangePassword(false);
+    setPlatformOnboardResult(null);
   }
 
   async function handleLogin() {
@@ -757,17 +859,23 @@ export function App() {
 
     try {
       setError(null);
-      await onboardTenantAdmin({
+      const result = await onboardTenantAdmin({
         tenantName,
         adminEmail,
-        ...(adminDisplayName ? { adminDisplayName } : {})
+        ...(adminDisplayName ? { adminDisplayName } : {}),
+        mode: platformOnboardForm.mode
       });
       setPlatformOnboardForm({
         tenantName: "",
         adminEmail: "",
-        adminDisplayName: ""
+        adminDisplayName: "",
+        mode: "test"
       });
+      if (result.tempPassword) {
+        setPlatformOnboardResult({ tempPassword: result.tempPassword, adminEmail: result.adminEmail });
+      }
       await loadPlatformUsage();
+      setPlatformUsageCollapsed(false);
     } catch (onboardError) {
       setError(getUserFacingErrorMessage(onboardError, "Failed to onboard tenant admin."));
     }
@@ -887,18 +995,50 @@ export function App() {
   }
 
   if (!session) {
+    const params = new URLSearchParams(window.location.search);
+    const verified = params.get("verified") === "true";
     return (
-      <LoginPage
-        email={loginEmail}
-        password={loginPassword}
-        submitting={loginSubmitting}
-        error={error}
-        onEmailChange={setLoginEmail}
-        onPasswordChange={setLoginPassword}
-        onSubmit={() => {
-          void handleLogin();
-        }}
-      />
+      <>
+        {verified ? <div className="verified-banner" style={{ background: "#1f7a6c", color: "#fff", padding: "12px 16px", textAlign: "center" }}>Email verified! You can now log in.</div> : null}
+        <LoginPage
+          email={loginEmail}
+          password={loginPassword}
+          submitting={loginSubmitting}
+          error={error}
+          onEmailChange={setLoginEmail}
+          onPasswordChange={setLoginPassword}
+          onSubmit={() => {
+            void handleLogin();
+          }}
+        />
+      </>
+    );
+  }
+
+  if (showChangePassword) {
+    return (
+      <div className="layout">
+        <main className="content content-list-expanded">
+          <section className="panel list-panel" style={{ maxWidth: 420, margin: "60px auto", padding: 32 }}>
+            <h2>Change Your Password</h2>
+            <p style={{ marginBottom: 16 }}>{(session?.flags as Record<string, unknown>)?.must_change_password ? "You must change your temporary password before continuing." : "Change your password."}</p>
+            {error ? <p className="error">{error}</p> : null}
+            <label style={{ display: "block", marginBottom: 12 }}>
+              <span>Current Password</span>
+              <input type="password" value={changePasswordForm.currentPassword} onChange={(e) => setChangePasswordForm((f) => ({ ...f, currentPassword: e.target.value }))} style={{ width: "100%", marginTop: 4 }} />
+            </label>
+            <label style={{ display: "block", marginBottom: 12 }}>
+              <span>New Password</span>
+              <input type="password" value={changePasswordForm.newPassword} onChange={(e) => setChangePasswordForm((f) => ({ ...f, newPassword: e.target.value }))} style={{ width: "100%", marginTop: 4 }} />
+            </label>
+            <label style={{ display: "block", marginBottom: 16 }}>
+              <span>Confirm New Password</span>
+              <input type="password" value={changePasswordForm.confirmPassword} onChange={(e) => setChangePasswordForm((f) => ({ ...f, confirmPassword: e.target.value }))} style={{ width: "100%", marginTop: 4 }} />
+            </label>
+            <button type="button" className="app-button app-button-primary" onClick={() => { void handleChangePassword(); }}>Change Password</button>
+          </section>
+        </main>
+      </div>
     );
   }
 
@@ -909,9 +1049,14 @@ export function App() {
   return (
     <div className={isPlatformAdmin ? "layout layout-platform" : "layout"}>
       {isPlatformAdmin ? (
-        <PlatformAdminTopNav userEmail={session.user.email} onLogout={handleLogout} />
+        <PlatformAdminTopNav
+          userEmail={session.user.email}
+          onLogout={handleLogout}
+          onChangePassword={() => setShowChangePassword(true)}
+          counts={{ tenants: platformStats.tenants, failedDocuments: platformStats.failedDocuments }}
+        />
       ) : (
-        <TenantAdminTopNav userEmail={session.user.email} onLogout={handleLogout} counts={navCounts} />
+        <TenantAdminTopNav userEmail={session.user.email} onLogout={handleLogout} onChangePassword={() => setShowChangePassword(true)} counts={navCounts} />
       )}
 
       {!isPlatformAdmin ? (
@@ -1049,15 +1194,6 @@ export function App() {
           <>
             {isPlatformAdmin ? (
               <>
-                <PlatformOverviewHero
-                  tenantCount={platformStats.tenants}
-                  failedDocuments={platformStats.failedDocuments}
-                />
-                <PlatformStatsSection
-                  stats={platformStats}
-                  collapsed={platformStatsCollapsed}
-                  onToggle={() => setPlatformStatsCollapsed((currentValue) => !currentValue)}
-                />
                 <PlatformOnboardSection
                   form={platformOnboardForm}
                   collapsed={platformOnboardCollapsed}
@@ -1067,6 +1203,12 @@ export function App() {
                     void handlePlatformOnboardTenantAdmin();
                   }}
                 />
+                {platformOnboardResult ? (
+                  <div style={{ background: "#e8f5e9", border: "1px solid #4caf50", borderRadius: 6, padding: "12px 16px", margin: "8px 0 16px" }}>
+                    <strong>Tenant created.</strong> Temporary password for <code>{platformOnboardResult.adminEmail}</code>: <code>{platformOnboardResult.tempPassword}</code>
+                    <button type="button" style={{ marginLeft: 12 }} className="app-button app-button-secondary" onClick={() => setPlatformOnboardResult(null)}>Dismiss</button>
+                  </div>
+                ) : null}
                 <PlatformUsageOverviewSection
                   usage={platformUsage}
                   selectedTenantId={selectedPlatformTenantId}
@@ -1116,6 +1258,18 @@ export function App() {
                     <span className="toolbar-icon-label">Approve</span>
                   </span>
                   <span className="toolbar-icon-wrap">
+                    <button type="button" className="toolbar-icon-button" onClick={handleDelete} disabled={requiresTenantSetup || selectedIds.length === 0}>
+                      <span className="material-symbols-outlined">delete</span>
+                    </button>
+                    <span className="toolbar-icon-label">Delete</span>
+                  </span>
+                  <span className="toolbar-icon-wrap">
+                    <button type="button" className="toolbar-icon-button" onClick={handleRetry} disabled={requiresTenantSetup || selectedRetryableIds.length === 0}>
+                      <span className="material-symbols-outlined">replay</span>
+                    </button>
+                    <span className="toolbar-icon-label">Retry</span>
+                  </span>
+                  <span className="toolbar-icon-wrap">
                     <button type="button" className="toolbar-icon-button" onClick={handleExport} disabled={requiresTenantSetup || selectedExportableIds.length === 0 || selectedNonExportableCount > 0}>
                       <span className="material-symbols-outlined">upload</span>
                     </button>
@@ -1127,6 +1281,13 @@ export function App() {
                     </button>
                     <span className="toolbar-icon-label">Download XML</span>
                   </span>
+                  <span className="toolbar-icon-wrap">
+                    <button type="button" className="toolbar-icon-button" onClick={() => uploadInputRef.current?.click()} disabled={requiresTenantSetup}>
+                      <span className="material-symbols-outlined">upload_file</span>
+                    </button>
+                    <span className="toolbar-icon-label">Upload</span>
+                  </span>
+                  <input ref={uploadInputRef} type="file" multiple accept=".pdf,.jpg,.jpeg,.png" style={{ display: "none" }} onChange={handleUpload} />
                   <span className="toolbar-icon-wrap">
                     <button type="button" className="toolbar-icon-button" onClick={handleIngest} disabled={requiresTenantSetup || ingestionStatus?.running === true}>
                       <span className="material-symbols-outlined">play_arrow</span>
@@ -1184,6 +1345,7 @@ export function App() {
                       <th>Confidence</th>
                       <th>Status</th>
                       <th>Received</th>
+                      <th></th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1197,7 +1359,7 @@ export function App() {
                       const canEditCell = invoice.status !== "EXPORTED";
 
                       return (
-                        <tr key={invoice._id} className={rowClasses || undefined} onClick={() => setActiveId(invoice._id)}>
+                        <tr key={invoice._id} className={rowClasses || undefined} onClick={() => { setActiveId(invoice._id); }}>
                           <td>
                             <input
                               type="checkbox"
@@ -1260,8 +1422,18 @@ export function App() {
                           </td>
                           <td>
                             <span className={`status status-${invoice.status.toLowerCase()}`} title={invoice.approval?.approvedBy ? `Approved by ${invoice.approval.approvedBy}` : undefined}>{invoice.status}</span>
+                            {invoice.possibleDuplicate ? (
+                              <span className="material-symbols-outlined duplicate-warning" title="Possible duplicate — another invoice has identical file contents">warning</span>
+                            ) : null}
                           </td>
                           <td>{new Date(invoice.receivedAt).toLocaleString()}</td>
+                          <td onClick={(e) => e.stopPropagation()}>
+                            {invoice.status !== "EXPORTED" ? (
+                              <button type="button" className="row-action-button" title="Delete" onClick={() => handleDeleteSingle(invoice._id, invoice.attachmentName)}>
+                                <span className="material-symbols-outlined">delete</span>
+                              </button>
+                            ) : null}
+                          </td>
                         </tr>
                       );
                     })}
@@ -1271,23 +1443,20 @@ export function App() {
             </section>
 
             {detailsPanelVisible ? (
-          <section className={`panel detail-panel ${detailsPanelCollapsed ? "detail-panel-collapsed" : ""}`}>
+          <section className="panel detail-panel">
             <div className="panel-title">
               <h2>Invoice Details</h2>
               <button
                 type="button"
                 className="collapse-button"
-                onClick={() => setDetailsPanelCollapsed((currentValue) => !currentValue)}
+                onClick={() => setDetailsPanelVisible(false)}
+                aria-label="Close details panel"
               >
-                {detailsPanelCollapsed ? "Expand" : "Collapse"}
+                <span className="material-symbols-outlined">close</span>
               </button>
             </div>
 
-            {detailsPanelCollapsed ? (
-              <div className="detail-panel-collapsed-body">
-                <p className="muted detail-panel-collapsed-hint">Details panel collapsed.</p>
-              </div>
-            ) : activeInvoice ? (
+            {activeInvoice ? (
               <div className="detail-scroll">
                 {activeInvoiceDetailLoading ? <p className="muted">Loading full invoice details...</p> : null}
                 <InvoiceSourceViewer
@@ -1345,7 +1514,7 @@ export function App() {
                 <h3>Extracted Invoice Fields</h3>
                 <ExtractedFieldsTable rows={popupExtractedRows} cropUrlByField={popupCropUrlByField} editable={popupInvoice?.status !== "EXPORTED"} onSaveField={(fieldKey, value) => handleSaveField(popupInvoice, fieldKey, value, refreshPopupInvoiceDetail)} />
               </div>
-              {popupInvoice.ocrText ? (
+              {popupInvoice.ocrText && session?.tenant.mode !== "live" ? (
                 <div>
                   <button
                     type="button"

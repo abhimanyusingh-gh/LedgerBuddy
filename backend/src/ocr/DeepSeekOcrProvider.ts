@@ -135,7 +135,8 @@ export class DeepSeekOcrProvider implements OcrProvider {
         confidence: normalizeConfidence(payload.confidence),
         provider: this.name,
         blocks: payload.blocks,
-        pageImages: payload.pageImages
+        pageImages: payload.pageImages,
+        tokenUsage: payload.usage
       };
     } catch (error) {
       logger.error("ocr.request.failed", {
