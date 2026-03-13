@@ -439,8 +439,7 @@ function appendAuthTokenQuery(url: string): string {
     return url;
   }
 
-  const base = apiBaseUrl || window.location.origin;
-  const resolved = new URL(url, base);
+  const resolved = new URL(url, window.location.origin);
   resolved.searchParams.set("authToken", token);
   return resolved.toString();
 }
