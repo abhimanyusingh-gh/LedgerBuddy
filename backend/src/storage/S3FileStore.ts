@@ -1,4 +1,4 @@
-import { GetObjectCommand, ListObjectsV2Command, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { DeleteObjectCommand, GetObjectCommand, ListObjectsV2Command, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import type { FileStore, FileStoreGetResult, FileStoreObjectRef, FileStorePutInput } from "../core/interfaces/FileStore.js";
 
 interface S3FileStoreOptions {
@@ -79,6 +79,16 @@ export class S3FileStore implements FileStore {
     } while (continuationToken);
 
     return results;
+  }
+
+  async deleteObject(key: string): Promise<void> {
+    const fullKey = this.prefix ? `${this.prefix}/${normalizeKey(key)}` : normalizeKey(key);
+    await this.client.send(
+      new DeleteObjectCommand({
+        Bucket: this.bucket,
+        Key: fullKey
+      })
+    );
   }
 
   async putObject(input: FileStorePutInput): Promise<FileStoreObjectRef> {
