@@ -2,6 +2,7 @@ import type { Invoice } from "./types.ts";
 import {
   isInvoiceApprovable,
   isInvoiceExportable,
+  isInvoiceRetryable,
   isInvoiceSelectable,
   mergeSelectedIds,
   removeSelectedIds
@@ -29,9 +30,18 @@ const baseInvoice: Invoice = {
 };
 
 describe("selection helpers", () => {
-  it("marks exported invoices as non-selectable", () => {
+  it("marks exported and pending invoices as non-selectable", () => {
     expect(isInvoiceSelectable({ ...baseInvoice, status: "EXPORTED" })).toBe(false);
+    expect(isInvoiceSelectable({ ...baseInvoice, status: "PENDING" })).toBe(false);
     expect(isInvoiceSelectable({ ...baseInvoice, status: "APPROVED" })).toBe(true);
+    expect(isInvoiceSelectable({ ...baseInvoice, status: "PARSED" })).toBe(true);
+  });
+
+  it("marks exported invoices as non-retryable", () => {
+    expect(isInvoiceRetryable({ ...baseInvoice, status: "EXPORTED" })).toBe(false);
+    expect(isInvoiceRetryable({ ...baseInvoice, status: "PARSED" })).toBe(true);
+    expect(isInvoiceRetryable({ ...baseInvoice, status: "PENDING" })).toBe(true);
+    expect(isInvoiceRetryable({ ...baseInvoice, status: "APPROVED" })).toBe(true);
   });
 
   it("marks only review states as approvable", () => {

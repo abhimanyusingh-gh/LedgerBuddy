@@ -9,7 +9,8 @@ const demoConfigSchema = z.object({
     z.object({
       id: z.string().length(24),
       name: z.string().min(1),
-      onboardingStatus: z.enum(["pending", "completed"]).default("completed")
+      onboardingStatus: z.enum(["pending", "completed"]).default("completed"),
+      mode: z.enum(["test", "live"]).default("test")
     })
   ),
   users: z.array(
@@ -29,6 +30,7 @@ interface LocalDemoTenant {
   id: string;
   name: string;
   onboardingStatus: "pending" | "completed";
+  mode: "test" | "live";
 }
 
 interface LocalDemoUser {
@@ -65,7 +67,8 @@ export function loadLocalDemoUsersConfig(): LocalDemoUsersConfig {
   const normalizedTenants = parsed.tenants.map((tenant) => ({
     id: tenant.id,
     name: tenant.name.trim(),
-    onboardingStatus: tenant.onboardingStatus
+    onboardingStatus: tenant.onboardingStatus,
+    mode: tenant.mode
   }));
   const normalizedUsers = parsed.users.map((user) => ({
     email: user.email.trim().toLowerCase(),

@@ -44,7 +44,7 @@ export async function createApp() {
   });
 
   app.use("/", healthRouter);
-  app.use("/", createAuthRouter(dependencies.authService));
+  app.use("/api", createAuthRouter(dependencies.authService));
   app.use("/api", authenticate);
   app.use("/api", createSessionRouter(dependencies.authService));
   app.use("/api", createPlatformAdminRouter(dependencies.platformAdminService));
@@ -58,13 +58,13 @@ export async function createApp() {
     requireNonPlatformAdmin,
     createTenantAdminRouter(dependencies.tenantAdminService, dependencies.tenantInviteService)
   );
-  app.use("/", createGmailConnectionRouter(dependencies.gmailIntegrationService, dependencies.authService));
-  app.use("/api", requireNonPlatformAdmin, requireTenantSetupCompleted, createInvoiceRouter(dependencies.invoiceService));
+  app.use("/api", createGmailConnectionRouter(dependencies.gmailIntegrationService, dependencies.authService));
+  app.use("/api", requireNonPlatformAdmin, requireTenantSetupCompleted, createInvoiceRouter(dependencies.invoiceService, dependencies.fileStore));
   app.use(
     "/api",
     requireNonPlatformAdmin,
     requireTenantSetupCompleted,
-    createJobsRouter(dependencies.ingestionService, dependencies.emailSimulationService)
+    createJobsRouter(dependencies.ingestionService, dependencies.emailSimulationService, dependencies.fileStore)
   );
   app.use("/api", requireNonPlatformAdmin, requireTenantSetupCompleted, createExportRouter(dependencies.exportService));
 

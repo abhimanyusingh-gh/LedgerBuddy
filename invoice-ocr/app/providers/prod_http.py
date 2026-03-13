@@ -78,7 +78,7 @@ class ProdHttpOCRProvider(OCRProvider):
     if not isinstance(payload, dict):
       raise RuntimeError("Remote OCR returned invalid payload.")
 
-    return {
+    result: dict[str, Any] = {
       "rawText": normalize_text(payload.get("rawText")) or normalize_text(payload.get("raw_text")) or "",
       "blocks": normalize_blocks(payload.get("blocks")),
       "confidence": normalize_remote_confidence(payload.get("confidence")),
@@ -86,6 +86,10 @@ class ProdHttpOCRProvider(OCRProvider):
       "provider": normalize_text(payload.get("provider")) or "prod_http",
       "model": normalize_text(payload.get("model")) or settings.model_id
     }
+    usage = payload.get("usage")
+    if isinstance(usage, dict):
+      result["usage"] = usage
+    return result
 
   def _validate_remote(self) -> None:
     configured = normalize_model_id(settings.model_id)

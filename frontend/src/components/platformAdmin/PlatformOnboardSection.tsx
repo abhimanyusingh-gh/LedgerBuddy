@@ -4,6 +4,7 @@ interface PlatformOnboardForm {
   tenantName: string;
   adminEmail: string;
   adminDisplayName: string;
+  mode: string;
 }
 
 interface PlatformOnboardSectionProps {
@@ -58,6 +59,16 @@ export function PlatformOnboardSection({
             onChange={(event) => onChange({ ...form, adminDisplayName: event.target.value })}
             placeholder="Full Name"
           />
+        </label>
+        <label>
+          <span>Tenant Mode</span>
+          <select
+            value={form.mode ?? "test"}
+            onChange={(event) => onChange({ ...form, mode: event.target.value })}
+          >
+            <option value="test">Test</option>
+            <option value="live">Live</option>
+          </select>
         </label>
       </div>
     </PlatformSection>

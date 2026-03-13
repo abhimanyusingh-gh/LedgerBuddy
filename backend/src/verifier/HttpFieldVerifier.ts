@@ -101,7 +101,8 @@ export class HttpFieldVerifier implements FieldVerifier {
         issues: normalizeStringList(response.data?.issues),
         changedFields: normalizeStringList(response.data?.changedFields),
         reasonCodes: normalizeReasonCodes(response.data?.reasonCodes),
-        invoiceType
+        invoiceType,
+        tokenUsage: usage
       };
     } catch (error) {
       logger.warn("verifier.http.failed", {

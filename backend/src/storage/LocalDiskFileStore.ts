@@ -36,6 +36,20 @@ export class LocalDiskFileStore implements FileStore {
     return { body, contentType };
   }
 
+  async listObjects(_prefix: string): Promise<{ key: string }[]> {
+    return [];
+  }
+
+  async deleteObject(key: string): Promise<void> {
+    const normalizedKey = normalizeKey(key);
+    const filePath = path.resolve(this.rootPath, normalizedKey);
+    if (!isPathInsideRoot(this.rootPath, filePath)) {
+      throw new Error(`Refusing to delete object outside local store root: '${key}'`);
+    }
+    await fs.unlink(filePath).catch(() => {});
+    await fs.unlink(filePath + ".meta.json").catch(() => {});
+  }
+
   async putObject(input: FileStorePutInput): Promise<FileStoreObjectRef> {
     const normalizedKey = normalizeKey(input.key);
     const filePath = path.resolve(this.rootPath, normalizedKey);

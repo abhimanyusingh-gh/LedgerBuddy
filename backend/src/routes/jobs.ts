@@ -1,6 +1,10 @@
+import { createHash, randomBytes } from "node:crypto";
 import { Router } from "express";
+import multer from "multer";
 import type { IngestionService } from "../services/ingestionService.js";
 import type { EmailSimulationService } from "../services/emailSimulationService.js";
+import type { FileStore } from "../core/interfaces/FileStore.js";
+import { InvoiceModel } from "../models/Invoice.js";
 import { getCorrelationId, logger, runWithLogContext } from "../utils/logger.js";
 import { requireAuth } from "../auth/requireAuth.js";
 
@@ -33,7 +37,9 @@ function broadcastToSubscribers(tenantId: string, status: IngestionJobStatus): v
   }
 }
 
-export function createJobsRouter(ingestionService: IngestionService, emailSimulationService?: EmailSimulationService) {
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * 1024 * 1024, files: 50 } });
+
+export function createJobsRouter(ingestionService: IngestionService, emailSimulationService?: EmailSimulationService, fileStore?: FileStore) {
   const router = Router();
   router.use(requireAuth);
 
@@ -108,6 +114,76 @@ export function createJobsRouter(ingestionService: IngestionService, emailSimula
         response.status(400).json({ message: error.message });
         return;
       }
+      next(error);
+    }
+  });
+
+  router.post("/jobs/upload", (request, response, next) => {
+    const uploadMiddleware = upload.array("files", 50) as unknown as import("express").RequestHandler;
+    uploadMiddleware(request, response, (error: unknown) => {
+      if (error instanceof multer.MulterError) {
+        const userMessage = multerErrorMessage(error);
+        response.status(400).json({ message: userMessage });
+        return;
+      }
+      if (error) {
+        next(error);
+        return;
+      }
+      next();
+    });
+  }, async (request, response, next) => {
+    try {
+      const context = request.authContext!;
+      if (!fileStore) {
+        response.status(400).json({ message: "File storage is not configured." });
+        return;
+      }
+
+      const files = request.files as Express.Multer.File[] | undefined;
+      if (!files || files.length === 0) {
+        response.status(400).json({ message: "No files provided." });
+        return;
+      }
+
+      const uploaded: string[] = [];
+      for (const file of files) {
+        const fileId = randomBytes(12).toString("base64url");
+        const ext = file.originalname.includes(".") ? file.originalname.slice(file.originalname.lastIndexOf(".")) : "";
+        const systemName = `${fileId}${ext}`;
+        const key = `uploads/${context.tenantId}/${systemName}`;
+        const contentHash = createHash("sha256").update(file.buffer).digest("base64url");
+
+        await fileStore.putObject({
+          key,
+          body: file.buffer,
+          contentType: file.mimetype,
+          metadata: { tenantId: context.tenantId, originalName: file.originalname }
+        });
+
+        try {
+          await InvoiceModel.create({
+            tenantId: context.tenantId,
+            workloadTier: "standard",
+            sourceType: "s3-upload",
+            sourceKey: `s3-upload-${context.tenantId}`,
+            sourceDocumentId: key,
+            attachmentName: file.originalname,
+            mimeType: file.mimetype,
+            receivedAt: new Date(),
+            status: "PENDING",
+            contentHash,
+            metadata: { uploadKey: key, systemFileName: systemName }
+          });
+        } catch {
+          // duplicate sourceDocumentId — skip silently
+        }
+
+        uploaded.push(key);
+      }
+
+      response.status(201).json({ uploaded, count: uploaded.length });
+    } catch (error) {
       next(error);
     }
   });
@@ -229,4 +305,21 @@ function startIngestionJob(ingestionService: IngestionService, tenantId: string)
     });
 
   return runningStatus;
+}
+
+function multerErrorMessage(error: multer.MulterError): string {
+  switch (error.code) {
+    case "LIMIT_FILE_SIZE":
+      return "One or more files exceed the 20 MB size limit. Please upload smaller files.";
+    case "LIMIT_FILE_COUNT":
+    case "LIMIT_UNEXPECTED_FILE":
+      return "You can upload up to 50 files at a time. Please select fewer files and try again.";
+    case "LIMIT_FIELD_KEY":
+    case "LIMIT_FIELD_VALUE":
+    case "LIMIT_FIELD_COUNT":
+    case "LIMIT_PART_COUNT":
+      return "The upload request was too large. Please try again with fewer files.";
+    default:
+      return "File upload failed. Please try again.";
+  }
 }

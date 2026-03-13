@@ -74,6 +74,11 @@ body {
 .platform-top-nav-left {
   display: inline-flex;
   align-items: center;
+  gap: 0.85rem;
+}
+
+.platform-failed-label {
+  color: #e11d48;
 }
 
 .platform-brand,
@@ -886,6 +891,25 @@ tr:hover {
   background: rgba(19, 77, 140, 0.08);
 }
 
+.row-action-button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 4px;
+  color: #94a3b8;
+  line-height: 1;
+}
+
+.row-action-button:hover {
+  color: #dc2626;
+  background: rgba(220, 38, 38, 0.08);
+}
+
+.row-action-button .material-symbols-outlined {
+  font-size: 18px;
+}
+
 .value-risk {
   color: #8a2418;
   font-weight: 700;
@@ -919,6 +943,19 @@ tr:hover {
 .status-failed_parse {
   background: rgba(173, 47, 31, 0.18);
   color: #852618;
+}
+
+.status-pending {
+  background: rgba(156, 156, 156, 0.15);
+  color: #666;
+}
+
+.duplicate-warning {
+  color: #b8860b;
+  font-size: 1.1rem;
+  vertical-align: middle;
+  margin-left: 0.3rem;
+  cursor: help;
 }
 
 .confidence {
@@ -1244,13 +1281,10 @@ tr:hover {
   text-align: right;
 }
 
-.platform-activity-section {
-  min-height: 260px;
-}
-
 .platform-activity-content {
   display: grid;
   gap: 0.8rem;
+  min-height: 220px;
 }
 
 .platform-activity-empty {

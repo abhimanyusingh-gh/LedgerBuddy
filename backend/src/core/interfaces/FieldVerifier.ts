@@ -33,6 +33,7 @@ export interface FieldVerifierResult {
   changedFields: string[];
   reasonCodes?: Record<string, string>;
   invoiceType?: string;
+  tokenUsage?: { promptTokens?: number; completionTokens?: number; totalTokens?: number };
 }
 
 export interface FieldVerifier {

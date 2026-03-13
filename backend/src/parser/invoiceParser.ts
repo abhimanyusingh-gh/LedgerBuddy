@@ -194,7 +194,6 @@ export function parseInvoiceText(text: string, options?: ParseInvoiceOptions): P
     parsed.dueDate = normalizeDate(dueDateRaw, { preferDayFirst: preferDayFirstDates }) ?? dueDateRaw;
   }
 
-  // Last-resort extraction when main parsing found nothing useful
   const hasNoFields = !parsed.invoiceNumber && !parsed.vendorName && parsed.totalAmountMinor === undefined && !parsed.invoiceDate;
   if (hasNoFields && compactText.trim().length > 20) {
     lastResortExtraction(compactText, parsed, warnings, preferDayFirstDates);
@@ -853,7 +852,7 @@ function lastResortExtraction(
 ): void {
   const lines = text.split(/\n+/).map((l) => l.trim()).filter(Boolean);
 
-  // Try to find any date-like string
+
   if (!parsed.invoiceDate) {
     const dateMatch = text.match(/\b(\d{1,2}[\/.\-]\d{1,2}[\/.\-]\d{2,4})\b/);
     if (dateMatch) {
@@ -862,7 +861,7 @@ function lastResortExtraction(
     }
   }
 
-  // Try to find any money-like string (with currency symbol or large number with decimals)
+
   if (parsed.totalAmountMinor === undefined) {
     const moneyMatch = text.match(/[$€£₹]\s*([\d,.\s]+\.\d{2})\b/) ??
       text.match(/\b([\d,]+\.\d{2})\b/);
@@ -875,7 +874,7 @@ function lastResortExtraction(
     }
   }
 
-  // Try to find a currency symbol
+
   if (!parsed.currency) {
     const symbolMatch = text.match(/[$€£₹]/);
     if (symbolMatch) {
@@ -883,7 +882,7 @@ function lastResortExtraction(
     }
   }
 
-  // Try to find a vendor-like line: first non-trivial uppercase or title-case line
+
   if (!parsed.vendorName) {
     for (const line of lines.slice(0, 8)) {
       const clean = line.replace(/[^\w\s.&]/g, "").trim();

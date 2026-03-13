@@ -11,7 +11,7 @@ export async function createE2ESessionTokenWithOptions(
     loginHint?: string;
   }
 ): Promise<string> {
-  const loginUrl = new URL("/auth/login", apiBaseUrl);
+  const loginUrl = new URL("/api/auth/login", apiBaseUrl);
   loginUrl.searchParams.set("next", options.nextPath ?? "/");
   if (options.loginHint?.trim()) {
     loginUrl.searchParams.set("login_hint", options.loginHint.trim());

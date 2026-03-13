@@ -25,17 +25,21 @@ services:
       - "4100:4000"
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    deploy:
+      resources:
+        limits:
+          memory: 512M
     environment:
       ENV: ${ENV:-local}
       NODE_ENV: development
       PORT: "4000"
       MONGO_URI: mongodb://mongo:27017/billforge
       APP_MANIFEST_PATH: ${APP_MANIFEST_PATH:-}
-      FRONTEND_BASE_URL: ${FRONTEND_BASE_URL:-http://localhost:5174}
+      FRONTEND_BASE_URL: ${FRONTEND_BASE_URL:-http://localhost:5177}
       STS_CLIENT_ID: ${STS_CLIENT_ID:-billforge-local-client}
       STS_CLIENT_SECRET: ${STS_CLIENT_SECRET:-billforge-local-secret}
       STS_SCOPES: ${STS_SCOPES:-openid profile email offline_access}
-      STS_REDIRECT_URI: ${STS_REDIRECT_URI:-http://localhost:5174/auth/callback}
+      STS_REDIRECT_URI: ${STS_REDIRECT_URI:-http://localhost:5177/api/auth/callback}
       STS_LOCAL_PUBLIC_BASE_URL: ${STS_LOCAL_PUBLIC_BASE_URL:-http://localhost:8190}
       STS_LOCAL_INTERNAL_BASE_URL: ${STS_LOCAL_INTERNAL_BASE_URL:-http://local-sts:8090}
       STS_AUTH_URL: ${STS_AUTH_URL:-}
@@ -73,7 +77,7 @@ services:
       EMAIL_FROM_FILTER: ${EMAIL_FROM_FILTER:-}
       GMAIL_OAUTH_CLIENT_ID: ${GMAIL_OAUTH_CLIENT_ID:-billforge-local-client}
       GMAIL_OAUTH_CLIENT_SECRET: ${GMAIL_OAUTH_CLIENT_SECRET:-billforge-local-secret}
-      GMAIL_OAUTH_REDIRECT_URI: ${GMAIL_OAUTH_REDIRECT_URI:-http://localhost:5174/connect/gmail/callback}
+      GMAIL_OAUTH_REDIRECT_URI: ${GMAIL_OAUTH_REDIRECT_URI:-http://localhost:5177/api/connect/gmail/callback}
       GMAIL_OAUTH_AUTH_URL: ${GMAIL_OAUTH_AUTH_URL:-http://localhost:8190/oauth2/authorize}
       GMAIL_OAUTH_TOKEN_URL: ${GMAIL_OAUTH_TOKEN_URL:-http://local-sts:8090/oauth2/token}
       GMAIL_OAUTH_USERINFO_URL: ${GMAIL_OAUTH_USERINFO_URL:-http://local-sts:8090/oauth2/userinfo}
@@ -81,8 +85,8 @@ services:
       GMAIL_OAUTH_STATE_TTL_SECONDS: ${GMAIL_OAUTH_STATE_TTL_SECONDS:-600}
       GMAIL_OAUTH_HTTP_TIMEOUT_MS: ${GMAIL_OAUTH_HTTP_TIMEOUT_MS:-15000}
       GMAIL_OAUTH_TOKEN_ENCRYPTION_SECRET: ${GMAIL_OAUTH_TOKEN_ENCRYPTION_SECRET:-local-dev-gmail-oauth-encryption-secret}
-      GMAIL_OAUTH_SUCCESS_REDIRECT_URL: ${GMAIL_OAUTH_SUCCESS_REDIRECT_URL:-http://localhost:5174}
-      GMAIL_OAUTH_FAILURE_REDIRECT_URL: ${GMAIL_OAUTH_FAILURE_REDIRECT_URL:-http://localhost:5174}
+      GMAIL_OAUTH_SUCCESS_REDIRECT_URL: ${GMAIL_OAUTH_SUCCESS_REDIRECT_URL:-http://localhost:5177}
+      GMAIL_OAUTH_FAILURE_REDIRECT_URL: ${GMAIL_OAUTH_FAILURE_REDIRECT_URL:-http://localhost:5177}
       DEEPSEEK_BASE_URL: ${DEEPSEEK_BASE_URL:-http://host.docker.internal:8200/v1}
       DEEPSEEK_OCR_MODEL: ${DEEPSEEK_OCR_MODEL:-mlx-community/DeepSeek-OCR-4bit}
       DEEPSEEK_OCR_MAX_TOKENS: "768"
@@ -120,7 +124,7 @@ services:
       INVITE_SENDGRID_ENDPOINT: ${INVITE_SENDGRID_ENDPOINT:-http://mailhog-oauth:8026/sendgrid/v3/mail/send}
       INVITE_SENDGRID_TIMEOUT_MS: ${INVITE_SENDGRID_TIMEOUT_MS:-15000}
       INVITE_FROM: ${INVITE_FROM:-no-reply@invoice.local}
-      INVITE_BASE_URL: ${INVITE_BASE_URL:-http://localhost:5174}
+      INVITE_BASE_URL: ${INVITE_BASE_URL:-http://localhost:5177}
     volumes:
       - ${INVOICE_INBOX_PATH:-./sample-invoices/inbox}:/app/sample-invoices/inbox:ro
       - ./.local-run/artifacts:/app/.local-run/artifacts
@@ -143,6 +147,10 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 256M
 
   minio-init:
     image: minio/mc:latest
@@ -156,6 +164,10 @@ services:
       mc mb --ignore-existing local/billforge-local;
       exit 0;
       "
+    deploy:
+      resources:
+        limits:
+          memory: 64M
 
   frontend:
     build:
@@ -168,7 +180,11 @@ services:
     depends_on:
       - backend
     ports:
-      - "5174:80"
+      - "5177:80"
+    deploy:
+      resources:
+        limits:
+          memory: 128M
 
   mongo:
     image: mongo:7
@@ -180,6 +196,10 @@ services:
       MONGO_INITDB_DATABASE: billforge
     volumes:
       - mongo_data:/data/db
+    deploy:
+      resources:
+        limits:
+          memory: 1G
 
   mongo-express:
     image: mongo-express:1.0.2
@@ -192,6 +212,10 @@ services:
     environment:
       ME_CONFIG_MONGODB_URL: mongodb://mongo:27017/
       ME_CONFIG_BASICAUTH: "false"
+    deploy:
+      resources:
+        limits:
+          memory: 128M
 
   mailhog:
     image: axllent/mailpit:latest
@@ -200,6 +224,10 @@ services:
     ports:
       - "1125:1025"
       - "8125:8025"
+    deploy:
+      resources:
+        limits:
+          memory: 128M
 
   mailhog-oauth:
     build:
@@ -211,6 +239,10 @@ services:
       - mailhog
     ports:
       - "8126:8026"
+    deploy:
+      resources:
+        limits:
+          memory: 128M
     environment:
       PORT: "8026"
       MAILHOG_BASE_URL: http://mailhog:8025
@@ -232,6 +264,10 @@ services:
     restart: unless-stopped
     ports:
       - "8190:8090"
+    deploy:
+      resources:
+        limits:
+          memory: 128M
     environment:
       PORT: "8090"
       ISSUER: http://local-sts:8090
@@ -247,6 +283,10 @@ services:
     command: start-dev --import-realm
     ports:
       - "8180:8080"
+    deploy:
+      resources:
+        limits:
+          memory: 768M
     environment:
       KC_BOOTSTRAP_ADMIN_USERNAME: admin
       KC_BOOTSTRAP_ADMIN_PASSWORD: admin

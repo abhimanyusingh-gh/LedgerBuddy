@@ -77,6 +77,11 @@ describe("AuthService loginWithPassword", () => {
 
   it("rejects login for unknown local user", async () => {
     findLocalDemoUserByEmail.mockReturnValue(null);
+    jest.spyOn(UserModel, "findOne").mockReturnValue({
+      select: jest.fn().mockReturnValue({
+        lean: jest.fn().mockResolvedValue(null)
+      })
+    } as never);
 
     await expect(authService.loginWithPassword("unknown@local.test", "DemoPass!1")).rejects.toEqual(
       expect.objectContaining({ statusCode: 401, code: "auth_credentials_invalid" })

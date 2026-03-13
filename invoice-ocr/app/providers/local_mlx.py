@@ -77,7 +77,7 @@ class LocalMlxOCRProvider(OCRProvider):
         return self._extract_pdf(image_bytes, resolved_prompt, include_layout, max_tokens)
       image = open_image(image_bytes)
       try:
-        raw_text = self._infer_image(image, resolved_prompt, max_tokens)
+        raw_text, completion_tokens = self._infer_image(image, resolved_prompt, max_tokens)
       finally:
         image.close()
 
@@ -87,7 +87,8 @@ class LocalMlxOCRProvider(OCRProvider):
       "blocks": blocks,
       "mode": "mlx_vlm",
       "model": settings.model_id,
-      "provider": "deepseek-mlx-local"
+      "provider": "deepseek-mlx-local",
+      "usage": {"completionTokens": completion_tokens}
     }
 
   def _extract_pdf(self, pdf_bytes: bytes, prompt: str, include_layout: bool, max_tokens: int) -> dict[str, Any]:
@@ -98,6 +99,7 @@ class LocalMlxOCRProvider(OCRProvider):
     chunks: list[str] = []
     blocks: list[dict[str, Any]] = []
     page_images: list[dict[str, Any]] = []
+    total_completion_tokens = 0
     for page_number, page_bytes, page_width, page_height in pages:
       page_images.append(
         {
@@ -112,9 +114,11 @@ class LocalMlxOCRProvider(OCRProvider):
 
       image = open_image(page_bytes)
       try:
-        page_text = self._infer_image(image, prompt, max_tokens)
+        page_text, page_tokens = self._infer_image(image, prompt, max_tokens)
       finally:
         image.close()
+
+      total_completion_tokens += page_tokens
 
       if page_text:
         chunks.append(f"[page {page_number}]\n{page_text}")
@@ -130,7 +134,8 @@ class LocalMlxOCRProvider(OCRProvider):
       "pageImages": page_images,
       "mode": "mlx_vlm_pdf",
       "model": settings.model_id,
-      "provider": "deepseek-mlx-local"
+      "provider": "deepseek-mlx-local",
+      "usage": {"completionTokens": total_completion_tokens}
     }
 
   def _preload(self) -> None:
@@ -165,7 +170,7 @@ class LocalMlxOCRProvider(OCRProvider):
       finally:
         self.loading = False
 
-  def _infer_image(self, image: Image.Image, prompt: str, max_tokens: int) -> str:
+  def _infer_image(self, image: Image.Image, prompt: str, max_tokens: int) -> tuple[str, int]:
     if self.model is None or self.processor is None or self.config is None:
       raise RuntimeError("OCR model is not initialized.")
 
@@ -180,4 +185,6 @@ class LocalMlxOCRProvider(OCRProvider):
         verbose=False,
         max_tokens=max_tokens
       )
-    return normalize_model_output(output)
+    text = normalize_model_output(output)
+    completion_tokens = len(text.split())
+    return text, completion_tokens

@@ -180,27 +180,29 @@ export class ExportService {
 
     const skippedIds = new Set(fileResult.skippedItems.map((item) => item.invoiceId));
     const batchId = String(batch._id);
-    const fileSaveResults = await saveBatch(invoices, EXPORT_SAVE_CONCURRENCY, async (invoice) => {
-      if (skippedIds.has(String(invoice._id))) {
-        return;
-      }
-      await InvoiceModel.updateOne(
-        { _id: invoice._id },
-        {
-          status: "EXPORTED",
-          export: {
-            system: this.exporter.system,
-            batchId,
-            exportedAt: new Date(),
-            externalReference: fileKey
+    const now = new Date();
+    const bulkOps = invoices
+      .filter((invoice) => !skippedIds.has(String(invoice._id)))
+      .map((invoice) => ({
+        updateOne: {
+          filter: { _id: invoice._id },
+          update: {
+            status: "EXPORTED",
+            export: {
+              system: this.exporter.system,
+              batchId,
+              exportedAt: now,
+              externalReference: fileKey
+            }
           }
         }
-      );
-    });
-    for (const r of fileSaveResults) {
-      if (r.status === "rejected") {
-        logger.error("export.file.invoice.save.failed", {
-          error: r.reason instanceof Error ? r.reason.message : String(r.reason)
+      }));
+    if (bulkOps.length > 0) {
+      try {
+        await InvoiceModel.bulkWrite(bulkOps);
+      } catch (bulkError) {
+        logger.error("export.file.invoice.bulkWrite.failed", {
+          error: bulkError instanceof Error ? bulkError.message : String(bulkError)
         });
       }
     }

@@ -11,10 +11,13 @@ export function createPlatformAdminRouter(platformAdminService: PlatformAdminSer
       const adminEmail = typeof request.body?.adminEmail === "string" ? request.body.adminEmail : "";
       const adminDisplayName =
         typeof request.body?.adminDisplayName === "string" ? request.body.adminDisplayName : undefined;
+      const rawMode = typeof request.body?.mode === "string" ? request.body.mode : undefined;
+      const mode = rawMode === "test" || rawMode === "live" ? rawMode : undefined;
       const result = await platformAdminService.onboardTenantAdmin({
         tenantName,
         adminEmail,
-        ...(adminDisplayName ? { displayName: adminDisplayName } : {})
+        ...(adminDisplayName ? { displayName: adminDisplayName } : {}),
+        ...(mode ? { mode } : {})
       });
       response.status(201).json(result);
     } catch (error) {

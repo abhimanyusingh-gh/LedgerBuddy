@@ -12,6 +12,8 @@ import type { InvoiceStatus } from "../types/invoice.js";
 import { env } from "../config/env.js";
 import { normalizeInvoiceMimeType } from "../utils/mime.js";
 import type { WorkloadTier } from "../types/tenant.js";
+import { TenantModel } from "../models/Tenant.js";
+import { S3UploadIngestionSource } from "../sources/S3UploadIngestionSource.js";
 import { InvoiceExtractionPipeline, ExtractionPipelineError } from "./extraction/InvoiceExtractionPipeline.js";
 import { NoopFieldVerifier } from "../verifier/NoopFieldVerifier.js";
 import { MongoVendorTemplateStore } from "./extraction/vendorTemplateStore.js";
@@ -112,8 +114,20 @@ export class IngestionService {
       runtimeTenantId.length > 0
         ? prioritizedSources.filter((source) => source.tenantId === runtimeTenantId)
         : prioritizedSources;
-    const tenantScopedSources =
+    let tenantScopedSources =
       runtimeTenantId.length > 0 && tenantMatchedSources.length > 0 ? tenantMatchedSources : prioritizedSources;
+
+    if (runtimeTenantId.length > 0) {
+      const tenantDoc = await TenantModel.findById(runtimeTenantId).select({ mode: 1 }).lean();
+      if (tenantDoc?.mode === "live") {
+        tenantScopedSources = tenantScopedSources.filter((s) => s.type !== "folder");
+      }
+    }
+
+    if (runtimeTenantId.length > 0 && this.fileStore?.listObjects) {
+      const uploadSource = new S3UploadIngestionSource(runtimeTenantId, this.fileStore);
+      tenantScopedSources = [...tenantScopedSources, uploadSource];
+    }
 
     if (runtimeTenantId.length > 0 && tenantMatchedSources.length === 0) {
       logger.warn("ingestion.run.tenant_source_fallback", {
@@ -202,7 +216,7 @@ export class IngestionService {
     files: IngestedFile[],
     effectiveTenantId: string
   ): Promise<IngestedFile[]> {
-    if (files.length === 0 || source.type !== "folder") {
+    if (files.length === 0 || (source.type !== "folder" && source.type !== "s3-upload")) {
       return files;
     }
 
@@ -210,7 +224,8 @@ export class IngestionService {
       sourceType: source.type,
       tenantId: effectiveTenantId,
       sourceKey: source.key,
-      sourceDocumentId: { $in: files.map((file) => file.sourceDocumentId) }
+      sourceDocumentId: { $in: files.map((file) => file.sourceDocumentId) },
+      status: { $ne: "PENDING" }
     })
       .select({ sourceDocumentId: 1, _id: 0 })
       .lean();
@@ -230,7 +245,8 @@ export class IngestionService {
       sourceType: file.sourceType,
       sourceKey: file.sourceKey,
       sourceDocumentId: file.sourceDocumentId,
-      attachmentName: file.attachmentName
+      attachmentName: file.attachmentName,
+      status: { $ne: "PENDING" }
     }).lean();
 
     if (duplicate) {
@@ -332,29 +348,23 @@ export class IngestionService {
         ...confidence.riskMessages
       ]);
 
-      await InvoiceModel.create({
-        sourceType: file.sourceType,
-        tenantId: file.tenantId,
-        workloadTier: file.workloadTier,
-        sourceKey: file.sourceKey,
-        sourceDocumentId: file.sourceDocumentId,
-        attachmentName: file.attachmentName,
-        mimeType: normalizedMimeType,
-        receivedAt: file.receivedAt,
-        status,
-        metadata,
-        ocrProvider,
-        ocrText,
-        ocrConfidence,
-        ocrBlocks,
+      const baseFields = {
+        sourceType: file.sourceType, tenantId: file.tenantId, workloadTier: file.workloadTier,
+        sourceKey: file.sourceKey, sourceDocumentId: file.sourceDocumentId,
+        attachmentName: file.attachmentName, mimeType: normalizedMimeType,
+        receivedAt: file.receivedAt, ocrProvider, ocrText, ocrConfidence, ocrBlocks,
+        ocrTokens: extraction.ocrTokens, slmTokens: extraction.slmTokens
+      };
+
+      const successData = {
+        ...baseFields, status, metadata,
         parsed: parsedResult.parsed,
-        confidenceScore: confidence.score,
-        confidenceTone: confidence.tone,
+        confidenceScore: confidence.score, confidenceTone: confidence.tone,
         autoSelectForApproval: confidence.autoSelectForApproval,
-        riskFlags: confidence.riskFlags,
-        riskMessages: confidence.riskMessages,
+        riskFlags: confidence.riskFlags, riskMessages: confidence.riskMessages,
         processingIssues: mergedProcessingIssues
-      });
+      };
+      await upsertFromPending(file, successData);
 
       return status === "PARSED" || status === "NEEDS_REVIEW" ? "created" : "failed";
     } catch (error) {
@@ -362,61 +372,29 @@ export class IngestionService {
         return "duplicate";
       }
 
+      const failBaseFields = {
+        sourceType: file.sourceType, tenantId: file.tenantId, workloadTier: file.workloadTier,
+        sourceKey: file.sourceKey, sourceDocumentId: file.sourceDocumentId,
+        attachmentName: file.attachmentName, mimeType: normalizedMimeType,
+        receivedAt: file.receivedAt, metadata: file.metadata, ocrProvider, ocrText, ocrConfidence, ocrBlocks,
+        confidenceScore: 0, confidenceTone: "red" as const,
+        autoSelectForApproval: false, riskFlags: [] as string[], riskMessages: [] as string[]
+      };
+
       if (error instanceof ExtractionPipelineError && error.code === "FAILED_OCR") {
-        await InvoiceModel.create({
-          sourceType: file.sourceType,
-          tenantId: file.tenantId,
-          workloadTier: file.workloadTier,
-          sourceKey: file.sourceKey,
-          sourceDocumentId: file.sourceDocumentId,
-          attachmentName: file.attachmentName,
-          mimeType: normalizedMimeType,
-          receivedAt: file.receivedAt,
-          status: "FAILED_OCR",
-          processingIssues: [error.message],
-          metadata: file.metadata,
-          ocrProvider,
-          ocrText,
-          ocrConfidence,
-          ocrBlocks,
-          confidenceScore: 0,
-          confidenceTone: "red",
-          autoSelectForApproval: false,
-          riskFlags: [],
-          riskMessages: []
-        });
+        await upsertFromPending(file, { ...failBaseFields, status: "FAILED_OCR", processingIssues: [error.message] });
         return "failed";
       }
 
       logger.error("Failed to process ingested file", {
-        sourceKey: file.sourceKey,
-        sourceDocumentId: file.sourceDocumentId,
-        attachmentName: file.attachmentName,
-        error: error instanceof Error ? error.message : String(error)
+        sourceKey: file.sourceKey, sourceDocumentId: file.sourceDocumentId,
+        attachmentName: file.attachmentName, error: error instanceof Error ? error.message : String(error)
       });
 
       try {
-        await InvoiceModel.create({
-          sourceType: file.sourceType,
-          tenantId: file.tenantId,
-          workloadTier: file.workloadTier,
-          sourceKey: file.sourceKey,
-          sourceDocumentId: file.sourceDocumentId,
-          attachmentName: file.attachmentName,
-          mimeType: normalizedMimeType,
-          receivedAt: file.receivedAt,
-          status: "FAILED_PARSE",
-          processingIssues: [error instanceof Error ? error.message : "Unknown processing error"],
-          metadata: file.metadata,
-          ocrProvider,
-          ocrText,
-          ocrConfidence,
-          ocrBlocks,
-          confidenceScore: 0,
-          confidenceTone: "red",
-          autoSelectForApproval: false,
-          riskFlags: [],
-          riskMessages: []
+        await upsertFromPending(file, {
+          ...failBaseFields, status: "FAILED_PARSE",
+          processingIssues: [error instanceof Error ? error.message : "Unknown processing error"]
         });
       } catch (createError) {
         logger.error("Failed persisting failed invoice", {
@@ -430,6 +408,17 @@ export class IngestionService {
 
       return "failed";
     }
+  }
+}
+
+async function upsertFromPending(file: IngestedFile, data: Record<string, unknown>): Promise<void> {
+  const { attachmentName: _keep, ...updateData } = data;
+  const updated = await InvoiceModel.findOneAndUpdate(
+    { tenantId: file.tenantId, sourceDocumentId: file.sourceDocumentId, status: "PENDING" },
+    { $set: updateData }
+  );
+  if (!updated) {
+    await InvoiceModel.create(data);
   }
 }
 
@@ -725,57 +714,35 @@ function resolveCropRegion(
   return { left, top, width, height };
 }
 
-function normalizeUnitBox(value: [number, number, number, number] | undefined): [number, number, number, number] | undefined {
-  if (!value) {
-    return undefined;
-  }
+type Box4 = [number, number, number, number];
 
+function validateBox(value: Box4 | undefined): Box4 | undefined {
+  if (!value) return undefined;
   const [x1, y1, x2, y2] = value;
-  if (![x1, y1, x2, y2].every((entry) => Number.isFinite(entry))) {
-    return undefined;
-  }
-  if (x1 < 0 || y1 < 0 || x2 > 1 || y2 > 1 || x2 <= x1 || y2 <= y1) {
-    return undefined;
-  }
-  return [x1, y1, x2, y2];
+  if (![x1, y1, x2, y2].every(Number.isFinite) || x2 <= x1 || y2 <= y1) return undefined;
+  return value;
 }
 
-function normalizeModelBox(value: [number, number, number, number] | undefined): [number, number, number, number] | undefined {
-  if (!value) {
-    return undefined;
-  }
-  const [x1, y1, x2, y2] = value;
-  if (![x1, y1, x2, y2].every((entry) => Number.isFinite(entry))) {
-    return undefined;
-  }
-  if (x2 <= x1 || y2 <= y1) {
-    return undefined;
-  }
+function normalizeUnitBox(value: Box4 | undefined): Box4 | undefined {
+  const v = validateBox(value);
+  if (!v) return undefined;
+  const [x1, y1, x2, y2] = v;
+  return (x1 < 0 || y1 < 0 || x2 > 1 || y2 > 1) ? undefined : v;
+}
 
+function normalizeModelBox(value: Box4 | undefined): Box4 | undefined {
+  const v = validateBox(value);
+  if (!v) return undefined;
   const scale = 999;
-  return [x1 / scale, y1 / scale, x2 / scale, y2 / scale].map((entry) =>
-    Math.max(0, Math.min(1, entry))
-  ) as [number, number, number, number];
+  return v.map((n) => Math.max(0, Math.min(1, n / scale))) as Box4;
 }
 
-function normalizeAbsoluteBox(
-  value: [number, number, number, number],
-  pageWidth: number,
-  pageHeight: number
-): [number, number, number, number] | undefined {
+function normalizeAbsoluteBox(value: Box4, pageWidth: number, pageHeight: number): Box4 | undefined {
+  if (!validateBox(value)) return undefined;
   const [x1, y1, x2, y2] = value;
-  if (![x1, y1, x2, y2].every((entry) => Number.isFinite(entry))) {
-    return undefined;
-  }
-  if (x2 <= x1 || y2 <= y1) {
-    return undefined;
-  }
-
   return [
-    Math.max(0, Math.min(1, x1 / pageWidth)),
-    Math.max(0, Math.min(1, y1 / pageHeight)),
-    Math.max(0, Math.min(1, x2 / pageWidth)),
-    Math.max(0, Math.min(1, y2 / pageHeight))
+    Math.max(0, Math.min(1, x1 / pageWidth)), Math.max(0, Math.min(1, y1 / pageHeight)),
+    Math.max(0, Math.min(1, x2 / pageWidth)), Math.max(0, Math.min(1, y2 / pageHeight))
   ];
 }
 
@@ -868,8 +835,9 @@ function extensionForMimeType(value: string): string {
   return "png";
 }
 
+const SANITIZE_OBJECT_NAME_REGEX = /[^a-z0-9_-]/gi;
 function sanitizeObjectName(value: string): string {
-  return value.replace(/[^a-z0-9_-]/gi, "-").toLowerCase();
+  return value.replace(SANITIZE_OBJECT_NAME_REGEX, "-").toLowerCase();
 }
 
 function escapeSvgText(value: string): string {

@@ -15,7 +15,8 @@ export async function seedLocalDemoData(): Promise<void> {
       {
         _id: tenantObjectId(tenant.id),
         name: tenant.name,
-        onboardingStatus: tenant.onboardingStatus
+        onboardingStatus: tenant.onboardingStatus,
+        mode: tenant.mode ?? "test"
       },
       { upsert: true, new: true, setDefaultsOnInsert: true }
     );

@@ -41,6 +41,7 @@ interface Dependencies {
   tenantInviteService: TenantInviteService;
   platformAdminService: PlatformAdminService;
   gmailIntegrationService: TenantGmailIntegrationService;
+  fileStore: FileStore;
 }
 
 export async function buildDependencies(): Promise<Dependencies> {
@@ -48,8 +49,9 @@ export async function buildDependencies(): Promise<Dependencies> {
   const stsProvider = createStsProvider();
   const authService = new AuthService(stsProvider);
   const tenantAdminService = new TenantAdminService();
-  const tenantInviteService = new TenantInviteService(createInviteEmailSenderProvider());
-  const platformAdminService = new PlatformAdminService();
+  const inviteEmailSender = createInviteEmailSenderProvider();
+  const tenantInviteService = new TenantInviteService(inviteEmailSender);
+  const platformAdminService = new PlatformAdminService(inviteEmailSender);
   const gmailIntegrationService = new TenantGmailIntegrationService();
   const ocrProvider = await resolveOcrProvider(manifest);
   const fieldVerifier = await resolveFieldVerifier(manifest);
@@ -71,7 +73,7 @@ export async function buildDependencies(): Promise<Dependencies> {
     pipeline: extractionPipeline,
     fileStore
   });
-  const invoiceService = new InvoiceService();
+  const invoiceService = new InvoiceService({ fileStore });
   const emailSimulationService = new EmailSimulationService();
 
   const exporter = buildExporter(manifest);
@@ -86,7 +88,8 @@ export async function buildDependencies(): Promise<Dependencies> {
     tenantAdminService,
     tenantInviteService,
     platformAdminService,
-    gmailIntegrationService
+    gmailIntegrationService,
+    fileStore
   };
 }
 
@@ -188,144 +191,76 @@ async function assertDeepSeekConfigIsValid(runtimeManifest: RuntimeManifest): Pr
   const configuredModel = runtimeManifest.ocr.deepseek.model;
   const apiKey = runtimeManifest.ocr.deepseek.apiKey.trim();
   try {
-    const headers: Record<string, string> = {};
-    if (apiKey.length > 0) {
-      headers.Authorization = `Bearer ${apiKey}`;
-    }
-
+    const headers = buildAuthHeaders(apiKey);
     const response = await withTimeout(
-      axios.get(`${baseUrl}/models`, {
-        headers,
-        timeout: OCR_BOOTSTRAP_TIMEOUT_MS
-      }),
+      axios.get(`${baseUrl}/models`, { headers, timeout: OCR_BOOTSTRAP_TIMEOUT_MS }),
       OCR_BOOTSTRAP_TIMEOUT_MS
     );
 
     const modelIds: string[] = Array.isArray(response?.data?.data)
       ? response.data.data
           .map((model: unknown) => (typeof model === "object" && model !== null ? (model as { id?: unknown }).id : ""))
-          .filter((modelId: unknown): modelId is string => typeof modelId === "string" && modelId.trim().length > 0)
+          .filter((id: unknown): id is string => typeof id === "string" && id.trim().length > 0)
       : [];
 
-    const configuredModelId = normalizeModelIdentifier(configuredModel);
-    const hasConfiguredModel =
-      modelIds.length === 0 ||
-      modelIds.some((modelId) => normalizeModelIdentifier(modelId) === configuredModelId);
-
-    if (!hasConfiguredModel) {
+    const configuredModelId = configuredModel.trim().toLowerCase().replace(/:latest$/, "");
+    if (modelIds.length > 0 && !modelIds.some((id) => id.trim().toLowerCase().replace(/:latest$/, "") === configuredModelId)) {
       throw new Error(
-        `Configured model '${configuredModel}' is not listed by '${baseUrl}/models'. Available models: ${modelIds.join(
-          ", "
-        )}. Start local OCR with 'yarn ocr:dev' or configure an endpoint that serves this model.`
+        `Configured model '${configuredModel}' is not listed by '${baseUrl}/models'. Available models: ${modelIds.join(", ")}. Start local OCR with 'yarn ocr:dev' or configure an endpoint that serves this model.`
       );
     }
 
-    const healthResponse = await withTimeout(
-      axios.get(`${baseUrl}/health`, {
-        headers,
-        timeout: OCR_BOOTSTRAP_TIMEOUT_MS
-      }),
-      OCR_BOOTSTRAP_TIMEOUT_MS
-    );
-    const payload = healthResponse?.data;
-    if (isRecord(payload)) {
-      const statusValue = payload.status;
-      if (typeof statusValue === "string" && !["ok", "healthy", "ready"].includes(statusValue.toLowerCase())) {
-        throw new Error(`OCR service health status '${statusValue}' is not ready.`);
-      }
-      if (typeof payload.modelLoaded === "boolean" && !payload.modelLoaded) {
-        throw new Error("OCR service reported modelLoaded=false.");
-      }
-    }
+    await assertServiceHealth(baseUrl, headers, OCR_BOOTSTRAP_TIMEOUT_MS, "OCR service");
   } catch (error) {
-    const reason = describeDependencyError(error);
     throw new Error(
-      `DeepSeek OCR bootstrap validation failed. Configure an endpoint that serves '${configuredModel}' at '${baseUrl}'. Cause: ${reason}`
+      `DeepSeek OCR bootstrap validation failed. Configure an endpoint that serves '${configuredModel}' at '${baseUrl}'. Cause: ${describeDependencyError(error)}`
     );
   }
 }
 
 async function assertFieldVerifierConfigIsValid(runtimeManifest: RuntimeManifest): Promise<void> {
   const baseUrl = runtimeManifest.verifier.http.baseUrl.replace(/\/+$/, "");
-  const apiKey = runtimeManifest.verifier.http.apiKey.trim();
   try {
-    const headers: Record<string, string> = {};
-    if (apiKey.length > 0) {
-      headers.Authorization = `Bearer ${apiKey}`;
-    }
-
-    const response = await withTimeout(
-      axios.get(`${baseUrl}/health`, {
-        headers,
-        timeout: VERIFIER_BOOTSTRAP_TIMEOUT_MS
-      }),
-      VERIFIER_BOOTSTRAP_TIMEOUT_MS
-    );
-    const payload = response?.data;
-    if (isRecord(payload)) {
-      const statusValue = payload.status;
-      if (typeof statusValue === "string" && !["ok", "healthy", "ready"].includes(statusValue.toLowerCase())) {
-        throw new Error(`Field verifier health status '${statusValue}' is not ready.`);
-      }
-      if (typeof payload.modelLoaded === "boolean" && !payload.modelLoaded) {
-        throw new Error("Field verifier reported modelLoaded=false.");
-      }
-    }
+    await assertServiceHealth(baseUrl, buildAuthHeaders(runtimeManifest.verifier.http.apiKey.trim()), VERIFIER_BOOTSTRAP_TIMEOUT_MS, "Field verifier");
   } catch (error) {
-    const reason = describeDependencyError(error);
-    throw new Error(`Field verifier bootstrap validation failed at '${baseUrl}'. Cause: ${reason}`);
+    throw new Error(`Field verifier bootstrap validation failed at '${baseUrl}'. Cause: ${describeDependencyError(error)}`);
   }
 }
 
-function normalizeModelIdentifier(value: string): string {
-  const normalizedValue = value.trim().toLowerCase();
-  return normalizedValue.endsWith(":latest") ? normalizedValue.slice(0, -7) : normalizedValue;
+async function assertServiceHealth(baseUrl: string, headers: Record<string, string>, timeoutMs: number, label: string): Promise<void> {
+  const response = await withTimeout(axios.get(`${baseUrl}/health`, { headers, timeout: timeoutMs }), timeoutMs);
+  const payload = response?.data;
+  if (payload && typeof payload === "object" && !Array.isArray(payload)) {
+    const p = payload as Record<string, unknown>;
+    if (typeof p.status === "string" && !["ok", "healthy", "ready"].includes((p.status as string).toLowerCase())) {
+      throw new Error(`${label} health status '${p.status}' is not ready.`);
+    }
+    if (p.modelLoaded === false) {
+      throw new Error(`${label} reported modelLoaded=false.`);
+    }
+  }
+}
+
+function buildAuthHeaders(apiKey: string): Record<string, string> {
+  return apiKey.length > 0 ? { Authorization: `Bearer ${apiKey}` } : {};
 }
 
 function describeDependencyError(error: unknown): string {
   if (axios.isAxiosError(error)) {
     const status = error.response?.status;
-    const data = error.response?.data;
-    if (typeof data === "object" && data !== null) {
-      const message = (data as { error?: { message?: string }; message?: string }).error?.message;
-      const fallbackMessage = (data as { message?: string }).message;
-      if (typeof message === "string" && message.trim().length > 0) {
-        return status ? `${message} (status ${status})` : message;
-      }
-      if (typeof fallbackMessage === "string" && fallbackMessage.trim().length > 0) {
-        return status ? `${fallbackMessage} (status ${status})` : fallbackMessage;
-      }
-    }
-    if (status) {
-      return error.message ? `${error.message} (status ${status})` : `Request failed with status ${status}`;
-    }
-    if (error.code) {
-      return error.message ? `${error.message} (${error.code})` : error.code;
-    }
+    const data = error.response?.data as Record<string, unknown> | undefined;
+    const msg = (data?.error as { message?: string })?.message ?? (data?.message as string | undefined);
+    if (typeof msg === "string" && msg.trim()) return status ? `${msg} (status ${status})` : msg;
+    if (status) return error.message ? `${error.message} (status ${status})` : `Request failed with status ${status}`;
+    if (error.code) return error.message ? `${error.message} (${error.code})` : error.code;
     return error.message || "Unknown HTTP client error";
   }
-
   return error instanceof Error ? error.message : String(error);
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
   return new Promise<T>((resolve, reject) => {
-    const timer = setTimeout(() => {
-      reject(new Error(`Timed out after ${timeoutMs}ms`));
-    }, timeoutMs);
-
-    promise
-      .then((value) => {
-        clearTimeout(timer);
-        resolve(value);
-      })
-      .catch((error) => {
-        clearTimeout(timer);
-        reject(error);
-      });
+    const timer = setTimeout(() => reject(new Error(`Timed out after ${timeoutMs}ms`)), timeoutMs);
+    promise.then((v) => { clearTimeout(timer); resolve(v); }).catch((e) => { clearTimeout(timer); reject(e); });
   });
 }

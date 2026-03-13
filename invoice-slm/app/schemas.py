@@ -16,3 +16,4 @@ class VerifyInvoiceResponse(BaseModel):
   changedFields: list[str]
   reasonCodes: dict[str, str] = Field(default_factory=dict)
   invoiceType: str = "other"
+  usage: dict[str, Any] | None = None

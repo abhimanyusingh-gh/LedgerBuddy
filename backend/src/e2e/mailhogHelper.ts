@@ -17,39 +17,14 @@ async function fetchMailMessages(mailhogApiBaseUrl: string): Promise<unknown[]> 
     return [];
   }
 
-  const messages: unknown[] = Array.isArray(v1.data)
-    ? v1.data
-    : Array.isArray(v1.data?.messages)
-      ? v1.data.messages
-      : [];
-
-  // Mailpit returns summary list without body — enrich with full message details
-  if (messages.length > 0 && isMailpitFormat(messages[0])) {
-    const enriched = await Promise.all(
-      messages.map(async (m) => {
-        const id = (m as { ID?: string }).ID;
-        if (!id) return m;
-        const detail = await axios.get(`${mailhogApiBaseUrl}/api/v1/message/${id}`, {
-          timeout: 10_000,
-          validateStatus: () => true
-        });
-        if (detail.status !== 200) return m;
-        // Preserve Created from list entry (millisecond precision) since individual message
-        // only provides Date at second precision, causing timestamp filter false-negatives
-        const listCreated = (m as { Created?: string }).Created;
-        return listCreated ? { ...detail.data, Created: listCreated } : detail.data;
-      })
-    );
-    return enriched;
+  if (Array.isArray(v1.data)) {
+    return v1.data;
+  }
+  if (Array.isArray(v1.data?.messages)) {
+    return v1.data.messages;
   }
 
-  return messages;
-}
-
-function isMailpitFormat(message: unknown): boolean {
-  if (!message || typeof message !== "object") return false;
-  const m = message as Record<string, unknown>;
-  return typeof m.ID === "string" && !m.Content;
+  return [];
 }
 
 export async function pollForEmail(
