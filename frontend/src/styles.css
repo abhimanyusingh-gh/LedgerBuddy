@@ -891,6 +891,25 @@ tr:hover {
   background: rgba(19, 77, 140, 0.08);
 }
 
+.row-action-button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 4px;
+  color: #94a3b8;
+  line-height: 1;
+}
+
+.row-action-button:hover {
+  color: #dc2626;
+  background: rgba(220, 38, 38, 0.08);
+}
+
+.row-action-button .material-symbols-outlined {
+  font-size: 18px;
+}
+
 .value-risk {
   color: #8a2418;
   font-weight: 700;

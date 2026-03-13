@@ -623,6 +623,25 @@ export function App() {
     }
   }
 
+  async function handleDeleteSingle(invoiceId: string, fileName: string) {
+    if (!window.confirm(`Delete "${fileName}"? This cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      setError(null);
+      const response = await deleteInvoices([invoiceId]);
+      if (response.deletedCount === 0) {
+        setError("Invoice could not be deleted (exported invoices cannot be deleted).");
+        return;
+      }
+      setSelectedIds((current) => current.filter((id) => id !== invoiceId));
+      await loadInvoices();
+    } catch (deleteError) {
+      setError(getUserFacingErrorMessage(deleteError, "Deletion failed."));
+    }
+  }
+
   async function handleRetry() {
     if (selectedRetryableIds.length === 0) {
       setError("Select at least one non-exported invoice to retry.");
@@ -1326,6 +1345,7 @@ export function App() {
                       <th>Confidence</th>
                       <th>Status</th>
                       <th>Received</th>
+                      <th></th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1407,6 +1427,13 @@ export function App() {
                             ) : null}
                           </td>
                           <td>{new Date(invoice.receivedAt).toLocaleString()}</td>
+                          <td onClick={(e) => e.stopPropagation()}>
+                            {invoice.status !== "EXPORTED" ? (
+                              <button type="button" className="row-action-button" title="Delete" onClick={() => handleDeleteSingle(invoice._id, invoice.attachmentName)}>
+                                <span className="material-symbols-outlined">delete</span>
+                              </button>
+                            ) : null}
+                          </td>
                         </tr>
                       );
                     })}
