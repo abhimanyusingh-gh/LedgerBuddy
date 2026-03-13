@@ -9,6 +9,7 @@ import {
   downloadTallyXmlFile,
   exportToTally,
   generateTallyXmlFile,
+  retryInvoices,
   fetchGmailConnectUrl,
   fetchGmailConnectionStatus,
   fetchIngestionStatus,
@@ -42,8 +43,6 @@ import { LoginPage } from "./components/login/LoginPage";
 import { PlatformAdminTopNav } from "./components/platformAdmin/PlatformAdminTopNav";
 import { PlatformActivityMonitor } from "./components/platformAdmin/PlatformActivityMonitor";
 import { PlatformOnboardSection } from "./components/platformAdmin/PlatformOnboardSection";
-import { PlatformOverviewHero } from "./components/platformAdmin/PlatformOverviewHero";
-import { PlatformStatsSection } from "./components/platformAdmin/PlatformStatsSection";
 import { PlatformUsageOverviewSection } from "./components/platformAdmin/PlatformUsageOverviewSection";
 import { TenantAdminTopNav } from "./components/tenantAdmin/TenantAdminTopNav";
 import { TenantViewTabs, type TenantViewTab } from "./components/tenantAdmin/TenantViewTabs";
@@ -54,6 +53,7 @@ import { getInvoiceSourceHighlights } from "./sourceHighlights";
 import {
   isInvoiceApprovable,
   isInvoiceExportable,
+  isInvoiceRetryable,
   isInvoiceSelectable,
   mergeSelectedIds,
   removeSelectedIds
@@ -114,14 +114,12 @@ export function App() {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [popupInvoiceId, setPopupInvoiceId] = useState<string | null>(null);
   const [detailsPanelVisible, setDetailsPanelVisible] = useState(true);
-  const [detailsPanelCollapsed, setDetailsPanelCollapsed] = useState(true);
   const [gmailConnection, setGmailConnection] = useState<GmailConnectionStatus | null>(null);
   const [loginEmail, setLoginEmail] = useState<string>("");
   const [loginPassword, setLoginPassword] = useState<string>("");
   const [loginSubmitting, setLoginSubmitting] = useState(false);
   const [activeTab, setActiveTab] = useState<TenantViewTab>("dashboard");
   const [selectedPlatformTenantId, setSelectedPlatformTenantId] = useState<string | null>(null);
-  const [platformStatsCollapsed, setPlatformStatsCollapsed] = useState(false);
   const [platformOnboardCollapsed, setPlatformOnboardCollapsed] = useState(false);
   const [platformUsageCollapsed, setPlatformUsageCollapsed] = useState(false);
   const [platformActivityCollapsed, setPlatformActivityCollapsed] = useState(false);
@@ -311,6 +309,11 @@ export function App() {
     [selectedInvoices]
   );
 
+  const selectedRetryableIds = useMemo(
+    () => selectedInvoices.filter((invoice) => isInvoiceRetryable(invoice)).map((invoice) => invoice._id),
+    [selectedInvoices]
+  );
+
   const selectedNonExportableCount = useMemo(
     () => selectedInvoices.filter((invoice) => !isInvoiceExportable(invoice)).length,
     [selectedInvoices]
@@ -348,8 +351,8 @@ export function App() {
       return "content content-list-expanded";
     }
 
-    return detailsPanelCollapsed ? "content content-details-collapsed" : "content";
-  }, [detailsPanelVisible, detailsPanelCollapsed]);
+    return "content";
+  }, [detailsPanelVisible]);
 
   const gmailConnectionState = gmailConnection?.connectionState ?? "DISCONNECTED";
   const gmailNeedsReauth = gmailConnectionState === "NEEDS_REAUTH";
@@ -617,6 +620,26 @@ export function App() {
       await loadInvoices();
     } catch (deleteError) {
       setError(getUserFacingErrorMessage(deleteError, "Deletion failed."));
+    }
+  }
+
+  async function handleRetry() {
+    if (selectedRetryableIds.length === 0) {
+      setError("Select at least one non-exported invoice to retry.");
+      return;
+    }
+
+    try {
+      setError(null);
+      const response = await retryInvoices(selectedRetryableIds);
+      if (response.modifiedCount === 0) {
+        setError("No selected invoices were eligible for retry.");
+        return;
+      }
+      setSelectedIds([]);
+      await loadInvoices();
+    } catch (retryError) {
+      setError(getUserFacingErrorMessage(retryError, "Retry failed."));
     }
   }
 
@@ -979,7 +1002,7 @@ export function App() {
         <main className="content content-list-expanded">
           <section className="panel list-panel" style={{ maxWidth: 420, margin: "60px auto", padding: 32 }}>
             <h2>Change Your Password</h2>
-            <p style={{ marginBottom: 16 }}>You must change your temporary password before continuing.</p>
+            <p style={{ marginBottom: 16 }}>{(session?.flags as Record<string, unknown>)?.must_change_password ? "You must change your temporary password before continuing." : "Change your password."}</p>
             {error ? <p className="error">{error}</p> : null}
             <label style={{ display: "block", marginBottom: 12 }}>
               <span>Current Password</span>
@@ -1007,9 +1030,14 @@ export function App() {
   return (
     <div className={isPlatformAdmin ? "layout layout-platform" : "layout"}>
       {isPlatformAdmin ? (
-        <PlatformAdminTopNav userEmail={session.user.email} onLogout={handleLogout} />
+        <PlatformAdminTopNav
+          userEmail={session.user.email}
+          onLogout={handleLogout}
+          onChangePassword={() => setShowChangePassword(true)}
+          counts={{ tenants: platformStats.tenants, failedDocuments: platformStats.failedDocuments }}
+        />
       ) : (
-        <TenantAdminTopNav userEmail={session.user.email} onLogout={handleLogout} counts={navCounts} />
+        <TenantAdminTopNav userEmail={session.user.email} onLogout={handleLogout} onChangePassword={() => setShowChangePassword(true)} counts={navCounts} />
       )}
 
       {!isPlatformAdmin ? (
@@ -1147,15 +1175,6 @@ export function App() {
           <>
             {isPlatformAdmin ? (
               <>
-                <PlatformOverviewHero
-                  tenantCount={platformStats.tenants}
-                  failedDocuments={platformStats.failedDocuments}
-                />
-                <PlatformStatsSection
-                  stats={platformStats}
-                  collapsed={platformStatsCollapsed}
-                  onToggle={() => setPlatformStatsCollapsed((currentValue) => !currentValue)}
-                />
                 <PlatformOnboardSection
                   form={platformOnboardForm}
                   collapsed={platformOnboardCollapsed}
@@ -1224,6 +1243,12 @@ export function App() {
                       <span className="material-symbols-outlined">delete</span>
                     </button>
                     <span className="toolbar-icon-label">Delete</span>
+                  </span>
+                  <span className="toolbar-icon-wrap">
+                    <button type="button" className="toolbar-icon-button" onClick={handleRetry} disabled={requiresTenantSetup || selectedRetryableIds.length === 0}>
+                      <span className="material-symbols-outlined">replay</span>
+                    </button>
+                    <span className="toolbar-icon-label">Retry</span>
                   </span>
                   <span className="toolbar-icon-wrap">
                     <button type="button" className="toolbar-icon-button" onClick={handleExport} disabled={requiresTenantSetup || selectedExportableIds.length === 0 || selectedNonExportableCount > 0}>
@@ -1314,7 +1339,7 @@ export function App() {
                       const canEditCell = invoice.status !== "EXPORTED";
 
                       return (
-                        <tr key={invoice._id} className={rowClasses || undefined} onClick={() => { setActiveId(invoice._id); setDetailsPanelCollapsed(false); }}>
+                        <tr key={invoice._id} className={rowClasses || undefined} onClick={() => { setActiveId(invoice._id); }}>
                           <td>
                             <input
                               type="checkbox"
@@ -1391,23 +1416,20 @@ export function App() {
             </section>
 
             {detailsPanelVisible ? (
-          <section className={`panel detail-panel ${detailsPanelCollapsed ? "detail-panel-collapsed" : ""}`}>
+          <section className="panel detail-panel">
             <div className="panel-title">
               <h2>Invoice Details</h2>
               <button
                 type="button"
                 className="collapse-button"
-                onClick={() => setDetailsPanelCollapsed((currentValue) => !currentValue)}
+                onClick={() => setDetailsPanelVisible(false)}
+                aria-label="Close details panel"
               >
-                {detailsPanelCollapsed ? "Expand" : "Collapse"}
+                <span className="material-symbols-outlined">close</span>
               </button>
             </div>
 
-            {detailsPanelCollapsed ? (
-              <div className="detail-panel-collapsed-body">
-                <p className="muted detail-panel-collapsed-hint">Details panel collapsed.</p>
-              </div>
-            ) : activeInvoice ? (
+            {activeInvoice ? (
               <div className="detail-scroll">
                 {activeInvoiceDetailLoading ? <p className="muted">Loading full invoice details...</p> : null}
                 <InvoiceSourceViewer

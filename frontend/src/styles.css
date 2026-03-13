@@ -74,6 +74,11 @@ body {
 .platform-top-nav-left {
   display: inline-flex;
   align-items: center;
+  gap: 0.85rem;
+}
+
+.platform-failed-label {
+  color: #e11d48;
 }
 
 .platform-brand,
@@ -1257,13 +1262,10 @@ tr:hover {
   text-align: right;
 }
 
-.platform-activity-section {
-  min-height: 260px;
-}
-
 .platform-activity-content {
   display: grid;
   gap: 0.8rem;
+  min-height: 220px;
 }
 
 .platform-activity-empty {
