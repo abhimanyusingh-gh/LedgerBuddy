@@ -12,6 +12,7 @@ import {
 import { env } from "../config/env.js";
 import { loadRuntimeManifest, type FolderSourceManifest } from "../core/runtimeManifest.js";
 import type { WorkloadTier } from "../types/tenant.js";
+import type { FileStore } from "../core/interfaces/FileStore.js";
 import { getPreviewStorageRoot, isPathInsideRoot } from "../utils/previewStorage.js";
 import { requireAuth } from "../auth/requireAuth.js";
 
@@ -25,7 +26,7 @@ const SOURCE_OVERLAY_FIELDS = new Set([
   "currency"
 ]);
 
-export function createInvoiceRouter(invoiceService: InvoiceService) {
+export function createInvoiceRouter(invoiceService: InvoiceService, fileStore?: FileStore) {
   const router = Router();
   router.use(requireAuth);
   const runtimeManifest = loadRuntimeManifest();
@@ -79,6 +80,23 @@ export function createInvoiceRouter(invoiceService: InvoiceService) {
 
       const modifiedCount = await invoiceService.approveInvoices(ids, approvedBy, authContext);
       res.json({ modifiedCount });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  router.post("/invoices/delete", async (req, res, next) => {
+    try {
+      const authContext = req.authContext!;
+      const ids = Array.isArray(req.body?.ids) ? req.body.ids.filter(isString) : [];
+
+      if (ids.length === 0) {
+        res.status(400).json({ message: "Body 'ids' must include at least one invoice id." });
+        return;
+      }
+
+      const deletedCount = await invoiceService.deleteInvoices(ids, authContext);
+      res.json({ deletedCount });
     } catch (error) {
       next(error);
     }
@@ -164,6 +182,21 @@ export function createInvoiceRouter(invoiceService: InvoiceService) {
       }
       const page = Math.max(1, Number(req.query.page ?? 1));
       const previewPath = resolvePreviewImagePath(invoice.metadata, page, getPreviewStorageRoot());
+
+      if (!previewPath && invoice.sourceType === "s3-upload" && fileStore) {
+        const uploadKey = invoice.metadata?.uploadKey;
+        if (typeof uploadKey === "string" && uploadKey.length > 0) {
+          try {
+            const obj = await fileStore.getObject(uploadKey);
+            res.type(invoice.mimeType);
+            res.send(obj.body);
+            return;
+          } catch {
+            res.status(404).json({ message: "Uploaded file not found in storage." });
+            return;
+          }
+        }
+      }
 
       if (invoice.mimeType.startsWith("image/")) {
         if (previewPath) {

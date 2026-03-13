@@ -1,9 +1,15 @@
+import { createHash } from "node:crypto";
 import { Router } from "express";
 import type { AuthService } from "../auth/AuthService.js";
 import { env } from "../config/env.js";
+import { UserModel } from "../models/User.js";
+import { requireAuth } from "../auth/requireAuth.js";
+import { createAuthenticationMiddleware } from "../auth/middleware.js";
+import { findLocalDemoUserByEmail } from "../config/localDemoUsers.js";
 
 export function createAuthRouter(authService: AuthService) {
   const router = Router();
+  const authenticate = createAuthenticationMiddleware(authService);
 
   router.post("/auth/token", async (request, response, next) => {
     try {
@@ -44,6 +50,72 @@ export function createAuthRouter(authService: AuthService) {
       redirect.searchParams.set("token", result.sessionToken);
       redirect.searchParams.set("next", result.redirectPath);
       response.redirect(302, redirect.toString());
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  router.post("/auth/change-password", authenticate, requireAuth, async (request, response, next) => {
+    try {
+      const context = request.authContext!;
+      const currentPassword = typeof request.body?.currentPassword === "string" ? request.body.currentPassword : "";
+      const newPassword = typeof request.body?.newPassword === "string" ? request.body.newPassword : "";
+      if (!currentPassword || !newPassword) {
+        response.status(400).json({ message: "Current password and new password are required." });
+        return;
+      }
+
+      const configuredUser = findLocalDemoUserByEmail(context.email);
+      if (configuredUser) {
+        response.status(400).json({ message: "Password change is not supported for demo users." });
+        return;
+      }
+
+      const user = await UserModel.findById(context.userId).select({ passwordHash: 1 }).lean();
+      if (!user?.passwordHash) {
+        response.status(400).json({ message: "No password set for this account." });
+        return;
+      }
+
+      const currentHash = createHash("sha256").update(currentPassword).digest("base64url");
+      if (currentHash !== user.passwordHash) {
+        response.status(401).json({ message: "Current password is incorrect." });
+        return;
+      }
+
+      const newHash = createHash("sha256").update(newPassword).digest("base64url");
+      await UserModel.updateOne(
+        { _id: context.userId },
+        { passwordHash: newHash, $unset: { tempPassword: "" }, mustChangePassword: false }
+      );
+
+      response.json({ success: true });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  router.get("/auth/verify-email", async (request, response, next) => {
+    try {
+      const token = typeof request.query.token === "string" ? request.query.token : "";
+      if (!token) {
+        response.status(400).json({ error: "Missing token" });
+        return;
+      }
+
+      const tokenHash = createHash("sha256").update(token).digest("base64url");
+      const user = await UserModel.findOneAndUpdate(
+        { verificationTokenHash: tokenHash, emailVerified: { $exists: false } },
+        { emailVerified: new Date(), $unset: { verificationTokenHash: "" } },
+        { new: true }
+      );
+
+      if (!user) {
+        response.status(400).json({ error: "Invalid or expired token" });
+        return;
+      }
+
+      response.redirect(`${env.INVITE_BASE_URL}/?verified=true`);
     } catch (error) {
       next(error);
     }

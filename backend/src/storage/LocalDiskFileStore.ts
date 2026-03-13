@@ -36,6 +36,10 @@ export class LocalDiskFileStore implements FileStore {
     return { body, contentType };
   }
 
+  async listObjects(_prefix: string): Promise<{ key: string }[]> {
+    return [];
+  }
+
   async putObject(input: FileStorePutInput): Promise<FileStoreObjectRef> {
     const normalizedKey = normalizeKey(input.key);
     const filePath = path.resolve(this.rootPath, normalizedKey);

@@ -305,7 +305,7 @@ export class InvoiceExtractionPipeline {
             fingerprint.key
           );
         }
-      } catch { /* ignore */ }
+      } catch {}
 
       const mode: FieldVerificationMode = "relaxed";
       const verifierOutput = await this.fieldVerifier.verify({

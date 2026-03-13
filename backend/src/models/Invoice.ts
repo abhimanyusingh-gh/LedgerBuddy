@@ -56,6 +56,7 @@ const invoiceSchema = new Schema(
     sourceKey: { type: String, required: true },
     sourceDocumentId: { type: String, required: true },
     attachmentName: { type: String, required: true },
+    contentHash: { type: String },
     mimeType: { type: String, required: true },
     receivedAt: { type: Date, required: true },
 

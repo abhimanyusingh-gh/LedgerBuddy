@@ -47,6 +47,7 @@ interface SessionContextResponse {
     id: string;
     name: string;
     onboarding_status: "pending" | "completed";
+    mode?: "test" | "live";
   };
   flags: {
     requires_tenant_setup: boolean;
@@ -76,6 +77,8 @@ export interface PlatformTenantUsageSummary {
   gmailConnectionState: "CONNECTED" | "NEEDS_REAUTH" | "DISCONNECTED";
   lastIngestedAt: string | null;
   createdAt: string;
+  adminTempPassword?: string;
+  adminEmail?: string;
 }
 
 interface PlatformTenantOnboardResult {
@@ -83,6 +86,7 @@ interface PlatformTenantOnboardResult {
   tenantName: string;
   adminUserId: string;
   adminEmail: string;
+  tempPassword?: string;
 }
 
 export function getStoredSessionToken(): string {
@@ -149,9 +153,29 @@ export async function onboardTenantAdmin(payload: {
   tenantName: string;
   adminEmail: string;
   adminDisplayName?: string;
+  mode?: string;
 }): Promise<PlatformTenantOnboardResult> {
   const response = await apiClient.post<PlatformTenantOnboardResult>("/platform/tenants/onboard-admin", payload);
   return response.data;
+}
+
+export async function uploadInvoiceFiles(files: File[]): Promise<{ uploaded: string[]; count: number }> {
+  const formData = new FormData();
+  for (const file of files) {
+    formData.append("files", file);
+  }
+  const response = await apiClient.post<{ uploaded: string[]; count: number }>("/jobs/upload", formData, {
+    headers: { "Content-Type": "multipart/form-data" }
+  });
+  return response.data;
+}
+
+export async function changePassword(currentPassword: string, newPassword: string): Promise<void> {
+  await backendClient.post("/auth/change-password", { currentPassword, newPassword }, {
+    headers: {
+      Authorization: `Bearer ${getStoredSessionToken()}`
+    }
+  });
 }
 
 export async function fetchInvoices(status?: string) {
@@ -238,6 +262,11 @@ export async function approveInvoices(ids: string[], approvedBy: string) {
   return response.data;
 }
 
+export async function deleteInvoices(ids: string[]) {
+  const response = await apiClient.post<{ deletedCount: number }>("/invoices/delete", { ids });
+  return response.data;
+}
+
 export async function exportToTally(ids?: string[]) {
   const response = await apiClient.post<TallyExportResponse>("/exports/tally", {
     ids,
@@ -269,13 +298,19 @@ export async function fetchExportHistory(page = 1, limit = 20): Promise<ExportHi
   return sanitizeExportHistoryResponse(response.data);
 }
 
+function safeNum(v: unknown, fallback: number): number {
+  return typeof v === "number" && Number.isFinite(v) ? v : fallback;
+}
+
+function safeStr(v: unknown): string | undefined {
+  return typeof v === "string" ? v : undefined;
+}
+
 function sanitizeExportHistoryResponse(value: unknown): ExportHistoryResponse {
   const data = stripNulls(value) as Partial<ExportHistoryResponse>;
   return {
     items: Array.isArray(data.items) ? data.items : [],
-    page: typeof data.page === "number" && Number.isFinite(data.page) ? data.page : 1,
-    limit: typeof data.limit === "number" && Number.isFinite(data.limit) ? data.limit : 20,
-    total: typeof data.total === "number" && Number.isFinite(data.total) ? data.total : 0
+    page: safeNum(data.page, 1), limit: safeNum(data.limit, 20), total: safeNum(data.total, 0)
   };
 }
 
@@ -284,10 +319,7 @@ export async function runIngestion() {
   return sanitizeIngestionStatus(response.data);
 }
 
-export async function runEmailSimulationIngestion() {
-  const response = await apiClient.post<IngestionJobStatus>("/jobs/ingest/email-simulate");
-  return sanitizeIngestionStatus(response.data);
-}
+
 
 export async function pauseIngestion() {
   const response = await apiClient.post<IngestionJobStatus>("/jobs/ingest/pause");
@@ -333,86 +365,52 @@ export async function updateInvoiceParsedFields(invoiceId: string, payload: Upda
 }
 
 function stripNulls(value: unknown): unknown {
-  if (value === null || value === undefined) {
-    return undefined;
-  }
-
-  if (Array.isArray(value)) {
-    return value.map((entry) => (entry === null || entry === undefined ? entry : stripNulls(entry)));
-  }
-
-  if (!isPlainObject(value)) {
-    return value;
-  }
-
+  if (value == null) return undefined;
+  if (Array.isArray(value)) return value.map((e) => (e == null ? e : stripNulls(e)));
+  if (typeof value !== "object") return value;
+  const proto = Object.getPrototypeOf(value);
+  if (proto !== Object.prototype && proto !== null) return value;
   const output: Record<string, unknown> = {};
-  for (const [key, rawValue] of Object.entries(value)) {
-    const sanitized = stripNulls(rawValue);
-    if (sanitized !== undefined) {
-      output[key] = sanitized;
-    }
+  for (const [k, v] of Object.entries(value)) {
+    const s = stripNulls(v);
+    if (s !== undefined) output[k] = s;
   }
-
   return output;
-}
-
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-  if (typeof value !== "object" || value === null) {
-    return false;
-  }
-
-  const prototype = Object.getPrototypeOf(value);
-  return prototype === Object.prototype || prototype === null;
 }
 
 function sanitizeInvoiceListResponse(value: unknown): InvoiceListResponse {
   const data = stripNulls(value) as Partial<InvoiceListResponse>;
   return {
     items: Array.isArray(data.items) ? data.items : [],
-    page: typeof data.page === "number" && Number.isFinite(data.page) ? data.page : 1,
-    limit: typeof data.limit === "number" && Number.isFinite(data.limit) ? data.limit : 0,
-    total: typeof data.total === "number" && Number.isFinite(data.total) ? data.total : 0,
-    totalAll: typeof data.totalAll === "number" && Number.isFinite(data.totalAll) ? data.totalAll : undefined,
-    approvedAll: typeof data.approvedAll === "number" && Number.isFinite(data.approvedAll) ? data.approvedAll : undefined,
-    pendingAll: typeof data.pendingAll === "number" && Number.isFinite(data.pendingAll) ? data.pendingAll : undefined
+    page: safeNum(data.page, 1), limit: safeNum(data.limit, 0), total: safeNum(data.total, 0),
+    totalAll: safeNum(data.totalAll!, undefined!), approvedAll: safeNum(data.approvedAll!, undefined!),
+    pendingAll: safeNum(data.pendingAll!, undefined!)
   };
 }
 
 function sanitizeIngestionStatus(value: unknown): IngestionJobStatus {
   const data = stripNulls(value) as Partial<IngestionJobStatus>;
+  const validStates = ["running", "completed", "failed", "idle", "paused"] as const;
   return {
-    state:
-      data.state === "running" || data.state === "completed" || data.state === "failed" || data.state === "idle" || data.state === "paused"
-        ? data.state
-        : "idle",
+    state: validStates.includes(data.state as typeof validStates[number]) ? data.state! : "idle",
     running: data.running === true,
-    totalFiles: typeof data.totalFiles === "number" && Number.isFinite(data.totalFiles) ? data.totalFiles : 0,
-    processedFiles:
-      typeof data.processedFiles === "number" && Number.isFinite(data.processedFiles) ? data.processedFiles : 0,
-    newInvoices: typeof data.newInvoices === "number" && Number.isFinite(data.newInvoices) ? data.newInvoices : 0,
-    duplicates: typeof data.duplicates === "number" && Number.isFinite(data.duplicates) ? data.duplicates : 0,
-    failures: typeof data.failures === "number" && Number.isFinite(data.failures) ? data.failures : 0,
-    startedAt: typeof data.startedAt === "string" ? data.startedAt : undefined,
-    completedAt: typeof data.completedAt === "string" ? data.completedAt : undefined,
-    error: typeof data.error === "string" ? data.error : undefined,
-    correlationId: typeof data.correlationId === "string" ? data.correlationId : undefined,
-    lastUpdatedAt: typeof data.lastUpdatedAt === "string" ? data.lastUpdatedAt : new Date(0).toISOString()
+    totalFiles: safeNum(data.totalFiles, 0), processedFiles: safeNum(data.processedFiles, 0),
+    newInvoices: safeNum(data.newInvoices, 0), duplicates: safeNum(data.duplicates, 0),
+    failures: safeNum(data.failures, 0),
+    startedAt: safeStr(data.startedAt), completedAt: safeStr(data.completedAt),
+    error: safeStr(data.error), correlationId: safeStr(data.correlationId),
+    lastUpdatedAt: safeStr(data.lastUpdatedAt) ?? new Date(0).toISOString()
   };
 }
 
 function sanitizeGmailConnectionStatus(value: unknown): GmailConnectionStatus {
   const data = stripNulls(value) as Partial<GmailConnectionStatus>;
-  const connectionState =
-    data.connectionState === "CONNECTED" || data.connectionState === "NEEDS_REAUTH" || data.connectionState === "DISCONNECTED"
-      ? data.connectionState
-      : "DISCONNECTED";
-
+  const validStates = ["CONNECTED", "NEEDS_REAUTH", "DISCONNECTED"] as const;
   return {
     provider: "gmail",
-    connectionState,
-    emailAddress: typeof data.emailAddress === "string" ? data.emailAddress : undefined,
-    lastErrorReason: typeof data.lastErrorReason === "string" ? data.lastErrorReason : undefined,
-    lastSyncedAt: typeof data.lastSyncedAt === "string" ? data.lastSyncedAt : undefined
+    connectionState: validStates.includes(data.connectionState as typeof validStates[number]) ? data.connectionState! : "DISCONNECTED",
+    emailAddress: safeStr(data.emailAddress), lastErrorReason: safeStr(data.lastErrorReason),
+    lastSyncedAt: safeStr(data.lastSyncedAt)
   };
 }
 

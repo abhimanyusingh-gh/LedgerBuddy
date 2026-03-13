@@ -1,3 +1,4 @@
+import { useState } from "react";
 import type { PlatformTenantUsageSummary } from "../../api";
 import { PlatformSection } from "./PlatformSection";
 
@@ -18,6 +19,7 @@ export function PlatformUsageOverviewSection({
   onRefresh,
   onSelectTenant
 }: PlatformUsageOverviewSectionProps) {
+  const [revealedTenantId, setRevealedTenantId] = useState<string | null>(null);
   return (
     <PlatformSection
       title="Platform Tenant Usage Overview"
@@ -35,6 +37,8 @@ export function PlatformUsageOverviewSection({
           <thead>
             <tr>
               <th>Tenant</th>
+              <th>Admin Email</th>
+              <th>Password</th>
               <th>Onboarding</th>
               <th>Users</th>
               <th>Documents</th>
@@ -54,6 +58,21 @@ export function PlatformUsageOverviewSection({
                 onClick={() => onSelectTenant(entry.tenantId)}
               >
                 <td className="tenant-name-cell">{entry.tenantName}</td>
+                <td>{entry.adminEmail ?? "-"}</td>
+                <td>
+                  {entry.adminTempPassword ? (
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+                      <code>{revealedTenantId === entry.tenantId ? entry.adminTempPassword : "\u2022\u2022\u2022\u2022\u2022\u2022"}</code>
+                      <button
+                        type="button"
+                        style={{ background: "none", border: "none", cursor: "pointer", padding: 0 }}
+                        onClick={(e) => { e.stopPropagation(); setRevealedTenantId(revealedTenantId === entry.tenantId ? null : entry.tenantId); }}
+                      >
+                        <span className="material-symbols-outlined" style={{ fontSize: 18 }}>{revealedTenantId === entry.tenantId ? "visibility_off" : "visibility"}</span>
+                      </button>
+                    </span>
+                  ) : "-"}
+                </td>
                 <td>{entry.onboardingStatus}</td>
                 <td>{entry.userCount}</td>
                 <td>{entry.totalDocuments}</td>

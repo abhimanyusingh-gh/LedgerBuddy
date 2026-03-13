@@ -1,4 +1,5 @@
 export type InvoiceStatus =
+  | "PENDING"
   | "PARSED"
   | "NEEDS_REVIEW"
   | "FAILED_OCR"
@@ -44,6 +45,7 @@ export interface Invoice {
   };
   metadata?: Record<string, string | undefined>;
   status: InvoiceStatus;
+  possibleDuplicate?: boolean;
   processingIssues: string[];
   approval?: {
     approvedBy?: string;

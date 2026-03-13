@@ -1,4 +1,4 @@
-import { GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { GetObjectCommand, ListObjectsV2Command, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import type { FileStore, FileStoreGetResult, FileStoreObjectRef, FileStorePutInput } from "../core/interfaces/FileStore.js";
 
 interface S3FileStoreOptions {
@@ -52,6 +52,33 @@ export class S3FileStore implements FileStore {
       body: Buffer.from(bytes ?? new Uint8Array()),
       contentType: response.ContentType ?? "application/octet-stream"
     };
+  }
+
+  async listObjects(prefix: string): Promise<{ key: string }[]> {
+    const fullPrefix = this.prefix ? `${this.prefix}/${normalizeKey(prefix)}` : normalizeKey(prefix);
+    const results: { key: string }[] = [];
+    let continuationToken: string | undefined;
+
+    do {
+      const response = await this.client.send(
+        new ListObjectsV2Command({
+          Bucket: this.bucket,
+          Prefix: fullPrefix.endsWith("/") ? fullPrefix : `${fullPrefix}/`,
+          ContinuationToken: continuationToken
+        })
+      );
+
+      for (const object of response.Contents ?? []) {
+        if (object.Key) {
+          const stripped = this.prefix ? object.Key.slice(this.prefix.length + 1) : object.Key;
+          results.push({ key: stripped });
+        }
+      }
+
+      continuationToken = response.IsTruncated ? response.NextContinuationToken : undefined;
+    } while (continuationToken);
+
+    return results;
   }
 
   async putObject(input: FileStorePutInput): Promise<FileStoreObjectRef> {

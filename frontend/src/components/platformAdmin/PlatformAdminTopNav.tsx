@@ -11,7 +11,7 @@ export function PlatformAdminTopNav({ userEmail, onLogout }: PlatformAdminTopNav
           <div className="platform-brand-icon">
             <span className="material-symbols-outlined">account_balance</span>
           </div>
-          <h2>FinParse</h2>
+          <h2>BillForge</h2>
         </div>
       </div>
 

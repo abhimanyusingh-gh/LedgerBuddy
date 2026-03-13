@@ -59,12 +59,12 @@ export async function createApp() {
     createTenantAdminRouter(dependencies.tenantAdminService, dependencies.tenantInviteService)
   );
   app.use("/", createGmailConnectionRouter(dependencies.gmailIntegrationService, dependencies.authService));
-  app.use("/api", requireNonPlatformAdmin, requireTenantSetupCompleted, createInvoiceRouter(dependencies.invoiceService));
+  app.use("/api", requireNonPlatformAdmin, requireTenantSetupCompleted, createInvoiceRouter(dependencies.invoiceService, dependencies.fileStore));
   app.use(
     "/api",
     requireNonPlatformAdmin,
     requireTenantSetupCompleted,
-    createJobsRouter(dependencies.ingestionService, dependencies.emailSimulationService)
+    createJobsRouter(dependencies.ingestionService, dependencies.emailSimulationService, dependencies.fileStore)
   );
   app.use("/api", requireNonPlatformAdmin, requireTenantSetupCompleted, createExportRouter(dependencies.exportService));
 

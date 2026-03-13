@@ -76,8 +76,26 @@ export class InvoiceService {
     const pendingAll = facet.pending?.[0]?.n ?? 0;
     const total = params.status ? (facet.filtered?.[0]?.n ?? 0) : totalAll;
 
+    const contentHashes = items.map((i) => (i as Record<string, unknown>).contentHash).filter(Boolean) as string[];
+    const duplicateHashes = new Set<string>();
+    if (contentHashes.length > 0) {
+      const dupes = await InvoiceModel.aggregate([
+        { $match: { tenantId: params.tenantId, contentHash: { $in: contentHashes } } },
+        { $group: { _id: "$contentHash", count: { $sum: 1 } } },
+        { $match: { count: { $gt: 1 } } }
+      ]);
+      for (const d of dupes) duplicateHashes.add(d._id);
+    }
+
     return {
-      items: items.map((item) => sanitizeForApi(item)),
+      items: items.map((item) => {
+        const sanitized = sanitizeForApi(item);
+        const hash = (item as Record<string, unknown>).contentHash as string | undefined;
+        if (hash && duplicateHashes.has(hash)) {
+          (sanitized as Record<string, unknown>).possibleDuplicate = true;
+        }
+        return sanitized;
+      }),
       page: params.page,
       limit: params.limit,
       total,
@@ -129,6 +147,21 @@ export class InvoiceService {
     );
 
     return result.modifiedCount;
+  }
+
+  async deleteInvoices(ids: string[], authContext: AuthenticatedRequestContext) {
+    const validIds = ids.filter((id) => Types.ObjectId.isValid(id)).map((id) => new Types.ObjectId(id));
+    if (validIds.length === 0) {
+      return 0;
+    }
+
+    const result = await InvoiceModel.deleteMany({
+      _id: { $in: validIds },
+      tenantId: authContext.tenantId,
+      status: { $ne: "EXPORTED" }
+    });
+
+    return result.deletedCount;
   }
 
   async updateInvoiceParsedFields(

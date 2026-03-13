@@ -921,6 +921,19 @@ tr:hover {
   color: #852618;
 }
 
+.status-pending {
+  background: rgba(156, 156, 156, 0.15);
+  color: #666;
+}
+
+.duplicate-warning {
+  color: #b8860b;
+  font-size: 1.1rem;
+  vertical-align: middle;
+  margin-left: 0.3rem;
+  cursor: help;
+}
+
 .confidence {
   display: inline-block;
   border-radius: 999px;

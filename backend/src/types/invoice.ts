@@ -1,4 +1,5 @@
 export const InvoiceStatuses = [
+  "PENDING",
   "PARSED",
   "NEEDS_REVIEW",
   "FAILED_OCR",

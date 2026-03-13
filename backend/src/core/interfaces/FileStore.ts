@@ -20,4 +20,5 @@ export interface FileStore {
   readonly name: string;
   putObject(input: FileStorePutInput): Promise<FileStoreObjectRef>;
   getObject(key: string): Promise<FileStoreGetResult>;
+  listObjects?(prefix: string): Promise<{ key: string }[]>;
 }

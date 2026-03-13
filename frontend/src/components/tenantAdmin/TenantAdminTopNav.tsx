@@ -22,7 +22,7 @@ export function TenantAdminTopNav({ userEmail, onLogout, counts }: TenantAdminTo
           <div className="tenant-brand-icon">
             <span className="material-symbols-outlined">account_balance_wallet</span>
           </div>
-          <h2>FinParse</h2>
+          <h2>BillForge</h2>
         </div>
         <div className="tenant-nav-divider" />
         <span className="toolbar-icon-wrap">
