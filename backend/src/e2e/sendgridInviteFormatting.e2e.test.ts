@@ -53,7 +53,7 @@ describe("sendgrid invite formatting e2e", () => {
     );
     expect(inviteMessage.subject).toContain("You were invited to BillForge");
     expect(inviteMessage.decodedBody).toContain("You were invited to join a tenant in BillForge.");
-    expect(inviteMessage.decodedBody).toMatch(/Accept invite:\s+http:\/\/localhost:5174\/invite\?token=/i);
+    expect(inviteMessage.decodedBody).toMatch(/Accept invite:\s+http:\/\/localhost:5177\/invite\?token=/i);
     expect(inviteMessage.decodedBody).toContain("Expires at:");
     expect(inviteMessage.decodedBody).toContain("<strong>Accept invite:</strong>");
   });
