@@ -107,7 +107,7 @@ export class PlatformAdminService {
   }
 
   async listTenantUsageOverview(): Promise<TenantUsageOverview[]> {
-    const [tenants, invoiceStats, userStats, integrations] = await Promise.all([
+    const [tenants, invoiceStats, userStats, integrations, adminInfoList] = await Promise.all([
       TenantModel.find().sort({ createdAt: 1 }).lean(),
       InvoiceModel.aggregate<{
         _id: string;
@@ -160,7 +160,13 @@ export class PlatformAdminService {
           }
         }
       ]),
-      TenantIntegrationModel.find({ provider: "gmail" }).lean()
+      TenantIntegrationModel.find({ provider: "gmail" }).lean(),
+      TenantUserRoleModel.aggregate<{ _id: string; email: string; tempPassword?: string }>([
+        { $match: { role: "TENANT_ADMIN" } },
+        { $lookup: { from: "users", localField: "userId", foreignField: "_id", as: "user" } },
+        { $unwind: "$user" },
+        { $group: { _id: "$tenantId", email: { $first: "$user.email" }, tempPassword: { $first: "$user.tempPassword" } } }
+      ])
     ]);
 
     const invoiceMap = new Map(invoiceStats.map((entry) => [entry._id, entry]));
@@ -171,19 +177,7 @@ export class PlatformAdminService {
         .map((entry) => [entry.tenantId, entry.status])
     );
 
-    const adminRoles = await TenantUserRoleModel.find({ role: "TENANT_ADMIN" }).lean();
-    const adminUserIds = adminRoles.map((r) => r.userId);
-    const adminUsers = await UserModel.find({ _id: { $in: adminUserIds } }).select({ tenantId: 1, tempPassword: 1, email: 1 }).lean();
-    const tempPasswordMap = new Map<string, string>();
-    const adminEmailMap = new Map<string, string>();
-    for (const user of adminUsers) {
-      if (user.tempPassword && typeof user.tempPassword === "string") {
-        tempPasswordMap.set(user.tenantId, user.tempPassword);
-      }
-      if (user.email && typeof user.email === "string") {
-        adminEmailMap.set(user.tenantId, user.email);
-      }
-    }
+    const adminInfoMap = new Map(adminInfoList.map((a) => [a._id, a]));
 
     return tenants.map((tenant) => {
       const tenantId = String(tenant._id);
@@ -204,8 +198,8 @@ export class PlatformAdminService {
           gmailStatus === "connected" ? "CONNECTED" : gmailStatus === "requires_reauth" ? "NEEDS_REAUTH" : "DISCONNECTED",
         lastIngestedAt: invoice?.lastIngestedAt ? new Date(invoice.lastIngestedAt).toISOString() : null,
         createdAt: new Date(tenant.createdAt).toISOString(),
-        adminTempPassword: tempPasswordMap.get(tenantId),
-        adminEmail: adminEmailMap.get(tenantId)
+        adminTempPassword: adminInfoMap.get(tenantId)?.tempPassword,
+        adminEmail: adminInfoMap.get(tenantId)?.email
       };
     });
   }

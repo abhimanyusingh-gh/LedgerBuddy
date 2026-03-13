@@ -50,6 +50,14 @@ export class InvoiceService {
 
     const skip = (params.page - 1) * params.limit;
 
+    const contentHashFacet = {
+      duplicateHashes: [
+        { $match: { tenantId: params.tenantId, contentHash: { $ne: null } } },
+        { $group: { _id: "$contentHash", count: { $sum: 1 } } },
+        { $match: { count: { $gt: 1 } } }
+      ]
+    };
+
     const [items, counts] = await Promise.all([
       InvoiceModel.find(query)
         .select({ ocrText: 0, ocrBlocks: 0 })
@@ -64,7 +72,8 @@ export class InvoiceService {
             totalAll: [{ $count: "n" }],
             approved: [{ $match: { status: "APPROVED" } }, { $count: "n" }],
             pending: [{ $match: { status: { $in: ["PARSED", "NEEDS_REVIEW"] } } }, { $count: "n" }],
-            ...(params.status ? { filtered: [{ $match: { status: params.status } }, { $count: "n" }] } : {})
+            ...(params.status ? { filtered: [{ $match: { status: params.status } }, { $count: "n" }] } : {}),
+            ...contentHashFacet
           }
         }
       ])
@@ -76,16 +85,8 @@ export class InvoiceService {
     const pendingAll = facet.pending?.[0]?.n ?? 0;
     const total = params.status ? (facet.filtered?.[0]?.n ?? 0) : totalAll;
 
-    const contentHashes = items.map((i) => (i as Record<string, unknown>).contentHash).filter(Boolean) as string[];
     const duplicateHashes = new Set<string>();
-    if (contentHashes.length > 0) {
-      const dupes = await InvoiceModel.aggregate([
-        { $match: { tenantId: params.tenantId, contentHash: { $in: contentHashes } } },
-        { $group: { _id: "$contentHash", count: { $sum: 1 } } },
-        { $match: { count: { $gt: 1 } } }
-      ]);
-      for (const d of dupes) duplicateHashes.add(d._id);
-    }
+    for (const d of (facet.duplicateHashes ?? [])) duplicateHashes.add(d._id);
 
     return {
       items: items.map((item) => {
@@ -115,11 +116,12 @@ export class InvoiceService {
   }
 
   async approveInvoices(ids: string[], approvedBy = env.DEFAULT_APPROVER, authContext: AuthenticatedRequestContext) {
-    const validIds = ids.filter((id) => Types.ObjectId.isValid(id)).map((id) => new Types.ObjectId(id));
+    const validIds = toObjectIds(ids);
     if (validIds.length === 0) {
       return 0;
     }
 
+    const now = new Date();
     const result = await InvoiceModel.updateMany(
       {
         _id: { $in: validIds },
@@ -131,7 +133,7 @@ export class InvoiceService {
           status: "APPROVED",
           approval: {
             approvedBy,
-            approvedAt: new Date(),
+            approvedAt: now,
             userId: authContext.userId,
             email: authContext.email,
             role: authContext.role
@@ -139,7 +141,7 @@ export class InvoiceService {
         },
         $push: {
           processingIssues: {
-            $each: [`Approved: ${new Date().toISOString()} by ${authContext.email} (${authContext.userId})`],
+            $each: [`Approved: ${now.toISOString()} by ${authContext.email} (${authContext.userId})`],
             $slice: -50
           }
         }
@@ -150,7 +152,7 @@ export class InvoiceService {
   }
 
   async deleteInvoices(ids: string[], authContext: AuthenticatedRequestContext) {
-    const validIds = ids.filter((id) => Types.ObjectId.isValid(id)).map((id) => new Types.ObjectId(id));
+    const validIds = toObjectIds(ids);
     if (validIds.length === 0) {
       return 0;
     }
@@ -496,7 +498,12 @@ function stripNulls(value: unknown): unknown {
   }
 
   if (Array.isArray(value)) {
-    return value.map((entry) => stripNulls(entry)).filter((entry) => entry !== undefined);
+    const result: unknown[] = [];
+    for (const entry of value) {
+      const sanitized = stripNulls(entry);
+      if (sanitized !== undefined) result.push(sanitized);
+    }
+    return result;
   }
 
   if (!isPlainObject(value)) {
@@ -512,6 +519,14 @@ function stripNulls(value: unknown): unknown {
   }
 
   return output;
+}
+
+function toObjectIds(ids: string[]): Types.ObjectId[] {
+  const result: Types.ObjectId[] = [];
+  for (const id of ids) {
+    if (Types.ObjectId.isValid(id)) result.push(new Types.ObjectId(id));
+  }
+  return result;
 }
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {

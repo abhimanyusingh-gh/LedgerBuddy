@@ -100,7 +100,7 @@ export class AuthService {
         throw new HttpError("Invalid email or password.", 401, "auth_credentials_invalid");
       }
     } else {
-      const dbUser = await UserModel.findOne({ email: normalizedEmail }).select({ passwordHash: 1 }).lean();
+      const dbUser = await UserModel.findOne({ email: normalizedEmail }).select({ passwordHash: 1, emailVerified: 1 }).lean();
       if (!dbUser?.passwordHash) {
         throw new HttpError("Invalid email or password.", 401, "auth_credentials_invalid");
       }
@@ -109,11 +109,8 @@ export class AuthService {
         throw new HttpError("Invalid email or password.", 401, "auth_credentials_invalid");
       }
 
-      if (env.ENV !== "local") {
-        const verifiedCheck = await UserModel.findOne({ email: normalizedEmail }).select({ emailVerified: 1 }).lean();
-        if (!verifiedCheck?.emailVerified) {
-          throw new HttpError("Please verify your email before logging in.", 403, "auth_email_not_verified");
-        }
+      if (env.ENV !== "local" && !dbUser.emailVerified) {
+        throw new HttpError("Please verify your email before logging in.", 403, "auth_email_not_verified");
       }
     }
 
@@ -224,11 +221,11 @@ export class AuthService {
     existingUser.lastLoginAt = new Date();
     await existingUser.save();
 
-    const tenant = await TenantModel.findById(existingUser.tenantId).lean();
+    const [tenant, roleRecord] = await Promise.all([
+      TenantModel.findById(existingUser.tenantId).lean(),
+      TenantUserRoleModel.findOne({ tenantId: existingUser.tenantId, userId: String(existingUser._id) }).lean()
+    ]);
     if (!tenant) throw new Error("User tenant does not exist.");
-    const roleRecord = await TenantUserRoleModel.findOne({
-      tenantId: existingUser.tenantId, userId: String(existingUser._id)
-    }).lean();
     if (!roleRecord) throw new Error("User role does not exist.");
 
     return buildContext(existingUser, tenant, roleRecord.role);
@@ -249,9 +246,11 @@ export class AuthService {
   private async resolvePrincipalByEmail(email: string): Promise<AuthenticatedRequestContext> {
     const user = await UserModel.findOne({ email }).lean();
     if (!user) throw new HttpError("User is not provisioned for this environment.", 403, "auth_user_not_provisioned");
-    const tenant = await TenantModel.findById(user.tenantId).lean();
+    const [tenant, roleRecord] = await Promise.all([
+      TenantModel.findById(user.tenantId).lean(),
+      TenantUserRoleModel.findOne({ tenantId: user.tenantId, userId: String(user._id) }).lean()
+    ]);
     if (!tenant) throw new HttpError("Tenant not found.", 401, "auth_tenant_missing");
-    const roleRecord = await TenantUserRoleModel.findOne({ tenantId: user.tenantId, userId: String(user._id) }).lean();
     if (!roleRecord) throw new HttpError("User has no assigned tenant role.", 401, "auth_role_missing");
     return buildContext(user, tenant, roleRecord.role);
   }

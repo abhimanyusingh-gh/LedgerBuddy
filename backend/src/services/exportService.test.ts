@@ -202,7 +202,7 @@ describe("ExportService", () => {
           { _id: new Types.ObjectId(), status: "APPROVED" }
         ])
       } as never);
-      jest.spyOn(InvoiceModel, "updateOne").mockResolvedValue({} as never);
+      jest.spyOn(InvoiceModel, "bulkWrite").mockResolvedValue({} as never);
 
       const createSpy = jest.spyOn(ExportBatchModel, "create").mockResolvedValue({
         _id: new Types.ObjectId()
@@ -238,7 +238,7 @@ describe("ExportService", () => {
           { _id: new Types.ObjectId(), status: "APPROVED" }
         ])
       } as never);
-      jest.spyOn(InvoiceModel, "updateOne").mockResolvedValue({} as never);
+      jest.spyOn(InvoiceModel, "bulkWrite").mockResolvedValue({} as never);
       jest.spyOn(ExportBatchModel, "create").mockResolvedValue({
         _id: new Types.ObjectId()
       } as never);

@@ -833,8 +833,9 @@ function extensionForMimeType(value: string): string {
   return "png";
 }
 
+const SANITIZE_OBJECT_NAME_REGEX = /[^a-z0-9_-]/gi;
 function sanitizeObjectName(value: string): string {
-  return value.replace(/[^a-z0-9_-]/gi, "-").toLowerCase();
+  return value.replace(SANITIZE_OBJECT_NAME_REGEX, "-").toLowerCase();
 }
 
 function escapeSvgText(value: string): string {
