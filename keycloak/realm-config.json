@@ -50,7 +50,7 @@
       "protocol": "openid-connect",
       "secret": "billforge-local-secret",
       "redirectUris": [
-        "http://localhost:4100/auth/callback",
+        "http://localhost:4100/api/auth/callback",
         "http://localhost:5177/*"
       ],
       "webOrigins": [

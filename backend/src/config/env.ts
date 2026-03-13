@@ -27,7 +27,7 @@ const envSchema = z.object({
   STS_SCOPES: z.string().default("openid profile email offline_access"),
   STS_REDIRECT_URI: z
     .string()
-    .default("http://localhost:4100/auth/callback")
+    .default("http://localhost:4100/api/auth/callback")
     .transform((value) => normalizeUrl(value)),
   STS_LOCAL_PUBLIC_BASE_URL: z
     .string()
@@ -108,7 +108,7 @@ const envSchema = z.object({
   GMAIL_OAUTH_CLIENT_SECRET: z.string().default(""),
   GMAIL_OAUTH_REDIRECT_URI: z
     .string()
-    .default("http://localhost:4100/connect/gmail/callback")
+    .default("http://localhost:4100/api/connect/gmail/callback")
     .transform((value) => normalizeUrl(value)),
   GMAIL_OAUTH_AUTH_URL: z
     .string()
