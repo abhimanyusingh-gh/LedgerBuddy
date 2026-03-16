@@ -452,15 +452,6 @@ body {
   font-weight: 700;
 }
 
-.login-link-button {
-  border: 0;
-  background: transparent;
-  color: #1152d4;
-  font-size: 0.76rem;
-  font-weight: 700;
-  cursor: pointer;
-}
-
 .login-password-toggle {
   position: absolute;
   right: 0.8rem;

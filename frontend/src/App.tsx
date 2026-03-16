@@ -508,13 +508,7 @@ export function App() {
       if (ingestionStatus?.state === "failed") {
         setError(ingestionStatus.error ? `Ingestion failed: ${ingestionStatus.error}` : "Ingestion failed.");
       }
-      void loadInvoices().then(() => {
-        setIngestingIds((prev) => {
-          if (prev.size === 0) return prev;
-          void runIngestion().then((s) => setIngestionStatus(s)).catch(() => {});
-          return prev;
-        });
-      });
+      void loadInvoices();
       void loadGmailConnectionStatus();
     }
 
@@ -541,7 +535,12 @@ export function App() {
       const inv = invoices.find((i) => i._id === id);
       if (inv && inv.status === "PENDING") stillIngesting.add(id);
     }
-    if (stillIngesting.size < ingestingIds.size) setIngestingIds(stillIngesting);
+    if (stillIngesting.size < ingestingIds.size) {
+      setIngestingIds(stillIngesting);
+      if (stillIngesting.size > 0 && !ingestionStatus?.running) {
+        void runIngestion().then((s) => setIngestionStatus(s)).catch(() => {});
+      }
+    }
   }, [invoices]);
 
   async function loadInvoices() {
