@@ -490,8 +490,13 @@ export function App() {
       if (ingestionStatus?.state === "failed") {
         setError(ingestionStatus.error ? `Ingestion failed: ${ingestionStatus.error}` : "Ingestion failed.");
       }
-      setIngestingIds(new Set());
-      void loadInvoices();
+      void loadInvoices().then(() => {
+        setIngestingIds((prev) => {
+          if (prev.size === 0) return prev;
+          void runIngestion().then((s) => setIngestionStatus(s)).catch(() => {});
+          return prev;
+        });
+      });
       void loadGmailConnectionStatus();
     }
 
@@ -659,6 +664,9 @@ export function App() {
       if (response.modifiedCount === 0) {
         setError("Invoice was not eligible for retry.");
         setIngestingIds((prev) => { const next = new Set(prev); next.delete(invoiceId); return next; });
+        return;
+      }
+      if (ingestionStatus?.running) {
         return;
       }
       const status = await runIngestion();
