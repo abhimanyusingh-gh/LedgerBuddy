@@ -923,6 +923,10 @@ tr:hover {
   font-size: 18px;
 }
 
+.row-action-button .spin {
+  animation: spin 0.9s linear infinite;
+}
+
 .value-risk {
   color: #8a2418;
   font-weight: 700;
@@ -965,6 +969,11 @@ tr:hover {
 .status-pending {
   background: rgba(156, 156, 156, 0.15);
   color: #666;
+}
+
+.status-reingesting {
+  background: rgba(37, 99, 235, 0.14);
+  color: #1d4ed8;
 }
 
 .duplicate-warning {
