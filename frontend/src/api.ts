@@ -34,7 +34,7 @@ interface SessionContextResponse {
   user: {
     id: string;
     email: string;
-    role: "TENANT_ADMIN" | "MEMBER";
+    role: "PLATFORM_ADMIN" | "TENANT_ADMIN" | "MEMBER";
     isPlatformAdmin: boolean;
   };
   tenant: {
@@ -51,15 +51,17 @@ interface SessionContextResponse {
   };
 }
 
-interface TenantUserSummary {
+export interface TenantUserSummary {
   userId: string;
   email: string;
   role: "TENANT_ADMIN" | "MEMBER";
+  enabled: boolean;
 }
 
 export interface PlatformTenantUsageSummary {
   tenantId: string;
   tenantName: string;
+  enabled: boolean;
   onboardingStatus: "pending" | "completed";
   userCount: number;
   totalDocuments: number;
@@ -140,9 +142,17 @@ export async function removeTenantUser(userId: string): Promise<void> {
   await apiClient.delete(`/admin/users/${userId}`);
 }
 
+export async function setUserEnabled(userId: string, enabled: boolean): Promise<void> {
+  await apiClient.patch(`/admin/users/${userId}/enabled`, { enabled });
+}
+
 export async function fetchPlatformTenantUsage(): Promise<PlatformTenantUsageSummary[]> {
   const response = await apiClient.get<{ items?: PlatformTenantUsageSummary[] }>("/platform/tenants/usage");
   return Array.isArray(response.data?.items) ? response.data.items : [];
+}
+
+export async function setTenantEnabled(tenantId: string, enabled: boolean): Promise<void> {
+  await apiClient.patch(`/platform/tenants/${tenantId}/enabled`, { enabled });
 }
 
 export async function onboardTenantAdmin(payload: {
@@ -265,19 +275,12 @@ export async function retryInvoices(ids: string[]) {
 }
 
 export async function exportToTally(ids?: string[]) {
-  const response = await apiClient.post<TallyExportResponse>("/exports/tally", {
-    ids,
-    requestedBy: "ui"
-  });
-
+  const response = await apiClient.post<TallyExportResponse>("/exports/tally", { ids });
   return response.data;
 }
 
 export async function generateTallyXmlFile(ids?: string[]) {
-  const response = await apiClient.post<TallyFileExportResponse>("/exports/tally/download", {
-    ids,
-    requestedBy: "ui"
-  });
+  const response = await apiClient.post<TallyFileExportResponse>("/exports/tally/download", { ids });
   return response.data;
 }
 

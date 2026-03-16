@@ -51,6 +51,25 @@ export function createTenantAdminRouter(tenantAdminService: TenantAdminService, 
     }
   });
 
+  router.patch("/admin/users/:userId/enabled", requireTenantAdmin, async (request, response, next) => {
+    try {
+      const context = request.authContext!;
+      const enabled = request.body?.enabled;
+      if (typeof enabled !== "boolean") {
+        response.status(400).json({ message: "enabled must be a boolean.", code: "tenant_invalid_input" });
+        return;
+      }
+      await tenantAdminService.setUserEnabled({
+        tenantId: context.tenantId,
+        userId: request.params.userId,
+        enabled
+      });
+      response.json({ userId: request.params.userId, enabled });
+    } catch (error) {
+      next(error);
+    }
+  });
+
   router.delete("/admin/users/:userId", requireTenantAdmin, async (request, response, next) => {
     try {
       const context = request.authContext!;

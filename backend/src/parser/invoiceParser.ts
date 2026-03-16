@@ -98,11 +98,13 @@ const invoiceNumberPatterns = [
   /bill\s*(?:number|no\.?|#)\s*[:\-]?\s*#?\s*([A-Z0-9][A-Z0-9_\-/]{2,})/i,
   /inv(?:oice)?\s*(?:number|no\.?|#)\s*[:\-]?\s*#?\s*([A-Z0-9][A-Z0-9_\-/]{2,})/i,
   /(?:invoice|factuur|facture)\s*(?:number|nummer|no\.?|#|n[°o])\s*[:\-]?\s*#?\s*([A-Z0-9][A-Z0-9_\-/]{2,})/i,
-  /n[°o]\s*de\s*facture\s*[:\-]?\s*#?\s*([A-Z0-9][A-Z0-9_\-/]{2,})/i
+  /n[°o]\s*de\s*facture\s*[:\-]?\s*#?\s*([A-Z0-9][A-Z0-9_\-/]{2,})/i,
+  /receipt\s*(?:number|no\.?|#)\s*[:\-]?\s*#?\s*([A-Z0-9][A-Z0-9_\-/]{2,})/i,
+  /challan\s*(?:number|no\.?|#)\s*[:\-]?\s*#?\s*([A-Z0-9][A-Z0-9_\-/]{2,})/i
 ];
 
 const invoiceNumberHintPattern =
-  /\b(invoice|facture|factuur|bill|inv(?:oice)?|n[°o]\s*de\s*facture)\b.*\b(no\.?|number|#|n[°o]|nummer)?\b/i;
+  /\b(invoice|facture|factuur|bill|receipt|challan|inv(?:oice)?|n[°o]\s*de\s*facture)\b.*\b(no\.?|number|#|n[°o]|nummer)?\b/i;
 const invoiceNumberTokenPattern = /([A-Z0-9][A-Z0-9_\-/]{2,})/;
 const invoiceNumberBlockedValuePattern = /^(invoice|number|page|aws)$/i;
 
@@ -111,7 +113,7 @@ const vendorRefinementPattern = /^(?:vendor|supplier|sold\s*by|bill\s*from|from|
 const legalEntityPattern =
   /\b(ltd|limited|pvt|private|llc|inc|corp|corporation|gmbh|s\.?a\.?r\.?l\.?|plc|pte|company|co\.?)\b/i;
 const genericVendorStopPattern =
-  /\b(facture|factuur|invoice|receipt|payment|statement|description|charges|summary|account|customer|memo|quotation)\b/i;
+  /\b(facture|factuur|invoice|receipt|payment|statement|description|charges|summary|account|customer|memo|quotation|bill)\b/i;
 const blockedVendorPrefixPattern =
   /^(guest\s*name|billing\s*address|shipping\s*address|warehouse\s*address|order\s*id|order\s*date|booking\s*id|payment\s*mode|invoice\s*date|due\s*date|date)\b/i;
 const addressSignalPattern =
@@ -131,9 +133,9 @@ export const currencyBySymbol: Record<string, string> = {
 };
 
 const datePatterns = [
-  /(?:invoice\s*date|bill\s*date|date)\s*[:\-]?\s*([0-3]?\d[\/.-][01]?\d[\/.-](?:\d{4}|\d{2}))/i,
-  /(?:invoice\s*date|bill\s*date|date)\s*[:\-]?\s*([A-Za-z]{3,9}\s+[0-3]?\d,?\s+\d{4})/i,
-  /(?:invoice\s*date|bill\s*date|date)\s*[:\-]?\s*(\d{4}[\/.-]\d{2})/i
+  /(?:invoice\s*date|bill\s*date|bill\s*dt\.?|date|dt\.?|do[.•]?)\s*[:\-]?\s*([0-3]?\d[\/.-][01]?\d[\/.-](?:\d{4}|\d{2}))/i,
+  /(?:invoice\s*date|bill\s*date|bill\s*dt\.?|date|dt\.?|do[.•]?)\s*[:\-]?\s*([A-Za-z]{3,9}\s+[0-3]?\d,?\s+\d{4})/i,
+  /(?:invoice\s*date|bill\s*date|bill\s*dt\.?|date|dt\.?|do[.•]?)\s*[:\-]?\s*(\d{4}[\/.-]\d{2})/i
 ];
 
 const dueDatePatterns = [
@@ -313,11 +315,11 @@ function extractInvoiceNumber(text: string, patterns: RegExp[]): string | undefi
 
   for (let index = 0; index < lines.length; index += 1) {
     const line = lines[index];
-    if (!/^\s*no\.?\s*[:\-]/i.test(line)) {
+    if (!/^\s*no\.?\s*[:\-]?\s*$/i.test(line) && !/^\s*no\.?\s*[:\-]/i.test(line)) {
       continue;
     }
 
-    const inlineValue = line.replace(/^\s*no\.?\s*[:\-]\s*/i, "").match(invoiceNumberTokenPattern)?.[1];
+    const inlineValue = line.replace(/^\s*no\.?\s*[:\-]?\s*/i, "").match(invoiceNumberTokenPattern)?.[1];
     if (inlineValue && isLikelyInvoiceNumber(inlineValue)) {
       return inlineValue;
     }

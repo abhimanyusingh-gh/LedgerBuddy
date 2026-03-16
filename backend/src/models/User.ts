@@ -12,7 +12,8 @@ const userSchema = new Schema(
     tempPassword: { type: String },
     mustChangePassword: { type: Boolean, default: false },
     emailVerified: { type: Date },
-    verificationTokenHash: { type: String }
+    verificationTokenHash: { type: String },
+    enabled: { type: Boolean, required: true, default: true }
   },
   {
     timestamps: true

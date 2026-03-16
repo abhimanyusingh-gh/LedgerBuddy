@@ -9,6 +9,7 @@ interface PlatformUsageOverviewSectionProps {
   onToggle: () => void;
   onRefresh: () => void;
   onSelectTenant: (tenantId: string) => void;
+  onToggleEnabled: (tenantId: string, enabled: boolean) => void;
 }
 
 export function PlatformUsageOverviewSection({
@@ -17,7 +18,8 @@ export function PlatformUsageOverviewSection({
   collapsed,
   onToggle,
   onRefresh,
-  onSelectTenant
+  onSelectTenant,
+  onToggleEnabled
 }: PlatformUsageOverviewSectionProps) {
   const [revealedTenantId, setRevealedTenantId] = useState<string | null>(null);
   return (
@@ -36,6 +38,7 @@ export function PlatformUsageOverviewSection({
         <table data-testid="platform-usage-table" className="platform-table">
           <thead>
             <tr>
+              <th>Status</th>
               <th>Tenant</th>
               <th>Admin Email</th>
               <th>Password</th>
@@ -59,6 +62,16 @@ export function PlatformUsageOverviewSection({
                 className={entry.tenantId === selectedTenantId ? "platform-table-row-active" : ""}
                 onClick={() => onSelectTenant(entry.tenantId)}
               >
+                <td>
+                  <button
+                    type="button"
+                    className={`app-button ${entry.enabled ? "app-button-secondary" : "app-button-danger"}`}
+                    style={{ fontSize: 12, padding: "2px 10px", minWidth: 72 }}
+                    onClick={(e) => { e.stopPropagation(); onToggleEnabled(entry.tenantId, !entry.enabled); }}
+                  >
+                    {entry.enabled ? "Active" : "Disabled"}
+                  </button>
+                </td>
                 <td className="tenant-name-cell">{entry.tenantName}</td>
                 <td>{entry.adminEmail ?? "-"}</td>
                 <td>

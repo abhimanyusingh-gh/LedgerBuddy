@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   approveInvoices,
   assignTenantUserRole,
@@ -17,6 +17,7 @@ import {
   loginWithCredentials,
   fetchPlatformTenantUsage,
   onboardTenantAdmin,
+  setTenantEnabled,
   fetchSessionContext,
   fetchTenantUsers,
   getInvoiceBlockCropUrl,
@@ -28,6 +29,7 @@ import {
   runIngestion,
   setStoredSessionToken,
   removeTenantUser,
+  setUserEnabled,
   subscribeIngestionSSE,
   updateInvoiceParsedFields,
   uploadInvoiceFiles
@@ -51,6 +53,7 @@ import { ExportHistoryDashboard } from "./components/ExportHistoryDashboard";
 import { getExtractedFieldRows } from "./extractedFields";
 import { getInvoiceSourceHighlights } from "./sourceHighlights";
 import {
+  getAvailableRowActions,
   isInvoiceApprovable,
   isInvoiceExportable,
   isInvoiceRetryable,
@@ -63,6 +66,7 @@ import { formatMinorAmountWithCurrency } from "./currency";
 import {
   buildFieldCropUrlMap,
   buildFieldOverlayUrlMap,
+  STATUS_LABELS,
   STATUSES
 } from "./invoiceView";
 import { useInvoiceDetail } from "./hooks/useInvoiceDetail";
@@ -79,7 +83,7 @@ function selectNewerInvoice(detail: Invoice | null, summary: Invoice | null): In
 export function App() {
   const [authLoading, setAuthLoading] = useState(true);
   const [session, setSession] = useState<{
-    user: { id: string; email: string; role: "TENANT_ADMIN" | "MEMBER"; isPlatformAdmin: boolean };
+    user: { id: string; email: string; role: "PLATFORM_ADMIN" | "TENANT_ADMIN" | "MEMBER"; isPlatformAdmin: boolean };
     tenant: { id: string; name: string; onboarding_status: "pending" | "completed"; mode?: "test" | "live" };
     flags: {
       requires_tenant_setup: boolean;
@@ -88,7 +92,7 @@ export function App() {
       requires_email_confirmation: boolean;
     };
   } | null>(null);
-  const [tenantUsers, setTenantUsers] = useState<Array<{ userId: string; email: string; role: "TENANT_ADMIN" | "MEMBER" }>>(
+  const [tenantUsers, setTenantUsers] = useState<Array<{ userId: string; email: string; role: "TENANT_ADMIN" | "MEMBER"; enabled: boolean }>>(
     []
   );
   const [platformUsage, setPlatformUsage] = useState<PlatformTenantUsageSummary[]>([]);
@@ -108,12 +112,16 @@ export function App() {
   const [popupSourcePreviewExpanded, setPopupSourcePreviewExpanded] = useState(false);
   const [popupRawOcrExpanded, setPopupRawOcrExpanded] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [ingestingIds, setIngestingIds] = useState<Set<string>>(new Set());
+  const [inlineRetryTotal, setInlineRetryTotal] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<(typeof STATUSES)[number]>("ALL");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [popupInvoiceId, setPopupInvoiceId] = useState<string | null>(null);
   const [detailsPanelVisible, setDetailsPanelVisible] = useState(false);
+  const [listPanelPercent, setListPanelPercent] = useState(58);
+  const contentRef = useRef<HTMLElement>(null);
   const [gmailConnection, setGmailConnection] = useState<GmailConnectionStatus | null>(null);
   const [loginEmail, setLoginEmail] = useState<string>("");
   const [loginPassword, setLoginPassword] = useState<string>("");
@@ -274,21 +282,38 @@ export function App() {
       getInvoiceFieldOverlayUrl
     );
   }, [popupInvoice]);
+  const effectiveIngestionStatus = useMemo<IngestionJobStatus | null>(() => {
+    if (inlineRetryTotal > 0 && ingestingIds.size > 0) {
+      const processed = inlineRetryTotal - ingestingIds.size;
+      return {
+        state: "running" as const,
+        running: true,
+        totalFiles: inlineRetryTotal,
+        processedFiles: processed,
+        newInvoices: processed,
+        duplicates: 0,
+        failures: 0,
+        lastUpdatedAt: new Date().toISOString()
+      };
+    }
+    return ingestionStatus;
+  }, [ingestionStatus, inlineRetryTotal, ingestingIds.size]);
+
   const ingestionProgressPercent = useMemo(() => {
-    if (!ingestionStatus || ingestionStatus.totalFiles <= 0) {
+    if (!effectiveIngestionStatus || effectiveIngestionStatus.totalFiles <= 0) {
       return 0;
     }
 
-    return Math.min(100, Math.round((ingestionStatus.processedFiles / ingestionStatus.totalFiles) * 100));
-  }, [ingestionStatus]);
+    return Math.min(100, Math.round((effectiveIngestionStatus.processedFiles / effectiveIngestionStatus.totalFiles) * 100));
+  }, [effectiveIngestionStatus]);
 
   const ingestionSuccessfulFiles = useMemo(() => {
-    if (!ingestionStatus) {
+    if (!effectiveIngestionStatus) {
       return 0;
     }
 
-    return Math.max(0, ingestionStatus.processedFiles - ingestionStatus.failures);
-  }, [ingestionStatus]);
+    return Math.max(0, effectiveIngestionStatus.processedFiles - effectiveIngestionStatus.failures);
+  }, [effectiveIngestionStatus]);
 
   const selectedInvoices = useMemo(() => {
     if (selectedIds.length === 0 || invoices.length === 0) {
@@ -354,6 +379,36 @@ export function App() {
     return "content";
   }, [detailsPanelVisible]);
 
+  const contentStyle = useMemo(() => {
+    if (!detailsPanelVisible) return undefined;
+    return { gridTemplateColumns: `${listPanelPercent}% 6px 1fr` };
+  }, [detailsPanelVisible, listPanelPercent]);
+
+  const handleDividerMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    const container = contentRef.current;
+    if (!container) return;
+    const startX = e.clientX;
+    const startPercent = listPanelPercent;
+    const containerWidth = container.getBoundingClientRect().width;
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+
+    const onMove = (ev: MouseEvent) => {
+      const delta = ev.clientX - startX;
+      const pctDelta = (delta / containerWidth) * 100;
+      setListPanelPercent(Math.min(75, Math.max(25, startPercent + pctDelta)));
+    };
+    const onUp = () => {
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+      document.removeEventListener("mousemove", onMove);
+      document.removeEventListener("mouseup", onUp);
+    };
+    document.addEventListener("mousemove", onMove);
+    document.addEventListener("mouseup", onUp);
+  }, [listPanelPercent]);
+
   const gmailConnectionState = gmailConnection?.connectionState ?? "DISCONNECTED";
   const gmailNeedsReauth = gmailConnectionState === "NEEDS_REAUTH";
   const gmailConnected = gmailConnectionState === "CONNECTED";
@@ -416,6 +471,15 @@ export function App() {
       setPlatformUsage(usage);
     } catch (loadError) {
       setError(getUserFacingErrorMessage(loadError, "Failed to load tenant usage overview."));
+    }
+  }
+
+  async function handleToggleTenantEnabled(tenantId: string, enabled: boolean) {
+    try {
+      await setTenantEnabled(tenantId, enabled);
+      await loadPlatformUsage();
+    } catch (toggleError) {
+      setError(getUserFacingErrorMessage(toggleError, "Failed to update tenant status."));
     }
   }
 
@@ -503,6 +567,24 @@ export function App() {
     const hideTimer = setTimeout(() => setIngestionStatus(null), 3500);
     return () => { clearTimeout(fadeTimer); clearTimeout(hideTimer); };
   }, [ingestionStatus?.state]);
+
+  useEffect(() => {
+    if (ingestingIds.size === 0) {
+      if (inlineRetryTotal > 0) setInlineRetryTotal(0);
+      return;
+    }
+    const stillIngesting = new Set<string>();
+    for (const id of ingestingIds) {
+      const inv = invoices.find((i) => i._id === id);
+      if (inv && inv.status === "PENDING") stillIngesting.add(id);
+    }
+    if (stillIngesting.size < ingestingIds.size) {
+      setIngestingIds(stillIngesting);
+      if (stillIngesting.size > 0 && !ingestionStatus?.running) {
+        void runIngestion().then((s) => setIngestionStatus(s)).catch(() => {});
+      }
+    }
+  }, [invoices]);
 
   async function loadInvoices() {
     if (!session) {
@@ -620,6 +702,46 @@ export function App() {
       await loadInvoices();
     } catch (deleteError) {
       setError(getUserFacingErrorMessage(deleteError, "Deletion failed."));
+    }
+  }
+
+  async function handleApproveSingle(invoiceId: string) {
+    try {
+      setError(null);
+      const response = await approveInvoices([invoiceId], session!.user.email);
+      if (response.modifiedCount === 0) {
+        setError("Invoice was not eligible for approval.");
+        return;
+      }
+      await loadInvoices();
+    } catch (approveError) {
+      setError(getUserFacingErrorMessage(approveError, "Approval failed."));
+    }
+  }
+
+  async function handleRetrySingle(invoiceId: string) {
+    setIngestingIds((prev) => new Set(prev).add(invoiceId));
+    setInlineRetryTotal((prev) => prev + 1);
+    try {
+      setError(null);
+      const response = await retryInvoices([invoiceId]);
+      if (response.modifiedCount === 0) {
+        setError("Invoice was not eligible for retry.");
+        setIngestingIds((prev) => { const next = new Set(prev); next.delete(invoiceId); return next; });
+        return;
+      }
+      if (ingestionStatus?.running) {
+        return;
+      }
+      const status = await runIngestion();
+      setIngestionStatus(status);
+      if (!status.running) {
+        setIngestingIds((prev) => { const next = new Set(prev); next.delete(invoiceId); return next; });
+        await loadInvoices();
+      }
+    } catch (retryError) {
+      setError(getUserFacingErrorMessage(retryError, "Retry failed."));
+      setIngestingIds((prev) => { const next = new Set(prev); next.delete(invoiceId); return next; });
     }
   }
 
@@ -891,6 +1013,16 @@ export function App() {
     }
   }
 
+  async function handleToggleUserEnabled(userId: string, enabled: boolean) {
+    try {
+      setError(null);
+      await setUserEnabled(userId, enabled);
+      await loadTenantUsers();
+    } catch (toggleError) {
+      setError(getUserFacingErrorMessage(toggleError, "Failed to update user status."));
+    }
+  }
+
   async function handleRemoveUser(userId: string) {
     try {
       setError(null);
@@ -1017,27 +1149,46 @@ export function App() {
 
   if (showChangePassword) {
     return (
-      <div className="layout">
-        <main className="content content-list-expanded">
-          <section className="panel list-panel" style={{ maxWidth: 420, margin: "60px auto", padding: 32 }}>
-            <h2>Change Your Password</h2>
-            <p style={{ marginBottom: 16 }}>{(session?.flags as Record<string, unknown>)?.must_change_password ? "You must change your temporary password before continuing." : "Change your password."}</p>
-            {error ? <p className="error">{error}</p> : null}
-            <label style={{ display: "block", marginBottom: 12 }}>
-              <span>Current Password</span>
-              <input type="password" value={changePasswordForm.currentPassword} onChange={(e) => setChangePasswordForm((f) => ({ ...f, currentPassword: e.target.value }))} style={{ width: "100%", marginTop: 4 }} />
-            </label>
-            <label style={{ display: "block", marginBottom: 12 }}>
-              <span>New Password</span>
-              <input type="password" value={changePasswordForm.newPassword} onChange={(e) => setChangePasswordForm((f) => ({ ...f, newPassword: e.target.value }))} style={{ width: "100%", marginTop: 4 }} />
-            </label>
-            <label style={{ display: "block", marginBottom: 16 }}>
-              <span>Confirm New Password</span>
-              <input type="password" value={changePasswordForm.confirmPassword} onChange={(e) => setChangePasswordForm((f) => ({ ...f, confirmPassword: e.target.value }))} style={{ width: "100%", marginTop: 4 }} />
-            </label>
-            <button type="button" className="app-button app-button-primary" onClick={() => { void handleChangePassword(); }}>Change Password</button>
-          </section>
-        </main>
+      <div className="login-page-shell">
+        <section className="login-form-panel">
+          <div className="login-form-container">
+            <header className="login-form-header">
+              <h2>Change Your Password</h2>
+              <p>{(session?.flags as Record<string, unknown>)?.must_change_password ? "You must change your temporary password before continuing." : "Enter your current password and choose a new one."}</p>
+            </header>
+            <form className="login-form" onSubmit={(e) => { e.preventDefault(); void handleChangePassword(); }}>
+              <label className="login-input-group">
+                <span>Current Password</span>
+                <div className="login-input-shell">
+                  <span className="material-symbols-outlined login-input-icon">lock</span>
+                  <input type="password" value={changePasswordForm.currentPassword} onChange={(e) => setChangePasswordForm((f) => ({ ...f, currentPassword: e.target.value }))} placeholder="Current password" required />
+                </div>
+              </label>
+              <label className="login-input-group">
+                <span>New Password</span>
+                <div className="login-input-shell">
+                  <span className="material-symbols-outlined login-input-icon">key</span>
+                  <input type="password" value={changePasswordForm.newPassword} onChange={(e) => setChangePasswordForm((f) => ({ ...f, newPassword: e.target.value }))} placeholder="New password" required />
+                </div>
+              </label>
+              <label className="login-input-group">
+                <span>Confirm New Password</span>
+                <div className="login-input-shell">
+                  <span className="material-symbols-outlined login-input-icon">key</span>
+                  <input type="password" value={changePasswordForm.confirmPassword} onChange={(e) => setChangePasswordForm((f) => ({ ...f, confirmPassword: e.target.value }))} placeholder="Confirm new password" required />
+                </div>
+              </label>
+              {error ? <p className="error">{error}</p> : null}
+              <button type="submit" className="login-submit-button">Change Password</button>
+              {!(session?.flags as Record<string, unknown>)?.must_change_password && (
+                <button type="button" className="login-link-button" onClick={() => {
+                  setShowChangePassword(false); setError(null);
+                  setChangePasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
+                }}>Cancel</button>
+              )}
+            </form>
+          </div>
+        </section>
       </div>
     );
   }
@@ -1134,8 +1285,8 @@ export function App() {
               <div className="editor-header">
                 <h3>Tenant Settings</h3>
               </div>
-              <div className="edit-grid">
-                <label>
+              <div className="invite-row">
+                <label className="invite-label">
                   Invite User Email
                   <input
                     value={inviteEmail}
@@ -1145,7 +1296,7 @@ export function App() {
                 </label>
                 <button
                   type="button"
-                  className="app-button app-button-primary"
+                  className="invite-send-button"
                   onClick={() => void handleInviteUser()}
                   disabled={!inviteEmail.trim()}
                 >
@@ -1157,6 +1308,7 @@ export function App() {
                   <thead>
                     <tr>
                       <th>Email</th>
+                      <th>Status</th>
                       <th>Role</th>
                       <th>Action</th>
                     </tr>
@@ -1165,6 +1317,16 @@ export function App() {
                     {tenantUsers.map((user) => (
                       <tr key={user.userId}>
                         <td>{user.email}</td>
+                        <td>
+                          <button
+                            type="button"
+                            className={`app-button ${user.enabled ? "app-button-secondary" : "app-button-danger"}`}
+                            style={{ fontSize: 12, padding: "2px 10px", minWidth: 72 }}
+                            onClick={() => void handleToggleUserEnabled(user.userId, !user.enabled)}
+                          >
+                            {user.enabled ? "Active" : "Disabled"}
+                          </button>
+                        </td>
                         <td>
                           <select
                             value={user.role}
@@ -1218,6 +1380,7 @@ export function App() {
                     void loadPlatformUsage();
                   }}
                   onSelectTenant={setSelectedPlatformTenantId}
+                  onToggleEnabled={(tenantId, enabled) => { void handleToggleTenantEnabled(tenantId, enabled); }}
                 />
                 <PlatformActivityMonitor
                   selectedTenant={selectedPlatformTenant}
@@ -1247,7 +1410,7 @@ export function App() {
                         className={status === statusFilter ? "tab tab-active" : "tab"}
                         onClick={() => setStatusFilter(status)}
                       >
-                        {status}
+                        {STATUS_LABELS[status] ?? status}
                       </button>
                     ))}
                   </div>
@@ -1310,7 +1473,7 @@ export function App() {
                   </span>
                 </div>
                 <IngestionProgressCard
-                  status={ingestionStatus}
+                  status={effectiveIngestionStatus}
                   progressPercent={ingestionProgressPercent}
                   successfulFiles={ingestionSuccessfulFiles}
                   fading={ingestionFading}
@@ -1324,7 +1487,7 @@ export function App() {
       {error ? <p className="error">{error}</p> : null}
 
       {!isPlatformAdmin && activeTab === "dashboard" ? (
-        <main className={contentClassName}>
+        <main ref={contentRef} className={contentClassName} style={contentStyle}>
           <>
             <section className="panel list-panel">
               <div className="panel-title">
@@ -1359,7 +1522,7 @@ export function App() {
                       const canEditCell = invoice.status !== "EXPORTED";
 
                       return (
-                        <tr key={invoice._id} className={rowClasses || undefined} onClick={() => { setActiveId(invoice._id); }}>
+                        <tr key={invoice._id} className={rowClasses || undefined} onClick={() => { setActiveId(invoice._id); setDetailsPanelVisible(true); }}>
                           <td>
                             <input
                               type="checkbox"
@@ -1401,7 +1564,16 @@ export function App() {
                               <span className="extracted-value-display" {...(canEditCell ? { "data-editable": true, onClick: () => { setEditingListCell({ invoiceId: invoice._id, field: "invoiceNumber" }); setEditListValue(invoice.parsed?.invoiceNumber ?? ""); } } : {})}>{invoice.parsed?.invoiceNumber ?? "-"}</span>
                             )}
                           </td>
-                          <td>{invoice.parsed?.invoiceDate ?? "-"}</td>
+                          <td className="extracted-value-cell" onClick={(e) => e.stopPropagation()}>
+                            {editingListCell?.invoiceId === invoice._id && editingListCell.field === "invoiceDate" ? (
+                              <>
+                                <input className="extracted-value-input" type="date" value={editListValue} onChange={(e) => setEditListValue(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") void handleSaveListCell(); if (e.key === "Escape") setEditingListCell(null); }} autoFocus />
+                                <button type="button" className="field-save-button" onClick={() => void handleSaveListCell()}>&#10003;</button>
+                              </>
+                            ) : (
+                              <span className="extracted-value-display" {...(canEditCell ? { "data-editable": true, onClick: () => { setEditingListCell({ invoiceId: invoice._id, field: "invoiceDate" }); setEditListValue(invoice.parsed?.invoiceDate ?? ""); } } : {})}>{invoice.parsed?.invoiceDate ?? "-"}</span>
+                            )}
+                          </td>
                           <td
                             className={
                               [invoice.riskFlags.includes("TOTAL_AMOUNT_ABOVE_EXPECTED") ? "value-risk" : null, "extracted-value-cell"].filter(Boolean).join(" ")
@@ -1421,18 +1593,47 @@ export function App() {
                             <ConfidenceBadge score={invoice.confidenceScore ?? 0} />
                           </td>
                           <td>
-                            <span className={`status status-${invoice.status.toLowerCase()}`} title={invoice.approval?.approvedBy ? `Approved by ${invoice.approval.approvedBy}` : undefined}>{invoice.status}</span>
+                            {ingestingIds.has(invoice._id) ? (
+                              <span className="status status-reprocessing">Reprocessing</span>
+                            ) : ingestionStatus?.running && invoice.status === "PENDING" ? (
+                              <span className="status status-reprocessing">Processing</span>
+                            ) : (
+                              <span className={`status status-${invoice.status.toLowerCase()}`} title={invoice.approval?.approvedBy ? `Approved by ${invoice.approval.approvedBy}` : undefined}>{STATUS_LABELS[invoice.status] ?? invoice.status}</span>
+                            )}
                             {invoice.possibleDuplicate ? (
                               <span className="material-symbols-outlined duplicate-warning" title="Possible duplicate — another invoice has identical file contents">warning</span>
                             ) : null}
                           </td>
                           <td>{new Date(invoice.receivedAt).toLocaleString()}</td>
                           <td onClick={(e) => e.stopPropagation()}>
-                            {invoice.status !== "EXPORTED" ? (
-                              <button type="button" className="row-action-button" title="Delete" onClick={() => handleDeleteSingle(invoice._id, invoice.attachmentName)}>
-                                <span className="material-symbols-outlined">delete</span>
-                              </button>
-                            ) : null}
+                            {(() => {
+                              const actions = getAvailableRowActions(invoice);
+                              const ingesting = ingestingIds.has(invoice._id) || (ingestionStatus?.running === true && invoice.status === "PENDING");
+                              return (
+                                <>
+                                  {actions.includes("approve") && !ingesting && (
+                                    <button type="button" className="row-action-button row-action-approve" title="Approve" onClick={() => void handleApproveSingle(invoice._id)}>
+                                      <span className="material-symbols-outlined">check_circle</span>
+                                    </button>
+                                  )}
+                                  {actions.includes("ingest") && (
+                                    <button type="button" className="row-action-button row-action-retry" title="Ingest" disabled={ingesting} onClick={() => void handleRetrySingle(invoice._id)}>
+                                      <span className={`material-symbols-outlined${ingesting ? " spin" : ""}`}>{ingesting ? "progress_activity" : "play_arrow"}</span>
+                                    </button>
+                                  )}
+                                  {actions.includes("reingest") && (
+                                    <button type="button" className="row-action-button row-action-retry" title="Reingest" disabled={ingesting} onClick={() => void handleRetrySingle(invoice._id)}>
+                                      <span className={`material-symbols-outlined${ingesting ? " spin" : ""}`}>{ingesting ? "progress_activity" : "replay"}</span>
+                                    </button>
+                                  )}
+                                  {actions.includes("delete") && !ingesting && (
+                                    <button type="button" className="row-action-button" title="Delete" onClick={() => handleDeleteSingle(invoice._id, invoice.attachmentName)}>
+                                      <span className="material-symbols-outlined">delete</span>
+                                    </button>
+                                  )}
+                                </>
+                              );
+                            })()}
                           </td>
                         </tr>
                       );
@@ -1443,7 +1644,9 @@ export function App() {
             </section>
 
             {detailsPanelVisible ? (
-          <section className="panel detail-panel">
+          <>
+            <div className="panel-divider" onMouseDown={handleDividerMouseDown} />
+            <section className="panel detail-panel">
             <div className="panel-title">
               <h2>Invoice Details</h2>
               <button
@@ -1469,6 +1672,7 @@ export function App() {
               <p className="muted">Select an invoice to inspect details.</p>
             )}
           </section>
+          </>
             ) : null}
           </>
         </main>

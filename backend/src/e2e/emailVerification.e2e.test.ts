@@ -5,7 +5,7 @@ import { pollForEmail } from "./mailhogHelper.js";
 
 const apiBaseUrl = process.env.E2E_API_BASE_URL ?? "http://127.0.0.1:4100";
 const mailhogApiBaseUrl = process.env.E2E_MAILHOG_API_BASE_URL ?? "http://127.0.0.1:8125";
-const mongoUri = process.env.E2E_MONGO_URI ?? "mongodb://127.0.0.1:27018/billforge";
+const mongoUri = process.env.E2E_MONGO_URI ?? "mongodb://billforge_app:billforge_local_pass@127.0.0.1:27018/billforge?authSource=billforge";
 
 const api = axios.create({
   baseURL: apiBaseUrl,

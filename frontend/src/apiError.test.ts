@@ -55,6 +55,42 @@ describe("normalizeApiError", () => {
     expect(error.code).toBe("auth_user_not_provisioned");
   });
 
+  it("maps tenant_disabled code to disabled account message", () => {
+    const error = normalizeApiError({
+      isAxiosError: true,
+      config: { url: "/api/invoices" },
+      response: {
+        status: 403,
+        data: {
+          message: "This account has been disabled. Contact your administrator.",
+          code: "tenant_disabled"
+        }
+      }
+    });
+
+    expect(error.message).toBe("This account has been disabled. Contact your administrator.");
+    expect(error.status).toBe(403);
+    expect(error.code).toBe("tenant_disabled");
+  });
+
+  it("maps user_disabled code to disabled user message", () => {
+    const error = normalizeApiError({
+      isAxiosError: true,
+      config: { url: "/api/invoices" },
+      response: {
+        status: 403,
+        data: {
+          message: "Your account has been disabled. Contact your tenant administrator.",
+          code: "user_disabled"
+        }
+      }
+    });
+
+    expect(error.message).toBe("Your account has been disabled. Contact your tenant administrator.");
+    expect(error.status).toBe(403);
+    expect(error.code).toBe("user_disabled");
+  });
+
   it("maps network failures to connectivity message", () => {
     const error = normalizeApiError({
       isAxiosError: true,

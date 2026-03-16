@@ -37,8 +37,8 @@ export function TenantAdminTopNav({ userEmail, onLogout, onChangePassword, count
           {avatarLabel}
         </div>
         <button type="button" className="app-button app-button-secondary" onClick={onChangePassword}
-          aria-label="Settings" title="Change Password">
-          <span className="material-symbols-outlined">settings</span>
+          aria-label="Change Password" title="Change Password">
+          <span className="material-symbols-outlined">key</span>
         </button>
         <button type="button" className="app-button app-button-secondary" onClick={onLogout}>
           Logout

@@ -33,7 +33,7 @@ services:
       ENV: ${ENV:-local}
       NODE_ENV: development
       PORT: "4000"
-      MONGO_URI: mongodb://mongo:27017/billforge
+      MONGO_URI: mongodb://billforge_app:billforge_local_pass@mongo:27017/billforge?authSource=billforge
       APP_MANIFEST_PATH: ${APP_MANIFEST_PATH:-}
       FRONTEND_BASE_URL: ${FRONTEND_BASE_URL:-http://localhost:5177}
       STS_CLIENT_ID: ${STS_CLIENT_ID:-billforge-local-client}
@@ -194,8 +194,11 @@ services:
       - "27018:27017"
     environment:
       MONGO_INITDB_DATABASE: billforge
+      MONGO_INITDB_ROOT_USERNAME: billforge_root
+      MONGO_INITDB_ROOT_PASSWORD: billforge_root_pass
     volumes:
       - mongo_data:/data/db
+      - ./mongo/mongo-init.js:/docker-entrypoint-initdb.d/01-create-app-user.js:ro
     deploy:
       resources:
         limits:
@@ -210,8 +213,10 @@ services:
     ports:
       - "8181:8081"
     environment:
-      ME_CONFIG_MONGODB_URL: mongodb://mongo:27017/
-      ME_CONFIG_BASICAUTH: "false"
+      ME_CONFIG_MONGODB_URL: mongodb://billforge_root:billforge_root_pass@mongo:27017/?authSource=admin
+      ME_CONFIG_BASICAUTH: "true"
+      ME_CONFIG_BASICAUTH_USERNAME: admin
+      ME_CONFIG_BASICAUTH_PASSWORD: billforge
     deploy:
       resources:
         limits:

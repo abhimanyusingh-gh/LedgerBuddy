@@ -48,7 +48,9 @@ Build a minimal, modular application that ingests invoices, extracts structured 
 - Flag anomalous values (for example high total amount) and include in confidence scoring.
 
 4. Review UI
-- List parsed, failed, approved, and exported invoices.
+- List pending, parsed, failed, approved, and exported invoices with humanized status filter tabs.
+- Inline row actions per invoice: approve, ingest (pending), reingest (non-exported), delete. Actions are disabled during active reingest with a visual "REINGESTING" badge and spinner.
+- Reingest triggers the full ingestion pipeline (not just status reset) with SSE-driven progress tracking.
 - Load and display all invoice pages from the backend (no hidden first-page cap).
 - Allow collapsing the right-side Invoice Details section so the Invoice list can expand.
 - Show extracted values and Tally mapping in table format with clear labels.

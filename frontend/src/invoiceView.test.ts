@@ -1,7 +1,9 @@
 import {
   buildFieldCropUrlMap,
   buildFieldOverlayUrlMap,
-  normalizeInput
+  normalizeInput,
+  STATUS_LABELS,
+  STATUSES
 } from "./invoiceView";
 import type { SourceHighlight } from "./sourceHighlights";
 
@@ -68,5 +70,11 @@ describe("invoiceView", () => {
     const map = buildFieldOverlayUrlMap("invoice-2", highlights, (invoiceId, fieldKey) => `${invoiceId}:${fieldKey}`);
     expect(map.currency).toBe("invoice-2:currency");
     expect(map.dueDate).toBeUndefined();
+  });
+
+  it("every STATUSES entry has a STATUS_LABELS key", () => {
+    for (const status of STATUSES) {
+      expect(STATUS_LABELS).toHaveProperty(status);
+    }
   });
 });

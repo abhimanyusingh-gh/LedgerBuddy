@@ -12,7 +12,8 @@ const tenantSchema = new Schema(
     onboardingStatus: { type: String, enum: TenantOnboardingStatuses, required: true, default: "pending" },
     country: { type: String, enum: TenantCountries, required: true, default: "IN" },
     defaultCurrency: { type: String, required: true, default: "INR" },
-    mode: { type: String, enum: TenantModes, required: true, default: "test" }
+    mode: { type: String, enum: TenantModes, required: true, default: "test" },
+    enabled: { type: Boolean, required: true, default: true }
   },
   {
     timestamps: true

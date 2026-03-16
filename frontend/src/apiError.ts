@@ -84,6 +84,14 @@ function mapUserMessage(input: {
     return "Unable to reach the server. Check your connection and try again.";
   }
 
+  if (input.code === "tenant_disabled") {
+    return "This account has been disabled. Contact your administrator.";
+  }
+
+  if (input.code === "user_disabled") {
+    return "Your account has been disabled. Contact your tenant administrator.";
+  }
+
   if (input.code === "auth_user_not_provisioned") {
     return "Your account has not been set up yet. Contact your administrator.";
   }

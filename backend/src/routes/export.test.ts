@@ -278,10 +278,10 @@ describe("export routes", () => {
       const handler = findHandler(router, "post", "/exports/tally");
       const res = mockResponse();
 
-      await handler(mockRequest({ authContext: defaultAuth, body: { requestedBy: "ui" } }), res, jest.fn());
+      await handler(mockRequest({ authContext: defaultAuth, body: {} }), res, jest.fn());
 
       expect(mockService.exportApprovedInvoices).toHaveBeenCalledWith(
-        expect.objectContaining({ tenantId: "tenant-a", requestedBy: "ui" })
+        expect.objectContaining({ tenantId: "tenant-a", requestedBy: "admin@test.com" })
       );
     });
 
@@ -342,11 +342,11 @@ describe("export routes", () => {
       const handler = findHandler(router, "post", "/exports/tally/download");
       const res = mockResponse();
 
-      await handler(mockRequest({ authContext: defaultAuth, body: { ids: ["a", "b"], requestedBy: "ui" } }), res, jest.fn());
+      await handler(mockRequest({ authContext: defaultAuth, body: { ids: ["a", "b"] } }), res, jest.fn());
 
       expect(mockService.generateExportFile).toHaveBeenCalledWith({
         ids: ["a", "b"],
-        requestedBy: "ui",
+        requestedBy: "admin@test.com",
         tenantId: "tenant-a"
       });
     });

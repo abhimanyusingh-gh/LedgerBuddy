@@ -1,7 +1,7 @@
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import { AuthLoginStateModel } from "../models/AuthLoginState.js";
 import { TenantModel } from "../models/Tenant.js";
-import { TenantUserRoleModel } from "../models/TenantUserRole.js";
+import { TenantUserRoleModel, type TenantRole } from "../models/TenantUserRole.js";
 import { UserModel } from "../models/User.js";
 import { env } from "../config/env.js";
 import type { StsBoundary } from "../sts/StsBoundary.js";
@@ -139,10 +139,18 @@ export class AuthService {
     if (String(user.tenantId) !== verified.tenantId) {
       throw new HttpError("Session tenant mismatch.", 401, "auth_tenant_mismatch");
     }
-
     const tenant = await TenantModel.findById(verified.tenantId).lean();
     if (!tenant) {
       throw new HttpError("Tenant not found.", 401, "auth_tenant_missing");
+    }
+
+    if (!verified.isPlatformAdmin) {
+      if (user.enabled === false) {
+        throw new HttpError("Your account has been disabled. Contact your tenant administrator.", 403, "user_disabled");
+      }
+      if (tenant.enabled === false) {
+        throw new HttpError("This account has been disabled. Contact your administrator.", 403, "tenant_disabled");
+      }
     }
 
     return {
@@ -214,6 +222,11 @@ export class AuthService {
       return buildContext(createdUser, tenant, "TENANT_ADMIN");
     }
 
+    const isAdmin = isPlatformAdminEmail(existingUser.email);
+    if (!isAdmin && existingUser.enabled === false) {
+      throw new HttpError("Your account has been disabled. Contact your tenant administrator.", 403, "user_disabled");
+    }
+
     existingUser.externalSubject = input.subject;
     existingUser.email = input.email;
     existingUser.displayName = input.name;
@@ -226,6 +239,9 @@ export class AuthService {
       TenantUserRoleModel.findOne({ tenantId: existingUser.tenantId, userId: String(existingUser._id) }).lean()
     ]);
     if (!tenant) throw new Error("User tenant does not exist.");
+    if (!isAdmin && tenant.enabled === false) {
+      throw new HttpError("This account has been disabled. Contact your administrator.", 403, "tenant_disabled");
+    }
     if (!roleRecord) throw new Error("User role does not exist.");
 
     return buildContext(existingUser, tenant, roleRecord.role);
@@ -246,11 +262,18 @@ export class AuthService {
   private async resolvePrincipalByEmail(email: string): Promise<AuthenticatedRequestContext> {
     const user = await UserModel.findOne({ email }).lean();
     if (!user) throw new HttpError("User is not provisioned for this environment.", 403, "auth_user_not_provisioned");
+    const isAdmin = isPlatformAdminEmail(user.email);
+    if (!isAdmin && user.enabled === false) {
+      throw new HttpError("Your account has been disabled. Contact your tenant administrator.", 403, "user_disabled");
+    }
     const [tenant, roleRecord] = await Promise.all([
       TenantModel.findById(user.tenantId).lean(),
       TenantUserRoleModel.findOne({ tenantId: user.tenantId, userId: String(user._id) }).lean()
     ]);
     if (!tenant) throw new HttpError("Tenant not found.", 401, "auth_tenant_missing");
+    if (!isAdmin && tenant.enabled === false) {
+      throw new HttpError("This account has been disabled. Contact your administrator.", 403, "tenant_disabled");
+    }
     if (!roleRecord) throw new HttpError("User has no assigned tenant role.", 401, "auth_role_missing");
     return buildContext(user, tenant, roleRecord.role);
   }
@@ -259,7 +282,7 @@ export class AuthService {
 function buildContext(
   user: { _id: unknown; email: string; tenantId: string },
   tenant: { _id?: unknown; name: string; onboardingStatus: "pending" | "completed" },
-  role: "TENANT_ADMIN" | "MEMBER"
+  role: TenantRole
 ): AuthenticatedRequestContext {
   const tenantId = user.tenantId || String(tenant._id);
   return {

@@ -53,7 +53,7 @@
       "password": "DemoPass!1",
       "displayName": "Platform Admin",
       "tenantId": "65f0000000000000000000a1",
-      "role": "MEMBER"
+      "role": "PLATFORM_ADMIN"
     },
     {
       "email": "mahir.n@globalhealthx.co",

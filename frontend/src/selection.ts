@@ -21,6 +21,17 @@ export function mergeSelectedIds(currentSelectedIds: string[], invoices: Invoice
   return currentSelectedIds.filter((selectedId) => !blockedIds.has(selectedId));
 }
 
+export type RowAction = "approve" | "ingest" | "reingest" | "delete";
+
+export function getAvailableRowActions(invoice: Invoice): RowAction[] {
+  const actions: RowAction[] = [];
+  if (isInvoiceApprovable(invoice)) actions.push("approve");
+  if (invoice.status === "PENDING") actions.push("ingest");
+  else if (isInvoiceRetryable(invoice)) actions.push("reingest");
+  if (invoice.status !== "EXPORTED") actions.push("delete");
+  return actions;
+}
+
 export function removeSelectedIds(currentSelectedIds: string[], idsToRemove: string[]): string[] {
   if (idsToRemove.length === 0) {
     return currentSelectedIds;

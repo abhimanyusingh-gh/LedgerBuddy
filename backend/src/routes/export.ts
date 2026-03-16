@@ -16,11 +16,10 @@ export function createExportRouter(exportService: ExportService | null) {
       }
 
       const ids = Array.isArray(req.body?.ids) ? req.body.ids.filter(isString) : undefined;
-      const requestedBy = typeof req.body?.requestedBy === "string" ? req.body.requestedBy : "system";
 
       const result = await exportService.exportApprovedInvoices({
         ids,
-        requestedBy,
+        requestedBy: req.authContext!.email,
         tenantId: req.authContext!.tenantId
       });
       res.json(result);
@@ -43,11 +42,10 @@ export function createExportRouter(exportService: ExportService | null) {
       }
 
       const ids = Array.isArray(req.body?.ids) ? req.body.ids.filter(isString) : undefined;
-      const requestedBy = typeof req.body?.requestedBy === "string" ? req.body.requestedBy : "system";
 
       const result = await exportService.generateExportFile({
         ids,
-        requestedBy,
+        requestedBy: req.authContext!.email,
         tenantId: req.authContext!.tenantId
       });
 

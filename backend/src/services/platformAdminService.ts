@@ -11,6 +11,7 @@ import { env } from "../config/env.js";
 interface TenantUsageOverview {
   tenantId: string;
   tenantName: string;
+  enabled: boolean;
   onboardingStatus: "pending" | "completed";
   userCount: number;
   totalDocuments: number;
@@ -108,6 +109,14 @@ export class PlatformAdminService {
     };
   }
 
+  async setTenantEnabled(tenantId: string, enabled: boolean): Promise<void> {
+    const tenant = await TenantModel.findById(tenantId);
+    if (!tenant) {
+      throw new HttpError("Tenant not found.", 404, "platform_tenant_not_found");
+    }
+    await TenantModel.updateOne({ _id: tenantId }, { $set: { enabled } });
+  }
+
   async listTenantUsageOverview(): Promise<TenantUsageOverview[]> {
     const [tenants, invoiceStats, userStats, integrations, adminInfoList] = await Promise.all([
       TenantModel.find().sort({ createdAt: 1 }).lean(),
@@ -192,6 +201,7 @@ export class PlatformAdminService {
       return {
         tenantId,
         tenantName: tenant.name,
+        enabled: tenant.enabled !== false,
         onboardingStatus: tenant.onboardingStatus,
         userCount: userMap.get(tenantId) ?? 0,
         totalDocuments: invoice?.totalDocuments ?? 0,

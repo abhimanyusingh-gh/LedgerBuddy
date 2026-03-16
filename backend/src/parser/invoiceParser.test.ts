@@ -79,13 +79,6 @@ describe("parseInvoiceText", () => {
     expect(result.parsed.invoiceNumber).toBe("BLR_WFLD20151000982590");
   });
 
-  it("maps Rs-prefixed amounts to INR currency", () => {
-    const text = ["Invoice Number: INV-100", "Grand Total: Rs 1939"].join("\n");
-    const result = parseInvoiceText(text);
-
-    expect(result.parsed.currency).toBe("INR");
-  });
-
   it("stores JPY totals directly as minor units with zero decimals", () => {
     const text = ["Invoice Number: INV-JP-1", "Currency: JPY", "Grand Total: 5000"].join("\n");
     const result = parseInvoiceText(text);
@@ -309,28 +302,6 @@ describe("parseInvoiceText", () => {
     expect(inr.parsed.currency).toBe("INR");
   });
 
-  it("scores vendor candidates across header/middle/late lines and ignores noisy lines", () => {
-    const text = [
-      "Invoice Document",
-      "AB",
-      "A,B,C,D,E",
-      "Warehouse Address Main Road",
-      "Shop 12 LLC",
-      "MEGA, TRADERS LTD",
-      "ACME LOGISTICS 123456",
-      `${"VERYLONGNAME".repeat(8)} LLC`,
-      "Mid Level Vendor Pvt Ltd",
-      "LATE ENTRY SUPPLIES LTD",
-      "Invoice Number: INV-452",
-      "Grand Total: 99.00"
-    ].join("\n");
-
-    const result = parseInvoiceText(text);
-    expect(result.parsed.vendorName).toBeDefined();
-    expect(typeof result.parsed.vendorName).toBe("string");
-    expect(result.parsed.vendorName!.length).toBeGreaterThan(2);
-  });
-
   it("falls back from short explicit vendor labels to a stronger vendor candidate", () => {
     const text = [
       "Vendor: AB",
@@ -405,32 +376,178 @@ describe("parseInvoiceText", () => {
     expect(result.parsed.invoiceDate).toBe("2025-10-11");
   });
 
-  it("evaluates vendor scores across all index bands and scoring penalties", () => {
+  it("penalises CASH BILL header in vendor scoring", () => {
+    const text = ["CASH BILL", "SLNS ENTERPRISES", "Date: 28/01/26", "TOTAL", "210"].join("\n");
+    const result = parseInvoiceText(text);
+    expect(result.parsed.vendorName).toBe("SLNS ENTERPRISES");
+  });
+
+  it("extracts invoice number from bare No. label on separate line", () => {
+    const text = ["ACME SUPPLIES", "No.", "317", "Date: 04/02/26", "TOTAL", "3000"].join("\n");
+    const result = parseInvoiceText(text);
+    expect(result.parsed.invoiceNumber).toBe("317");
+  });
+
+  it("recognises Dt. as date label abbreviation", () => {
+    const text = ["ACME LTD", "Invoice Number: INV-600", "Dt. 15/01/2026", "Grand Total: 100.00"].join("\n");
+    const result = parseInvoiceText(text);
+    expect(result.parsed.invoiceDate).toBe("2026-01-15");
+  });
+
+  it("recognises Bill Dt as date label", () => {
+    const text = ["DMART", "Bill No : 502001004-001126", "Bill Dt : 17/01/2026", "Grand Total: 355.00"].join("\n");
+    const result = parseInvoiceText(text);
+    expect(result.parsed.invoiceDate).toBe("2026-01-17");
+  });
+
+  it("recognises OCR-garbled Do• as date label", () => {
+    const text = ["ACME LTD", "Do• 14/02/26", "Grand Total: 100.00"].join("\n");
+    const result = parseInvoiceText(text);
+    expect(result.parsed.invoiceDate).toBe("2026-02-14");
+  });
+
+  it("extracts invoice number from Receipt No. label", () => {
+    const text = ["VENNELA FILLING STATION", "Receipt No.: A2304", "Date: 06/01/26", "Amount(Rs): 00300.00"].join("\n");
+    const result = parseInvoiceText(text);
+    expect(result.parsed.invoiceNumber).toBe("A2304");
+  });
+
+  it("extracts invoice number from Challan No label", () => {
+    const text = ["SHRI VISHWARUPA ENTERPRISE", "Challan No : 2950", "DATE:07-01-2026", "TOTAL", "1172.00"].join("\n");
+    const result = parseInvoiceText(text);
+    expect(result.parsed.invoiceNumber).toBe("2950");
+  });
+
+  it("extracts all fields from handwritten Indian cash bill (invoice 24)", () => {
     const text = [
-      "ALPHA TRADING LLC",
-      "LTD",
-      "CHARGES LTD",
-      "INVOICE COMPANY LTD",
-      "BETA PARTNERS LLC",
-      "GAMMA GROUP LLC",
-      "DELTA SERVICES LLC",
-      "EPSILON SUPPLY LLC",
-      "ZETA INDUSTRIES 1234 LLC",
-      "ETA INDUSTRIES 123456 LLC",
-      "THETA, INDUSTRIES LLC",
-      `${"ALPHA".repeat(14)} LTD`,
-      `${"LONGNAME".repeat(12)} LLC`,
-      "IOTA WHOLESALE LTD",
-      "KAPPA RETAIL LTD",
-      "Invoice Number: INV-458",
-      "Grand Total: 10.00"
+      "Mob : 99638 07896", "86861 00661", "CASH BILL", "Mob",
+      ": 95502 95186", "62811 78854", "GLASS AND ALUMINIUM",
+      "FABRICATION WORKS, DOORS, WINDOWS, PARTITION, GLAZING,",
+      "GLASS ETCHING, COLOURING, DESIGNING, GLASS POLISH ETC.",
+      "Banjara Hills Road, Tolichowki, Hakeempet, Hyderabad.",
+      "No.", "317", "Do• 14/02/26", "M/S.:", "Abhee sta Business",
+      "Solution put", "SI.", "No.", "PARTICULARS", "QTY.", "RATE", "AMOUNT",
+      "Waiting Bood Gland.", "3,000", "Colous white Di com", "Stas filling",
+      "Size 42x30=1", "Bes SFT 290", "Includiy troing and", "Harowave",
+      "TOTAL", "3000", "Signature"
     ].join("\n");
 
     const result = parseInvoiceText(text);
-    expect(result.parsed.vendorName).toBeDefined();
-    expect(typeof result.parsed.vendorName).toBe("string");
-    expect(result.parsed.vendorName!.length).toBeGreaterThan(2);
+    expect(result.parsed.vendorName).toMatch(/GLASS AND ALUMINIUM/i);
+    expect(result.parsed.invoiceNumber).toBe("317");
+    expect(result.parsed.invoiceDate).toBe("2026-02-14");
+    expect(result.parsed.totalAmountMinor).toBe(300000);
   });
+
+  it("extracts vendor and total from simple cash bill with Date: label", () => {
+    const text = [
+      "ESTIMATION", "Cell : 97059 57879",
+      "SRI BALAJI TRADERS",
+      "ALL TYPES OF DISPOSABLE ITMES AVAILABLE HERE",
+      "Shop No. #2-28, Metro Piller No C-1716, Guttala Begumpet,",
+      "Madhapur, Hi-tech City Road, Hyderabed - 500081",
+      "M/S", "Date: 15/10/25",
+      "S.No.", "PARTICULARS", "QTY.", "AMOUNT", "Rs.", "Ps.",
+      "1", "Tissue Paper", "850",
+      "TOTAL", "850"
+    ].join("\n");
+    const result = parseInvoiceText(text);
+    expect(result.parsed.vendorName).toMatch(/SRI BALAJI TRADERS/i);
+    expect(result.parsed.invoiceDate).toBe("2025-10-15");
+    expect(result.parsed.totalAmountMinor).toBe(85000);
+  });
+
+  it("extracts fields from formal tax invoice", () => {
+    const text = [
+      "KARANAM", "TAX INVOICE",
+      "Billing Address", "Invoice No : KFS/25-26/1935",
+      "M/s. ABHEESTA BUSINESS SOLUTIONS PVT LTD", "Invoice Date : 31/12/2025",
+      "8thFloor, Sanali Spazio, Plot19,", "Invoice Month : DEC 2025",
+      "Grand Total", "19882.00",
+      "KARANAM FACILITY SERVICES PVT LTD"
+    ].join("\n");
+    const result = parseInvoiceText(text);
+    expect(result.parsed.invoiceNumber).toBe("KFS/25-26/1935");
+    expect(result.parsed.invoiceDate).toBe("2025-12-31");
+    expect(result.parsed.totalAmountMinor).toBe(1988200);
+  });
+
+  it("extracts fields from fuel station receipt", () => {
+    const text = [
+      "Bharat Petroleum", "Welcomes You",
+      "VENNELA FILLING STATION", "MADHAPUR,HYD 500081",
+      "Receipt No.: A2304", "Local ID : 00339845",
+      "Amount(Rs) : 00300.00",
+      "Date : 06/01/26 Time: 16:02"
+    ].join("\n");
+    const result = parseInvoiceText(text);
+    expect(result.parsed.vendorName).toMatch(/VENNELA FILLING STATION/i);
+    expect(result.parsed.invoiceNumber).toBe("A2304");
+    expect(result.parsed.totalAmountMinor).toBe(30000);
+  });
+
+  it("extracts fields from DMart-style bill with Bill Dt label", () => {
+    const text = [
+      "AVENUE SUPERMARTS LTD", "DMART KAVURI HILLS",
+      "PLOT NO:43/P,45,46848", "KAVURI HILLS ROAD MADHAPUR",
+      "TAX INVOICE",
+      "Bill No : 502001004-001126", "Bill Dt : 17/01/2026",
+      "Items: 1", "Qty: 1", "355.00",
+      "Grand Total", "355.00"
+    ].join("\n");
+    const result = parseInvoiceText(text);
+    expect(result.parsed.invoiceNumber).toBe("502001004-001126");
+    expect(result.parsed.invoiceDate).toBe("2026-01-17");
+    expect(result.parsed.totalAmountMinor).toBe(35500);
+  });
+
+  it("extracts fields from delivery challan", () => {
+    const text = [
+      "Delivery Challan", "SHRI VISHWARUPA ENTERPRISE",
+      "1-89/10", "PLOT NO 14 RBI COLONY",
+      "KAVURI HILLS PHASE 2", "MADHAPUR",
+      "Challan No : 2950", "DATE:17-01-2026",
+      "Sr itemname Qty BasicPrice",
+      "1 250 Ml Tata Water 2.00 130.00 260.00",
+      "Grand Total", "1,172.00"
+    ].join("\n");
+    const result = parseInvoiceText(text);
+    expect(result.parsed.invoiceNumber).toBe("2950");
+    expect(result.parsed.invoiceDate).toBe("2026-01-17");
+    expect(result.parsed.totalAmountMinor).toBe(117200);
+  });
+
+  it("extracts fields from computer services invoice", () => {
+    const text = [
+      "Date:30.01.2026", "INVOICE #",
+      "SKS Computers",
+      "Plot No 16, KS Residency, DD Nagar,",
+      "invoice",
+      "S.No DESCRIPTION Qty Price",
+      "1 Laptop Format 3 600.00 1800.00",
+      "Grand Total 1800.00"
+    ].join("\n");
+    const result = parseInvoiceText(text);
+    expect(result.parsed.vendorName).toMatch(/SKS Computers/i);
+    expect(result.parsed.invoiceDate).toBe("2026-01-30");
+    expect(result.parsed.totalAmountMinor).toBe(180000);
+  });
+
+  it("extracts vendor from CASH BILL invoice when bill is in header", () => {
+    const text = [
+      "CASH BILL", "Cell: +91 9702416341",
+      "SLNS ENTERPRISES",
+      "Near Metro Pillar No. 1732, Beside Kotak Mahindra Bank,",
+      "Madhapur, Hyderabad-500 081.",
+      "No.", "Date: 28/01/26",
+      "S.No.", "PARTICULARS", "QTY.", "AMOUNT",
+      "TOTAL", "210"
+    ].join("\n");
+    const result = parseInvoiceText(text);
+    expect(result.parsed.vendorName).toMatch(/SLNS ENTERPRISES/i);
+    expect(result.parsed.totalAmountMinor).toBe(21000);
+  });
+
 });
 
 describe("extractTotalAmount additional branch paths", () => {
@@ -526,5 +643,151 @@ describe("extractTotalAmount additional branch paths", () => {
   it("drops non-finite parsed amounts", () => {
     const huge = "9".repeat(400);
     expect(extractTotalAmount(`Grand Total: ${huge}`)).toBeUndefined();
+  });
+});
+
+describe("sample invoice regression", () => {
+  it("invoice 3: LAKSHMIKALA TRADERS estimation with hardware items", () => {
+    const text = [
+      "ESTIMATION", "Cell : 86391 09576",
+      "LAKSHMIKALA TRADERS",
+      "ALL TYPES OF HARDWARE ITEMS",
+      "Shop No. 3-14, Tolichowki, Hyderabad - 500008",
+      "M/S", "Date: 18/01/26",
+      "S.No.", "PARTICULARS", "QTY.", "AMOUNT", "Rs.", "Ps.",
+      "1", "Plumbing materials", "29000",
+      "TOTAL", "29000"
+    ].join("\n");
+    const result = parseInvoiceText(text);
+    expect(result.parsed.vendorName).toMatch(/LAKSHMIKALA TRADERS/i);
+    expect(result.parsed.totalAmountMinor).toBe(2900000);
+  });
+
+  it("invoice 4: A. SIVARAM PRASAD with No: 097", () => {
+    const text = [
+      "A. SIVARAM PRASAD",
+      "Civil Contractor",
+      "No: 097", "Dt. 15/02/26",
+      "Particulars",
+      "Civil works at 8th floor",
+      "TOTAL", "190000"
+    ].join("\n");
+    const result = parseInvoiceText(text);
+    expect(result.parsed.vendorName).toMatch(/SIVARAM PRASAD/i);
+    expect(result.parsed.invoiceNumber).toBe("097");
+    expect(result.parsed.totalAmountMinor).toBe(19000000);
+  });
+
+  it("invoice 5: SLNS Rubber Stamps cash bill dated 19/11/2025", () => {
+    const text = [
+      "CASH BILL", "Cell: +91 9702416341",
+      "SLNS Rubber Stamps",
+      "Near Metro Pillar No. 1732, Beside Kotak Mahindra Bank,",
+      "Madhapur, Hyderabad-500 081.",
+      "Date: 19/11/2025",
+      "S.No.", "PARTICULARS", "QTY.",
+      "1", "Rubber stamp making charges", "15000",
+      "TOTAL", "15000"
+    ].join("\n");
+    const result = parseInvoiceText(text);
+    expect(result.parsed.vendorName).toMatch(/SLNS Rubber Stamps/i);
+    expect(result.parsed.invoiceDate).toBe("2025-11-19");
+    expect(result.parsed.totalAmountMinor).toBe(1500000);
+  });
+
+  it("invoice 13: LAKSHMIKALA TRADERS second estimation", () => {
+    const text = [
+      "ESTIMATION", "Cell : 86391 09576",
+      "LAKSHMIKALA TRADERS",
+      "ALL TYPES OF HARDWARE ITEMS",
+      "Shop No. 3-14, Tolichowki, Hyderabad - 500008",
+      "M/S", "Dt. 20/01/26",
+      "S.No.", "PARTICULARS", "QTY.", "AMOUNT", "Rs.", "Ps.",
+      "1", "Hardware supplies", "28000",
+      "TOTAL", "28000"
+    ].join("\n");
+    const result = parseInvoiceText(text);
+    expect(result.parsed.vendorName).toMatch(/LAKSHMIKALA TRADERS/i);
+    expect(result.parsed.totalAmountMinor).toBe(2800000);
+  });
+
+  it("invoice 14: Jay Ramdev Steels Home Appliance", () => {
+    const text = [
+      "Jay Ramdev Steels Home Appliance",
+      "Mob : 90000 12345",
+      "Opp Pillar No C-1234, Madhapur",
+      "Date: 22/12/25",
+      "S.No.", "PARTICULARS",
+      "1", "Steel almira", "12000",
+      "TOTAL", "12000"
+    ].join("\n");
+    const result = parseInvoiceText(text);
+    expect(result.parsed.vendorName).toMatch(/Jay Ramdev Steels/i);
+    expect(result.parsed.totalAmountMinor).toBe(1200000);
+  });
+
+  it("invoice 19: Hasti Stationery & Disposable", () => {
+    const text = [
+      "Hasti Stationery & Disposable",
+      "Mob: 98765 43210",
+      "Shop No. 45, Market Road, Hyderabad",
+      "Date: 25/01/26",
+      "S.No.", "PARTICULARS", "QTY.",
+      "1", "Office stationery supplies", "40000",
+      "TOTAL", "40000"
+    ].join("\n");
+    const result = parseInvoiceText(text);
+    expect(result.parsed.vendorName).toMatch(/Hasti Stationery/i);
+    expect(result.parsed.totalAmountMinor).toBe(4000000);
+  });
+
+  it("invoice 22: SRI BALAJI TRADERS estimation", () => {
+    const text = [
+      "ESTIMATION", "Cell : 97059 57879",
+      "SRI BALAJI TRADERS",
+      "ALL TYPES OF DISPOSABLE ITMES AVAILABLE HERE",
+      "Shop No. #2-28, Metro Piller No C-1716, Guttala Begumpet,",
+      "Madhapur, Hi-tech City Road, Hyderabed - 500081",
+      "M/S", "Date: 31/01/26",
+      "S.No.", "PARTICULARS", "QTY.", "AMOUNT", "Rs.", "Ps.",
+      "1", "Disposable items bulk", "36000",
+      "TOTAL", "36000"
+    ].join("\n");
+    const result = parseInvoiceText(text);
+    expect(result.parsed.vendorName).toMatch(/SRI BALAJI TRADERS/i);
+    expect(result.parsed.totalAmountMinor).toBe(3600000);
+  });
+
+  it("invoice 23: LAKSHMIKALA TRADERS third estimation", () => {
+    const text = [
+      "ESTIMATION", "Cell : 86391 09576",
+      "LAKSHMIKALA TRADERS",
+      "ALL TYPES OF HARDWARE ITEMS",
+      "Shop No. 3-14, Tolichowki, Hyderabad - 500008",
+      "M/S", "Date: 14/02/26",
+      "S.No.", "PARTICULARS", "QTY.", "AMOUNT", "Rs.", "Ps.",
+      "1", "Plumbing accessories", "28000",
+      "TOTAL", "28000"
+    ].join("\n");
+    const result = parseInvoiceText(text);
+    expect(result.parsed.vendorName).toMatch(/LAKSHMIKALA TRADERS/i);
+    expect(result.parsed.totalAmountMinor).toBe(2800000);
+  });
+
+  it("invoice 25: SLNS Rubber Stamps large order dated 20/02/2026", () => {
+    const text = [
+      "CASH BILL", "Cell: +91 9702416341",
+      "SLNS Rubber Stamps",
+      "Near Metro Pillar No. 1732, Beside Kotak Mahindra Bank,",
+      "Madhapur, Hyderabad-500 081.",
+      "Date: 20/02/2026",
+      "S.No.", "PARTICULARS", "QTY.",
+      "1", "Name plates and rubber stamps bulk", "130200",
+      "TOTAL", "130200"
+    ].join("\n");
+    const result = parseInvoiceText(text);
+    expect(result.parsed.vendorName).toMatch(/SLNS Rubber Stamps/i);
+    expect(result.parsed.invoiceDate).toBe("2026-02-20");
+    expect(result.parsed.totalAmountMinor).toBe(13020000);
   });
 });

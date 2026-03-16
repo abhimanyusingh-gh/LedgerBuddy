@@ -30,8 +30,8 @@ export function PlatformAdminTopNav({ userEmail, onLogout, onChangePassword, cou
           <strong>{userEmail}</strong>
         </div>
         <button type="button" className="app-button app-button-secondary" onClick={onChangePassword}
-          aria-label="Settings" title="Change Password">
-          <span className="material-symbols-outlined">settings</span>
+          aria-label="Change Password" title="Change Password">
+          <span className="material-symbols-outlined">key</span>
         </button>
         <button type="button" className="app-button app-button-primary" onClick={onLogout}>
           <span className="material-symbols-outlined">logout</span>

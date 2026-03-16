@@ -1,6 +1,6 @@
 import { Schema, model, type InferSchemaType } from "mongoose";
 
-export const TenantRoles = ["TENANT_ADMIN", "MEMBER"] as const;
+export const TenantRoles = ["PLATFORM_ADMIN", "TENANT_ADMIN", "MEMBER"] as const;
 export type TenantRole = (typeof TenantRoles)[number];
 
 const tenantUserRoleSchema = new Schema(

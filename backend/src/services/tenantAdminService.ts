@@ -41,7 +41,15 @@ export class TenantAdminService {
     }
   }
 
-  async listTenantUsers(tenantId: string): Promise<Array<{ userId: string; email: string; role: TenantRole }>> {
+  async setUserEnabled(input: { tenantId: string; userId: string; enabled: boolean }): Promise<void> {
+    const user = await UserModel.findOne({ _id: input.userId, tenantId: input.tenantId });
+    if (!user) {
+      throw new HttpError("User not found.", 404, "tenant_user_not_found");
+    }
+    await UserModel.updateOne({ _id: input.userId }, { $set: { enabled: input.enabled } });
+  }
+
+  async listTenantUsers(tenantId: string): Promise<Array<{ userId: string; email: string; role: TenantRole; enabled: boolean }>> {
     const roleRecords = await TenantUserRoleModel.find({ tenantId }).lean();
     if (roleRecords.length === 0) {
       return [];
@@ -52,6 +60,7 @@ export class TenantAdminService {
     const userMap = new Map(users.map((user) => [String(user._id), user]));
 
     return roleRecords
+      .filter((roleRecord) => roleRecord.role !== "PLATFORM_ADMIN")
       .map((roleRecord) => {
         const user = userMap.get(roleRecord.userId);
         if (!user) {
@@ -60,10 +69,11 @@ export class TenantAdminService {
         return {
           userId: String(user._id),
           email: user.email,
-          role: roleRecord.role
+          role: roleRecord.role as TenantRole,
+          enabled: user.enabled !== false
         };
       })
-      .filter((value): value is { userId: string; email: string; role: TenantRole } => value !== null);
+      .filter((value): value is NonNullable<typeof value> => value !== null);
   }
 
   async assignRole(input: { tenantId: string; userId: string; role: TenantRole }): Promise<void> {

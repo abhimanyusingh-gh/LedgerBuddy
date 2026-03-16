@@ -25,6 +25,21 @@ export function createPlatformAdminRouter(platformAdminService: PlatformAdminSer
     }
   });
 
+  router.patch("/platform/tenants/:tenantId/enabled", requirePlatformAdmin, async (request, response, next) => {
+    try {
+      const tenantId = request.params.tenantId;
+      const enabled = request.body?.enabled;
+      if (typeof enabled !== "boolean") {
+        response.status(400).json({ message: "enabled must be a boolean.", code: "platform_invalid_input" });
+        return;
+      }
+      await platformAdminService.setTenantEnabled(tenantId, enabled);
+      response.json({ tenantId, enabled });
+    } catch (error) {
+      next(error);
+    }
+  });
+
   router.get("/platform/tenants/usage", requirePlatformAdmin, async (_request, response, next) => {
     try {
       const items = await platformAdminService.listTenantUsageOverview();

@@ -54,7 +54,7 @@ BillForge ingests invoices from email or folder sources, extracts structured dat
 | **Invoice Classification** | SLM classifies invoice type during verification (10 categories: standard, GST, VAT, receipt, utility, professional, PO, credit note, proforma, other) |
 | **Extraction Learning** | Tenant-scoped correction feedback loop: records field corrections keyed by invoice type and vendor, feeds prior learnings to SLM on future extractions, auto-prunes after 90 days |
 | **Confidence** | Multi-signal scoring (OCR, parser, field verification), risk flagging, configurable tone bands and auto-select thresholds, confidence boost after successful LLM vision re-extraction |
-| **Review Dashboard** | Parsed/failed visibility, confidence badges, value-source highlighting, bbox overlay inspect, batch approval |
+| **Review Dashboard** | Inline row actions (approve, ingest, reingest, delete), humanized status filter tabs, reingesting visual state, confidence badges, value-source highlighting, bbox overlay inspect, batch approval |
 | **Export** | Tally XML purchase voucher generation with GST ledger entries (CGST/SGST/IGST/Cess), downloadable file or direct POST, S3 artifact storage |
 | **Multi-Tenancy** | Tenant onboarding, RBAC (admin/member), invite flow, tenant-scoped data isolation, per-tenant Gmail integration |
 | **Platform Admin** | Tenant usage aggregates, admin onboarding, cross-tenant visibility (no invoice-level access) |
@@ -326,7 +326,7 @@ BillForge employs a multi-layer testing strategy with enforced quality gates:
 
 | Layer | Framework | Count | Scope |
 |-------|-----------|:-----:|-------|
-| **Unit Tests** | Jest + ts-jest | 329 | Parsers, services, providers, utilities (280 backend + 49 frontend) |
+| **Unit Tests** | Jest + ts-jest | 338 | Parsers, services, providers, utilities (280 backend + 58 frontend) |
 | **Backend E2E** | Jest | 4 suites | Folder ingestion, SaaS lifecycle, RBAC, platform admin |
 | **Frontend E2E** | Playwright | -- | Ingestion, approval, bbox overlays, crop modals |
 | **Dead Code** | Knip | -- | Unused export detection across workspaces |

@@ -1,5 +1,6 @@
 import type { Invoice } from "./types.ts";
 import {
+  getAvailableRowActions,
   isInvoiceApprovable,
   isInvoiceExportable,
   isInvoiceRetryable,
@@ -110,5 +111,19 @@ describe("selection helpers", () => {
 
   it("keeps selected ids unchanged when there is nothing to remove", () => {
     expect(removeSelectedIds(["a", "b"], [])).toEqual(["a", "b"]);
+  });
+
+  describe("getAvailableRowActions", () => {
+    it.each<[string, string[]]>([
+      ["PENDING", ["ingest", "delete"]],
+      ["PARSED", ["approve", "reingest", "delete"]],
+      ["NEEDS_REVIEW", ["approve", "reingest", "delete"]],
+      ["FAILED_PARSE", ["approve", "reingest", "delete"]],
+      ["FAILED_OCR", ["reingest", "delete"]],
+      ["APPROVED", ["reingest", "delete"]],
+      ["EXPORTED", []]
+    ])("returns %s → %j", (status, expected) => {
+      expect(getAvailableRowActions({ ...baseInvoice, status: status as any })).toEqual(expected);
+    });
   });
 });

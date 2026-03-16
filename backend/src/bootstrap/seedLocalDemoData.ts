@@ -16,7 +16,8 @@ export async function seedLocalDemoData(): Promise<void> {
         _id: tenantObjectId(tenant.id),
         name: tenant.name,
         onboardingStatus: tenant.onboardingStatus,
-        mode: tenant.mode ?? "test"
+        mode: tenant.mode ?? "test",
+        enabled: true
       },
       { upsert: true, new: true, setDefaultsOnInsert: true }
     );
@@ -31,7 +32,8 @@ export async function seedLocalDemoData(): Promise<void> {
         tenantId: user.tenantId,
         displayName: user.displayName,
         lastLoginAt: new Date(0),
-        encryptedRefreshToken: ""
+        encryptedRefreshToken: "",
+        enabled: true
       },
       { upsert: true, new: true, setDefaultsOnInsert: true }
     );
