@@ -1470,7 +1470,12 @@ export function App() {
                           </td>
                           <td>{new Date(invoice.receivedAt).toLocaleString()}</td>
                           <td onClick={(e) => e.stopPropagation()}>
-                            {isInvoiceRetryable(invoice) && (
+                            {invoice.status === "PENDING" && (
+                              <button type="button" className="row-action-button row-action-retry" title="Ingest" onClick={() => void handleRetrySingle(invoice._id)}>
+                                <span className="material-symbols-outlined">play_arrow</span>
+                              </button>
+                            )}
+                            {invoice.status !== "PENDING" && isInvoiceRetryable(invoice) && (
                               <button type="button" className="row-action-button row-action-retry" title="Reingest" onClick={() => void handleRetrySingle(invoice._id)}>
                                 <span className="material-symbols-outlined">replay</span>
                               </button>
