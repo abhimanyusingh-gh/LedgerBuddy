@@ -51,6 +51,7 @@ import { ExportHistoryDashboard } from "./components/ExportHistoryDashboard";
 import { getExtractedFieldRows } from "./extractedFields";
 import { getInvoiceSourceHighlights } from "./sourceHighlights";
 import {
+  getAvailableRowActions,
   isInvoiceApprovable,
   isInvoiceExportable,
   isInvoiceRetryable,
@@ -63,6 +64,7 @@ import { formatMinorAmountWithCurrency } from "./currency";
 import {
   buildFieldCropUrlMap,
   buildFieldOverlayUrlMap,
+  STATUS_LABELS,
   STATUSES
 } from "./invoiceView";
 import { useInvoiceDetail } from "./hooks/useInvoiceDetail";
@@ -108,6 +110,7 @@ export function App() {
   const [popupSourcePreviewExpanded, setPopupSourcePreviewExpanded] = useState(false);
   const [popupRawOcrExpanded, setPopupRawOcrExpanded] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [ingestingIds, setIngestingIds] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<(typeof STATUSES)[number]>("ALL");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -638,6 +641,7 @@ export function App() {
   }
 
   async function handleRetrySingle(invoiceId: string) {
+    setIngestingIds((prev) => new Set(prev).add(invoiceId));
     try {
       setError(null);
       const response = await retryInvoices([invoiceId]);
@@ -645,9 +649,16 @@ export function App() {
         setError("Invoice was not eligible for retry.");
         return;
       }
+      await runIngestion();
       await loadInvoices();
     } catch (retryError) {
       setError(getUserFacingErrorMessage(retryError, "Retry failed."));
+    } finally {
+      setIngestingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(invoiceId);
+        return next;
+      });
     }
   }
 
@@ -1294,7 +1305,7 @@ export function App() {
                         className={status === statusFilter ? "tab tab-active" : "tab"}
                         onClick={() => setStatusFilter(status)}
                       >
-                        {status}
+                        {STATUS_LABELS[status] ?? status}
                       </button>
                     ))}
                   </div>
@@ -1477,33 +1488,45 @@ export function App() {
                             <ConfidenceBadge score={invoice.confidenceScore ?? 0} />
                           </td>
                           <td>
-                            <span className={`status status-${invoice.status.toLowerCase()}`} title={invoice.approval?.approvedBy ? `Approved by ${invoice.approval.approvedBy}` : undefined}>{invoice.status}</span>
+                            {ingestingIds.has(invoice._id) ? (
+                              <span className="status status-reingesting">REINGESTING</span>
+                            ) : (
+                              <span className={`status status-${invoice.status.toLowerCase()}`} title={invoice.approval?.approvedBy ? `Approved by ${invoice.approval.approvedBy}` : undefined}>{invoice.status}</span>
+                            )}
                             {invoice.possibleDuplicate ? (
                               <span className="material-symbols-outlined duplicate-warning" title="Possible duplicate — another invoice has identical file contents">warning</span>
                             ) : null}
                           </td>
                           <td>{new Date(invoice.receivedAt).toLocaleString()}</td>
                           <td onClick={(e) => e.stopPropagation()}>
-                            {isInvoiceApprovable(invoice) && (
-                              <button type="button" className="row-action-button row-action-approve" title="Approve" onClick={() => void handleApproveSingle(invoice._id)}>
-                                <span className="material-symbols-outlined">check_circle</span>
-                              </button>
-                            )}
-                            {invoice.status === "PENDING" && (
-                              <button type="button" className="row-action-button row-action-retry" title="Ingest" onClick={() => void handleRetrySingle(invoice._id)}>
-                                <span className="material-symbols-outlined">play_arrow</span>
-                              </button>
-                            )}
-                            {invoice.status !== "PENDING" && isInvoiceRetryable(invoice) && (
-                              <button type="button" className="row-action-button row-action-retry" title="Reingest" onClick={() => void handleRetrySingle(invoice._id)}>
-                                <span className="material-symbols-outlined">replay</span>
-                              </button>
-                            )}
-                            {invoice.status !== "EXPORTED" ? (
-                              <button type="button" className="row-action-button" title="Delete" onClick={() => handleDeleteSingle(invoice._id, invoice.attachmentName)}>
-                                <span className="material-symbols-outlined">delete</span>
-                              </button>
-                            ) : null}
+                            {(() => {
+                              const actions = getAvailableRowActions(invoice);
+                              const ingesting = ingestingIds.has(invoice._id);
+                              return (
+                                <>
+                                  {actions.includes("approve") && !ingesting && (
+                                    <button type="button" className="row-action-button row-action-approve" title="Approve" onClick={() => void handleApproveSingle(invoice._id)}>
+                                      <span className="material-symbols-outlined">check_circle</span>
+                                    </button>
+                                  )}
+                                  {actions.includes("ingest") && (
+                                    <button type="button" className="row-action-button row-action-retry" title="Ingest" disabled={ingesting} onClick={() => void handleRetrySingle(invoice._id)}>
+                                      <span className={`material-symbols-outlined${ingesting ? " spin" : ""}`}>{ingesting ? "progress_activity" : "play_arrow"}</span>
+                                    </button>
+                                  )}
+                                  {actions.includes("reingest") && (
+                                    <button type="button" className="row-action-button row-action-retry" title="Reingest" disabled={ingesting} onClick={() => void handleRetrySingle(invoice._id)}>
+                                      <span className={`material-symbols-outlined${ingesting ? " spin" : ""}`}>{ingesting ? "progress_activity" : "replay"}</span>
+                                    </button>
+                                  )}
+                                  {actions.includes("delete") && !ingesting && (
+                                    <button type="button" className="row-action-button" title="Delete" onClick={() => handleDeleteSingle(invoice._id, invoice.attachmentName)}>
+                                      <span className="material-symbols-outlined">delete</span>
+                                    </button>
+                                  )}
+                                </>
+                              );
+                            })()}
                           </td>
                         </tr>
                       );
