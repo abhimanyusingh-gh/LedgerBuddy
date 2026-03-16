@@ -906,8 +906,17 @@ tr:hover {
 }
 
 .row-action-retry:hover {
-  color: var(--action-blue, #2563eb);
-  background: rgba(37, 99, 235, 0.08);
+  color: #16a34a;
+  background: rgba(22, 163, 74, 0.08);
+}
+
+.row-action-approve {
+  color: #16a34a;
+}
+
+.row-action-approve:hover {
+  color: #15803d;
+  background: rgba(22, 163, 74, 0.12);
 }
 
 .row-action-button .material-symbols-outlined {
@@ -937,10 +946,14 @@ tr:hover {
   color: #0f4f8f;
 }
 
-.status-needs_review,
-.status-approved {
+.status-needs_review {
   background: rgba(203, 92, 42, 0.14);
   color: #8d3a17;
+}
+
+.status-approved {
+  background: rgba(22, 163, 74, 0.14);
+  color: #15803d;
 }
 
 .status-failed_ocr,

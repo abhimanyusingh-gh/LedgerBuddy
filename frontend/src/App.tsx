@@ -623,6 +623,20 @@ export function App() {
     }
   }
 
+  async function handleApproveSingle(invoiceId: string) {
+    try {
+      setError(null);
+      const response = await approveInvoices([invoiceId], session!.user.email);
+      if (response.modifiedCount === 0) {
+        setError("Invoice was not eligible for approval.");
+        return;
+      }
+      await loadInvoices();
+    } catch (approveError) {
+      setError(getUserFacingErrorMessage(approveError, "Approval failed."));
+    }
+  }
+
   async function handleRetrySingle(invoiceId: string) {
     try {
       setError(null);
@@ -1470,6 +1484,11 @@ export function App() {
                           </td>
                           <td>{new Date(invoice.receivedAt).toLocaleString()}</td>
                           <td onClick={(e) => e.stopPropagation()}>
+                            {isInvoiceApprovable(invoice) && (
+                              <button type="button" className="row-action-button row-action-approve" title="Approve" onClick={() => void handleApproveSingle(invoice._id)}>
+                                <span className="material-symbols-outlined">check_circle</span>
+                              </button>
+                            )}
                             {invoice.status === "PENDING" && (
                               <button type="button" className="row-action-button row-action-retry" title="Ingest" onClick={() => void handleRetrySingle(invoice._id)}>
                                 <span className="material-symbols-outlined">play_arrow</span>
