@@ -36,12 +36,12 @@ wait_for_http_contains() {
 }
 
 echo "Rebuilding backend and frontend containers..."
-"${COMPOSE_CMD[@]}" up -d --build --force-recreate --no-deps backend frontend
+"${COMPOSE_CMD[@]}" up -d --build --force-recreate backend frontend
 
 echo "Waiting for backend health..."
-wait_for_http_contains "$BACKEND_HEALTH_URL" "\"ready\":true" "backend" 120
+wait_for_http_contains "$BACKEND_HEALTH_URL" "\"ready\":true" "backend" 300
 
 echo "Waiting for frontend..."
-wait_for_http_contains "$FRONTEND_URL" "<html" "frontend" 60
+wait_for_http_contains "$FRONTEND_URL" "<html" "frontend" 120
 
 echo "Reload complete. Data volumes preserved."
