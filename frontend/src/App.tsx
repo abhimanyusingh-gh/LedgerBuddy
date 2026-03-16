@@ -507,6 +507,16 @@ export function App() {
     return () => { clearTimeout(fadeTimer); clearTimeout(hideTimer); };
   }, [ingestionStatus?.state]);
 
+  useEffect(() => {
+    if (ingestingIds.size === 0) return;
+    const stillIngesting = new Set<string>();
+    for (const id of ingestingIds) {
+      const inv = invoices.find((i) => i._id === id);
+      if (inv && inv.status === "PENDING") stillIngesting.add(id);
+    }
+    if (stillIngesting.size < ingestingIds.size) setIngestingIds(stillIngesting);
+  }, [invoices]);
+
   async function loadInvoices() {
     if (!session) {
       return;
@@ -647,18 +657,14 @@ export function App() {
       const response = await retryInvoices([invoiceId]);
       if (response.modifiedCount === 0) {
         setError("Invoice was not eligible for retry.");
+        setIngestingIds((prev) => { const next = new Set(prev); next.delete(invoiceId); return next; });
         return;
       }
-      await runIngestion();
-      await loadInvoices();
+      const status = await runIngestion();
+      setIngestionStatus(status);
     } catch (retryError) {
       setError(getUserFacingErrorMessage(retryError, "Retry failed."));
-    } finally {
-      setIngestingIds((prev) => {
-        const next = new Set(prev);
-        next.delete(invoiceId);
-        return next;
-      });
+      setIngestingIds((prev) => { const next = new Set(prev); next.delete(invoiceId); return next; });
     }
   }
 
