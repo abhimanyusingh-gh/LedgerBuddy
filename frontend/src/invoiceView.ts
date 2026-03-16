@@ -14,11 +14,11 @@ export const STATUSES: Array<InvoiceStatus | "ALL"> = [
 
 export const STATUS_LABELS: Record<string, string> = {
   ALL: "All",
-  PENDING: "Pending",
-  PARSED: "Parsed",
+  PENDING: "Processing",
+  PARSED: "Processed",
   NEEDS_REVIEW: "Needs Review",
-  FAILED_OCR: "Failed OCR",
-  FAILED_PARSE: "Failed Parse",
+  FAILED_OCR: "OCR Failed",
+  FAILED_PARSE: "Parse Failed",
   APPROVED: "Approved",
   EXPORTED: "Exported"
 };

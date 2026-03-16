@@ -1495,9 +1495,9 @@ export function App() {
                           </td>
                           <td>
                             {ingestingIds.has(invoice._id) ? (
-                              <span className="status status-reingesting">REINGESTING</span>
+                              <span className="status status-reprocessing">Reprocessing</span>
                             ) : (
-                              <span className={`status status-${invoice.status.toLowerCase()}`} title={invoice.approval?.approvedBy ? `Approved by ${invoice.approval.approvedBy}` : undefined}>{invoice.status}</span>
+                              <span className={`status status-${invoice.status.toLowerCase()}`} title={invoice.approval?.approvedBy ? `Approved by ${invoice.approval.approvedBy}` : undefined}>{STATUS_LABELS[invoice.status] ?? invoice.status}</span>
                             )}
                             {invoice.possibleDuplicate ? (
                               <span className="material-symbols-outlined duplicate-warning" title="Possible duplicate — another invoice has identical file contents">warning</span>

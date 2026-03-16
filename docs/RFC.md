@@ -53,23 +53,7 @@ The system must ingest invoices from configurable sources, extract data from mix
 - Inline row actions (approve, ingest, reingest, delete) are derived per-status via `getAvailableRowActions`. Actions are disabled during active reingest with a visual "REINGESTING" badge.
 - Reason: explicit lifecycle and predictable UI behavior.
 
-```mermaid
-stateDiagram-v2
-    [*] --> PENDING : Upload / Reingest
-    PENDING --> PARSED : Pipeline success
-    PENDING --> NEEDS_REVIEW : Low confidence
-    PENDING --> FAILED_OCR : OCR failure
-    PENDING --> FAILED_PARSE : Parse failure
-    PARSED --> APPROVED : Approve
-    NEEDS_REVIEW --> APPROVED : Approve
-    FAILED_PARSE --> APPROVED : Approve (manual)
-    APPROVED --> EXPORTED : Export
-    PARSED --> PENDING : Reingest
-    NEEDS_REVIEW --> PENDING : Reingest
-    FAILED_OCR --> PENDING : Reingest
-    FAILED_PARSE --> PENDING : Reingest
-    APPROVED --> PENDING : Reingest
-```
+Invoice lifecycle state diagram: [docs/images/invoice-lifecycle.drawio](../images/invoice-lifecycle.drawio)
 
 7. Checkpoint and Idempotency
 - Per-source checkpoint marker stored in MongoDB.
