@@ -251,7 +251,7 @@ export class InvoiceService {
       throw new InvoiceUpdateError("Exported invoices cannot be modified.", 400);
     }
 
-    const currentParsed = sanitizeParsedData(invoice.parsed);
+    const currentParsed = sanitizeParsedData(invoice.toObject().parsed);
     const nextParsed = { ...currentParsed };
 
     applyStringFieldUpdate(nextParsed, "invoiceNumber", input);
