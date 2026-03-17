@@ -1560,7 +1560,14 @@ export function App() {
                                 <button type="button" className="field-save-button" onClick={() => void handleSaveListCell()}>&#10003;</button>
                               </>
                             ) : (
-                              <span className="extracted-value-display" {...(canEditCell ? { "data-editable": true, onClick: () => { setEditingListCell({ invoiceId: invoice._id, field: "vendorName" }); setEditListValue(invoice.parsed?.vendorName ?? ""); } } : {})}>{invoice.parsed?.vendorName ?? "-"}</span>
+                              <>
+                                <span className="extracted-value-display">{invoice.parsed?.vendorName ?? "-"}</span>
+                                {canEditCell && (
+                                  <button type="button" className="row-action-button field-edit-button" title="Edit vendor" onClick={() => { setEditingListCell({ invoiceId: invoice._id, field: "vendorName" }); setEditListValue(invoice.parsed?.vendorName ?? ""); }}>
+                                    <span className="material-symbols-outlined">edit</span>
+                                  </button>
+                                )}
+                              </>
                             )}
                           </td>
                           <td className="extracted-value-cell" onClick={(e) => e.stopPropagation()}>
@@ -1570,7 +1577,14 @@ export function App() {
                                 <button type="button" className="field-save-button" onClick={() => void handleSaveListCell()}>&#10003;</button>
                               </>
                             ) : (
-                              <span className="extracted-value-display" {...(canEditCell ? { "data-editable": true, onClick: () => { setEditingListCell({ invoiceId: invoice._id, field: "invoiceNumber" }); setEditListValue(invoice.parsed?.invoiceNumber ?? ""); } } : {})}>{invoice.parsed?.invoiceNumber ?? "-"}</span>
+                              <>
+                                <span className="extracted-value-display">{invoice.parsed?.invoiceNumber ?? "-"}</span>
+                                {canEditCell && (
+                                  <button type="button" className="row-action-button field-edit-button" title="Edit invoice number" onClick={() => { setEditingListCell({ invoiceId: invoice._id, field: "invoiceNumber" }); setEditListValue(invoice.parsed?.invoiceNumber ?? ""); }}>
+                                    <span className="material-symbols-outlined">edit</span>
+                                  </button>
+                                )}
+                              </>
                             )}
                           </td>
                           <td className="extracted-value-cell" onClick={(e) => e.stopPropagation()}>
@@ -1580,7 +1594,14 @@ export function App() {
                                 <button type="button" className="field-save-button" onClick={() => void handleSaveListCell()}>&#10003;</button>
                               </>
                             ) : (
-                              <span className="extracted-value-display" {...(canEditCell ? { "data-editable": true, onClick: () => { setEditingListCell({ invoiceId: invoice._id, field: "invoiceDate" }); setEditListValue(invoice.parsed?.invoiceDate ?? ""); } } : {})}>{invoice.parsed?.invoiceDate ?? "-"}</span>
+                              <>
+                                <span className="extracted-value-display">{invoice.parsed?.invoiceDate ?? "-"}</span>
+                                {canEditCell && (
+                                  <button type="button" className="row-action-button field-edit-button" title="Edit date" onClick={() => { setEditingListCell({ invoiceId: invoice._id, field: "invoiceDate" }); setEditListValue(invoice.parsed?.invoiceDate ?? ""); }}>
+                                    <span className="material-symbols-outlined">edit</span>
+                                  </button>
+                                )}
+                              </>
                             )}
                           </td>
                           <td
@@ -1595,7 +1616,14 @@ export function App() {
                                 <button type="button" className="field-save-button" onClick={() => void handleSaveListCell()}>&#10003;</button>
                               </>
                             ) : (
-                              <span className="extracted-value-display" {...(canEditCell ? { "data-editable": true, onClick: () => { setEditingListCell({ invoiceId: invoice._id, field: "totalAmountMinor" }); setEditListValue(invoice.parsed?.totalAmountMinor != null ? String(invoice.parsed.totalAmountMinor / 100) : ""); } } : {})}>{formatMinorAmountWithCurrency(invoice.parsed?.totalAmountMinor, invoice.parsed?.currency)}</span>
+                              <>
+                                <span className="extracted-value-display">{formatMinorAmountWithCurrency(invoice.parsed?.totalAmountMinor, invoice.parsed?.currency)}</span>
+                                {canEditCell && (
+                                  <button type="button" className="row-action-button field-edit-button" title="Edit amount" onClick={() => { setEditingListCell({ invoiceId: invoice._id, field: "totalAmountMinor" }); setEditListValue(invoice.parsed?.totalAmountMinor != null ? String(invoice.parsed.totalAmountMinor / 100) : ""); }}>
+                                    <span className="material-symbols-outlined">edit</span>
+                                  </button>
+                                )}
+                              </>
                             )}
                           </td>
                           <td>
@@ -1604,7 +1632,7 @@ export function App() {
                           <td>
                             {ingestingIds.has(invoice._id) ? (
                               <span className="status status-reprocessing">{invoice.status === "PENDING" ? "Processing" : "Reprocessing"}</span>
-                            ) : ingestionStatus?.running && invoice.status === "PENDING" ? (
+                            ) : ingestionStatus?.running && invoice.status === "PENDING" && ingestingIds.size === 0 ? (
                               <span className="status status-reprocessing">Processing</span>
                             ) : (
                               <span className={`status status-${invoice.status.toLowerCase()}`} title={invoice.approval?.approvedBy ? `Approved by ${invoice.approval.approvedBy}` : undefined}>{STATUS_LABELS[invoice.status] ?? invoice.status}</span>
@@ -1617,7 +1645,7 @@ export function App() {
                           <td onClick={(e) => e.stopPropagation()}>
                             {(() => {
                               const actions = getAvailableRowActions(invoice);
-                              const ingesting = ingestingIds.has(invoice._id) || (ingestionStatus?.running === true && invoice.status === "PENDING");
+                              const ingesting = ingestingIds.has(invoice._id);
                               return (
                                 <>
                                   {actions.includes("approve") && !ingesting && (

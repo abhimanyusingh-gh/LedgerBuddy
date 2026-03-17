@@ -772,16 +772,19 @@ body {
   white-space: nowrap;
 }
 
-.file-rename-button {
+.file-rename-button,
+.field-edit-button {
   opacity: 0;
   transition: opacity 0.15s;
 }
 
-.file-name-cell:hover .file-rename-button {
+.file-name-cell:hover .file-rename-button,
+.extracted-value-cell:hover .field-edit-button {
   opacity: 1;
 }
 
-.file-rename-button:hover {
+.file-rename-button:hover,
+.field-edit-button:hover {
   color: #3b82f6 !important;
   background: rgba(59, 130, 246, 0.08) !important;
 }
@@ -1581,14 +1584,6 @@ pre {
   white-space: nowrap;
 }
 
-.extracted-value-display[data-editable="true"] {
-  cursor: pointer;
-  border-bottom: 1px dashed transparent;
-}
-
-.extracted-value-display[data-editable="true"]:hover {
-  border-bottom-color: var(--accent);
-}
 
 .extracted-value-input {
   width: 80%;
