@@ -1,4 +1,4 @@
-import { createHash, randomBytes } from "node:crypto";
+import { randomBytes } from "node:crypto";
 import { InvoiceModel } from "../models/Invoice.js";
 import { TenantIntegrationModel } from "../models/TenantIntegration.js";
 import { TenantModel } from "../models/Tenant.js";
@@ -6,7 +6,7 @@ import { UserModel } from "../models/User.js";
 import { TenantUserRoleModel } from "../models/TenantUserRole.js";
 import { HttpError } from "../errors/HttpError.js";
 import type { InviteEmailSenderBoundary } from "../core/boundaries/InviteEmailSenderBoundary.js";
-import { env } from "../config/env.js";
+import type { KeycloakAdminClient } from "../keycloak/KeycloakAdminClient.js";
 
 interface TenantUsageOverview {
   tenantId: string;
@@ -31,9 +31,11 @@ interface TenantUsageOverview {
 
 export class PlatformAdminService {
   private readonly emailSender?: InviteEmailSenderBoundary;
+  private readonly keycloakAdmin: KeycloakAdminClient;
 
-  constructor(emailSender?: InviteEmailSenderBoundary) {
+  constructor(emailSender?: InviteEmailSenderBoundary, keycloakAdmin?: KeycloakAdminClient) {
     this.emailSender = emailSender;
+    this.keycloakAdmin = keycloakAdmin!;
   }
 
   async onboardTenantAdmin(input: { tenantName: string; adminEmail: string; displayName?: string; mode?: "test" | "live" }): Promise<{
@@ -60,7 +62,6 @@ export class PlatformAdminService {
     }
 
     const tempPassword = randomBytes(6).toString("base64url");
-    const passwordHash = createHash("sha256").update(tempPassword).digest("base64url");
 
     const tenant = await TenantModel.create({
       name: tenantName,
@@ -68,36 +69,35 @@ export class PlatformAdminService {
       ...(input.mode ? { mode: input.mode } : {})
     });
 
-    const verificationToken = randomBytes(32).toString("base64url");
-    const verificationTokenHash = createHash("sha256").update(verificationToken).digest("base64url");
-
-    const createdUser = await UserModel.create({
-      email: adminEmail,
-      externalSubject: buildProvisionedSubject(adminEmail),
-      tenantId: String(tenant._id),
-      displayName,
-      encryptedRefreshToken: "",
-      lastLoginAt: new Date(0),
-      passwordHash,
-      tempPassword,
-      mustChangePassword: true,
-      verificationTokenHash
-    });
-    await TenantUserRoleModel.create({
-      tenantId: String(tenant._id),
-      userId: String(createdUser._id),
-      role: "TENANT_ADMIN"
-    });
-
-    if (this.emailSender) {
-      const verifyUrl = `${env.INVITE_BASE_URL}/api/auth/verify-email?token=${verificationToken}`;
-      await this.emailSender.send({
-        from: env.INVITE_FROM,
-        to: adminEmail,
-        subject: "Welcome to BillForge — Verify Your Email",
-        text: `Welcome to BillForge!\n\nYour account has been created. Please verify your email to get started.\n\nVerify Email: ${verifyUrl}\n\nThis link expires in 24 hours.`,
-        html: buildVerificationEmailHtml(verifyUrl)
+    let createdUser;
+    try {
+      createdUser = await UserModel.create({
+        email: adminEmail,
+        externalSubject: buildProvisionedSubject(adminEmail),
+        tenantId: String(tenant._id),
+        displayName,
+        encryptedRefreshToken: "",
+        lastLoginAt: new Date(0),
+        tempPassword,
+        mustChangePassword: true
       });
+      await TenantUserRoleModel.create({
+        tenantId: String(tenant._id),
+        userId: String(createdUser._id),
+        role: "TENANT_ADMIN"
+      });
+    } catch (dbError) {
+      await TenantModel.deleteOne({ _id: tenant._id });
+      throw dbError;
+    }
+
+    try {
+      await this.keycloakAdmin.createUser(adminEmail, tempPassword, false);
+    } catch (kcError) {
+      await UserModel.deleteOne({ _id: createdUser._id });
+      await TenantUserRoleModel.deleteOne({ tenantId: String(tenant._id), userId: String(createdUser._id) });
+      await TenantModel.deleteOne({ _id: tenant._id });
+      throw new HttpError("Failed to register user in identity provider.", 502, "platform_kc_create_failed");
     }
 
     return {
@@ -178,7 +178,14 @@ export class PlatformAdminService {
       TenantIntegrationModel.find({ provider: "gmail" }).lean(),
       TenantUserRoleModel.aggregate<{ _id: string; email: string; tempPassword?: string }>([
         { $match: { role: "TENANT_ADMIN" } },
-        { $lookup: { from: "users", localField: "userId", foreignField: "_id", as: "user" } },
+        {
+          $lookup: {
+            from: "users",
+            let: { uid: { $toObjectId: "$userId" } },
+            pipeline: [{ $match: { $expr: { $eq: ["$_id", "$$uid"] } } }],
+            as: "user"
+          }
+        },
         { $unwind: "$user" },
         { $group: { _id: "$tenantId", email: { $first: "$user.email" }, tempPassword: { $first: "$user.tempPassword" } } }
       ])
@@ -233,24 +240,3 @@ function buildProvisionedSubject(email: string): string {
   return `provisioned-${email.replace(/[^a-z0-9]+/gi, "-").replace(/^-+|-+$/g, "").toLowerCase()}`;
 }
 
-function buildVerificationEmailHtml(verifyUrl: string): string {
-  return `<!DOCTYPE html>
-<html>
-<head><meta charset="utf-8" /></head>
-<body style="margin:0;padding:0;font-family:Arial,sans-serif;background:#f5f5f5">
-  <div style="max-width:560px;margin:40px auto;background:#fff;border-radius:8px;overflow:hidden">
-    <div style="background:#1a1a2e;padding:24px 32px">
-      <h1 style="color:#fff;margin:0;font-size:22px">BillForge</h1>
-    </div>
-    <div style="padding:32px">
-      <h2 style="margin:0 0 16px;color:#1a1a2e">Welcome to BillForge</h2>
-      <p style="color:#333;line-height:1.6">Your account has been created. Please verify your email to get started.</p>
-      <div style="text-align:center;margin:28px 0">
-        <a href="${verifyUrl}" style="display:inline-block;background:#1f7a6c;color:#fff;padding:14px 32px;border-radius:6px;text-decoration:none;font-weight:bold">Verify Email</a>
-      </div>
-      <p style="color:#888;font-size:13px">This link expires in 24 hours.</p>
-    </div>
-  </div>
-</body>
-</html>`;
-}

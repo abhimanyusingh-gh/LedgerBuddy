@@ -4,17 +4,21 @@ import { connectToDatabase, disconnectFromDatabase } from "./db/connect.js";
 import { env } from "./config/env.js";
 import { logger } from "./utils/logger.js";
 import { seedLocalDemoData } from "./bootstrap/seedLocalDemoData.js";
+import { buildDependencies } from "./core/dependencies.js";
 
 let server: Server | undefined;
 let shuttingDown = false;
 
 async function bootstrap() {
   await connectToDatabase();
+
+  const dependencies = await buildDependencies();
+
   if (env.LOCAL_DEMO_SEED) {
-    await seedLocalDemoData();
+    await seedLocalDemoData(dependencies.keycloakAdmin);
   }
 
-  const app = await createApp();
+  const app = await createApp(dependencies);
   server = app.listen(env.PORT, () => {
     logger.info("Backend listening", { port: env.PORT });
   });

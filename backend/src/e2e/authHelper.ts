@@ -1,31 +1,106 @@
 import axios from "axios";
 
-export async function createE2ESessionToken(apiBaseUrl: string): Promise<string> {
-  return createE2ESessionTokenWithOptions(apiBaseUrl, {});
+const E2E_KC_BASE = process.env.E2E_KEYCLOAK_BASE_URL ?? "http://127.0.0.1:8280";
+const E2E_KC_REALM = process.env.E2E_KC_REALM ?? "billforge";
+const E2E_KC_CLIENT_ID = process.env.E2E_STS_CLIENT_ID ?? "billforge-app";
+const E2E_KC_CLIENT_SECRET = process.env.E2E_STS_CLIENT_SECRET ?? "billforge-local-secret";
+export const E2E_TEST_PASSWORD = "E2eTestPass!1";
+
+/**
+ * Create a Keycloak user (if not exists) and return a session token via /api/auth/token ROPC proxy.
+ */
+export async function createE2EUserAndLogin(apiBaseUrl: string, email: string): Promise<string> {
+  const token = await getKcAdminToken();
+  // Create user in Keycloak
+  const createResponse = await axios.post(
+    `${E2E_KC_BASE}/admin/realms/${E2E_KC_REALM}/users`,
+    {
+      username: email,
+      email,
+      firstName: email.split("@")[0],
+      lastName: "User",
+      emailVerified: true,
+      enabled: true,
+      credentials: [{ type: "password", value: E2E_TEST_PASSWORD, temporary: false }]
+    },
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json"
+      },
+      validateStatus: () => true
+    }
+  );
+  if (createResponse.status !== 201 && createResponse.status !== 409) {
+    throw new Error(`Failed to create E2E Keycloak user '${email}': HTTP ${createResponse.status} — ${JSON.stringify(createResponse.data)}`);
+  }
+
+  // If user already exists (e.g. created by invite flow with empty password), reset password
+  if (createResponse.status === 409) {
+    const searchResp = await axios.get(
+      `${E2E_KC_BASE}/admin/realms/${E2E_KC_REALM}/users?email=${encodeURIComponent(email)}&exact=true`,
+      { headers: { Authorization: `Bearer ${token}` }, validateStatus: () => true }
+    );
+    if (searchResp.status === 200 && Array.isArray(searchResp.data) && searchResp.data.length > 0) {
+      const userId = (searchResp.data as Array<{ id: string }>)[0].id;
+      await axios.put(
+        `${E2E_KC_BASE}/admin/realms/${E2E_KC_REALM}/users/${userId}/reset-password`,
+        { type: "password", value: E2E_TEST_PASSWORD, temporary: false },
+        { headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }, validateStatus: () => true }
+      );
+    }
+  }
+
+  return loginWithPassword(apiBaseUrl, email, E2E_TEST_PASSWORD);
 }
 
-export async function createE2ESessionTokenWithOptions(
-  apiBaseUrl: string,
-  options: {
-    nextPath?: string;
-    loginHint?: string;
+/**
+ * Login with a known password (seeded demo users or onboarded tenant admins).
+ */
+export async function loginWithPassword(apiBaseUrl: string, email: string, password: string): Promise<string> {
+  const response = await axios.post(
+    `${apiBaseUrl}/api/auth/token`,
+    { email, password },
+    { validateStatus: () => true }
+  );
+  if (response.status !== 200) {
+    throw new Error(`Login failed for '${email}': HTTP ${response.status} — ${JSON.stringify(response.data)}`);
   }
-): Promise<string> {
-  const loginUrl = new URL("/api/auth/login", apiBaseUrl);
-  loginUrl.searchParams.set("next", options.nextPath ?? "/");
-  if (options.loginHint?.trim()) {
-    loginUrl.searchParams.set("login_hint", options.loginHint.trim());
+  const sessionToken = response.data?.token;
+  if (typeof sessionToken !== "string" || !sessionToken) {
+    throw new Error(`Login for '${email}' returned no session token.`);
   }
+  return sessionToken;
+}
 
-  const authorizeRedirect = await requestRedirect(loginUrl.toString());
-  const callbackRedirect = await requestRedirect(authorizeRedirect);
-  const frontendRedirect = await requestRedirect(callbackRedirect);
-  const token = new URL(frontendRedirect).searchParams.get("token");
-  if (!token) {
-    throw new Error("OAuth callback did not return a session token.");
+/**
+ * Delete a Keycloak user by email (call in afterAll for cleanup).
+ */
+export async function deleteE2EKeycloakUser(email: string): Promise<void> {
+  try {
+    const token = await getKcAdminToken();
+    const searchResponse = await axios.get(
+      `${E2E_KC_BASE}/admin/realms/${E2E_KC_REALM}/users`,
+      {
+        params: { email, exact: true },
+        headers: { Authorization: `Bearer ${token}` },
+        validateStatus: () => true
+      }
+    );
+    if (searchResponse.status !== 200 || !Array.isArray(searchResponse.data) || searchResponse.data.length === 0) {
+      return;
+    }
+    const userId = (searchResponse.data as Array<{ id: string }>)[0].id;
+    await axios.delete(
+      `${E2E_KC_BASE}/admin/realms/${E2E_KC_REALM}/users/${userId}`,
+      {
+        headers: { Authorization: `Bearer ${token}` },
+        validateStatus: () => true
+      }
+    );
+  } catch {
+    // Best-effort cleanup — ignore errors
   }
-
-  return token;
 }
 
 export async function completeE2ETenantOnboarding(apiBaseUrl: string, token: string): Promise<void> {
@@ -60,17 +135,25 @@ export async function completeE2ETenantOnboarding(apiBaseUrl: string, token: str
   }
 }
 
-async function requestRedirect(url: string): Promise<string> {
-  const response = await axios.get(url, {
-    maxRedirects: 0,
-    validateStatus: () => true
-  });
-  if (response.status < 300 || response.status >= 400) {
-    throw new Error(`Expected redirect from ${url}, received HTTP ${response.status}.`);
+async function getKcAdminToken(): Promise<string> {
+  const response = await axios.post(
+    `${E2E_KC_BASE}/realms/${E2E_KC_REALM}/protocol/openid-connect/token`,
+    new URLSearchParams({
+      grant_type: "client_credentials",
+      client_id: E2E_KC_CLIENT_ID,
+      client_secret: E2E_KC_CLIENT_SECRET
+    }).toString(),
+    {
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      validateStatus: () => true
+    }
+  );
+  if (response.status !== 200) {
+    throw new Error(`Failed to get Keycloak admin token: HTTP ${response.status}`);
   }
-  const location = response.headers.location;
-  if (typeof location !== "string" || location.trim().length === 0) {
-    throw new Error(`Redirect from ${url} did not include location header.`);
+  const token = response.data?.access_token;
+  if (typeof token !== "string" || !token) {
+    throw new Error("Keycloak admin token response missing access_token.");
   }
-  return new URL(location, url).toString();
+  return token;
 }

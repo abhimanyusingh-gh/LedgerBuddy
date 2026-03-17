@@ -32,6 +32,7 @@ import {
   setUserEnabled,
   subscribeIngestionSSE,
   updateInvoiceParsedFields,
+  renameInvoiceAttachment,
   uploadInvoiceFiles
 } from "./api";
 import type { GmailConnectionStatus, IngestionJobStatus, Invoice } from "./types";
@@ -113,7 +114,6 @@ export function App() {
   const [popupRawOcrExpanded, setPopupRawOcrExpanded] = useState(false);
   const [loading, setLoading] = useState(false);
   const [ingestingIds, setIngestingIds] = useState<Set<string>>(new Set());
-  const [inlineRetryTotal, setInlineRetryTotal] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<(typeof STATUSES)[number]>("ALL");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -282,38 +282,15 @@ export function App() {
       getInvoiceFieldOverlayUrl
     );
   }, [popupInvoice]);
-  const effectiveIngestionStatus = useMemo<IngestionJobStatus | null>(() => {
-    if (inlineRetryTotal > 0 && ingestingIds.size > 0) {
-      const processed = inlineRetryTotal - ingestingIds.size;
-      return {
-        state: "running" as const,
-        running: true,
-        totalFiles: inlineRetryTotal,
-        processedFiles: processed,
-        newInvoices: processed,
-        duplicates: 0,
-        failures: 0,
-        lastUpdatedAt: new Date().toISOString()
-      };
-    }
-    return ingestionStatus;
-  }, [ingestionStatus, inlineRetryTotal, ingestingIds.size]);
-
   const ingestionProgressPercent = useMemo(() => {
-    if (!effectiveIngestionStatus || effectiveIngestionStatus.totalFiles <= 0) {
-      return 0;
-    }
-
-    return Math.min(100, Math.round((effectiveIngestionStatus.processedFiles / effectiveIngestionStatus.totalFiles) * 100));
-  }, [effectiveIngestionStatus]);
+    if (!ingestionStatus || ingestionStatus.totalFiles <= 0) return 0;
+    return Math.min(100, Math.round((ingestionStatus.processedFiles / ingestionStatus.totalFiles) * 100));
+  }, [ingestionStatus]);
 
   const ingestionSuccessfulFiles = useMemo(() => {
-    if (!effectiveIngestionStatus) {
-      return 0;
-    }
-
-    return Math.max(0, effectiveIngestionStatus.processedFiles - effectiveIngestionStatus.failures);
-  }, [effectiveIngestionStatus]);
+    if (!ingestionStatus) return 0;
+    return Math.max(0, ingestionStatus.processedFiles - ingestionStatus.failures);
+  }, [ingestionStatus]);
 
   const selectedInvoices = useMemo(() => {
     if (selectedIds.length === 0 || invoices.length === 0) {
@@ -569,10 +546,7 @@ export function App() {
   }, [ingestionStatus?.state]);
 
   useEffect(() => {
-    if (ingestingIds.size === 0) {
-      if (inlineRetryTotal > 0) setInlineRetryTotal(0);
-      return;
-    }
+    if (ingestingIds.size === 0) return;
     const stillIngesting = new Set<string>();
     for (const id of ingestingIds) {
       const inv = invoices.find((i) => i._id === id);
@@ -721,7 +695,6 @@ export function App() {
 
   async function handleRetrySingle(invoiceId: string) {
     setIngestingIds((prev) => new Set(prev).add(invoiceId));
-    setInlineRetryTotal((prev) => prev + 1);
     try {
       setError(null);
       const response = await retryInvoices([invoiceId]);
@@ -860,6 +833,8 @@ export function App() {
       setError(null);
       await uploadInvoiceFiles(Array.from(files));
       await loadInvoices();
+      const status = await runIngestion();
+      setIngestionStatus(status);
     } catch (uploadError) {
       setError(getUserFacingErrorMessage(uploadError, "File upload failed."));
     } finally {
@@ -1094,16 +1069,19 @@ export function App() {
     if (!editingListCell) return;
     const { invoiceId, field } = editingListCell;
     const trimmed = editListValue.trim();
-    const parsed: Record<string, string | null> = {};
-
-    if (field === "totalAmountMinor") {
-      parsed.totalAmountMajor = trimmed || null;
-    } else {
-      parsed[field] = trimmed || null;
-    }
 
     try {
-      await updateInvoiceParsedFields(invoiceId, { parsed, updatedBy: "ui-user" });
+      if (field === "attachmentName") {
+        if (trimmed) await renameInvoiceAttachment(invoiceId, trimmed);
+      } else {
+        const parsed: Record<string, string | null> = {};
+        if (field === "totalAmountMinor") {
+          parsed.totalAmountMajor = trimmed || null;
+        } else {
+          parsed[field] = trimmed || null;
+        }
+        await updateInvoiceParsedFields(invoiceId, { parsed, updatedBy: "ui-user" });
+      }
       setEditingListCell(null);
       await loadInvoices();
       if (activeId === invoiceId) {
@@ -1473,7 +1451,7 @@ export function App() {
                   </span>
                 </div>
                 <IngestionProgressCard
-                  status={effectiveIngestionStatus}
+                  status={ingestionStatus}
                   progressPercent={ingestionProgressPercent}
                   successfulFiles={ingestionSuccessfulFiles}
                   fading={ingestionFading}
@@ -1532,17 +1510,22 @@ export function App() {
                               onClick={(event) => event.stopPropagation()}
                             />
                           </td>
-                          <td>
-                            <button
-                              type="button"
-                              className="file-label"
-                              onClick={(event) => {
-                                event.stopPropagation();
-                                setPopupInvoiceId(invoice._id);
-                              }}
-                            >
-                              {invoice.attachmentName}
-                            </button>
+                          <td className="file-name-cell" onClick={(e) => e.stopPropagation()}>
+                            {editingListCell?.invoiceId === invoice._id && editingListCell.field === "attachmentName" ? (
+                              <>
+                                <input className="extracted-value-input" value={editListValue} onChange={(e) => setEditListValue(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") void handleSaveListCell(); if (e.key === "Escape") setEditingListCell(null); }} autoFocus />
+                                <button type="button" className="field-save-button" onClick={() => void handleSaveListCell()}>&#10003;</button>
+                              </>
+                            ) : (
+                              <>
+                                <button type="button" className="file-label" onClick={(event) => { event.stopPropagation(); setPopupInvoiceId(invoice._id); }}>{invoice.attachmentName}</button>
+                                {canEditCell && (
+                                  <button type="button" className="row-action-button file-rename-button" title="Rename" onClick={() => { setEditingListCell({ invoiceId: invoice._id, field: "attachmentName" }); setEditListValue(invoice.attachmentName); }}>
+                                    <span className="material-symbols-outlined">edit</span>
+                                  </button>
+                                )}
+                              </>
+                            )}
                           </td>
                           <td className="extracted-value-cell" onClick={(e) => e.stopPropagation()}>
                             {editingListCell?.invoiceId === invoice._id && editingListCell.field === "vendorName" ? (
@@ -1551,7 +1534,14 @@ export function App() {
                                 <button type="button" className="field-save-button" onClick={() => void handleSaveListCell()}>&#10003;</button>
                               </>
                             ) : (
-                              <span className="extracted-value-display" {...(canEditCell ? { "data-editable": true, onClick: () => { setEditingListCell({ invoiceId: invoice._id, field: "vendorName" }); setEditListValue(invoice.parsed?.vendorName ?? ""); } } : {})}>{invoice.parsed?.vendorName ?? "-"}</span>
+                              <>
+                                <span className="extracted-value-display">{invoice.parsed?.vendorName ?? "-"}</span>
+                                {canEditCell && (
+                                  <button type="button" className="row-action-button field-edit-button" title="Edit vendor" onClick={() => { setEditingListCell({ invoiceId: invoice._id, field: "vendorName" }); setEditListValue(invoice.parsed?.vendorName ?? ""); }}>
+                                    <span className="material-symbols-outlined">edit</span>
+                                  </button>
+                                )}
+                              </>
                             )}
                           </td>
                           <td className="extracted-value-cell" onClick={(e) => e.stopPropagation()}>
@@ -1561,7 +1551,14 @@ export function App() {
                                 <button type="button" className="field-save-button" onClick={() => void handleSaveListCell()}>&#10003;</button>
                               </>
                             ) : (
-                              <span className="extracted-value-display" {...(canEditCell ? { "data-editable": true, onClick: () => { setEditingListCell({ invoiceId: invoice._id, field: "invoiceNumber" }); setEditListValue(invoice.parsed?.invoiceNumber ?? ""); } } : {})}>{invoice.parsed?.invoiceNumber ?? "-"}</span>
+                              <>
+                                <span className="extracted-value-display">{invoice.parsed?.invoiceNumber ?? "-"}</span>
+                                {canEditCell && (
+                                  <button type="button" className="row-action-button field-edit-button" title="Edit invoice number" onClick={() => { setEditingListCell({ invoiceId: invoice._id, field: "invoiceNumber" }); setEditListValue(invoice.parsed?.invoiceNumber ?? ""); }}>
+                                    <span className="material-symbols-outlined">edit</span>
+                                  </button>
+                                )}
+                              </>
                             )}
                           </td>
                           <td className="extracted-value-cell" onClick={(e) => e.stopPropagation()}>
@@ -1571,7 +1568,14 @@ export function App() {
                                 <button type="button" className="field-save-button" onClick={() => void handleSaveListCell()}>&#10003;</button>
                               </>
                             ) : (
-                              <span className="extracted-value-display" {...(canEditCell ? { "data-editable": true, onClick: () => { setEditingListCell({ invoiceId: invoice._id, field: "invoiceDate" }); setEditListValue(invoice.parsed?.invoiceDate ?? ""); } } : {})}>{invoice.parsed?.invoiceDate ?? "-"}</span>
+                              <>
+                                <span className="extracted-value-display">{invoice.parsed?.invoiceDate ?? "-"}</span>
+                                {canEditCell && (
+                                  <button type="button" className="row-action-button field-edit-button" title="Edit date" onClick={() => { setEditingListCell({ invoiceId: invoice._id, field: "invoiceDate" }); setEditListValue(invoice.parsed?.invoiceDate ?? ""); }}>
+                                    <span className="material-symbols-outlined">edit</span>
+                                  </button>
+                                )}
+                              </>
                             )}
                           </td>
                           <td
@@ -1586,7 +1590,14 @@ export function App() {
                                 <button type="button" className="field-save-button" onClick={() => void handleSaveListCell()}>&#10003;</button>
                               </>
                             ) : (
-                              <span className="extracted-value-display" {...(canEditCell ? { "data-editable": true, onClick: () => { setEditingListCell({ invoiceId: invoice._id, field: "totalAmountMinor" }); setEditListValue(invoice.parsed?.totalAmountMinor != null ? String(invoice.parsed.totalAmountMinor / 100) : ""); } } : {})}>{formatMinorAmountWithCurrency(invoice.parsed?.totalAmountMinor, invoice.parsed?.currency)}</span>
+                              <>
+                                <span className="extracted-value-display">{formatMinorAmountWithCurrency(invoice.parsed?.totalAmountMinor, invoice.parsed?.currency)}</span>
+                                {canEditCell && (
+                                  <button type="button" className="row-action-button field-edit-button" title="Edit amount" onClick={() => { setEditingListCell({ invoiceId: invoice._id, field: "totalAmountMinor" }); setEditListValue(invoice.parsed?.totalAmountMinor != null ? String(invoice.parsed.totalAmountMinor / 100) : ""); }}>
+                                    <span className="material-symbols-outlined">edit</span>
+                                  </button>
+                                )}
+                              </>
                             )}
                           </td>
                           <td>
@@ -1595,8 +1606,6 @@ export function App() {
                           <td>
                             {ingestingIds.has(invoice._id) ? (
                               <span className="status status-reprocessing">Reprocessing</span>
-                            ) : ingestionStatus?.running && invoice.status === "PENDING" ? (
-                              <span className="status status-reprocessing">Processing</span>
                             ) : (
                               <span className={`status status-${invoice.status.toLowerCase()}`} title={invoice.approval?.approvedBy ? `Approved by ${invoice.approval.approvedBy}` : undefined}>{STATUS_LABELS[invoice.status] ?? invoice.status}</span>
                             )}
@@ -1608,7 +1617,7 @@ export function App() {
                           <td onClick={(e) => e.stopPropagation()}>
                             {(() => {
                               const actions = getAvailableRowActions(invoice);
-                              const ingesting = ingestingIds.has(invoice._id) || (ingestionStatus?.running === true && invoice.status === "PENDING");
+                              const ingesting = ingestingIds.has(invoice._id);
                               return (
                                 <>
                                   {actions.includes("approve") && !ingesting && (
@@ -1616,14 +1625,9 @@ export function App() {
                                       <span className="material-symbols-outlined">check_circle</span>
                                     </button>
                                   )}
-                                  {actions.includes("ingest") && (
-                                    <button type="button" className="row-action-button row-action-retry" title="Ingest" disabled={ingesting} onClick={() => void handleRetrySingle(invoice._id)}>
-                                      <span className={`material-symbols-outlined${ingesting ? " spin" : ""}`}>{ingesting ? "progress_activity" : "play_arrow"}</span>
-                                    </button>
-                                  )}
-                                  {actions.includes("reingest") && (
-                                    <button type="button" className="row-action-button row-action-retry" title="Reingest" disabled={ingesting} onClick={() => void handleRetrySingle(invoice._id)}>
-                                      <span className={`material-symbols-outlined${ingesting ? " spin" : ""}`}>{ingesting ? "progress_activity" : "replay"}</span>
+                                  {actions.includes("reingest") && !ingesting && (
+                                    <button type="button" className="row-action-button row-action-retry" title="Reingest" onClick={() => void handleRetrySingle(invoice._id)}>
+                                      <span className="material-symbols-outlined">replay</span>
                                     </button>
                                   )}
                                   {actions.includes("delete") && !ingesting && (

@@ -21,13 +21,12 @@ export function mergeSelectedIds(currentSelectedIds: string[], invoices: Invoice
   return currentSelectedIds.filter((selectedId) => !blockedIds.has(selectedId));
 }
 
-export type RowAction = "approve" | "ingest" | "reingest" | "delete";
+export type RowAction = "approve" | "reingest" | "delete";
 
 export function getAvailableRowActions(invoice: Invoice): RowAction[] {
   const actions: RowAction[] = [];
   if (isInvoiceApprovable(invoice)) actions.push("approve");
-  if (invoice.status === "PENDING") actions.push("ingest");
-  else if (isInvoiceRetryable(invoice)) actions.push("reingest");
+  if (invoice.status !== "PENDING" && isInvoiceRetryable(invoice)) actions.push("reingest");
   if (invoice.status !== "EXPORTED") actions.push("delete");
   return actions;
 }

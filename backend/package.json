@@ -8,6 +8,7 @@
     "build": "tsc -p tsconfig.json",
     "start": "ENV=${ENV:-local} node dist/server.js",
     "worker:once": "ENV=${ENV:-local} tsx src/scripts/runWorkerOnce.ts",
+    "seed:platform-admin": "ENV=${ENV:-local} node dist/scripts/seedPlatformAdmin.js",
     "test": "ENV=${ENV:-local} MONGO_URI=${MONGO_URI:-mongodb://billforge_app:billforge_local_pass@127.0.0.1:27018/billforge?authSource=billforge} jest --config jest.config.cjs --runInBand --testPathIgnorePatterns=/src/e2e/",
     "coverage": "ENV=${ENV:-local} MONGO_URI=${MONGO_URI:-mongodb://billforge_app:billforge_local_pass@127.0.0.1:27018/billforge?authSource=billforge} jest --config jest.config.cjs --runInBand --testPathIgnorePatterns=/src/e2e/ --coverage",
     "test:e2e": "ENV=${ENV:-local} MONGO_URI=${MONGO_URI:-mongodb://billforge_app:billforge_local_pass@127.0.0.1:27018/billforge?authSource=billforge} jest --config jest.config.cjs --runInBand src/e2e/folderIngestion.e2e.test.ts src/e2e/saasLifecycle.e2e.test.ts src/e2e/sendgridInviteFormatting.e2e.test.ts src/e2e/platformAdminUsage.e2e.test.ts src/e2e/tenantLifecycle.e2e.test.ts src/e2e/emailVerification.e2e.test.ts",

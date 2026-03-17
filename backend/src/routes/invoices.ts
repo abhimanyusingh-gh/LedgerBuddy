@@ -122,6 +122,17 @@ export function createInvoiceRouter(invoiceService: InvoiceService, fileStore?: 
   router.patch("/invoices/:id", async (req, res, next) => {
     try {
       const authContext = req.authContext!;
+
+      if (typeof req.body?.attachmentName === "string") {
+        const updated = await invoiceService.renameAttachmentName(
+          req.params.id,
+          req.body.attachmentName,
+          authContext.tenantId
+        );
+        res.json(updated);
+        return;
+      }
+
       const parsedInput = isRecord(req.body?.parsed) ? req.body.parsed : {};
       const updatedBy = typeof req.body?.updatedBy === "string" ? req.body.updatedBy : undefined;
       const updatedInvoice = await invoiceService.updateInvoiceParsedFields(

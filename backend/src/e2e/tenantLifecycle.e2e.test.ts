@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import mongoose from "mongoose";
 import FormData from "form-data";
-import { createE2ESessionTokenWithOptions } from "./authHelper.js";
+import { loginWithPassword } from "./authHelper.js";
 
 const apiBaseUrl = process.env.E2E_API_BASE_URL ?? "http://127.0.0.1:4100";
 const mongoUri = process.env.E2E_MONGO_URI ?? "mongodb://billforge_app:billforge_local_pass@127.0.0.1:27018/billforge?authSource=billforge";
@@ -25,9 +25,7 @@ describe("tenant lifecycle e2e", () => {
     expect(health.data?.ready).toBe(true);
     await mongoose.connect(mongoUri);
 
-    platformAdminToken = await createE2ESessionTokenWithOptions(apiBaseUrl, {
-      loginHint: "platform-admin@local.test"
-    });
+    platformAdminToken = await loginWithPassword(apiBaseUrl, "platform-admin@local.test", "DemoPass!1");
   });
 
   afterAll(async () => {
@@ -114,10 +112,10 @@ describe("tenant lifecycle e2e", () => {
       { tenantName, adminEmail },
       { headers: { Authorization: `Bearer ${newToken}` } }
     );
-    expect(completeResponse.status).toBe(200);
+    expect(completeResponse.status).toBe(204);
 
     // 10. Upload file
-    const samplePdfPath = path.resolve(process.cwd(), "sample-invoices/e2e-inbox/e2e-sample.pdf");
+    const samplePdfPath = path.resolve(__dirname, "../../../sample-invoices/e2e-inbox/e2e-sample.pdf");
     const pdfBuffer = readFileSync(samplePdfPath);
     const form = new FormData();
     form.append("files", pdfBuffer, { filename: "e2e-upload-test.pdf", contentType: "application/pdf" });

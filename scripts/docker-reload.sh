@@ -20,7 +20,7 @@ else
 fi
 
 # Verify infrastructure services are running before reload
-REQUIRED_SERVICES=(mongo minio local-sts)
+REQUIRED_SERVICES=(mongo minio keycloak)
 for svc in "${REQUIRED_SERVICES[@]}"; do
   if ! "${COMPOSE_CMD[@]}" ps --status running --format '{{.Service}}' 2>/dev/null | grep -q "^${svc}$"; then
     echo "Error: '$svc' is not running. Start the full stack first: yarn docker:up" >&2

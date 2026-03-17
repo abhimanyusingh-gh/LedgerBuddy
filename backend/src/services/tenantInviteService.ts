@@ -5,11 +5,15 @@ import { TenantInviteModel } from "../models/TenantInvite.js";
 import { TenantUserRoleModel } from "../models/TenantUserRole.js";
 import { UserModel } from "../models/User.js";
 import { HttpError } from "../errors/HttpError.js";
+import type { KeycloakAdminClient } from "../keycloak/KeycloakAdminClient.js";
 
 const INVITE_TTL_MS = 24 * 60 * 60 * 1000;
 
 export class TenantInviteService {
-  constructor(private readonly inviteEmailSender: InviteEmailSenderBoundary) {}
+  constructor(
+    private readonly inviteEmailSender: InviteEmailSenderBoundary,
+    private readonly keycloakAdmin: KeycloakAdminClient
+  ) {}
 
   async createInvite(input: {
     tenantId: string;
@@ -52,6 +56,17 @@ export class TenantInviteService {
       token,
       expiresAt
     });
+
+    // Register in Keycloak if not already present; send password setup email
+    const alreadyExists = await this.keycloakAdmin.userExists(normalizedEmail);
+    if (!alreadyExists) {
+      const kcUserId = await this.keycloakAdmin.createUser(normalizedEmail, "", false);
+      try {
+        await this.keycloakAdmin.executeActionsEmail(kcUserId, ["UPDATE_PASSWORD"]);
+      } catch {
+        // Non-critical: KC SMTP may not be configured in local dev
+      }
+    }
 
     return {
       inviteId: String(invite._id),

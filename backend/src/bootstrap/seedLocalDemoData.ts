@@ -4,8 +4,9 @@ import { TenantUserRoleModel } from "../models/TenantUserRole.js";
 import { UserModel } from "../models/User.js";
 import { logger } from "../utils/logger.js";
 import { loadLocalDemoUsersConfig } from "../config/localDemoUsers.js";
+import type { KeycloakAdminClient } from "../keycloak/KeycloakAdminClient.js";
 
-export async function seedLocalDemoData(): Promise<void> {
+export async function seedLocalDemoData(keycloakAdmin: KeycloakAdminClient): Promise<void> {
   const config = loadLocalDemoUsersConfig();
   logger.info("local.demo.seed.start");
 
@@ -54,6 +55,21 @@ export async function seedLocalDemoData(): Promise<void> {
       },
       { upsert: true, new: true, setDefaultsOnInsert: true }
     );
+
+    // Seed Keycloak (idempotent: create if missing, always sync password)
+    try {
+      const existing = await keycloakAdmin.findUserByEmail(user.email);
+      if (!existing) {
+        await keycloakAdmin.createUser(user.email, user.password, false);
+      } else {
+        await keycloakAdmin.setPassword(existing.id, user.password, false);
+      }
+    } catch (kcError) {
+      logger.warn("local.demo.seed.keycloak.warn", {
+        email: user.email,
+        error: kcError instanceof Error ? kcError.message : String(kcError)
+      });
+    }
   }
 
   logger.info("local.demo.seed.complete", {

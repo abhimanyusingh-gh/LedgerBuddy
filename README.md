@@ -101,45 +101,37 @@ This starts all services with demo tenants, seeded users, and sample invoices:
 | Service | URL |
 |---------|-----|
 | Backend API | `http://localhost:4100` |
-| Frontend Dashboard | `http://localhost:5174` |
+| Frontend Dashboard | `http://localhost:5177` |
 | MongoDB | `localhost:27018` |
 | Mongo Express | `http://localhost:8181` |
 | Mailpit (SMTP/UI) | `localhost:1125` / `http://localhost:8125` |
 | MailHog OAuth Wrapper | `http://localhost:8126` |
 | MinIO (S3) | `http://localhost:9100` / Console: `http://localhost:9101` |
 | MinIO Init | _(runs once to create `billforge-local` bucket)_ |
-| Local STS (OIDC) | `http://localhost:8190` |
 | OCR Service | `http://localhost:8200` |
 | SLM Service | `http://localhost:8300` |
-| Keycloak (opt-in) | `http://localhost:8180` (use `--profile keycloak`) |
+| Keycloak (OIDC) | `http://localhost:8280` |
 
 ### 4. Demo Credentials
 
-**Local-STS (default)** — all demo users use password `DemoPass!1`:
+All demo users log in with password `DemoPass!1`:
 
 | User | Role | Tenant |
 |------|------|--------|
+| `platform-admin@local.test` | Platform admin | — |
 | `tenant-admin-1@local.test` | Tenant admin | Tenant Alpha |
 | `tenant-user-1@local.test` | Member | Tenant Alpha |
 | `tenant-admin-2@local.test` | Tenant admin | Tenant Beta |
 | `tenant-user-2@local.test` | Member | Tenant Beta |
-| `platform-admin@local.test` | Platform admin | — |
-
-**Keycloak (opt-in `--profile keycloak`)**:
-
-| User | Password | Role |
-|------|----------|------|
-| `admin@demo.test` | `admin123` | Platform admin |
-| `user@demo.test` | `user123` | Member |
-| `tenant-admin@acme.test` | `admin123` | Tenant admin |
+| `mahir.n@globalhealthx.co` | Tenant admin | Neelam and Associates |
 
 **Service credentials (local dev only)**:
 
 | Service | Username | Password |
 |---------|----------|----------|
+| Keycloak Admin Console | `admin` | `admin` |
 | MinIO (S3) Console | `minioadmin` | `minioadmin` |
-| Mongo Express | _(no auth)_ | _(no auth)_ |
-| Keycloak Admin | `admin` | `admin` |
+| Mongo Express | `admin` | `billforge` |
 
 <br />
 
@@ -309,7 +301,7 @@ Example files: `backend/runtime-manifest.local.json`, `backend/runtime-manifest.
 |-----------|---------|
 | **Docker Compose** | Local development environment |
 | **MinIO** | S3-compatible local object storage |
-| **Keycloak** | OIDC/OAuth2 identity provider (opt-in profile) |
+| **Keycloak** | OIDC/OAuth2 identity provider |
 | **Terraform** | AWS infrastructure as code |
 | **AWS ECS Fargate** | Keycloak production deployment |
 | **AWS EC2 Spot** | Scheduled worker instances |

@@ -3,7 +3,6 @@ import type { InvoiceStatus } from "./types";
 
 export const STATUSES: Array<InvoiceStatus | "ALL"> = [
   "ALL",
-  "PENDING",
   "PARSED",
   "NEEDS_REVIEW",
   "FAILED_OCR",

@@ -330,6 +330,28 @@ export class InvoiceService {
     await invoice.save();
     return sanitizeForApi(invoice.toObject());
   }
+
+  async renameAttachmentName(id: string, attachmentName: string, tenantId: string) {
+    if (!Types.ObjectId.isValid(id)) {
+      throw new InvoiceUpdateError("Invalid invoice id.", 400);
+    }
+    const trimmed = attachmentName.trim();
+    if (!trimmed) {
+      throw new InvoiceUpdateError("Attachment name cannot be empty.", 400);
+    }
+
+    const invoice = await InvoiceModel.findOne({ _id: id, tenantId });
+    if (!invoice) {
+      throw new InvoiceUpdateError("Invoice not found.", 404);
+    }
+    if (invoice.status === "EXPORTED") {
+      throw new InvoiceUpdateError("Exported invoices cannot be modified.", 400);
+    }
+
+    invoice.attachmentName = trimmed;
+    await invoice.save();
+    return sanitizeForApi(invoice.toObject());
+  }
 }
 
 const EDITABLE_PARSED_FIELDS = [

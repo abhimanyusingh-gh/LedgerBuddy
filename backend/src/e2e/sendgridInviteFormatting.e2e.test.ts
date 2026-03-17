@@ -1,6 +1,6 @@
 import axios from "axios";
 import mongoose from "mongoose";
-import { createE2ESessionTokenWithOptions, completeE2ETenantOnboarding } from "./authHelper.js";
+import { createE2EUserAndLogin, completeE2ETenantOnboarding } from "./authHelper.js";
 import { pollForEmail } from "./mailhogHelper.js";
 
 const apiBaseUrl = process.env.E2E_API_BASE_URL ?? "http://127.0.0.1:4100";
@@ -30,7 +30,7 @@ describe("sendgrid invite formatting e2e", () => {
   it("delivers invite email to MailHog with formatted invite details", async () => {
     const adminEmail = `sendgrid-admin-${Date.now()}@local.test`;
     const inviteeEmail = `sendgrid-invitee-${Date.now()}@local.test`;
-    const adminToken = await createE2ESessionTokenWithOptions(apiBaseUrl, { loginHint: adminEmail });
+    const adminToken = await createE2EUserAndLogin(apiBaseUrl, adminEmail);
     await completeE2ETenantOnboarding(apiBaseUrl, adminToken);
 
     const inviteStartMs = Date.now();

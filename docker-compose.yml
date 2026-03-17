@@ -12,9 +12,13 @@ services:
         condition: service_started
       mailhog-oauth:
         condition: service_started
-      local-sts:
-        condition: service_started
+      keycloak:
+        condition: service_healthy
       minio:
+        condition: service_healthy
+      invoice-ocr:
+        condition: service_healthy
+      invoice-slm:
         condition: service_healthy
     env_file:
       - path: ./backend/.env.example
@@ -36,23 +40,23 @@ services:
       MONGO_URI: mongodb://billforge_app:billforge_local_pass@mongo:27017/billforge?authSource=billforge
       APP_MANIFEST_PATH: ${APP_MANIFEST_PATH:-}
       FRONTEND_BASE_URL: ${FRONTEND_BASE_URL:-http://localhost:5177}
-      STS_CLIENT_ID: ${STS_CLIENT_ID:-billforge-local-client}
+      STS_CLIENT_ID: ${STS_CLIENT_ID:-billforge-app}
       STS_CLIENT_SECRET: ${STS_CLIENT_SECRET:-billforge-local-secret}
       STS_SCOPES: ${STS_SCOPES:-openid profile email offline_access}
       STS_REDIRECT_URI: ${STS_REDIRECT_URI:-http://localhost:5177/api/auth/callback}
-      STS_LOCAL_PUBLIC_BASE_URL: ${STS_LOCAL_PUBLIC_BASE_URL:-http://localhost:8190}
-      STS_LOCAL_INTERNAL_BASE_URL: ${STS_LOCAL_INTERNAL_BASE_URL:-http://local-sts:8090}
-      STS_AUTH_URL: ${STS_AUTH_URL:-}
-      STS_TOKEN_URL: ${STS_TOKEN_URL:-}
-      STS_VALIDATE_URL: ${STS_VALIDATE_URL:-}
-      STS_USERINFO_URL: ${STS_USERINFO_URL:-}
+      STS_AUTH_URL: ${STS_AUTH_URL:-http://localhost:8280/realms/billforge/protocol/openid-connect/auth}
+      STS_TOKEN_URL: ${STS_TOKEN_URL:-http://keycloak:8080/realms/billforge/protocol/openid-connect/token}
+      STS_VALIDATE_URL: ${STS_VALIDATE_URL:-http://keycloak:8080/realms/billforge/protocol/openid-connect/token/introspect}
+      STS_USERINFO_URL: ${STS_USERINFO_URL:-http://keycloak:8080/realms/billforge/protocol/openid-connect/userinfo}
+      KEYCLOAK_INTERNAL_BASE_URL: ${KEYCLOAK_INTERNAL_BASE_URL:-http://keycloak:8080}
+      KEYCLOAK_REALM: ${KEYCLOAK_REALM:-billforge}
       AUTH_STATE_TTL_SECONDS: ${AUTH_STATE_TTL_SECONDS:-600}
       APP_SESSION_SIGNING_SECRET: ${APP_SESSION_SIGNING_SECRET:-local-dev-session-signing-secret-change-me}
       APP_SESSION_TTL_SECONDS: ${APP_SESSION_TTL_SECONDS:-28800}
       REFRESH_TOKEN_ENCRYPTION_SECRET: ${REFRESH_TOKEN_ENCRYPTION_SECRET:-local-dev-refresh-token-secret-32-chars}
       AUTH_AUTO_PROVISION_USERS: ${AUTH_AUTO_PROVISION_USERS:-true}
       PLATFORM_ADMIN_EMAILS: ${PLATFORM_ADMIN_EMAILS:-platform-admin@local.test}
-      LOCAL_DEMO_SEED: ${LOCAL_DEMO_SEED:-false}
+      LOCAL_DEMO_SEED: ${LOCAL_DEMO_SEED:-true}
       LOCAL_DEMO_CONFIG_PATH: ${LOCAL_DEMO_CONFIG_PATH:-config/local-demo-users.json}
       INGESTION_SOURCES: ${INGESTION_SOURCES:-folder}
       FOLDER_SOURCE_KEY: local-folder
@@ -71,29 +75,29 @@ services:
       EMAIL_OAUTH_CLIENT_SECRET: ${EMAIL_OAUTH_CLIENT_SECRET:-}
       EMAIL_OAUTH_REFRESH_TOKEN: ${EMAIL_OAUTH_REFRESH_TOKEN:-}
       EMAIL_OAUTH_ACCESS_TOKEN: ${EMAIL_OAUTH_ACCESS_TOKEN:-}
-      EMAIL_OAUTH_TOKEN_ENDPOINT: ${EMAIL_OAUTH_TOKEN_ENDPOINT:-http://local-sts:8090/oauth2/token}
+      EMAIL_OAUTH_TOKEN_ENDPOINT: ${EMAIL_OAUTH_TOKEN_ENDPOINT:-http://keycloak:8080/realms/billforge/protocol/openid-connect/token}
       EMAIL_SIMULATION_SAMPLE_DIR: ${EMAIL_SIMULATION_SAMPLE_DIR:-/app/sample-invoices/inbox}
       EMAIL_MAILBOX: ${EMAIL_MAILBOX:-INBOX}
       EMAIL_FROM_FILTER: ${EMAIL_FROM_FILTER:-}
-      GMAIL_OAUTH_CLIENT_ID: ${GMAIL_OAUTH_CLIENT_ID:-billforge-local-client}
+      GMAIL_OAUTH_CLIENT_ID: ${GMAIL_OAUTH_CLIENT_ID:-billforge-app}
       GMAIL_OAUTH_CLIENT_SECRET: ${GMAIL_OAUTH_CLIENT_SECRET:-billforge-local-secret}
-      GMAIL_OAUTH_REDIRECT_URI: ${GMAIL_OAUTH_REDIRECT_URI:-http://localhost:5177/api/connect/gmail/callback}
-      GMAIL_OAUTH_AUTH_URL: ${GMAIL_OAUTH_AUTH_URL:-http://localhost:8190/oauth2/authorize}
-      GMAIL_OAUTH_TOKEN_URL: ${GMAIL_OAUTH_TOKEN_URL:-http://local-sts:8090/oauth2/token}
-      GMAIL_OAUTH_USERINFO_URL: ${GMAIL_OAUTH_USERINFO_URL:-http://local-sts:8090/oauth2/userinfo}
+      GMAIL_OAUTH_REDIRECT_URI: ${GMAIL_OAUTH_REDIRECT_URI:-http://localhost:4100/api/connect/gmail/callback}
+      GMAIL_OAUTH_AUTH_URL: ${GMAIL_OAUTH_AUTH_URL:-http://localhost:8280/realms/billforge/protocol/openid-connect/auth}
+      GMAIL_OAUTH_TOKEN_URL: ${GMAIL_OAUTH_TOKEN_URL:-http://keycloak:8080/realms/billforge/protocol/openid-connect/token}
+      GMAIL_OAUTH_USERINFO_URL: ${GMAIL_OAUTH_USERINFO_URL:-http://keycloak:8080/realms/billforge/protocol/openid-connect/userinfo}
       GMAIL_OAUTH_SCOPES: ${GMAIL_OAUTH_SCOPES:-https://mail.google.com/ openid email profile}
       GMAIL_OAUTH_STATE_TTL_SECONDS: ${GMAIL_OAUTH_STATE_TTL_SECONDS:-600}
       GMAIL_OAUTH_HTTP_TIMEOUT_MS: ${GMAIL_OAUTH_HTTP_TIMEOUT_MS:-15000}
       GMAIL_OAUTH_TOKEN_ENCRYPTION_SECRET: ${GMAIL_OAUTH_TOKEN_ENCRYPTION_SECRET:-local-dev-gmail-oauth-encryption-secret}
       GMAIL_OAUTH_SUCCESS_REDIRECT_URL: ${GMAIL_OAUTH_SUCCESS_REDIRECT_URL:-http://localhost:5177}
       GMAIL_OAUTH_FAILURE_REDIRECT_URL: ${GMAIL_OAUTH_FAILURE_REDIRECT_URL:-http://localhost:5177}
-      DEEPSEEK_BASE_URL: ${DEEPSEEK_BASE_URL:-http://host.docker.internal:8200/v1}
+      DEEPSEEK_BASE_URL: http://invoice-ocr:8000/v1
       DEEPSEEK_OCR_MODEL: ${DEEPSEEK_OCR_MODEL:-mlx-community/DeepSeek-OCR-4bit}
       DEEPSEEK_OCR_MAX_TOKENS: "768"
       DEEPSEEK_TIMEOUT_MS: "3600000"
       OCR_HIGH_CONFIDENCE_THRESHOLD: "0.92"
       FIELD_VERIFIER_PROVIDER: http
-      FIELD_VERIFIER_BASE_URL: ${FIELD_VERIFIER_BASE_URL:-http://host.docker.internal:8300/v1}
+      FIELD_VERIFIER_BASE_URL: http://invoice-slm:8100/v1
       FIELD_VERIFIER_TIMEOUT_MS: "20000"
       LOCAL_FILE_STORE_ROOT: ${LOCAL_FILE_STORE_ROOT:-/app/.local-run/artifacts}
       S3_FILE_STORE_BUCKET: ${S3_FILE_STORE_BUCKET:-billforge-local}
@@ -261,33 +265,13 @@ services:
       OAUTH_TOKEN_EXPIRES_IN: "3600"
       SENDGRID_API_KEY: ${INVITE_SENDGRID_API_KEY:-local-sendgrid-key}
 
-  local-sts:
-    build:
-      context: .
-      dockerfile: local-sts/Dockerfile
-    container_name: billforge-local-sts
-    restart: unless-stopped
-    ports:
-      - "8190:8090"
-    deploy:
-      resources:
-        limits:
-          memory: 128M
-    environment:
-      PORT: "8090"
-      ISSUER: http://local-sts:8090
-      CLIENT_ID: ${STS_CLIENT_ID:-billforge-local-client}
-      CLIENT_SECRET: ${STS_CLIENT_SECRET:-billforge-local-secret}
-      DEFAULT_USER_EMAIL: ${LOCAL_STS_DEFAULT_USER_EMAIL:-admin@local.test}
-      DEFAULT_USER_NAME: ${LOCAL_STS_DEFAULT_USER_NAME:-Local Admin}
-
   keycloak:
     image: quay.io/keycloak/keycloak:26.0
     container_name: billforge-keycloak
     restart: unless-stopped
     command: start-dev --import-realm
     ports:
-      - "8180:8080"
+      - "8280:8080"
     deploy:
       resources:
         limits:
@@ -299,18 +283,68 @@ services:
       KC_HOSTNAME_STRICT: "false"
       KC_HEALTH_ENABLED: "true"
       KC_METRICS_ENABLED: "false"
-      KC_DB: dev-mem
+      KC_DB: dev-file
     volumes:
       - ./keycloak/realm-config.json:/opt/keycloak/data/import/realm-config.json:ro
+      - keycloak_data:/opt/keycloak/data
     healthcheck:
-      test: ["CMD-SHELL", "exec 3<>/dev/tcp/localhost/8080 && echo -e 'GET /health/ready HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n' >&3 && cat <&3 | grep -q '200'"]
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/localhost/9000 && echo -e 'GET /health/ready HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n' >&3 && cat <&3 | grep -q '200'"]
       interval: 10s
       timeout: 5s
       retries: 12
       start_period: 30s
-    profiles:
-      - keycloak
+
+  invoice-ocr:
+    build:
+      context: .
+      dockerfile: invoice-ocr/Dockerfile
+    container_name: billforge-invoice-ocr
+    restart: unless-stopped
+    ports:
+      - "8200:8000"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      OCR_ENGINE: prod_http
+      OCR_REMOTE_BASE_URL: ${OCR_REMOTE_BASE_URL:-http://host.docker.internal:8200/v1}
+      OCR_VALIDATE_REMOTE_ON_STARTUP: "false"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/v1/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+  invoice-slm:
+    build:
+      context: .
+      dockerfile: invoice-slm/Dockerfile
+    container_name: billforge-invoice-slm
+    restart: unless-stopped
+    ports:
+      - "8300:8100"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      SLM_ENGINE: prod_http
+      SLM_REMOTE_BASE_URL: ${SLM_REMOTE_BASE_URL:-http://host.docker.internal:8300/v1}
+      SLM_VALIDATE_REMOTE_ON_STARTUP: "false"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8100/v1/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          memory: 256M
 
 volumes:
   mongo_data:
   minio_data:
+  keycloak_data:

@@ -4,7 +4,13 @@ import { requireTenantAdmin } from "../auth/middleware.js";
 import type { TenantGmailIntegrationService } from "../services/tenantGmailIntegrationService.js";
 import { logger } from "../utils/logger.js";
 
-export function createGmailConnectionRouter(
+/**
+ * Public Gmail routes — mounted BEFORE the authenticate middleware.
+ * These routes handle their own auth internally:
+ * - /connect/gmail uses a ?token= query param and resolves context manually
+ * - /connect/gmail/callback is an OAuth callback from KC and carries no auth token
+ */
+export function createGmailPublicRouter(
   gmailIntegrationService: TenantGmailIntegrationService,
   authService: AuthService
 ) {
@@ -52,7 +58,17 @@ export function createGmailConnectionRouter(
     }
   });
 
-  router.get("/api/integrations/gmail", async (request, response, next) => {
+  return router;
+}
+
+/**
+ * Protected Gmail routes — mounted AFTER the authenticate middleware.
+ * All routes here require a valid session (request.authContext set by authenticate).
+ */
+export function createGmailConnectionRouter(gmailIntegrationService: TenantGmailIntegrationService) {
+  const router = Router();
+
+  router.get("/integrations/gmail", async (request, response, next) => {
     try {
       const context = request.authContext;
       if (!context) {
@@ -82,7 +98,7 @@ export function createGmailConnectionRouter(
     }
   });
 
-  router.get("/api/mailbox/gmail/connection", async (request, response, next) => {
+  router.get("/mailbox/gmail/connection", async (request, response, next) => {
     try {
       const context = request.authContext;
       if (!context) {
@@ -111,7 +127,7 @@ export function createGmailConnectionRouter(
     }
   });
 
-  router.get("/api/integrations/gmail/connect-url", requireTenantAdmin, async (request, response, next) => {
+  router.get("/integrations/gmail/connect-url", requireTenantAdmin, async (request, response, next) => {
     try {
       const context = request.authContext!;
       const sessionToken = request.header("authorization")?.replace(/^Bearer\s+/i, "").trim() ?? "";
@@ -120,7 +136,7 @@ export function createGmailConnectionRouter(
         return;
       }
 
-      const connectUrl = new URL("/connect/gmail", `${request.protocol}://${request.get("host")}`);
+      const connectUrl = new URL("/api/connect/gmail", `${request.protocol}://${request.get("host")}`);
       connectUrl.searchParams.set("token", sessionToken);
       response.json({ connectUrl: connectUrl.toString(), tenantId: context.tenantId });
     } catch (error) {

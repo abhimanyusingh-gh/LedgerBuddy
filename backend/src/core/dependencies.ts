@@ -21,12 +21,14 @@ import { LocalDiskFileStore } from "../storage/LocalDiskFileStore.js";
 import { S3FileStore } from "../storage/S3FileStore.js";
 import { EmailSimulationService } from "../services/emailSimulationService.js";
 import { TenantGmailIntegrationService } from "../services/tenantGmailIntegrationService.js";
-import { createStsProvider } from "../sts/stsFactory.js";
+import { HttpOidcProvider } from "../sts/HttpOidcProvider.js";
 import { AuthService } from "../auth/AuthService.js";
 import { TenantAdminService } from "../services/tenantAdminService.js";
 import { TenantInviteService } from "../services/tenantInviteService.js";
 import { createInviteEmailSenderProvider } from "../providers/email/createInviteEmailSenderProvider.js";
 import { PlatformAdminService } from "../services/platformAdminService.js";
+import { KeycloakAdminClient } from "../keycloak/KeycloakAdminClient.js";
+import { env } from "../config/env.js";
 
 const OCR_BOOTSTRAP_TIMEOUT_MS = 5_000;
 const VERIFIER_BOOTSTRAP_TIMEOUT_MS = 5_000;
@@ -42,16 +44,31 @@ interface Dependencies {
   platformAdminService: PlatformAdminService;
   gmailIntegrationService: TenantGmailIntegrationService;
   fileStore: FileStore;
+  keycloakAdmin: KeycloakAdminClient;
 }
 
 export async function buildDependencies(): Promise<Dependencies> {
   const manifest = loadRuntimeManifest();
-  const stsProvider = createStsProvider();
-  const authService = new AuthService(stsProvider);
+  const keycloakAdmin = new KeycloakAdminClient(
+    env.keycloakInternalBaseUrl,
+    env.keycloakRealm,
+    env.STS_CLIENT_ID,
+    env.STS_CLIENT_SECRET
+  );
+  const oidcProvider = new HttpOidcProvider({
+    clientId: env.STS_CLIENT_ID,
+    clientSecret: env.STS_CLIENT_SECRET,
+    authUrl: env.STS_AUTH_URL,
+    tokenUrl: env.STS_TOKEN_URL,
+    validateUrl: env.STS_VALIDATE_URL,
+    userInfoUrl: env.STS_USERINFO_URL,
+    timeoutMs: 10_000
+  });
+  const authService = new AuthService(oidcProvider, keycloakAdmin);
   const tenantAdminService = new TenantAdminService();
   const inviteEmailSender = createInviteEmailSenderProvider();
-  const tenantInviteService = new TenantInviteService(inviteEmailSender);
-  const platformAdminService = new PlatformAdminService(inviteEmailSender);
+  const tenantInviteService = new TenantInviteService(inviteEmailSender, keycloakAdmin);
+  const platformAdminService = new PlatformAdminService(inviteEmailSender, keycloakAdmin);
   const gmailIntegrationService = new TenantGmailIntegrationService();
   const ocrProvider = await resolveOcrProvider(manifest);
   const fieldVerifier = await resolveFieldVerifier(manifest);
@@ -89,7 +106,8 @@ export async function buildDependencies(): Promise<Dependencies> {
     tenantInviteService,
     platformAdminService,
     gmailIntegrationService,
-    fileStore
+    fileStore,
+    keycloakAdmin
   };
 }
 

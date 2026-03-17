@@ -4,14 +4,6 @@ import { env } from "../config/env.js";
 import { UserModel } from "../models/User.js";
 import { TenantModel } from "../models/Tenant.js";
 
-jest.mock("../config/localDemoUsers.js", () => ({
-  findLocalDemoUserByEmail: jest.fn()
-}));
-
-const { findLocalDemoUserByEmail } = jest.requireMock("../config/localDemoUsers.js") as {
-  findLocalDemoUserByEmail: jest.Mock;
-};
-
 const TENANT_ID = "65f0000000000000000000a1";
 const USER_ID = "65f0000000000000000000c3";
 
@@ -43,11 +35,10 @@ function makeToken(overrides: Partial<{ email: string; isPlatformAdmin: boolean 
 }
 
 describe("AuthService disabled tenant/user", () => {
-  const authService = new AuthService({} as never);
+  const authService = new AuthService({} as never, {} as never);
 
   beforeEach(() => {
     jest.restoreAllMocks();
-    findLocalDemoUserByEmail.mockReset();
   });
 
   it("blocks when tenant is disabled", async () => {

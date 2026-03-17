@@ -22,37 +22,31 @@ const envSchema = z.object({
   APP_MANIFEST_PATH: z.string().optional(),
   FRONTEND_BASE_URL: z.string().default("http://localhost:5177"),
 
-  STS_CLIENT_ID: z.string().default("billforge-local-client"),
+  STS_CLIENT_ID: z.string().default("billforge-app"),
   STS_CLIENT_SECRET: z.string().default("billforge-local-secret"),
   STS_SCOPES: z.string().default("openid profile email offline_access"),
   STS_REDIRECT_URI: z
     .string()
     .default("http://localhost:4100/api/auth/callback")
     .transform((value) => normalizeUrl(value)),
-  STS_LOCAL_PUBLIC_BASE_URL: z
-    .string()
-    .default("http://localhost:8190")
-    .transform((value) => normalizeUrl(value)),
-  STS_LOCAL_INTERNAL_BASE_URL: z
-    .string()
-    .default("http://local-sts:8090")
-    .transform((value) => normalizeUrl(value)),
   STS_AUTH_URL: z
     .string()
-    .default("")
+    .default("http://localhost:8280/realms/billforge/protocol/openid-connect/auth")
     .transform((value) => normalizeUrl(value)),
   STS_TOKEN_URL: z
     .string()
-    .default("")
+    .default("http://keycloak:8080/realms/billforge/protocol/openid-connect/token")
     .transform((value) => normalizeUrl(value)),
   STS_VALIDATE_URL: z
     .string()
-    .default("")
+    .default("http://keycloak:8080/realms/billforge/protocol/openid-connect/token/introspect")
     .transform((value) => normalizeUrl(value)),
   STS_USERINFO_URL: z
     .string()
-    .default("")
+    .default("http://keycloak:8080/realms/billforge/protocol/openid-connect/userinfo")
     .transform((value) => normalizeUrl(value)),
+  KEYCLOAK_INTERNAL_BASE_URL: z.string().default("http://keycloak:8080"),
+  KEYCLOAK_REALM: z.string().default("billforge"),
   AUTH_STATE_TTL_SECONDS: z.coerce.number().default(600),
   APP_SESSION_SIGNING_SECRET: z.string().default("local-dev-session-signing-secret-change-me"),
   APP_SESSION_TTL_SECONDS: z.coerce.number().default(28800),
@@ -62,6 +56,7 @@ const envSchema = z.object({
     .default("false")
     .transform((value) => value === "true"),
   PLATFORM_ADMIN_EMAILS: z.string().default(""),
+  PLATFORM_ADMIN_SEED_PASSWORD: z.string().optional(),
   LOCAL_DEMO_SEED: z
     .string()
     .default("false")
@@ -217,14 +212,6 @@ const resolvedOcrBaseUrl = normalizeUrl(
 const resolvedSlmBaseUrl = normalizeUrl(
   values.FIELD_VERIFIER_BASE_URL ?? (localMlEnv ? "http://localhost:8300/v1" : "")
 );
-const resolvedStsAuthUrl =
-  values.ENV === "local" ? `${values.STS_LOCAL_PUBLIC_BASE_URL}/oauth2/authorize` : values.STS_AUTH_URL;
-const resolvedStsTokenUrl =
-  values.ENV === "local" ? `${values.STS_LOCAL_INTERNAL_BASE_URL}/oauth2/token` : values.STS_TOKEN_URL;
-const resolvedStsValidateUrl =
-  values.ENV === "local" ? `${values.STS_LOCAL_INTERNAL_BASE_URL}/oauth2/introspect` : values.STS_VALIDATE_URL;
-const resolvedStsUserInfoUrl =
-  values.ENV === "local" ? `${values.STS_LOCAL_INTERNAL_BASE_URL}/oauth2/userinfo` : values.STS_USERINFO_URL;
 
 if (!localMlEnv) {
   if (resolvedOcrBaseUrl.length === 0) {
@@ -240,10 +227,10 @@ if (!localMlEnv) {
   }
 }
 
-if (resolvedStsAuthUrl.length === 0 || resolvedStsTokenUrl.length === 0 || resolvedStsValidateUrl.length === 0 || resolvedStsUserInfoUrl.length === 0) {
+if (values.STS_AUTH_URL.length === 0 || values.STS_TOKEN_URL.length === 0 || values.STS_VALIDATE_URL.length === 0 || values.STS_USERINFO_URL.length === 0) {
   // eslint-disable-next-line no-console
   console.error(
-    "Invalid env vars: STS auth/token/validate/userinfo endpoints must be configured. Use STS_LOCAL_PUBLIC_BASE_URL and STS_LOCAL_INTERNAL_BASE_URL in local."
+    "Invalid env vars: STS_AUTH_URL, STS_TOKEN_URL, STS_VALIDATE_URL, and STS_USERINFO_URL must be configured."
   );
   process.exit(1);
 }
@@ -272,11 +259,9 @@ export const env = {
   ...values,
   DEEPSEEK_BASE_URL: resolvedOcrBaseUrl,
   FIELD_VERIFIER_BASE_URL: resolvedSlmBaseUrl,
-  STS_AUTH_URL: resolvedStsAuthUrl,
-  STS_TOKEN_URL: resolvedStsTokenUrl,
-  STS_VALIDATE_URL: resolvedStsValidateUrl,
-  STS_USERINFO_URL: resolvedStsUserInfoUrl,
   isLocalMlEnv: localMlEnv,
+  keycloakInternalBaseUrl: normalizeUrl(values.KEYCLOAK_INTERNAL_BASE_URL),
+  keycloakRealm: values.KEYCLOAK_REALM,
   platformAdminEmails: values.PLATFORM_ADMIN_EMAILS.split(",")
     .map((email) => email.trim().toLowerCase())
     .filter(Boolean),

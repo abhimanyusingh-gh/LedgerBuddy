@@ -1,7 +1,7 @@
 import axios from "axios";
 import { promises as fs } from "node:fs";
 import path from "node:path";
-import { completeE2ETenantOnboarding, createE2ESessionToken } from "./authHelper.js";
+import { completeE2ETenantOnboarding, createE2EUserAndLogin } from "./authHelper.js";
 
 const apiBaseUrl = process.env.E2E_API_BASE_URL ?? "http://127.0.0.1:4100";
 const frontendBaseUrl = process.env.E2E_FRONTEND_BASE_URL ?? "http://127.0.0.1:5177";
@@ -92,7 +92,7 @@ describe("local full-stack ingestion e2e", () => {
     expect(backendHealth.status).toBe(200);
     expect(backendHealth.data?.ready).toBe(true);
 
-    sessionToken = await createE2ESessionToken(apiBaseUrl);
+    sessionToken = await createE2EUserAndLogin(apiBaseUrl, `folder-e2e-${Date.now()}@local.test`);
     api.defaults.headers.common.Authorization = `Bearer ${sessionToken}`;
     await completeE2ETenantOnboarding(apiBaseUrl, sessionToken);
 

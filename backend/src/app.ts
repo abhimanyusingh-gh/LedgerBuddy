@@ -6,7 +6,7 @@ import { buildDependencies } from "./core/dependencies.js";
 import { createInvoiceRouter } from "./routes/invoices.js";
 import { createExportRouter } from "./routes/export.js";
 import { createJobsRouter } from "./routes/jobs.js";
-import { createGmailConnectionRouter } from "./routes/gmailConnection.js";
+import { createGmailConnectionRouter, createGmailPublicRouter } from "./routes/gmailConnection.js";
 import { createAuthRouter } from "./routes/auth.js";
 import { createSessionRouter } from "./routes/session.js";
 import { createTenantAdminRouter } from "./routes/tenantAdmin.js";
@@ -20,8 +20,8 @@ import {
 import { logger, runWithLogContext } from "./utils/logger.js";
 import { isHttpError } from "./errors/HttpError.js";
 
-export async function createApp() {
-  const dependencies = await buildDependencies();
+export async function createApp(prebuiltDependencies?: Awaited<ReturnType<typeof buildDependencies>>) {
+  const dependencies = prebuiltDependencies ?? await buildDependencies();
   const app = express();
   const authenticate = createAuthenticationMiddleware(dependencies.authService);
 
@@ -45,6 +45,10 @@ export async function createApp() {
 
   app.use("/", healthRouter);
   app.use("/api", createAuthRouter(dependencies.authService));
+  // Gmail public routes bypass the authenticate middleware: /connect/gmail uses its own
+  // ?token= query param auth, and /connect/gmail/callback is an OAuth callback from KC
+  // that carries no Bearer token.
+  app.use("/api", createGmailPublicRouter(dependencies.gmailIntegrationService, dependencies.authService));
   app.use("/api", authenticate);
   app.use("/api", createSessionRouter(dependencies.authService));
   app.use("/api", createPlatformAdminRouter(dependencies.platformAdminService));
@@ -58,7 +62,7 @@ export async function createApp() {
     requireNonPlatformAdmin,
     createTenantAdminRouter(dependencies.tenantAdminService, dependencies.tenantInviteService)
   );
-  app.use("/api", createGmailConnectionRouter(dependencies.gmailIntegrationService, dependencies.authService));
+  app.use("/api", createGmailConnectionRouter(dependencies.gmailIntegrationService));
   app.use("/api", requireNonPlatformAdmin, requireTenantSetupCompleted, createInvoiceRouter(dependencies.invoiceService, dependencies.fileStore));
   app.use(
     "/api",

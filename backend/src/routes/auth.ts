@@ -5,7 +5,6 @@ import { env } from "../config/env.js";
 import { UserModel } from "../models/User.js";
 import { requireAuth } from "../auth/requireAuth.js";
 import { createAuthenticationMiddleware } from "../auth/middleware.js";
-import { findLocalDemoUserByEmail } from "../config/localDemoUsers.js";
 
 export function createAuthRouter(authService: AuthService) {
   const router = Router();
@@ -65,30 +64,7 @@ export function createAuthRouter(authService: AuthService) {
         return;
       }
 
-      const configuredUser = findLocalDemoUserByEmail(context.email);
-      if (configuredUser) {
-        response.status(400).json({ message: "Password change is not supported for demo users." });
-        return;
-      }
-
-      const user = await UserModel.findById(context.userId).select({ passwordHash: 1 }).lean();
-      if (!user?.passwordHash) {
-        response.status(400).json({ message: "No password set for this account." });
-        return;
-      }
-
-      const currentHash = createHash("sha256").update(currentPassword).digest("base64url");
-      if (currentHash !== user.passwordHash) {
-        response.status(401).json({ message: "Current password is incorrect." });
-        return;
-      }
-
-      const newHash = createHash("sha256").update(newPassword).digest("base64url");
-      await UserModel.updateOne(
-        { _id: context.userId },
-        { passwordHash: newHash, $unset: { tempPassword: "" }, mustChangePassword: false }
-      );
-
+      await authService.changePassword(context, currentPassword, newPassword);
       response.json({ success: true });
     } catch (error) {
       next(error);

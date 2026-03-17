@@ -1,16 +1,16 @@
-import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
+import { randomBytes, createHash } from "node:crypto";
 import { AuthLoginStateModel } from "../models/AuthLoginState.js";
 import { TenantModel } from "../models/Tenant.js";
 import { TenantUserRoleModel, type TenantRole } from "../models/TenantUserRole.js";
 import { UserModel } from "../models/User.js";
 import { env } from "../config/env.js";
-import type { StsBoundary } from "../sts/StsBoundary.js";
+import type { OidcProvider } from "../sts/OidcProvider.js";
 import { createSessionToken, verifySessionToken } from "./sessionToken.js";
 import { encryptSecret } from "../utils/secretCrypto.js";
 import type { AuthenticatedRequestContext, SessionFlagsPayload } from "../types/auth.js";
 import { TenantIntegrationModel } from "../models/TenantIntegration.js";
 import { HttpError } from "../errors/HttpError.js";
-import { findLocalDemoUserByEmail } from "../config/localDemoUsers.js";
+import type { KeycloakAdminClient } from "../keycloak/KeycloakAdminClient.js";
 
 interface LoginCallbackResult {
   sessionToken: string;
@@ -19,7 +19,10 @@ interface LoginCallbackResult {
 }
 
 export class AuthService {
-  constructor(private readonly sts: StsBoundary) {}
+  constructor(
+    private readonly sts: OidcProvider,
+    private readonly keycloakAdmin: KeycloakAdminClient
+  ) {}
 
   async getAuthorizationUrl(options: { nextPath?: string; loginHint?: string } = {}): Promise<string> {
     const state = randomBytes(24).toString("base64url");
@@ -89,45 +92,64 @@ export class AuthService {
 
   async loginWithPassword(email: string, password: string): Promise<{ sessionToken: string; context: AuthenticatedRequestContext }> {
     const normalizedEmail = email.trim().toLowerCase();
-    const normalizedPassword = password;
-    if (!normalizedEmail || !normalizedPassword) {
+    if (!normalizedEmail || !password) {
       throw new HttpError("Email and password are required.", 400, "auth_credentials_missing");
     }
 
-    const configuredUser = findLocalDemoUserByEmail(normalizedEmail);
-    if (configuredUser) {
-      if (!safeConstantTimeEquals(configuredUser.password, normalizedPassword)) {
-        throw new HttpError("Invalid email or password.", 401, "auth_credentials_invalid");
-      }
-    } else {
-      const dbUser = await UserModel.findOne({ email: normalizedEmail }).select({ passwordHash: 1, emailVerified: 1 }).lean();
-      if (!dbUser?.passwordHash) {
-        throw new HttpError("Invalid email or password.", 401, "auth_credentials_invalid");
-      }
-      const inputHash = createHash("sha256").update(normalizedPassword).digest("base64url");
-      if (!safeConstantTimeEquals(dbUser.passwordHash, inputHash)) {
-        throw new HttpError("Invalid email or password.", 401, "auth_credentials_invalid");
-      }
-
-      if (env.ENV !== "local" && !dbUser.emailVerified) {
-        throw new HttpError("Please verify your email before logging in.", 403, "auth_email_not_verified");
-      }
+    // Authenticate via Keycloak ROPC
+    const grant = await this.sts.exchangePasswordGrant(normalizedEmail, password);
+    if (!grant.ok) {
+      throw new HttpError("Invalid email or password.", 401, "auth_credentials_invalid");
     }
 
-    const context = await this.resolvePrincipalByEmail(normalizedEmail);
+    // Introspect to get claims
+    const validated = await this.sts.validateAccessToken({ accessToken: grant.accessToken });
+    const claims = this.sts.normalizeClaims(validated);
+
+    const encryptedRefreshToken = grant.refreshToken
+      ? encryptSecret(grant.refreshToken, env.REFRESH_TOKEN_ENCRYPTION_SECRET)
+      : "";
+
+    // Resolve MongoDB context (handles auto-provisioning)
+    const context = await this.upsertPrincipal({
+      subject: claims.subject,
+      email: normalizedEmail,
+      name: claims.name ?? normalizedEmail,
+      encryptedRefreshToken
+    });
+
     await UserModel.updateOne(
-      { _id: context.userId },
-      {
-        $set: {
-          lastLoginAt: new Date()
-        }
-      }
+      { email: normalizedEmail },
+      { $set: { lastLoginAt: new Date() } }
     );
 
     return {
       sessionToken: this.createSessionTokenForContext(context),
       context
     };
+  }
+
+  async changePassword(context: AuthenticatedRequestContext, currentPassword: string, newPassword: string): Promise<void> {
+    // 1. Verify current password via ROPC
+    const verify = await this.sts.exchangePasswordGrant(context.email, currentPassword);
+    if (!verify.ok) {
+      throw new HttpError("Current password is incorrect.", 401, "auth_invalid_current_password");
+    }
+
+    // 2. Find KC user
+    const kcUser = await this.keycloakAdmin.findUserByEmail(context.email);
+    if (!kcUser) {
+      throw new HttpError("User not found in identity provider.", 500, "auth_kc_user_missing");
+    }
+
+    // 3. Set new password (permanent)
+    await this.keycloakAdmin.setPassword(kcUser.id, newPassword, false);
+
+    // 4. Clear temp password and mustChangePassword in MongoDB
+    await UserModel.updateOne(
+      { email: context.email },
+      { $set: { mustChangePassword: false }, $unset: { tempPassword: "" } }
+    );
   }
 
   async resolveRequestContext(sessionToken: string): Promise<AuthenticatedRequestContext> {
@@ -179,7 +201,7 @@ export class AuthService {
       requires_tenant_setup: context.onboardingStatus !== "completed",
       requires_reauth: requiresReauth,
       requires_admin_action: requiresReauth && isAdmin,
-      requires_email_confirmation: !userDoc?.emailVerified && env.ENV !== "local",
+      requires_email_confirmation: false,
       must_change_password: userDoc?.mustChangePassword === true
     };
   }
@@ -258,25 +280,6 @@ export class AuthService {
       secret: env.APP_SESSION_SIGNING_SECRET
     });
   }
-
-  private async resolvePrincipalByEmail(email: string): Promise<AuthenticatedRequestContext> {
-    const user = await UserModel.findOne({ email }).lean();
-    if (!user) throw new HttpError("User is not provisioned for this environment.", 403, "auth_user_not_provisioned");
-    const isAdmin = isPlatformAdminEmail(user.email);
-    if (!isAdmin && user.enabled === false) {
-      throw new HttpError("Your account has been disabled. Contact your tenant administrator.", 403, "user_disabled");
-    }
-    const [tenant, roleRecord] = await Promise.all([
-      TenantModel.findById(user.tenantId).lean(),
-      TenantUserRoleModel.findOne({ tenantId: user.tenantId, userId: String(user._id) }).lean()
-    ]);
-    if (!tenant) throw new HttpError("Tenant not found.", 401, "auth_tenant_missing");
-    if (!isAdmin && tenant.enabled === false) {
-      throw new HttpError("This account has been disabled. Contact your administrator.", 403, "tenant_disabled");
-    }
-    if (!roleRecord) throw new HttpError("User has no assigned tenant role.", 401, "auth_role_missing");
-    return buildContext(user, tenant, roleRecord.role);
-  }
 }
 
 function buildContext(
@@ -303,13 +306,4 @@ function normalizeNextPath(value: string): string {
 function isPlatformAdminEmail(email: string): boolean {
   const normalized = email.trim().toLowerCase();
   return normalized.length > 0 && env.platformAdminEmails.includes(normalized);
-}
-
-function safeConstantTimeEquals(expected: string, actual: string): boolean {
-  const expectedBuffer = Buffer.from(expected, "utf8");
-  const actualBuffer = Buffer.from(actual, "utf8");
-  if (expectedBuffer.length !== actualBuffer.length) {
-    return false;
-  }
-  return timingSafeEqual(expectedBuffer, actualBuffer);
 }

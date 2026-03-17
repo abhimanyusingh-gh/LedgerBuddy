@@ -364,6 +364,11 @@ export async function updateInvoiceParsedFields(invoiceId: string, payload: Upda
   return stripNulls(response.data) as Invoice;
 }
 
+export async function renameInvoiceAttachment(invoiceId: string, attachmentName: string) {
+  const response = await apiClient.patch<Invoice>(`/invoices/${invoiceId}`, { attachmentName });
+  return stripNulls(response.data) as Invoice;
+}
+
 function stripNulls(value: unknown): unknown {
   if (value == null) return undefined;
   if (Array.isArray(value)) return value.map((e) => (e == null ? e : stripNulls(e)));
