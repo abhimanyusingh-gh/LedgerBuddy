@@ -7,6 +7,7 @@ build
 coverage
 .DS_Store
 .yarn/*
+!.yarn/releases
 backend/dist
 frontend/dist
 terraform.tfstate
