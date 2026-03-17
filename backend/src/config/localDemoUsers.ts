@@ -86,15 +86,6 @@ export function loadLocalDemoUsersConfig(): LocalDemoUsersConfig {
   return cachedConfig;
 }
 
-export function findLocalDemoUserByEmail(email: string): LocalDemoUser | null {
-  const normalized = email.trim().toLowerCase();
-  if (!normalized) {
-    return null;
-  }
-  const config = loadLocalDemoUsersConfig();
-  return config.users.find((entry) => entry.email === normalized) ?? null;
-}
-
 function resolveConfigPath(rawPath: string): string {
   const trimmed = rawPath.trim();
   if (!trimmed) {
