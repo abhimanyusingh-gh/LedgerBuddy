@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type JSX } from "react";
 import {
   approveInvoices,
   deleteInvoices,
@@ -28,6 +28,7 @@ import { getExtractedFieldRows } from "../../extractedFields";
 import { getInvoiceSourceHighlights } from "../../sourceHighlights";
 import {
   getAvailableRowActions,
+  hasApprovalWarning,
   isInvoiceApprovable,
   isInvoiceExportable,
   isInvoiceRetryable,
@@ -44,7 +45,19 @@ import {
   STATUSES
 } from "../../invoiceView";
 import { useInvoiceDetail } from "../../hooks/useInvoiceDetail";
+import { useDebouncedValue } from "../../hooks/useDebouncedValue";
 import { getUserFacingErrorMessage, isAuthenticationError } from "../../apiError";
+import { ConfirmDialog } from "../ConfirmDialog";
+
+const STATUS_ICONS: Record<string, string> = {
+  PENDING: "hourglass_empty",
+  PARSED: "task_alt",
+  NEEDS_REVIEW: "flag",
+  FAILED_OCR: "error",
+  FAILED_PARSE: "error",
+  APPROVED: "check_circle",
+  EXPORTED: "cloud_done"
+};
 
 function selectNewerInvoice(detail: Invoice | null, summary: Invoice | null): Invoice | null {
   if (!summary) return detail;
@@ -59,20 +72,27 @@ interface TenantInvoicesViewProps {
   userId: string;
   userEmail: string;
   isTenantAdmin: boolean;
+  isViewer?: boolean;
   requiresTenantSetup: boolean;
   tenantMode?: "test" | "live";
+  tenantUsers?: Array<{ userId: string; email: string; role: string; enabled: boolean }>;
   onGmailStatusRefresh: () => void;
   onNavCountsChange: (counts: { total: number; approved: number; pending: number }) => void;
   onSessionExpired: () => void;
+  addToast: (type: "success" | "error" | "info", message: string) => void;
 }
 
 export function TenantInvoicesView({
   userEmail,
+  isTenantAdmin,
+  isViewer,
   requiresTenantSetup,
   tenantMode,
+  tenantUsers,
   onGmailStatusRefresh,
   onNavCountsChange,
-  onSessionExpired
+  onSessionExpired,
+  addToast
 }: TenantInvoicesViewProps) {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(false);
@@ -97,6 +117,14 @@ export function TenantInvoicesView({
   const [popupMappingExpanded, setPopupMappingExpanded] = useState(false);
   const uploadInputRef = useRef<HTMLInputElement>(null);
   const ingestionWasRunningRef = useRef(false);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [confirmDialog, setConfirmDialog] = useState<{ title: string; message: string; confirmLabel: string; destructive: boolean; onConfirm: () => void } | null>(null);
+  const [allStatusCounts, setAllStatusCounts] = useState<Record<string, number>>({});
+  const [approvedByFilter, setApprovedByFilter] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
+  const [totalInvoices, setTotalInvoices] = useState(0);
+  const debouncedSearch = useDebouncedValue(searchQuery, 300);
 
   const {
     detail: activeInvoiceDetail,
@@ -109,9 +137,17 @@ export function TenantInvoicesView({
     refresh: refreshPopupInvoiceDetail
   } = useInvoiceDetail(popupInvoiceId);
 
+  const prevFiltersRef = useRef({ statusFilter, invoiceDateFrom, invoiceDateTo, pageSize, approvedByFilter });
   useEffect(() => {
+    const prev = prevFiltersRef.current;
+    const filtersChanged = prev.statusFilter !== statusFilter || prev.invoiceDateFrom !== invoiceDateFrom || prev.invoiceDateTo !== invoiceDateTo || prev.pageSize !== pageSize || prev.approvedByFilter !== approvedByFilter;
+    prevFiltersRef.current = { statusFilter, invoiceDateFrom, invoiceDateTo, pageSize, approvedByFilter };
+    if (filtersChanged && currentPage !== 1) {
+      setCurrentPage(1);
+      return;
+    }
     void loadInvoices();
-  }, [statusFilter, invoiceDateFrom, invoiceDateTo]);
+  }, [statusFilter, invoiceDateFrom, invoiceDateTo, currentPage, pageSize, approvedByFilter]);
 
   useEffect(() => {
     void refreshIngestionStatus();
@@ -171,8 +207,8 @@ export function TenantInvoicesView({
       setIngestionFading(false);
       return;
     }
-    const fadeTimer = setTimeout(() => setIngestionFading(true), 2000);
-    const hideTimer = setTimeout(() => setIngestionStatus(null), 3500);
+    const fadeTimer = setTimeout(() => setIngestionFading(true), 5000);
+    const hideTimer = setTimeout(() => setIngestionStatus(null), 7000);
     return () => { clearTimeout(fadeTimer); clearTimeout(hideTimer); };
   }, [ingestionStatus?.state]);
 
@@ -186,7 +222,7 @@ export function TenantInvoicesView({
     if (stillIngesting.size < ingestingIds.size) {
       setIngestingIds(stillIngesting);
       if (stillIngesting.size > 0 && !ingestionStatus?.running) {
-        void runIngestion().then((s) => setIngestionStatus(s)).catch(() => {});
+        void runIngestion().then((s) => setIngestionStatus(s)).catch(() => { addToast("error", "Ingestion retry failed."); });
       }
     }
   }, [invoices]);
@@ -287,17 +323,17 @@ export function TenantInvoicesView({
   );
 
   const filteredInvoices = useMemo(() => {
-    if (!searchQuery.trim()) {
+    if (!debouncedSearch.trim()) {
       return invoices;
     }
-    const q = searchQuery.trim().toLowerCase();
+    const q = debouncedSearch.trim().toLowerCase();
     return invoices.filter(
       (invoice) =>
         invoice.attachmentName.toLowerCase().includes(q) ||
         (invoice.parsed?.vendorName ?? "").toLowerCase().includes(q) ||
         (invoice.parsed?.invoiceNumber ?? "").toLowerCase().includes(q)
     );
-  }, [invoices, searchQuery]);
+  }, [invoices, debouncedSearch]);
 
   const selectableVisibleIds = useMemo(
     () => filteredInvoices.filter((invoice) => isInvoiceSelectable(invoice)).map((invoice) => invoice._id),
@@ -356,14 +392,25 @@ export function TenantInvoicesView({
       const data = await fetchInvoices(
         statusFilter === "ALL" ? undefined : statusFilter,
         invoiceDateFrom || undefined,
-        invoiceDateTo || undefined
+        invoiceDateTo || undefined,
+        currentPage,
+        pageSize,
+        approvedByFilter || undefined
       );
       setInvoices(data.items);
+      setTotalInvoices(data.total);
       onNavCountsChange({
         total: data.totalAll ?? data.total,
         approved: data.approvedAll ?? 0,
         pending: data.pendingAll ?? 0
       });
+      if (statusFilter === "ALL") {
+        const counts: Record<string, number> = { ALL: data.total };
+        for (const inv of data.items) {
+          counts[inv.status] = (counts[inv.status] ?? 0) + 1;
+        }
+        setAllStatusCounts(counts);
+      }
       const ids = new Set(data.items.map((item) => item._id));
       setSelectedIds((currentSelectedIds) => mergeSelectedIds(currentSelectedIds, data.items));
       if (activeId && !ids.has(activeId)) {
@@ -399,41 +446,55 @@ export function TenantInvoicesView({
 
   async function handleApprove() {
     if (selectedApprovableIds.length === 0) {
-      setError("Select at least one PARSED / NEEDS_REVIEW / FAILED_PARSE invoice to approve.");
+      setError("Select at least one PARSED or NEEDS_REVIEW invoice to approve.");
       return;
     }
     try {
       setError(null);
+      setActionLoading("approve");
       const response = await approveInvoices(selectedApprovableIds, userEmail);
       if (response.modifiedCount === 0) {
         setError("No selected invoices were eligible for approval.");
         return;
       }
+      addToast("success", `${response.modifiedCount} invoice(s) approved.`);
       await loadInvoices();
     } catch (approveError) {
+      addToast("error", getUserFacingErrorMessage(approveError, "Approval failed."));
       setError(getUserFacingErrorMessage(approveError, "Approval failed."));
+    } finally {
+      setActionLoading(null);
     }
   }
 
-  async function handleDelete() {
-    if (selectedIds.length === 0) {
-      return;
-    }
-    if (!window.confirm(`Delete ${selectedIds.length} invoice(s)? This cannot be undone.`)) {
-      return;
-    }
-    try {
-      setError(null);
-      const response = await deleteInvoices(selectedIds);
-      if (response.deletedCount === 0) {
-        setError("No selected invoices were eligible for deletion (exported invoices cannot be deleted).");
-        return;
+  function handleDelete() {
+    if (selectedIds.length === 0) return;
+    setConfirmDialog({
+      title: "Delete Invoices",
+      message: `Delete ${selectedIds.length} invoice(s)? This cannot be undone.`,
+      confirmLabel: "Delete",
+      destructive: true,
+      onConfirm: async () => {
+        setConfirmDialog(null);
+        try {
+          setError(null);
+          setActionLoading("delete");
+          const response = await deleteInvoices(selectedIds);
+          if (response.deletedCount === 0) {
+            setError("No selected invoices were eligible for deletion (exported invoices cannot be deleted).");
+            return;
+          }
+          addToast("success", `${response.deletedCount} invoice(s) deleted.`);
+          setSelectedIds([]);
+          await loadInvoices();
+        } catch (deleteError) {
+          addToast("error", getUserFacingErrorMessage(deleteError, "Deletion failed."));
+          setError(getUserFacingErrorMessage(deleteError, "Deletion failed."));
+        } finally {
+          setActionLoading(null);
+        }
       }
-      setSelectedIds([]);
-      await loadInvoices();
-    } catch (deleteError) {
-      setError(getUserFacingErrorMessage(deleteError, "Deletion failed."));
-    }
+    });
   }
 
   async function handleApproveSingle(invoiceId: string) {
@@ -475,22 +536,30 @@ export function TenantInvoicesView({
     }
   }
 
-  async function handleDeleteSingle(invoiceId: string, fileName: string) {
-    if (!window.confirm(`Delete "${fileName}"? This cannot be undone.`)) {
-      return;
-    }
-    try {
-      setError(null);
-      const response = await deleteInvoices([invoiceId]);
-      if (response.deletedCount === 0) {
-        setError("Invoice could not be deleted (exported invoices cannot be deleted).");
-        return;
+  function handleDeleteSingle(invoiceId: string, fileName: string) {
+    setConfirmDialog({
+      title: "Delete Invoice",
+      message: `Delete "${fileName}"? This cannot be undone.`,
+      confirmLabel: "Delete",
+      destructive: true,
+      onConfirm: async () => {
+        setConfirmDialog(null);
+        try {
+          setError(null);
+          const response = await deleteInvoices([invoiceId]);
+          if (response.deletedCount === 0) {
+            setError("Invoice could not be deleted (exported invoices cannot be deleted).");
+            return;
+          }
+          addToast("success", `"${fileName}" deleted.`);
+          setSelectedIds((current) => current.filter((id) => id !== invoiceId));
+          await loadInvoices();
+        } catch (deleteError) {
+          addToast("error", getUserFacingErrorMessage(deleteError, "Deletion failed."));
+          setError(getUserFacingErrorMessage(deleteError, "Deletion failed."));
+        }
       }
-      setSelectedIds((current) => current.filter((id) => id !== invoiceId));
-      await loadInvoices();
-    } catch (deleteError) {
-      setError(getUserFacingErrorMessage(deleteError, "Deletion failed."));
-    }
+    });
   }
 
   async function handleRetry() {
@@ -512,7 +581,7 @@ export function TenantInvoicesView({
     }
   }
 
-  async function handleExport() {
+  function handleExport() {
     if (selectedExportableIds.length === 0) {
       setError("Select at least one APPROVED invoice before export.");
       return;
@@ -521,21 +590,31 @@ export function TenantInvoicesView({
       setError("Only APPROVED invoices can be exported. Deselect non-approved invoices and retry.");
       return;
     }
-    const confirmationMessage = `Export ${selectedExportableIds.length} approved invoice file${selectedExportableIds.length === 1 ? "" : "s"} to Tally?`;
-    if (!window.confirm(confirmationMessage)) {
-      return;
-    }
-    try {
-      setError(null);
-      const exportResult = await exportToTally(selectedExportableIds);
-      const successfullyExportedIds = exportResult.items
-        .filter((item) => item.success)
-        .map((item) => item.invoiceId);
-      setSelectedIds((currentSelectedIds) => removeSelectedIds(currentSelectedIds, successfullyExportedIds));
-      await loadInvoices();
-    } catch (exportError) {
-      setError(getUserFacingErrorMessage(exportError, "Export failed."));
-    }
+    setConfirmDialog({
+      title: "Export to Tally",
+      message: `Export ${selectedExportableIds.length} approved invoice file${selectedExportableIds.length === 1 ? "" : "s"} to Tally?`,
+      confirmLabel: "Export",
+      destructive: false,
+      onConfirm: async () => {
+        setConfirmDialog(null);
+        try {
+          setError(null);
+          setActionLoading("export");
+          const exportResult = await exportToTally(selectedExportableIds);
+          const successfullyExportedIds = exportResult.items
+            .filter((item) => item.success)
+            .map((item) => item.invoiceId);
+          addToast("success", `${successfullyExportedIds.length} invoice(s) exported to Tally.`);
+          setSelectedIds((currentSelectedIds) => removeSelectedIds(currentSelectedIds, successfullyExportedIds));
+          await loadInvoices();
+        } catch (exportError) {
+          addToast("error", getUserFacingErrorMessage(exportError, "Export failed."));
+          setError(getUserFacingErrorMessage(exportError, "Export failed."));
+        } finally {
+          setActionLoading(null);
+        }
+      }
+    });
   }
 
   async function handleDownloadXml() {
@@ -683,42 +762,44 @@ export function TenantInvoicesView({
     });
   }
 
+  const hasActiveFilters = searchQuery.trim() !== "" || invoiceDateFrom !== "" || invoiceDateTo !== "" || statusFilter !== "ALL";
+
+  function clearAllFilters() {
+    setSearchQuery("");
+    setInvoiceDateFrom("");
+    setInvoiceDateTo("");
+    setStatusFilter("ALL");
+  }
+
   return (
     <>
       <div className="toolbar">
-        <input
-          type="text"
-          className="search-input"
-          placeholder="Search by file, vendor, or invoice #..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-        />
-        <input
-          type="date"
-          className="overview-date-bar"
-          style={{ border: "1px solid var(--line)", borderRadius: 6, padding: "0.3rem 0.5rem", fontSize: "0.82rem" }}
-          value={invoiceDateFrom}
-          max={invoiceDateTo || undefined}
-          onChange={(e) => setInvoiceDateFrom(e.target.value)}
-          title="Filter from date"
-        />
-        <input
-          type="date"
-          style={{ border: "1px solid var(--line)", borderRadius: 6, padding: "0.3rem 0.5rem", fontSize: "0.82rem" }}
-          value={invoiceDateTo}
-          min={invoiceDateFrom || undefined}
-          onChange={(e) => setInvoiceDateTo(e.target.value)}
-          title="Filter to date"
-        />
-        {(invoiceDateFrom || invoiceDateTo) ? (
-          <button
-            type="button"
-            className="overview-preset-btn"
-            onClick={() => { setInvoiceDateFrom(""); setInvoiceDateTo(""); }}
-          >
-            Clear dates
-          </button>
-        ) : null}
+        <div className="toolbar-filter-group">
+          <input
+            type="text"
+            className="search-input"
+            placeholder="Search by file, vendor, or invoice #..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+          <input
+            type="date"
+            style={{ border: "1px solid var(--line)", borderRadius: 6, padding: "0.3rem 0.5rem", fontSize: "0.82rem" }}
+            value={invoiceDateFrom}
+            max={invoiceDateTo || undefined}
+            onChange={(e) => setInvoiceDateFrom(e.target.value)}
+            title="Filter from date"
+          />
+          <input
+            type="date"
+            style={{ border: "1px solid var(--line)", borderRadius: 6, padding: "0.3rem 0.5rem", fontSize: "0.82rem" }}
+            value={invoiceDateTo}
+            min={invoiceDateFrom || undefined}
+            onChange={(e) => setInvoiceDateTo(e.target.value)}
+            title="Filter to date"
+          />
+        </div>
+        <div className="toolbar-divider" />
         <div className="status-tabs">
           {STATUSES.map((status) => (
             <button
@@ -727,59 +808,80 @@ export function TenantInvoicesView({
               onClick={() => setStatusFilter(status)}
             >
               {STATUS_LABELS[status] ?? status}
+              {allStatusCounts[status] != null ? <span className="tab-count">{allStatusCounts[status]}</span> : null}
             </button>
           ))}
         </div>
-        <span className="toolbar-icon-wrap">
-          <button type="button" className="toolbar-icon-button" onClick={handleApprove} disabled={requiresTenantSetup || selectedApprovableIds.length === 0}>
-            <span className="material-symbols-outlined">check_circle</span>
+        {hasActiveFilters ? (
+          <button type="button" className="clear-filters-pill" onClick={clearAllFilters}>
+            <span className="material-symbols-outlined" style={{ fontSize: "0.85rem" }}>close</span>
+            Clear filters
           </button>
-          <span className="toolbar-icon-label">Approve</span>
-        </span>
-        <span className="toolbar-icon-wrap">
-          <button type="button" className="toolbar-icon-button" onClick={handleDelete} disabled={requiresTenantSetup || selectedIds.length === 0}>
-            <span className="material-symbols-outlined">delete</span>
-          </button>
-          <span className="toolbar-icon-label">Delete</span>
-        </span>
-        <span className="toolbar-icon-wrap">
-          <button type="button" className="toolbar-icon-button" onClick={handleRetry} disabled={requiresTenantSetup || selectedRetryableIds.length === 0}>
-            <span className="material-symbols-outlined">replay</span>
-          </button>
-          <span className="toolbar-icon-label">Retry</span>
-        </span>
-        <span className="toolbar-icon-wrap">
-          <button type="button" className="toolbar-icon-button" onClick={handleExport} disabled={requiresTenantSetup || selectedExportableIds.length === 0 || selectedNonExportableCount > 0}>
-            <span className="material-symbols-outlined">upload</span>
-          </button>
-          <span className="toolbar-icon-label">Export to Tally</span>
-        </span>
-        <span className="toolbar-icon-wrap">
-          <button type="button" className="toolbar-icon-button" onClick={handleDownloadXml} disabled={requiresTenantSetup || selectedExportableIds.length === 0 || selectedNonExportableCount > 0}>
-            <span className="material-symbols-outlined">download</span>
-          </button>
-          <span className="toolbar-icon-label">Download XML</span>
-        </span>
-        <span className="toolbar-icon-wrap">
-          <button type="button" className="toolbar-icon-button" onClick={() => uploadInputRef.current?.click()} disabled={requiresTenantSetup}>
-            <span className="material-symbols-outlined">upload_file</span>
-          </button>
-          <span className="toolbar-icon-label">Upload</span>
-        </span>
-        <input ref={uploadInputRef} type="file" multiple accept=".pdf,.jpg,.jpeg,.png" style={{ display: "none" }} onChange={handleUpload} />
-        <span className="toolbar-icon-wrap">
-          <button type="button" className="toolbar-icon-button" onClick={handleIngest} disabled={requiresTenantSetup || ingestionStatus?.running === true}>
-            <span className="material-symbols-outlined">play_arrow</span>
-          </button>
-          <span className="toolbar-icon-label">{ingestionStatus?.state === "paused" ? "Resume" : "Ingest"}</span>
-        </span>
-        {ingestionStatus?.running === true ? (
-          <span className="toolbar-icon-wrap">
-            <button type="button" className="toolbar-icon-button" onClick={handlePauseIngestion}>
-              <span className="material-symbols-outlined">pause</span>
-            </button>
-            <span className="toolbar-icon-label">Pause</span>
-          </span>
+        ) : null}
+        {isTenantAdmin && tenantUsers && tenantUsers.length > 0 ? (
+          <>
+            <div className="toolbar-divider" />
+            <select className="search-input" style={{ flex: "none", minWidth: "auto", width: "auto" }} value={approvedByFilter} onChange={(e) => setApprovedByFilter(e.target.value)}>
+              <option value="">All Users</option>
+              {tenantUsers.map((u) => <option key={u.userId} value={u.userId}>{u.email}</option>)}
+            </select>
+          </>
+        ) : null}
+        {!isViewer ? (
+          <>
+            <div className="toolbar-divider" />
+            <span className="toolbar-icon-wrap">
+              <button type="button" className={`toolbar-icon-button${actionLoading === "approve" ? " app-button-loading" : ""}`} onClick={() => void handleApprove()} disabled={requiresTenantSetup || selectedApprovableIds.length === 0}>
+                <span className="material-symbols-outlined">check_circle</span>
+              </button>
+              <span className="toolbar-icon-label">Approve</span>
+            </span>
+            <span className="toolbar-icon-wrap">
+              <button type="button" className={`toolbar-icon-button${actionLoading === "delete" ? " app-button-loading" : ""}`} onClick={handleDelete} disabled={requiresTenantSetup || selectedIds.length === 0}>
+                <span className="material-symbols-outlined">delete</span>
+              </button>
+              <span className="toolbar-icon-label">Delete</span>
+            </span>
+            <span className="toolbar-icon-wrap">
+              <button type="button" className="toolbar-icon-button" onClick={() => void handleRetry()} disabled={requiresTenantSetup || selectedRetryableIds.length === 0}>
+                <span className="material-symbols-outlined">replay</span>
+              </button>
+              <span className="toolbar-icon-label">Retry</span>
+            </span>
+            <span className="toolbar-icon-wrap">
+              <button type="button" className={`toolbar-icon-button${actionLoading === "export" ? " app-button-loading" : ""}`} onClick={handleExport} disabled={requiresTenantSetup || selectedExportableIds.length === 0 || selectedNonExportableCount > 0}>
+                <span className="material-symbols-outlined">upload</span>
+              </button>
+              <span className="toolbar-icon-label">Export to Tally</span>
+            </span>
+            <span className="toolbar-icon-wrap">
+              <button type="button" className="toolbar-icon-button" onClick={() => void handleDownloadXml()} disabled={requiresTenantSetup || selectedExportableIds.length === 0 || selectedNonExportableCount > 0}>
+                <span className="material-symbols-outlined">download</span>
+              </button>
+              <span className="toolbar-icon-label">Download XML</span>
+            </span>
+            <span className="toolbar-icon-wrap">
+              <button type="button" className="toolbar-icon-button" onClick={() => uploadInputRef.current?.click()} disabled={requiresTenantSetup}>
+                <span className="material-symbols-outlined">upload_file</span>
+              </button>
+              <span className="toolbar-icon-label">Upload</span>
+            </span>
+            <input ref={uploadInputRef} type="file" multiple accept=".pdf,.jpg,.jpeg,.png" style={{ display: "none" }} onChange={(e) => void handleUpload(e)} />
+            <span className="toolbar-icon-wrap">
+              <button type="button" className="toolbar-icon-button" onClick={() => void handleIngest()} disabled={requiresTenantSetup || ingestionStatus?.running === true}>
+                <span className="material-symbols-outlined">play_arrow</span>
+              </button>
+              <span className="toolbar-icon-label">{ingestionStatus?.state === "paused" ? "Resume" : "Ingest"}</span>
+            </span>
+            {ingestionStatus?.running === true ? (
+              <span className="toolbar-icon-wrap">
+                <button type="button" className="toolbar-icon-button" onClick={() => void handlePauseIngestion()}>
+                  <span className="material-symbols-outlined">pause</span>
+                </button>
+                <span className="toolbar-icon-label">Pause</span>
+              </span>
+            ) : null}
+          </>
         ) : null}
         <span className="toolbar-icon-wrap">
           <button type="button" className="toolbar-icon-button" onClick={() => setDetailsPanelVisible((currentValue) => !currentValue)}>
@@ -800,10 +902,16 @@ export function TenantInvoicesView({
           <section className="panel list-panel">
             <div className="panel-title">
               <h2>Invoices</h2>
-              {loading ? <span>Loading...</span> : <span>{invoices.length} records</span>}
+              {loading ? <span style={{ fontSize: "0.85rem", color: "var(--ink-soft)" }}>Loading...</span> : <span>{invoices.length} records</span>}
             </div>
 
-            <div className="list-scroll">
+            {loading && invoices.length === 0 ? (
+              <div style={{ padding: "1rem" }}>
+                {Array.from({ length: 8 }).map((_, i) => <div key={i} className="skeleton skeleton-row" />)}
+              </div>
+            ) : null}
+
+            <div className={`list-scroll${loading && invoices.length > 0 ? " list-scroll-loading" : ""}`}>
               <table>
                 <thead>
                   <tr>
@@ -937,7 +1045,10 @@ export function TenantInvoicesView({
                           {ingestingIds.has(invoice._id) ? (
                             <span className="status status-reprocessing">Reprocessing</span>
                           ) : (
-                            <span className={`status status-${invoice.status.toLowerCase()}`} title={invoice.approval?.approvedBy ? `Approved by ${invoice.approval.approvedBy}` : undefined}>{STATUS_LABELS[invoice.status] ?? invoice.status}</span>
+                            <span className={`status status-${invoice.status.toLowerCase()}`} title={invoice.approval?.approvedBy ? `Approved by ${invoice.approval.approvedBy}` : undefined}>
+                              {STATUS_ICONS[invoice.status] ? <span className="material-symbols-outlined status-badge-icon">{STATUS_ICONS[invoice.status]}</span> : null}
+                              {STATUS_LABELS[invoice.status] ?? invoice.status}
+                            </span>
                           )}
                           {invoice.possibleDuplicate ? (
                             <span className="material-symbols-outlined duplicate-warning" title="Possible duplicate — another invoice has identical file contents">warning</span>
@@ -975,6 +1086,29 @@ export function TenantInvoicesView({
                 </tbody>
               </table>
             </div>
+            {totalInvoices > 0 ? (
+              <div className="pagination-bar">
+                <div className="pagination-info">
+                  {Math.min((currentPage - 1) * pageSize + 1, totalInvoices)}–{Math.min(currentPage * pageSize, totalInvoices)} of {totalInvoices}
+                </div>
+                <div className="pagination-controls">
+                  <button type="button" className="app-button app-button-secondary app-button-sm" disabled={currentPage <= 1} onClick={() => setCurrentPage(1)}>First</button>
+                  <button type="button" className="app-button app-button-secondary app-button-sm" disabled={currentPage <= 1} onClick={() => setCurrentPage((p) => p - 1)}>Prev</button>
+                  <span className="pagination-page">Page {currentPage} of {Math.max(1, Math.ceil(totalInvoices / pageSize))}</span>
+                  <button type="button" className="app-button app-button-secondary app-button-sm" disabled={currentPage >= Math.ceil(totalInvoices / pageSize)} onClick={() => setCurrentPage((p) => p + 1)}>Next</button>
+                  <button type="button" className="app-button app-button-secondary app-button-sm" disabled={currentPage >= Math.ceil(totalInvoices / pageSize)} onClick={() => setCurrentPage(Math.ceil(totalInvoices / pageSize))}>Last</button>
+                </div>
+                <div className="pagination-size">
+                  <span>Rows:</span>
+                  <select value={pageSize} onChange={(e) => setPageSize(Number(e.target.value))}>
+                    <option value={10}>10</option>
+                    <option value={20}>20</option>
+                    <option value={50}>50</option>
+                    <option value={100}>100</option>
+                  </select>
+                </div>
+              </div>
+            ) : null}
           </section>
 
           {detailsPanelVisible ? (
@@ -1010,6 +1144,16 @@ export function TenantInvoicesView({
           ) : null}
         </>
       </main>
+
+      <ConfirmDialog
+        open={confirmDialog !== null}
+        title={confirmDialog?.title ?? ""}
+        message={confirmDialog?.message ?? ""}
+        confirmLabel={confirmDialog?.confirmLabel ?? "Confirm"}
+        destructive={confirmDialog?.destructive ?? false}
+        onConfirm={() => confirmDialog?.onConfirm()}
+        onCancel={() => setConfirmDialog(null)}
+      />
 
       {popupInvoice ? (
         <div className="popup-overlay" role="presentation" onClick={() => setPopupInvoiceId(null)}>
