@@ -147,6 +147,7 @@ export function createJobsRouter(ingestionService: IngestionService, emailSimula
       }
 
       const uploaded: string[] = [];
+      let newlyCreated = 0;
       for (const file of files) {
         const fileId = randomBytes(12).toString("base64url");
         const ext = file.originalname.includes(".") ? file.originalname.slice(file.originalname.lastIndexOf(".")) : "";
@@ -175,11 +176,23 @@ export function createJobsRouter(ingestionService: IngestionService, emailSimula
             contentHash,
             metadata: { uploadKey: key, systemFileName: systemName }
           });
+          newlyCreated++;
         } catch {
           // duplicate sourceDocumentId — skip silently
         }
 
         uploaded.push(key);
+      }
+
+      const currentJob = getCurrentStatus(context.tenantId);
+      if (currentJob.running && newlyCreated > 0) {
+        const updated: IngestionJobStatus = {
+          ...currentJob,
+          totalFiles: currentJob.totalFiles + newlyCreated,
+          lastUpdatedAt: new Date().toISOString()
+        };
+        setCurrentStatus(context.tenantId, updated);
+        broadcastToSubscribers(context.tenantId, updated);
       }
 
       response.status(201).json({ uploaded, count: uploaded.length });
