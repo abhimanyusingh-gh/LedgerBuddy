@@ -54,12 +54,12 @@ BillForge ingests invoices from email or folder sources, extracts structured dat
 | **Invoice Classification** | SLM classifies invoice type during verification (10 categories: standard, GST, VAT, receipt, utility, professional, PO, credit note, proforma, other) |
 | **Extraction Learning** | Tenant-scoped correction feedback loop: records field corrections keyed by invoice type and vendor, feeds prior learnings to SLM on future extractions, auto-prunes after 90 days |
 | **Confidence** | Multi-signal scoring (OCR, parser, field verification), risk flagging, configurable tone bands and auto-select thresholds, confidence boost after successful LLM vision re-extraction |
-| **Review Dashboard** | Inline row actions (approve, ingest, reingest, delete), humanized status filter tabs, reingesting visual state, confidence badges, value-source highlighting, bbox overlay inspect, batch approval |
+| **Review Dashboard** | Inline row actions (approve, ingest, reingest, delete), humanized status filter tabs, server-side pagination, user-level filtering, reingesting visual state, confidence badges, value-source highlighting, bbox overlay inspect, batch approval, toast notifications |
 | **Export** | Tally XML purchase voucher generation with GST ledger entries (CGST/SGST/IGST/Cess), downloadable file or direct POST, S3 artifact storage |
-| **Multi-Tenancy** | Tenant onboarding, RBAC (admin/member), invite flow, tenant-scoped data isolation, per-tenant Gmail integration |
-| **Platform Admin** | Tenant usage aggregates, admin onboarding, cross-tenant visibility (no invoice-level access) |
+| **Multi-Tenancy** | Tenant onboarding, RBAC (admin/member/viewer), invite flow, tenant-scoped data isolation, per-tenant Gmail integration |
+| **Platform Admin** | Tenant usage aggregates, admin onboarding, cross-tenant analytics dashboard, documents-by-tenant charts |
 | **Amount Model** | Currency-aware integer minor units (USD 1200.50 = 120050), zero floating-point drift |
-| **Auth** | JWT sessions (HS256), OAuth2/STS boundary, Keycloak support, refresh token encryption, platform admin allowlist |
+| **Auth** | JWT sessions (HS256), Keycloak OIDC (always-on), ROPC login, refresh token encryption, platform admin allowlist, VIEWER read-only role with configurable data scope |
 | **India / GST** | Country-aware tenant config (IN default), GSTIN tracking, CGST/SGST/IGST/Cess ledger mapping in Tally exports |
 
 <br />
@@ -279,7 +279,7 @@ Example files: `backend/runtime-manifest.local.json`, `backend/runtime-manifest.
 
 | Technology | Version | Purpose |
 |-----------|---------|---------|
-| **React** | 18 | UI framework |
+| **React** | 19 | UI framework |
 | **TypeScript** | 5.7 | Type-safe frontend (strict mode) |
 | **Vite** | 6 | Build tool and dev server |
 | **Axios** | 1.7 | HTTP client |
@@ -318,7 +318,7 @@ BillForge employs a multi-layer testing strategy with enforced quality gates:
 
 | Layer | Framework | Count | Scope |
 |-------|-----------|:-----:|-------|
-| **Unit Tests** | Jest + ts-jest | 338 | Parsers, services, providers, utilities (280 backend + 58 frontend) |
+| **Unit Tests** | Jest + ts-jest | 425 | Parsers, services, providers, utilities (337 backend + 88 frontend) |
 | **Backend E2E** | Jest | 4 suites | Folder ingestion, SaaS lifecycle, RBAC, platform admin |
 | **Frontend E2E** | Playwright | -- | Ingestion, approval, bbox overlays, crop modals |
 | **Dead Code** | Knip | -- | Unused export detection across workspaces |

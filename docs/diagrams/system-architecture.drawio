@@ -5,23 +5,22 @@
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
 
-        <!-- Frontend Group -->
-        <mxCell id="fg" value="Frontend — React 18 + Vite 6" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;verticalAlign=top;fontStyle=1;fontSize=13;spacingTop=4;arcSize=8;" vertex="1" parent="1">
+        <mxCell id="fg" value="Frontend — React 19 + Vite 6" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;verticalAlign=top;fontStyle=1;fontSize=13;spacingTop=4;arcSize=8;" vertex="1" parent="1">
           <mxGeometry x="40" y="30" width="440" height="120" as="geometry" />
         </mxCell>
-        <mxCell id="f1" value="Review&#xa;Dashboard" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#6c8ebf;fontSize=11;" vertex="1" parent="1">
+        <mxCell id="f1" value="Invoice Table&#xa;+ Pagination" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#6c8ebf;fontSize=11;" vertex="1" parent="1">
           <mxGeometry x="55" y="65" width="95" height="40" as="geometry" />
         </mxCell>
-        <mxCell id="f2" value="Confidence&#xa;Badges" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#6c8ebf;fontSize=11;" vertex="1" parent="1">
+        <mxCell id="f2" value="Overview&#xa;Analytics" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#6c8ebf;fontSize=11;" vertex="1" parent="1">
           <mxGeometry x="160" y="65" width="95" height="40" as="geometry" />
         </mxCell>
-        <mxCell id="f3" value="BBox&#xa;Overlays" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#6c8ebf;fontSize=11;" vertex="1" parent="1">
+        <mxCell id="f3" value="Platform&#xa;Dashboard" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#6c8ebf;fontSize=11;" vertex="1" parent="1">
           <mxGeometry x="265" y="65" width="95" height="40" as="geometry" />
         </mxCell>
-        <mxCell id="f4" value="Batch&#xa;Approval" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#6c8ebf;fontSize=11;" vertex="1" parent="1">
+        <mxCell id="f4" value="Error&#xa;Boundary" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#6c8ebf;fontSize=11;" vertex="1" parent="1">
           <mxGeometry x="370" y="65" width="95" height="40" as="geometry" />
         </mxCell>
-        <mxCell id="f5" value="Nav Counts&#xa;+ Filters" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#6c8ebf;fontSize=11;" vertex="1" parent="1">
+        <mxCell id="f5" value="Toast / Confirm&#xa;SSE Events" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#6c8ebf;fontSize=11;" vertex="1" parent="1">
           <mxGeometry x="160" y="110" width="95" height="30" as="geometry" />
         </mxCell>
 
@@ -32,10 +31,10 @@
         <mxCell id="a1" value="JWT Session&#xa;HS256" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="1">
           <mxGeometry x="535" y="70" width="95" height="40" as="geometry" />
         </mxCell>
-        <mxCell id="a2" value="RBAC&#xa;Middleware" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="1">
+        <mxCell id="a2" value="RBAC 4-Role&#xa;Admin/Member/Viewer" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="1">
           <mxGeometry x="640" y="70" width="95" height="40" as="geometry" />
         </mxCell>
-        <mxCell id="a3" value="OAuth2 / STS&#xa;requireAuth" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="1">
+        <mxCell id="a3" value="Keycloak OIDC&#xa;requireAuth" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="1">
           <mxGeometry x="745" y="70" width="100" height="40" as="geometry" />
         </mxCell>
 
@@ -102,7 +101,7 @@
 
         <!-- External Group -->
         <mxCell id="ext" value="External Services" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;verticalAlign=top;fontStyle=1;fontSize=13;spacingTop=4;arcSize=8;" vertex="1" parent="1">
-          <mxGeometry x="40" y="530" width="820" height="90" as="geometry" />
+          <mxGeometry x="40" y="530" width="930" height="90" as="geometry" />
         </mxCell>
         <mxCell id="db" value="MongoDB 7" style="shape=cylinder3;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#b85450;fontSize=11;size=8;" vertex="1" parent="1">
           <mxGeometry x="70" y="555" width="100" height="50" as="geometry" />
@@ -121,6 +120,9 @@
         </mxCell>
         <mxCell id="mail" value="MailHog /&#xa;SendGrid" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#b85450;fontSize=11;" vertex="1" parent="1">
           <mxGeometry x="760" y="560" width="85" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="kc" value="Keycloak 26&#xa;OIDC" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#b85450;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="870" y="560" width="85" height="40" as="geometry" />
         </mxCell>
 
         <!-- Arrows -->
