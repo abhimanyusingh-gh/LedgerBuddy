@@ -85,7 +85,7 @@ services:
       GMAIL_OAUTH_AUTH_URL: ${GMAIL_OAUTH_AUTH_URL:-http://localhost:8280/realms/billforge/protocol/openid-connect/auth}
       GMAIL_OAUTH_TOKEN_URL: ${GMAIL_OAUTH_TOKEN_URL:-http://keycloak:8080/realms/billforge/protocol/openid-connect/token}
       GMAIL_OAUTH_USERINFO_URL: ${GMAIL_OAUTH_USERINFO_URL:-http://keycloak:8080/realms/billforge/protocol/openid-connect/userinfo}
-      GMAIL_OAUTH_SCOPES: ${GMAIL_OAUTH_SCOPES:-https://mail.google.com/ openid email profile}
+      GMAIL_OAUTH_SCOPES: ${GMAIL_OAUTH_SCOPES:-openid email profile offline_access}
       GMAIL_OAUTH_STATE_TTL_SECONDS: ${GMAIL_OAUTH_STATE_TTL_SECONDS:-600}
       GMAIL_OAUTH_HTTP_TIMEOUT_MS: ${GMAIL_OAUTH_HTTP_TIMEOUT_MS:-15000}
       GMAIL_OAUTH_TOKEN_ENCRYPTION_SECRET: ${GMAIL_OAUTH_TOKEN_ENCRYPTION_SECRET:-local-dev-gmail-oauth-encryption-secret}
@@ -280,6 +280,7 @@ services:
       KC_BOOTSTRAP_ADMIN_USERNAME: admin
       KC_BOOTSTRAP_ADMIN_PASSWORD: admin
       KC_HTTP_ENABLED: "true"
+      KC_HOSTNAME: ${KC_HOSTNAME:-http://localhost:8280}
       KC_HOSTNAME_STRICT: "false"
       KC_HEALTH_ENABLED: "true"
       KC_METRICS_ENABLED: "false"
@@ -307,9 +308,10 @@ services:
     environment:
       OCR_ENGINE: prod_http
       OCR_REMOTE_BASE_URL: ${OCR_REMOTE_BASE_URL:-http://host.docker.internal:8200/v1}
+      OCR_PROBE_TIMEOUT_MS: "3000"
       OCR_VALIDATE_REMOTE_ON_STARTUP: "false"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/v1/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:8000/ping"]
       interval: 10s
       timeout: 5s
       retries: 3
@@ -332,9 +334,10 @@ services:
     environment:
       SLM_ENGINE: prod_http
       SLM_REMOTE_BASE_URL: ${SLM_REMOTE_BASE_URL:-http://host.docker.internal:8300/v1}
+      SLM_PROBE_TIMEOUT_MS: "3000"
       SLM_VALIDATE_REMOTE_ON_STARTUP: "false"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8100/v1/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:8100/ping"]
       interval: 10s
       timeout: 5s
       retries: 3
