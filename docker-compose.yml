@@ -269,7 +269,7 @@ services:
     image: quay.io/keycloak/keycloak:26.0
     container_name: billforge-keycloak
     restart: unless-stopped
-    command: start-dev --import-realm
+    command: start --import-realm --optimized=false
     ports:
       - "8280:8080"
     deploy:
@@ -282,9 +282,11 @@ services:
       KC_HTTP_ENABLED: "true"
       KC_HOSTNAME: ${KC_HOSTNAME:-http://localhost:8280}
       KC_HOSTNAME_STRICT: "false"
+      KC_PROXY_HEADERS: xforwarded
       KC_HEALTH_ENABLED: "true"
       KC_METRICS_ENABLED: "false"
       KC_DB: dev-file
+      KC_LOG_LEVEL: ${KC_LOG_LEVEL:-info}
     volumes:
       - ./keycloak/realm-config.json:/opt/keycloak/data/import/realm-config.json:ro
       - keycloak_data:/opt/keycloak/data
