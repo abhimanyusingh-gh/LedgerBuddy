@@ -9,7 +9,14 @@
   "duplicateEmailsAllowed": false,
   "resetPasswordAllowed": true,
   "editUsernameAllowed": false,
-  "bruteForceProtected": false,
+  "bruteForceProtected": true,
+  "permanentLockout": false,
+  "maxFailureWaitSeconds": 900,
+  "minimumQuickLoginWaitSeconds": 60,
+  "waitIncrementSeconds": 60,
+  "quickLoginCheckMilliSeconds": 1000,
+  "maxDeltaTimeSeconds": 43200,
+  "failureFactor": 5,
   "accessTokenLifespan": 3600,
   "ssoSessionIdleTimeout": 28800,
   "ssoSessionMaxLifespan": 86400,
@@ -31,6 +38,12 @@
       {
         "name": "member",
         "description": "Standard member with basic access",
+        "composite": false,
+        "clientRole": false
+      },
+      {
+        "name": "viewer",
+        "description": "Read-only access to invoices and reports",
         "composite": false,
         "clientRole": false
       }
@@ -68,7 +81,6 @@
         "access.token.lifespan": "3600"
       },
       "defaultClientScopes": [
-        "openid",
         "profile",
         "email",
         "roles"
@@ -241,7 +253,8 @@
       "roles": [
         "platform_admin",
         "tenant_admin",
-        "member"
+        "member",
+        "viewer"
       ]
     }
   ],

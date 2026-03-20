@@ -92,11 +92,24 @@ describe("InvoiceSourceViewer", () => {
     );
 
     expect(html).toContain("Source Preview");
-    expect(html).toContain("No extracted value highlights are available yet.");
     expect(html).toContain("/api/invoices/inv-1/preview?page=1");
   });
 
-  it("uses transform-based zoom instead of width", () => {
+  it("renders zoom toolbar with InvoicePreview component", () => {
+    const html = renderToStaticMarkup(
+      <InvoiceSourceViewer
+        invoice={baseInvoice}
+        overlayUrlByField={{}}
+        resolvePreviewUrl={() => "http://localhost:4100/api/invoices/inv-1/preview?page=1"}
+      />
+    );
+
+    expect(html).toContain("invoice-preview-toolbar");
+    expect(html).toContain("100%");
+    expect(html).toContain("Reset");
+  });
+
+  it("renders InvoicePreview with transform-based zoom", () => {
     const html = renderToStaticMarkup(
       <InvoiceSourceViewer
         invoice={baseInvoice}
@@ -106,20 +119,6 @@ describe("InvoiceSourceViewer", () => {
     );
 
     expect(html).toContain("transform:scale(1)");
-    expect(html).not.toContain("width:100%");
-  });
-
-  it("does not render zoom button controls", () => {
-    const html = renderToStaticMarkup(
-      <InvoiceSourceViewer
-        invoice={baseInvoice}
-        overlayUrlByField={{}}
-        resolvePreviewUrl={() => "http://localhost:4100/api/invoices/inv-1/preview?page=1"}
-      />
-    );
-
-    expect(html).not.toContain('aria-label="Zoom in"');
-    expect(html).not.toContain('aria-label="Zoom out"');
   });
 
   it("chips show page number without confidence label", () => {

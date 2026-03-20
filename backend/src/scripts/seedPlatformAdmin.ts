@@ -28,8 +28,8 @@ async function run() {
   const keycloakAdmin = new KeycloakAdminClient(
     env.keycloakInternalBaseUrl,
     env.keycloakRealm,
-    env.STS_CLIENT_ID,
-    env.STS_CLIENT_SECRET
+    env.OIDC_CLIENT_ID,
+    env.OIDC_CLIENT_SECRET
   );
 
   // Keycloak: create user if not already present (idempotent)

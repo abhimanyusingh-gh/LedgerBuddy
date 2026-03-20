@@ -1,90 +1,54 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import {
-  approveInvoices,
   assignTenantUserRole,
   changePassword,
   clearStoredSessionToken,
   completeTenantOnboarding,
-  deleteInvoices,
-  downloadTallyXmlFile,
-  exportToTally,
-  generateTallyXmlFile,
-  retryInvoices,
   fetchGmailConnectUrl,
   fetchGmailConnectionStatus,
-  fetchIngestionStatus,
-  fetchInvoices,
   loginWithCredentials,
   fetchPlatformTenantUsage,
   onboardTenantAdmin,
   setTenantEnabled,
   fetchSessionContext,
   fetchTenantUsers,
-  getInvoiceBlockCropUrl,
-  getInvoiceFieldOverlayUrl,
-  getInvoicePreviewUrl,
   getStoredSessionToken,
   inviteTenantUser,
-  pauseIngestion,
-  runIngestion,
   setStoredSessionToken,
   removeTenantUser,
   setUserEnabled,
-  subscribeIngestionSSE,
-  updateInvoiceParsedFields,
-  renameInvoiceAttachment,
-  uploadInvoiceFiles
+  fetchMailboxes,
+  assignMailboxUser,
+  removeMailboxAssignment,
+  removeMailbox,
+  fetchBankAccounts,
+  initiateBankConsent,
+  revokeBankAccount,
+  refreshBankBalance
 } from "./api";
-import type { GmailConnectionStatus, IngestionJobStatus, Invoice } from "./types";
+import { OverviewDashboard } from "./components/OverviewDashboard";
+import type { BankAccount, GmailConnectionStatus, TenantMailbox } from "./types";
 import type { PlatformTenantUsageSummary } from "./api";
-import { ConfidenceBadge } from "./components/ConfidenceBadge";
-import { ExtractedFieldsTable } from "./components/ExtractedFieldsTable";
-import { IngestionProgressCard } from "./components/IngestionProgressCard";
-import { InvoiceSourceViewer } from "./components/InvoiceSourceViewer";
-import { TallyMappingTable } from "./components/TallyMappingTable";
 import { LoginPage } from "./components/login/LoginPage";
 import { PlatformAdminTopNav } from "./components/platformAdmin/PlatformAdminTopNav";
 import { PlatformActivityMonitor } from "./components/platformAdmin/PlatformActivityMonitor";
 import { PlatformOnboardSection } from "./components/platformAdmin/PlatformOnboardSection";
 import { PlatformUsageOverviewSection } from "./components/platformAdmin/PlatformUsageOverviewSection";
+import { PlatformAnalyticsDashboard } from "./components/platformAdmin/PlatformAnalyticsDashboard";
 import { TenantAdminTopNav } from "./components/tenantAdmin/TenantAdminTopNav";
 import { TenantViewTabs, type TenantViewTab } from "./components/tenantAdmin/TenantViewTabs";
+import { TenantConfigTab } from "./components/tenantAdmin/TenantConfigTab";
+import { TenantInvoicesView } from "./components/tenantAdmin/TenantInvoicesView";
 import { ExportHistoryDashboard } from "./components/ExportHistoryDashboard";
-
-import { getExtractedFieldRows } from "./extractedFields";
-import { getInvoiceSourceHighlights } from "./sourceHighlights";
-import {
-  getAvailableRowActions,
-  isInvoiceApprovable,
-  isInvoiceExportable,
-  isInvoiceRetryable,
-  isInvoiceSelectable,
-  mergeSelectedIds,
-  removeSelectedIds
-} from "./selection";
-import { getInvoiceTallyMappings } from "./tallyMapping";
-import { formatMinorAmountWithCurrency } from "./currency";
-import {
-  buildFieldCropUrlMap,
-  buildFieldOverlayUrlMap,
-  STATUS_LABELS,
-  STATUSES
-} from "./invoiceView";
-import { useInvoiceDetail } from "./hooks/useInvoiceDetail";
-import { getUserFacingErrorMessage, isAuthenticationError } from "./apiError";
-
-function selectNewerInvoice(detail: Invoice | null, summary: Invoice | null): Invoice | null {
-  if (!summary) return detail;
-  if (!detail || detail._id !== summary._id) return summary;
-  const dt = Date.parse(detail.updatedAt);
-  const st = Date.parse(summary.updatedAt);
-  return Number.isFinite(dt) && dt >= st ? detail : summary;
-}
+import { BankConnectionsTab } from "./components/BankConnectionsTab";
+import { getUserFacingErrorMessage } from "./apiError";
+import { useToast } from "./hooks/useToast";
+import { ToastContainer } from "./components/ToastContainer";
 
 export function App() {
   const [authLoading, setAuthLoading] = useState(true);
   const [session, setSession] = useState<{
-    user: { id: string; email: string; role: "PLATFORM_ADMIN" | "TENANT_ADMIN" | "MEMBER"; isPlatformAdmin: boolean };
+    user: { id: string; email: string; role: "PLATFORM_ADMIN" | "TENANT_ADMIN" | "MEMBER" | "VIEWER"; isPlatformAdmin: boolean };
     tenant: { id: string; name: string; onboarding_status: "pending" | "completed"; mode?: "test" | "live" };
     flags: {
       requires_tenant_setup: boolean;
@@ -108,85 +72,64 @@ export function App() {
     adminDisplayName: "",
     mode: "test" as string
   });
-  const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [navCounts, setNavCounts] = useState({ total: 0, approved: 0, pending: 0 });
-  const [popupSourcePreviewExpanded, setPopupSourcePreviewExpanded] = useState(false);
-  const [popupRawOcrExpanded, setPopupRawOcrExpanded] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [ingestingIds, setIngestingIds] = useState<Set<string>>(new Set());
-  const [error, setError] = useState<string | null>(null);
-  const [statusFilter, setStatusFilter] = useState<(typeof STATUSES)[number]>("ALL");
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [activeId, setActiveId] = useState<string | null>(null);
-  const [popupInvoiceId, setPopupInvoiceId] = useState<string | null>(null);
-  const [detailsPanelVisible, setDetailsPanelVisible] = useState(false);
-  const [listPanelPercent, setListPanelPercent] = useState(58);
-  const contentRef = useRef<HTMLElement>(null);
   const [gmailConnection, setGmailConnection] = useState<GmailConnectionStatus | null>(null);
+  const [mailboxes, setMailboxes] = useState<TenantMailbox[]>([]);
+  const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
   const [loginEmail, setLoginEmail] = useState<string>("");
   const [loginPassword, setLoginPassword] = useState<string>("");
   const [loginSubmitting, setLoginSubmitting] = useState(false);
-  const [activeTab, setActiveTab] = useState<TenantViewTab>("dashboard");
+  const [activeTab, setActiveTabRaw] = useState<TenantViewTab>(() => {
+    const stored = localStorage.getItem("billforge:active-tab");
+    const valid: TenantViewTab[] = ["overview", "dashboard", "config", "exports", "connections"];
+    return stored && valid.includes(stored as TenantViewTab) ? (stored as TenantViewTab) : "overview";
+  });
+  const setActiveTab = useCallback((tab: TenantViewTab) => {
+    setActiveTabRaw(tab);
+    localStorage.setItem("billforge:active-tab", tab);
+  }, []);
   const [selectedPlatformTenantId, setSelectedPlatformTenantId] = useState<string | null>(null);
   const [platformOnboardCollapsed, setPlatformOnboardCollapsed] = useState(false);
   const [platformUsageCollapsed, setPlatformUsageCollapsed] = useState(false);
   const [platformActivityCollapsed, setPlatformActivityCollapsed] = useState(false);
-  const [ingestionStatus, setIngestionStatus] = useState<IngestionJobStatus | null>(null);
-  const [ingestionFading, setIngestionFading] = useState(false);
-  const [editingListCell, setEditingListCell] = useState<{ invoiceId: string; field: string } | null>(null);
-  const [editListValue, setEditListValue] = useState("");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [popupMappingExpanded, setPopupMappingExpanded] = useState(false);
   const [showChangePassword, setShowChangePassword] = useState(false);
   const [changePasswordForm, setChangePasswordForm] = useState({ currentPassword: "", newPassword: "", confirmPassword: "" });
   const [platformOnboardResult, setPlatformOnboardResult] = useState<{ tempPassword: string; adminEmail: string } | null>(null);
-  const uploadInputRef = useRef<HTMLInputElement>(null);
-  const ingestionWasRunningRef = useRef(false);
-  const {
-    detail: activeInvoiceDetail,
-    loading: activeInvoiceDetailLoading,
-    refresh: refreshActiveInvoiceDetail
-  } = useInvoiceDetail(activeId);
-  const {
-    detail: popupInvoiceDetail,
-    loading: popupInvoiceDetailLoading,
-    refresh: refreshPopupInvoiceDetail
-  } = useInvoiceDetail(popupInvoiceId);
+  const [error, setError] = useState<string | null>(null);
+  const { toasts, addToast, removeToast } = useToast();
 
   useEffect(() => {
     void bootstrapSession();
   }, []);
 
   useEffect(() => {
-    if (!session || session.user.isPlatformAdmin) {
-      return;
-    }
-    void loadInvoices();
-  }, [session, statusFilter]);
-
-  useEffect(() => {
     if (!session) {
-      setActiveTab("dashboard");
+      setActiveTab("overview");
       return;
     }
     if (session.user.isPlatformAdmin) {
+      setActiveTab("dashboard");
       void loadPlatformUsage();
       setTenantUsers([]);
       setGmailConnection(null);
-      setIngestionStatus(null);
+      setMailboxes([]);
+      setBankAccounts([]);
     } else {
       setPlatformUsage([]);
       setSelectedPlatformTenantId(null);
-      void refreshIngestionStatus();
       void loadGmailConnectionStatus();
       if (session.user.role === "TENANT_ADMIN") {
         void loadTenantUsers();
+        void loadMailboxes();
+        void loadBankAccounts();
         setOnboardingForm({
           tenantName: session.tenant.name,
           adminEmail: session.user.email
         });
       } else {
         setTenantUsers([]);
+        setMailboxes([]);
+        setBankAccounts([]);
       }
     }
   }, [session?.user.id, session?.tenant.id]);
@@ -205,23 +148,47 @@ export function App() {
   }, [platformUsage]);
 
   useEffect(() => {
-    if (session?.user.role !== "TENANT_ADMIN") {
-      setActiveTab("dashboard");
+    const params = new URLSearchParams(window.location.search);
+    const bankStatus = params.get("bank");
+    if (bankStatus === "error") {
+      addToast("error", "Bank connection failed. Please try again.");
+      params.delete("bank");
+      const query = params.toString();
+      const nextUrl = `${window.location.pathname}${query.length > 0 ? `?${query}` : ""}${window.location.hash}`;
+      window.history.replaceState({}, "", nextUrl);
     }
-  }, [session?.user.role]);
+  }, []);
 
   useEffect(() => {
-    setPopupSourcePreviewExpanded(false);
-  }, [popupInvoiceId]);
+    const params = new URLSearchParams(window.location.search);
+    const gmailStatus = params.get("gmail");
+    if (!gmailStatus) {
+      return;
+    }
 
-  const activeInvoiceSummary = useMemo(
-    () => invoices.find((invoice) => invoice._id === activeId) ?? null,
-    [activeId, invoices]
-  );
-  const activeInvoice = useMemo(
-    () => selectNewerInvoice(activeInvoiceDetail, activeInvoiceSummary),
-    [activeInvoiceDetail, activeInvoiceSummary]
-  );
+    if (gmailStatus === "error") {
+      const reason = params.get("reason");
+      setError(reason ? `Gmail reconnect failed: ${reason}` : "Gmail reconnect failed.");
+    }
+
+    if (gmailStatus === "connected") {
+      setError(null);
+    }
+
+    if (session) {
+      void loadGmailConnectionStatus();
+      if (session.user.isPlatformAdmin) {
+        void loadPlatformUsage();
+      } else if (session.user.role === "TENANT_ADMIN") {
+        void loadMailboxes();
+      }
+    }
+    params.delete("gmail");
+    params.delete("reason");
+    const query = params.toString();
+    const nextUrl = `${window.location.pathname}${query.length > 0 ? `?${query}` : ""}${window.location.hash}`;
+    window.history.replaceState({}, "", nextUrl);
+  }, [session]);
 
   const platformStats = useMemo(() => {
     return {
@@ -233,163 +200,11 @@ export function App() {
       failedDocuments: platformUsage.reduce((sum, entry) => sum + entry.failedDocuments, 0)
     };
   }, [platformUsage]);
+
   const selectedPlatformTenant = useMemo(
     () => platformUsage.find((entry) => entry.tenantId === selectedPlatformTenantId) ?? null,
     [platformUsage, selectedPlatformTenantId]
   );
-
-  const popupInvoiceSummary = useMemo(
-    () => invoices.find((invoice) => invoice._id === popupInvoiceId) ?? null,
-    [invoices, popupInvoiceId]
-  );
-  const popupInvoice = useMemo(
-    () => selectNewerInvoice(popupInvoiceDetail, popupInvoiceSummary),
-    [popupInvoiceDetail, popupInvoiceSummary]
-  );
-
-  const activeOverlayUrlByField = useMemo(() => {
-    if (!activeInvoice) {
-      return {};
-    }
-    return buildFieldOverlayUrlMap(
-      activeInvoice._id,
-      getInvoiceSourceHighlights(activeInvoice),
-      getInvoiceFieldOverlayUrl
-    );
-  }, [activeInvoice]);
-  const popupExtractedRows = useMemo(
-    () => (popupInvoice ? getExtractedFieldRows(popupInvoice) : []),
-    [popupInvoice]
-  );
-
-  const popupTallyMappings = useMemo(
-    () => (popupInvoice ? getInvoiceTallyMappings(popupInvoice) : []),
-    [popupInvoice]
-  );
-  const popupCropUrlByField = useMemo(() => {
-    if (!popupInvoice) {
-      return {};
-    }
-    return buildFieldCropUrlMap(popupInvoice._id, getInvoiceSourceHighlights(popupInvoice), getInvoiceBlockCropUrl);
-  }, [popupInvoice]);
-  const popupOverlayUrlByField = useMemo(() => {
-    if (!popupInvoice) {
-      return {};
-    }
-    return buildFieldOverlayUrlMap(
-      popupInvoice._id,
-      getInvoiceSourceHighlights(popupInvoice),
-      getInvoiceFieldOverlayUrl
-    );
-  }, [popupInvoice]);
-  const ingestionProgressPercent = useMemo(() => {
-    if (!ingestionStatus || ingestionStatus.totalFiles <= 0) return 0;
-    return Math.min(100, Math.round((ingestionStatus.processedFiles / ingestionStatus.totalFiles) * 100));
-  }, [ingestionStatus]);
-
-  const ingestionSuccessfulFiles = useMemo(() => {
-    if (!ingestionStatus) return 0;
-    return Math.max(0, ingestionStatus.processedFiles - ingestionStatus.failures);
-  }, [ingestionStatus]);
-
-  const selectedInvoices = useMemo(() => {
-    if (selectedIds.length === 0 || invoices.length === 0) {
-      return [];
-    }
-
-    const selectedIdSet = new Set(selectedIds);
-    return invoices.filter((invoice) => selectedIdSet.has(invoice._id));
-  }, [invoices, selectedIds]);
-
-  const selectedApprovableIds = useMemo(
-    () => selectedInvoices.filter((invoice) => isInvoiceApprovable(invoice)).map((invoice) => invoice._id),
-    [selectedInvoices]
-  );
-
-  const selectedExportableIds = useMemo(
-    () => selectedInvoices.filter((invoice) => isInvoiceExportable(invoice)).map((invoice) => invoice._id),
-    [selectedInvoices]
-  );
-
-  const selectedRetryableIds = useMemo(
-    () => selectedInvoices.filter((invoice) => isInvoiceRetryable(invoice)).map((invoice) => invoice._id),
-    [selectedInvoices]
-  );
-
-  const selectedNonExportableCount = useMemo(
-    () => selectedInvoices.filter((invoice) => !isInvoiceExportable(invoice)).length,
-    [selectedInvoices]
-  );
-
-  const filteredInvoices = useMemo(() => {
-    if (!searchQuery.trim()) {
-      return invoices;
-    }
-    const q = searchQuery.trim().toLowerCase();
-    return invoices.filter(
-      (invoice) =>
-        invoice.attachmentName.toLowerCase().includes(q) ||
-        (invoice.parsed?.vendorName ?? "").toLowerCase().includes(q) ||
-        (invoice.parsed?.invoiceNumber ?? "").toLowerCase().includes(q)
-    );
-  }, [invoices, searchQuery]);
-
-  const selectableVisibleIds = useMemo(
-    () => filteredInvoices.filter((invoice) => isInvoiceSelectable(invoice)).map((invoice) => invoice._id),
-    [filteredInvoices]
-  );
-
-  const areAllVisibleSelectableSelected = useMemo(() => {
-    if (selectableVisibleIds.length === 0) {
-      return false;
-    }
-
-    const selectedIdSet = new Set(selectedIds);
-    return selectableVisibleIds.every((id) => selectedIdSet.has(id));
-  }, [selectableVisibleIds, selectedIds]);
-
-  const contentClassName = useMemo(() => {
-    if (!detailsPanelVisible) {
-      return "content content-list-expanded";
-    }
-
-    return "content";
-  }, [detailsPanelVisible]);
-
-  const contentStyle = useMemo(() => {
-    if (!detailsPanelVisible) return undefined;
-    return { gridTemplateColumns: `${listPanelPercent}% 6px 1fr` };
-  }, [detailsPanelVisible, listPanelPercent]);
-
-  const handleDividerMouseDown = useCallback((e: React.MouseEvent) => {
-    e.preventDefault();
-    const container = contentRef.current;
-    if (!container) return;
-    const startX = e.clientX;
-    const startPercent = listPanelPercent;
-    const containerWidth = container.getBoundingClientRect().width;
-    document.body.style.cursor = "col-resize";
-    document.body.style.userSelect = "none";
-
-    const onMove = (ev: MouseEvent) => {
-      const delta = ev.clientX - startX;
-      const pctDelta = (delta / containerWidth) * 100;
-      setListPanelPercent(Math.min(75, Math.max(25, startPercent + pctDelta)));
-    };
-    const onUp = () => {
-      document.body.style.cursor = "";
-      document.body.style.userSelect = "";
-      document.removeEventListener("mousemove", onMove);
-      document.removeEventListener("mouseup", onUp);
-    };
-    document.addEventListener("mousemove", onMove);
-    document.addEventListener("mouseup", onUp);
-  }, [listPanelPercent]);
-
-  const gmailConnectionState = gmailConnection?.connectionState ?? "DISCONNECTED";
-  const gmailNeedsReauth = gmailConnectionState === "NEEDS_REAUTH";
-  const gmailConnected = gmailConnectionState === "CONNECTED";
-  const gmailEmailAddress = gmailConnection?.emailAddress ?? "";
 
   async function bootstrapSession() {
     setAuthLoading(true);
@@ -460,159 +275,6 @@ export function App() {
     }
   }
 
-  useEffect(() => {
-    if (!popupInvoiceId) {
-      return undefined;
-    }
-
-    function handleEsc(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        setPopupInvoiceId(null);
-      }
-    }
-
-    window.addEventListener("keydown", handleEsc);
-    return () => window.removeEventListener("keydown", handleEsc);
-  }, [popupInvoiceId]);
-
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const gmailStatus = params.get("gmail");
-    if (!gmailStatus) {
-      return;
-    }
-
-    if (gmailStatus === "error") {
-      const reason = params.get("reason");
-      setError(reason ? `Gmail reconnect failed: ${reason}` : "Gmail reconnect failed.");
-    }
-
-    if (gmailStatus === "connected") {
-      setError(null);
-    }
-
-    if (session) {
-      void loadGmailConnectionStatus();
-      if (session.user.isPlatformAdmin) {
-        void loadPlatformUsage();
-      }
-    }
-    params.delete("gmail");
-    params.delete("reason");
-    const query = params.toString();
-    const nextUrl = `${window.location.pathname}${query.length > 0 ? `?${query}` : ""}${window.location.hash}`;
-    window.history.replaceState({}, "", nextUrl);
-  }, [session]);
-
-  useEffect(() => {
-    if (!ingestionStatus?.running) {
-      return undefined;
-    }
-
-    const unsub = subscribeIngestionSSE(
-      (status) => {
-        setIngestionStatus(status);
-        void loadInvoices();
-      },
-      () => {
-        void refreshIngestionStatus();
-      }
-    );
-
-    return unsub;
-  }, [ingestionStatus?.running]);
-
-  useEffect(() => {
-    const isRunning = ingestionStatus?.running === true;
-    if (ingestionWasRunningRef.current && !isRunning) {
-      if (ingestionStatus?.state === "failed") {
-        setError(ingestionStatus.error ? `Ingestion failed: ${ingestionStatus.error}` : "Ingestion failed.");
-      }
-      void loadInvoices();
-      void loadGmailConnectionStatus();
-    }
-
-    ingestionWasRunningRef.current = isRunning;
-  }, [ingestionStatus?.running, ingestionStatus?.state, ingestionStatus?.error]);
-
-  useEffect(() => {
-    if (ingestionStatus?.state !== "completed") {
-      setIngestionFading(false);
-      return;
-    }
-    const fadeTimer = setTimeout(() => setIngestionFading(true), 2000);
-    const hideTimer = setTimeout(() => setIngestionStatus(null), 3500);
-    return () => { clearTimeout(fadeTimer); clearTimeout(hideTimer); };
-  }, [ingestionStatus?.state]);
-
-  useEffect(() => {
-    if (ingestingIds.size === 0) return;
-    const stillIngesting = new Set<string>();
-    for (const id of ingestingIds) {
-      const inv = invoices.find((i) => i._id === id);
-      if (inv && inv.status === "PENDING") stillIngesting.add(id);
-    }
-    if (stillIngesting.size < ingestingIds.size) {
-      setIngestingIds(stillIngesting);
-      if (stillIngesting.size > 0 && !ingestionStatus?.running) {
-        void runIngestion().then((s) => setIngestionStatus(s)).catch(() => {});
-      }
-    }
-  }, [invoices]);
-
-  async function loadInvoices() {
-    if (!session) {
-      return;
-    }
-    setLoading(true);
-    setError(null);
-
-    try {
-      const data = await fetchInvoices(statusFilter === "ALL" ? undefined : statusFilter);
-      setInvoices(data.items);
-      setNavCounts({
-        total: data.totalAll ?? data.total,
-        approved: data.approvedAll ?? 0,
-        pending: data.pendingAll ?? 0
-      });
-      const ids = new Set(data.items.map((item) => item._id));
-      setSelectedIds((currentSelectedIds) => mergeSelectedIds(currentSelectedIds, data.items));
-      if (activeId && !ids.has(activeId)) {
-        setActiveId(data.items[0]?._id ?? null);
-      }
-      if (popupInvoiceId && !ids.has(popupInvoiceId)) {
-        setPopupInvoiceId(null);
-      }
-      if (activeId && ids.has(activeId)) {
-        void refreshActiveInvoiceDetail();
-      }
-      if (popupInvoiceId && ids.has(popupInvoiceId)) {
-        void refreshPopupInvoiceDetail();
-      }
-    } catch (loadError) {
-      if (isAuthenticationError(loadError)) {
-        clearStoredSessionToken();
-        setSession(null);
-      } else {
-        setError(getUserFacingErrorMessage(loadError, "Failed to fetch invoices."));
-      }
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function refreshIngestionStatus() {
-    if (!session) {
-      return;
-    }
-    try {
-      const status = await fetchIngestionStatus();
-      setIngestionStatus(status);
-    } catch {
-      // Keep UI usable even if status endpoint temporarily fails.
-    }
-  }
-
   async function loadGmailConnectionStatus() {
     if (!session) {
       return;
@@ -637,228 +299,76 @@ export function App() {
     }
   }
 
-  async function handleApprove() {
-    if (selectedApprovableIds.length === 0) {
-      setError("Select at least one PARSED / NEEDS_REVIEW / FAILED_PARSE invoice to approve.");
-      return;
-    }
-
+  async function loadMailboxes() {
     try {
-      setError(null);
-      const response = await approveInvoices(selectedApprovableIds, session!.user.email);
-      if (response.modifiedCount === 0) {
-        setError("No selected invoices were eligible for approval.");
-        return;
-      }
-      await loadInvoices();
-    } catch (approveError) {
-      setError(getUserFacingErrorMessage(approveError, "Approval failed."));
+      const items = await fetchMailboxes();
+      setMailboxes(items);
+    } catch {
+      setMailboxes([]);
     }
   }
 
-  async function handleDelete() {
-    if (selectedIds.length === 0) {
-      return;
-    }
-
-    if (!window.confirm(`Delete ${selectedIds.length} invoice(s)? This cannot be undone.`)) {
-      return;
-    }
-
+  async function handleAssignMailboxUser(integrationId: string, userId: string) {
     try {
-      setError(null);
-      const response = await deleteInvoices(selectedIds);
-      if (response.deletedCount === 0) {
-        setError("No selected invoices were eligible for deletion (exported invoices cannot be deleted).");
-        return;
-      }
-      setSelectedIds([]);
-      await loadInvoices();
-    } catch (deleteError) {
-      setError(getUserFacingErrorMessage(deleteError, "Deletion failed."));
+      await assignMailboxUser(integrationId, userId);
+      await loadMailboxes();
+    } catch (assignError) {
+      setError(getUserFacingErrorMessage(assignError, "Failed to assign user to mailbox."));
     }
   }
 
-  async function handleApproveSingle(invoiceId: string) {
+  async function handleRemoveMailboxAssignment(integrationId: string, userId: string) {
     try {
-      setError(null);
-      const response = await approveInvoices([invoiceId], session!.user.email);
-      if (response.modifiedCount === 0) {
-        setError("Invoice was not eligible for approval.");
-        return;
-      }
-      await loadInvoices();
-    } catch (approveError) {
-      setError(getUserFacingErrorMessage(approveError, "Approval failed."));
+      await removeMailboxAssignment(integrationId, userId);
+      await loadMailboxes();
+    } catch (removeError) {
+      setError(getUserFacingErrorMessage(removeError, "Failed to remove mailbox assignment."));
     }
   }
 
-  async function handleRetrySingle(invoiceId: string) {
-    setIngestingIds((prev) => new Set(prev).add(invoiceId));
+  async function handleRemoveMailbox(integrationId: string) {
     try {
-      setError(null);
-      const response = await retryInvoices([invoiceId]);
-      if (response.modifiedCount === 0) {
-        setError("Invoice was not eligible for retry.");
-        setIngestingIds((prev) => { const next = new Set(prev); next.delete(invoiceId); return next; });
-        return;
-      }
-      if (ingestionStatus?.running) {
-        return;
-      }
-      const status = await runIngestion();
-      setIngestionStatus(status);
-      if (!status.running) {
-        setIngestingIds((prev) => { const next = new Set(prev); next.delete(invoiceId); return next; });
-        await loadInvoices();
-      }
-    } catch (retryError) {
-      setError(getUserFacingErrorMessage(retryError, "Retry failed."));
-      setIngestingIds((prev) => { const next = new Set(prev); next.delete(invoiceId); return next; });
+      await removeMailbox(integrationId);
+      setMailboxes((prev) => prev.filter((m) => m._id !== integrationId));
+    } catch (removeError) {
+      setError(getUserFacingErrorMessage(removeError, "Failed to remove mailbox."));
     }
   }
 
-  async function handleDeleteSingle(invoiceId: string, fileName: string) {
-    if (!window.confirm(`Delete "${fileName}"? This cannot be undone.`)) {
-      return;
-    }
-
+  async function loadBankAccounts() {
     try {
-      setError(null);
-      const response = await deleteInvoices([invoiceId]);
-      if (response.deletedCount === 0) {
-        setError("Invoice could not be deleted (exported invoices cannot be deleted).");
-        return;
-      }
-      setSelectedIds((current) => current.filter((id) => id !== invoiceId));
-      await loadInvoices();
-    } catch (deleteError) {
-      setError(getUserFacingErrorMessage(deleteError, "Deletion failed."));
+      const items = await fetchBankAccounts();
+      setBankAccounts(items);
+    } catch {
+      setBankAccounts([]);
     }
   }
 
-  async function handleRetry() {
-    if (selectedRetryableIds.length === 0) {
-      setError("Select at least one non-exported invoice to retry.");
-      return;
-    }
-
+  async function handleAddBankAccount(aaAddress: string, displayName: string) {
     try {
-      setError(null);
-      const response = await retryInvoices(selectedRetryableIds);
-      if (response.modifiedCount === 0) {
-        setError("No selected invoices were eligible for retry.");
-        return;
-      }
-      setSelectedIds([]);
-      await loadInvoices();
-    } catch (retryError) {
-      setError(getUserFacingErrorMessage(retryError, "Retry failed."));
+      const result = await initiateBankConsent(aaAddress, displayName);
+      await loadBankAccounts();
+      window.location.assign(result.redirectUrl);
+    } catch (addError) {
+      setError(getUserFacingErrorMessage(addError, "Failed to initiate bank connection."));
     }
   }
 
-  async function handleExport() {
-    if (selectedExportableIds.length === 0) {
-      setError("Select at least one APPROVED invoice before export.");
-      return;
-    }
-
-    if (selectedNonExportableCount > 0) {
-      setError("Only APPROVED invoices can be exported. Deselect non-approved invoices and retry.");
-      return;
-    }
-
-    const confirmationMessage = `Export ${selectedExportableIds.length} approved invoice file${selectedExportableIds.length === 1 ? "" : "s"} to Tally?`;
-    if (!window.confirm(confirmationMessage)) {
-      return;
-    }
-
+  async function handleRefreshBankBalance(id: string) {
     try {
-      setError(null);
-      const exportResult = await exportToTally(selectedExportableIds);
-      const successfullyExportedIds = exportResult.items
-        .filter((item) => item.success)
-        .map((item) => item.invoiceId);
-      setSelectedIds((currentSelectedIds) => removeSelectedIds(currentSelectedIds, successfullyExportedIds));
-      await loadInvoices();
-    } catch (exportError) {
-      setError(getUserFacingErrorMessage(exportError, "Export failed."));
+      await refreshBankBalance(id);
+      await loadBankAccounts();
+    } catch (refreshError) {
+      setError(getUserFacingErrorMessage(refreshError, "Failed to refresh bank balance."));
     }
   }
 
-  async function handleDownloadXml() {
-    if (selectedExportableIds.length === 0) {
-      setError("Select at least one APPROVED invoice before generating XML.");
-      return;
-    }
-
-    if (selectedNonExportableCount > 0) {
-      setError("Only APPROVED invoices can be exported. Deselect non-approved invoices and retry.");
-      return;
-    }
-
+  async function handleRevokeBankAccount(id: string) {
     try {
-      setError(null);
-      const fileResult = await generateTallyXmlFile(selectedExportableIds);
-
-      if (!fileResult.batchId) {
-        setError("No approved invoices found for export.");
-        return;
-      }
-
-      const blob = await downloadTallyXmlFile(fileResult.batchId);
-      const url = URL.createObjectURL(blob);
-      const anchor = document.createElement("a");
-      anchor.href = url;
-      anchor.download = fileResult.filename ?? "tally-import.xml";
-      document.body.appendChild(anchor);
-      anchor.click();
-      document.body.removeChild(anchor);
-      URL.revokeObjectURL(url);
-
-      const exportedIds = selectedExportableIds.filter(
-        (id) => !fileResult.skippedItems.some((item) => item.invoiceId === id)
-      );
-      setSelectedIds((currentSelectedIds) => removeSelectedIds(currentSelectedIds, exportedIds));
-      await loadInvoices();
-    } catch (downloadError) {
-      setError(getUserFacingErrorMessage(downloadError, "XML file generation failed."));
-    }
-  }
-
-  async function handleUpload(event: React.ChangeEvent<HTMLInputElement>) {
-    const files = event.target.files;
-    if (!files || files.length === 0) return;
-    try {
-      setError(null);
-      await uploadInvoiceFiles(Array.from(files));
-      await loadInvoices();
-      const status = await runIngestion();
-      setIngestionStatus(status);
-    } catch (uploadError) {
-      setError(getUserFacingErrorMessage(uploadError, "File upload failed."));
-    } finally {
-      if (uploadInputRef.current) uploadInputRef.current.value = "";
-    }
-  }
-
-  async function handleIngest() {
-    try {
-      setError(null);
-      const status = await runIngestion();
-      setIngestionStatus(status);
-    } catch (ingestError) {
-      setError(getUserFacingErrorMessage(ingestError, "Ingestion run failed."));
-    }
-  }
-
-  async function handlePauseIngestion() {
-    try {
-      setError(null);
-      const status = await pauseIngestion();
-      setIngestionStatus(status);
-    } catch (pauseError) {
-      setError(getUserFacingErrorMessage(pauseError, "Failed to pause ingestion."));
+      await revokeBankAccount(id);
+      setBankAccounts((prev) => prev.filter((a) => a._id !== id));
+    } catch (revokeError) {
+      setError(getUserFacingErrorMessage(revokeError, "Failed to disconnect bank account."));
     }
   }
 
@@ -885,11 +395,8 @@ export function App() {
   function handleLogout() {
     clearStoredSessionToken();
     setSession(null);
-    setInvoices([]);
     setTenantUsers([]);
-    setActiveId(null);
-    setPopupInvoiceId(null);
-    setActiveTab("dashboard");
+    setActiveTab("overview");
     setShowChangePassword(false);
     setPlatformOnboardResult(null);
   }
@@ -1008,90 +515,6 @@ export function App() {
     }
   }
 
-  function toggleSelection(invoice: Invoice) {
-    if (!isInvoiceSelectable(invoice)) {
-      return;
-    }
-
-    const id = invoice._id;
-    setSelectedIds((current) =>
-      current.includes(id) ? current.filter((currentId) => currentId !== id) : [...current, id]
-    );
-  }
-
-  function toggleSelectAllVisible() {
-    if (selectableVisibleIds.length === 0) {
-      return;
-    }
-
-    const visibleIdSet = new Set(selectableVisibleIds);
-
-    setSelectedIds((currentSelectedIds) => {
-      if (areAllVisibleSelectableSelected) {
-        return currentSelectedIds.filter((selectedId) => !visibleIdSet.has(selectedId));
-      }
-
-      return Array.from(new Set([...currentSelectedIds, ...selectableVisibleIds]));
-    });
-  }
-
-  async function handleSaveField(
-    invoice: Invoice | null,
-    fieldKey: string,
-    value: string,
-    refreshDetail: () => Promise<void>
-  ) {
-    if (!invoice) return;
-    const trimmed = value.trim();
-    const parsed: Record<string, string | null> = {};
-
-    if (fieldKey === "totalAmountMinor") {
-      parsed.totalAmountMajor = trimmed || null;
-    } else if (fieldKey === "currency") {
-      parsed.currency = trimmed ? trimmed.toUpperCase() : null;
-    } else {
-      parsed[fieldKey] = trimmed || null;
-    }
-
-    try {
-      await updateInvoiceParsedFields(invoice._id, { parsed, updatedBy: "ui-user" });
-      await loadInvoices();
-      await refreshDetail();
-      if (session?.user.isPlatformAdmin) {
-        await loadPlatformUsage();
-      }
-    } catch (saveError) {
-      setError(getUserFacingErrorMessage(saveError, "Failed to save field."));
-    }
-  }
-
-  async function handleSaveListCell() {
-    if (!editingListCell) return;
-    const { invoiceId, field } = editingListCell;
-    const trimmed = editListValue.trim();
-
-    try {
-      if (field === "attachmentName") {
-        if (trimmed) await renameInvoiceAttachment(invoiceId, trimmed);
-      } else {
-        const parsed: Record<string, string | null> = {};
-        if (field === "totalAmountMinor") {
-          parsed.totalAmountMajor = trimmed || null;
-        } else {
-          parsed[field] = trimmed || null;
-        }
-        await updateInvoiceParsedFields(invoiceId, { parsed, updatedBy: "ui-user" });
-      }
-      setEditingListCell(null);
-      await loadInvoices();
-      if (activeId === invoiceId) {
-        await refreshActiveInvoiceDetail();
-      }
-    } catch (saveError) {
-      setError(getUserFacingErrorMessage(saveError, "Failed to save field."));
-    }
-  }
-
   if (authLoading) {
     return (
       <div className="layout">
@@ -1172,6 +595,7 @@ export function App() {
   }
 
   const isTenantAdmin = session.user.role === "TENANT_ADMIN";
+  const isViewer = session.user.role === "VIEWER";
   const isPlatformAdmin = session.user.isPlatformAdmin;
   const requiresTenantSetup = session.flags.requires_tenant_setup;
 
@@ -1197,7 +621,6 @@ export function App() {
       ) : null}
 
       <section className="controls">
-
         {requiresTenantSetup && !isPlatformAdmin ? (
           <div className="editor-card">
             <div className="editor-header">
@@ -1230,526 +653,108 @@ export function App() {
           </div>
         ) : null}
 
-        {activeTab === "exports" && isTenantAdmin && !isPlatformAdmin ? (
+        {activeTab === "exports" && !isPlatformAdmin ? (
           <ExportHistoryDashboard />
         ) : null}
 
         {activeTab === "config" && isTenantAdmin && !isPlatformAdmin ? (
-          <>
-            {gmailNeedsReauth ? (
-              <div className="mailbox-banner" role="alert">
-                <strong>We lost access to your mailbox. Please reconnect.</strong>
-                <button type="button" className="app-button app-button-primary" onClick={handleConnectGmail}>
-                  Reconnect Gmail
-                </button>
-              </div>
-            ) : null}
-
-            <div className="mailbox-connection-card">
-              <span
-                className={gmailConnected ? "mailbox-state mailbox-state-connected" : "mailbox-state mailbox-state-idle"}
-              >
-                {gmailConnected ? "Mailbox Connected" : "Mailbox Not Connected"}
-              </span>
-              {gmailConnected && gmailEmailAddress ? <span className="mailbox-email">{gmailEmailAddress}</span> : null}
-              {!gmailConnected ? (
-                <button type="button" className="app-button app-button-secondary" onClick={handleConnectGmail}>
-                  {gmailNeedsReauth ? "Reconnect Gmail" : "Connect Gmail"}
-                </button>
-              ) : null}
-            </div>
-
-            <div className="editor-card">
-              <div className="editor-header">
-                <h3>Tenant Settings</h3>
-              </div>
-              <div className="invite-row">
-                <label className="invite-label">
-                  Invite User Email
-                  <input
-                    value={inviteEmail}
-                    onChange={(event) => setInviteEmail(event.target.value)}
-                    placeholder="user@example.com"
-                  />
-                </label>
-                <button
-                  type="button"
-                  className="invite-send-button"
-                  onClick={() => void handleInviteUser()}
-                  disabled={!inviteEmail.trim()}
-                >
-                  Send Invite
-                </button>
-              </div>
-              <div className="list-scroll" style={{ maxHeight: "160px" }}>
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Email</th>
-                      <th>Status</th>
-                      <th>Role</th>
-                      <th>Action</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {tenantUsers.map((user) => (
-                      <tr key={user.userId}>
-                        <td>{user.email}</td>
-                        <td>
-                          <button
-                            type="button"
-                            className={`app-button ${user.enabled ? "app-button-secondary" : "app-button-danger"}`}
-                            style={{ fontSize: 12, padding: "2px 10px", minWidth: 72 }}
-                            onClick={() => void handleToggleUserEnabled(user.userId, !user.enabled)}
-                          >
-                            {user.enabled ? "Active" : "Disabled"}
-                          </button>
-                        </td>
-                        <td>
-                          <select
-                            value={user.role}
-                            onChange={(event) =>
-                              void handleRoleChange(user.userId, event.target.value as "TENANT_ADMIN" | "MEMBER")
-                            }
-                          >
-                            <option value="TENANT_ADMIN">Tenant Admin</option>
-                            <option value="MEMBER">Member</option>
-                          </select>
-                        </td>
-                        <td>
-                          <button type="button" className="app-button app-button-secondary" onClick={() => void handleRemoveUser(user.userId)}>
-                            Remove
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </>
+          <TenantConfigTab
+            gmailConnection={gmailConnection}
+            onConnectGmail={() => void handleConnectGmail()}
+            inviteEmail={inviteEmail}
+            onInviteEmailChange={setInviteEmail}
+            onInviteUser={() => void handleInviteUser()}
+            tenantUsers={tenantUsers}
+            onRoleChange={(userId, role) => void handleRoleChange(userId, role)}
+            onToggleUserEnabled={(userId, enabled) => void handleToggleUserEnabled(userId, enabled)}
+            onRemoveUser={(userId) => void handleRemoveUser(userId)}
+            mailboxes={mailboxes}
+            onAssignMailboxUser={(integrationId, userId) => void handleAssignMailboxUser(integrationId, userId)}
+            onRemoveMailboxAssignment={(integrationId, userId) => void handleRemoveMailboxAssignment(integrationId, userId)}
+            onRemoveMailbox={(integrationId) => void handleRemoveMailbox(integrationId)}
+          />
         ) : null}
 
-        {activeTab === "dashboard" ? (
-          <>
-            {isPlatformAdmin ? (
-              <>
-                <PlatformOnboardSection
-                  form={platformOnboardForm}
-                  collapsed={platformOnboardCollapsed}
-                  onToggle={() => setPlatformOnboardCollapsed((currentValue) => !currentValue)}
-                  onChange={setPlatformOnboardForm}
-                  onSubmit={() => {
-                    void handlePlatformOnboardTenantAdmin();
-                  }}
-                />
-                {platformOnboardResult ? (
-                  <div style={{ background: "#e8f5e9", border: "1px solid #4caf50", borderRadius: 6, padding: "12px 16px", margin: "8px 0 16px" }}>
-                    <strong>Tenant created.</strong> Temporary password for <code>{platformOnboardResult.adminEmail}</code>: <code>{platformOnboardResult.tempPassword}</code>
-                    <button type="button" style={{ marginLeft: 12 }} className="app-button app-button-secondary" onClick={() => setPlatformOnboardResult(null)}>Dismiss</button>
-                  </div>
-                ) : null}
-                <PlatformUsageOverviewSection
-                  usage={platformUsage}
-                  selectedTenantId={selectedPlatformTenantId}
-                  collapsed={platformUsageCollapsed}
-                  onToggle={() => setPlatformUsageCollapsed((currentValue) => !currentValue)}
-                  onRefresh={() => {
-                    void loadPlatformUsage();
-                  }}
-                  onSelectTenant={setSelectedPlatformTenantId}
-                  onToggleEnabled={(tenantId, enabled) => { void handleToggleTenantEnabled(tenantId, enabled); }}
-                />
-                <PlatformActivityMonitor
-                  selectedTenant={selectedPlatformTenant}
-                  collapsed={platformActivityCollapsed}
-                  onToggle={() => setPlatformActivityCollapsed((currentValue) => !currentValue)}
-                  onRefresh={() => {
-                    void loadPlatformUsage();
-                  }}
-                />
-              </>
-            ) : null}
+        {activeTab === "connections" && isTenantAdmin && !isPlatformAdmin ? (
+          <BankConnectionsTab
+            mailboxes={mailboxes}
+            tenantUsers={tenantUsers}
+            onAddGmailInbox={() => void handleConnectGmail()}
+            onAssignMailboxUser={(integrationId, userId) => void handleAssignMailboxUser(integrationId, userId)}
+            onRemoveMailboxAssignment={(integrationId, userId) => void handleRemoveMailboxAssignment(integrationId, userId)}
+            onRemoveMailbox={(integrationId) => void handleRemoveMailbox(integrationId)}
+            bankAccounts={bankAccounts}
+            onAddBankAccount={(aaAddress, displayName) => void handleAddBankAccount(aaAddress, displayName)}
+            onRefreshBankBalance={(id) => void handleRefreshBankBalance(id)}
+            onRevokeBankAccount={(id) => void handleRevokeBankAccount(id)}
+          />
+        ) : null}
 
-            {!isPlatformAdmin ? (
-              <>
-                <div className="toolbar">
-                  <input
-                    type="text"
-                    className="search-input"
-                    placeholder="Search by file, vendor, or invoice #..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                  />
-                  <div className="status-tabs">
-                    {STATUSES.map((status) => (
-                      <button
-                        key={status}
-                        className={status === statusFilter ? "tab tab-active" : "tab"}
-                        onClick={() => setStatusFilter(status)}
-                      >
-                        {STATUS_LABELS[status] ?? status}
-                      </button>
-                    ))}
-                  </div>
-                  <span className="toolbar-icon-wrap">
-                    <button type="button" className="toolbar-icon-button" onClick={handleApprove} disabled={requiresTenantSetup || selectedApprovableIds.length === 0}>
-                      <span className="material-symbols-outlined">check_circle</span>
-                    </button>
-                    <span className="toolbar-icon-label">Approve</span>
-                  </span>
-                  <span className="toolbar-icon-wrap">
-                    <button type="button" className="toolbar-icon-button" onClick={handleDelete} disabled={requiresTenantSetup || selectedIds.length === 0}>
-                      <span className="material-symbols-outlined">delete</span>
-                    </button>
-                    <span className="toolbar-icon-label">Delete</span>
-                  </span>
-                  <span className="toolbar-icon-wrap">
-                    <button type="button" className="toolbar-icon-button" onClick={handleRetry} disabled={requiresTenantSetup || selectedRetryableIds.length === 0}>
-                      <span className="material-symbols-outlined">replay</span>
-                    </button>
-                    <span className="toolbar-icon-label">Retry</span>
-                  </span>
-                  <span className="toolbar-icon-wrap">
-                    <button type="button" className="toolbar-icon-button" onClick={handleExport} disabled={requiresTenantSetup || selectedExportableIds.length === 0 || selectedNonExportableCount > 0}>
-                      <span className="material-symbols-outlined">upload</span>
-                    </button>
-                    <span className="toolbar-icon-label">Export to Tally</span>
-                  </span>
-                  <span className="toolbar-icon-wrap">
-                    <button type="button" className="toolbar-icon-button" onClick={handleDownloadXml} disabled={requiresTenantSetup || selectedExportableIds.length === 0 || selectedNonExportableCount > 0}>
-                      <span className="material-symbols-outlined">download</span>
-                    </button>
-                    <span className="toolbar-icon-label">Download XML</span>
-                  </span>
-                  <span className="toolbar-icon-wrap">
-                    <button type="button" className="toolbar-icon-button" onClick={() => uploadInputRef.current?.click()} disabled={requiresTenantSetup}>
-                      <span className="material-symbols-outlined">upload_file</span>
-                    </button>
-                    <span className="toolbar-icon-label">Upload</span>
-                  </span>
-                  <input ref={uploadInputRef} type="file" multiple accept=".pdf,.jpg,.jpeg,.png" style={{ display: "none" }} onChange={handleUpload} />
-                  <span className="toolbar-icon-wrap">
-                    <button type="button" className="toolbar-icon-button" onClick={handleIngest} disabled={requiresTenantSetup || ingestionStatus?.running === true}>
-                      <span className="material-symbols-outlined">play_arrow</span>
-                    </button>
-                    <span className="toolbar-icon-label">{ingestionStatus?.state === "paused" ? "Resume" : "Ingest"}</span>
-                  </span>
-                  {ingestionStatus?.running === true ? (
-                    <span className="toolbar-icon-wrap">
-                      <button type="button" className="toolbar-icon-button" onClick={handlePauseIngestion}>
-                        <span className="material-symbols-outlined">pause</span>
-                      </button>
-                      <span className="toolbar-icon-label">Pause</span>
-                    </span>
-                  ) : null}
-                  <span className="toolbar-icon-wrap">
-                    <button type="button" className="toolbar-icon-button" onClick={() => setDetailsPanelVisible((currentValue) => !currentValue)}>
-                      <span className="material-symbols-outlined">{detailsPanelVisible ? "visibility_off" : "visibility"}</span>
-                    </button>
-                    <span className="toolbar-icon-label">{detailsPanelVisible ? "Hide panel" : "Show panel"}</span>
-                  </span>
-                </div>
-                <IngestionProgressCard
-                  status={ingestionStatus}
-                  progressPercent={ingestionProgressPercent}
-                  successfulFiles={ingestionSuccessfulFiles}
-                  fading={ingestionFading}
-                />
-              </>
+        {isPlatformAdmin && activeTab === "dashboard" ? (
+          <>
+            <PlatformOnboardSection
+              form={platformOnboardForm}
+              collapsed={platformOnboardCollapsed}
+              onToggle={() => setPlatformOnboardCollapsed((currentValue) => !currentValue)}
+              onChange={setPlatformOnboardForm}
+              onSubmit={() => {
+                void handlePlatformOnboardTenantAdmin();
+              }}
+              helpText="Create a new tenant organization and its first admin user. The admin will receive a temporary password."
+            />
+            {platformOnboardResult ? (
+              <div style={{ background: "#e8f5e9", border: "1px solid #4caf50", borderRadius: 6, padding: "12px 16px", margin: "8px 0 16px" }}>
+                <strong>Tenant created.</strong> Temporary password for <code>{platformOnboardResult.adminEmail}</code>: <code>{platformOnboardResult.tempPassword}</code>
+                <button type="button" style={{ marginLeft: 12 }} className="app-button app-button-secondary" onClick={() => setPlatformOnboardResult(null)}>Dismiss</button>
+              </div>
             ) : null}
+            <PlatformAnalyticsDashboard usage={platformUsage} />
+            <PlatformUsageOverviewSection
+              usage={platformUsage}
+              selectedTenantId={selectedPlatformTenantId}
+              collapsed={platformUsageCollapsed}
+              onToggle={() => setPlatformUsageCollapsed((currentValue) => !currentValue)}
+              onRefresh={() => {
+                void loadPlatformUsage();
+              }}
+              onSelectTenant={setSelectedPlatformTenantId}
+              onToggleEnabled={(tenantId, enabled) => { void handleToggleTenantEnabled(tenantId, enabled); }}
+            />
+            <PlatformActivityMonitor
+              selectedTenant={selectedPlatformTenant}
+              collapsed={platformActivityCollapsed}
+              onToggle={() => setPlatformActivityCollapsed((currentValue) => !currentValue)}
+              onRefresh={() => {
+                void loadPlatformUsage();
+              }}
+            />
           </>
         ) : null}
       </section>
 
       {error ? <p className="error">{error}</p> : null}
 
+      {!isPlatformAdmin && activeTab === "overview" ? (
+        <OverviewDashboard />
+      ) : null}
+
       {!isPlatformAdmin && activeTab === "dashboard" ? (
-        <main ref={contentRef} className={contentClassName} style={contentStyle}>
-          <>
-            <section className="panel list-panel">
-              <div className="panel-title">
-                <h2>Invoices</h2>
-                {loading ? <span>Loading...</span> : <span>{invoices.length} records</span>}
-              </div>
-
-              <div className="list-scroll">
-                <table>
-                  <thead>
-                    <tr>
-                      <th><input type="checkbox" checked={areAllVisibleSelectableSelected && selectableVisibleIds.length > 0} disabled={selectableVisibleIds.length === 0} onChange={toggleSelectAllVisible} /></th>
-                      <th>File</th>
-                      <th>Vendor</th>
-                      <th>Invoice #</th>
-                      <th>Invoice Date</th>
-                      <th>Total</th>
-                      <th>Confidence</th>
-                      <th>Status</th>
-                      <th>Received</th>
-                      <th></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredInvoices.map((invoice) => {
-                      const rowClasses = [
-                        invoice._id === activeId ? "row-active" : null,
-                        invoice.status === "EXPORTED" ? "row-exported" : null
-                      ]
-                        .filter(Boolean)
-                        .join(" ");
-                      const canEditCell = invoice.status !== "EXPORTED";
-
-                      return (
-                        <tr key={invoice._id} className={rowClasses || undefined} onClick={() => { setActiveId(invoice._id); setDetailsPanelVisible(true); }}>
-                          <td>
-                            <input
-                              type="checkbox"
-                              checked={selectedIds.includes(invoice._id)}
-                              disabled={!isInvoiceSelectable(invoice)}
-                              onChange={() => toggleSelection(invoice)}
-                              onClick={(event) => event.stopPropagation()}
-                            />
-                          </td>
-                          <td className="file-name-cell" onClick={(e) => e.stopPropagation()}>
-                            {editingListCell?.invoiceId === invoice._id && editingListCell.field === "attachmentName" ? (
-                              <>
-                                <input className="extracted-value-input" value={editListValue} onChange={(e) => setEditListValue(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") void handleSaveListCell(); if (e.key === "Escape") setEditingListCell(null); }} autoFocus />
-                                <button type="button" className="field-save-button" onClick={() => void handleSaveListCell()}>&#10003;</button>
-                              </>
-                            ) : (
-                              <>
-                                <button type="button" className="file-label" onClick={(event) => { event.stopPropagation(); setPopupInvoiceId(invoice._id); }}>{invoice.attachmentName}</button>
-                                {canEditCell && (
-                                  <button type="button" className="row-action-button file-rename-button" title="Rename" onClick={() => { setEditingListCell({ invoiceId: invoice._id, field: "attachmentName" }); setEditListValue(invoice.attachmentName); }}>
-                                    <span className="material-symbols-outlined">edit</span>
-                                  </button>
-                                )}
-                              </>
-                            )}
-                          </td>
-                          <td className="extracted-value-cell" onClick={(e) => e.stopPropagation()}>
-                            {editingListCell?.invoiceId === invoice._id && editingListCell.field === "vendorName" ? (
-                              <>
-                                <input className="extracted-value-input" value={editListValue} onChange={(e) => setEditListValue(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") void handleSaveListCell(); if (e.key === "Escape") setEditingListCell(null); }} autoFocus />
-                                <button type="button" className="field-save-button" onClick={() => void handleSaveListCell()}>&#10003;</button>
-                              </>
-                            ) : (
-                              <>
-                                <span className="extracted-value-display">{invoice.parsed?.vendorName ?? "-"}</span>
-                                {canEditCell && (
-                                  <button type="button" className="row-action-button field-edit-button" title="Edit vendor" onClick={() => { setEditingListCell({ invoiceId: invoice._id, field: "vendorName" }); setEditListValue(invoice.parsed?.vendorName ?? ""); }}>
-                                    <span className="material-symbols-outlined">edit</span>
-                                  </button>
-                                )}
-                              </>
-                            )}
-                          </td>
-                          <td className="extracted-value-cell" onClick={(e) => e.stopPropagation()}>
-                            {editingListCell?.invoiceId === invoice._id && editingListCell.field === "invoiceNumber" ? (
-                              <>
-                                <input className="extracted-value-input" value={editListValue} onChange={(e) => setEditListValue(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") void handleSaveListCell(); if (e.key === "Escape") setEditingListCell(null); }} autoFocus />
-                                <button type="button" className="field-save-button" onClick={() => void handleSaveListCell()}>&#10003;</button>
-                              </>
-                            ) : (
-                              <>
-                                <span className="extracted-value-display">{invoice.parsed?.invoiceNumber ?? "-"}</span>
-                                {canEditCell && (
-                                  <button type="button" className="row-action-button field-edit-button" title="Edit invoice number" onClick={() => { setEditingListCell({ invoiceId: invoice._id, field: "invoiceNumber" }); setEditListValue(invoice.parsed?.invoiceNumber ?? ""); }}>
-                                    <span className="material-symbols-outlined">edit</span>
-                                  </button>
-                                )}
-                              </>
-                            )}
-                          </td>
-                          <td className="extracted-value-cell" onClick={(e) => e.stopPropagation()}>
-                            {editingListCell?.invoiceId === invoice._id && editingListCell.field === "invoiceDate" ? (
-                              <>
-                                <input className="extracted-value-input" type="date" value={editListValue} onChange={(e) => setEditListValue(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") void handleSaveListCell(); if (e.key === "Escape") setEditingListCell(null); }} autoFocus />
-                                <button type="button" className="field-save-button" onClick={() => void handleSaveListCell()}>&#10003;</button>
-                              </>
-                            ) : (
-                              <>
-                                <span className="extracted-value-display">{invoice.parsed?.invoiceDate ?? "-"}</span>
-                                {canEditCell && (
-                                  <button type="button" className="row-action-button field-edit-button" title="Edit date" onClick={() => { setEditingListCell({ invoiceId: invoice._id, field: "invoiceDate" }); setEditListValue(invoice.parsed?.invoiceDate ?? ""); }}>
-                                    <span className="material-symbols-outlined">edit</span>
-                                  </button>
-                                )}
-                              </>
-                            )}
-                          </td>
-                          <td
-                            className={
-                              [invoice.riskFlags.includes("TOTAL_AMOUNT_ABOVE_EXPECTED") ? "value-risk" : null, "extracted-value-cell"].filter(Boolean).join(" ")
-                            }
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            {editingListCell?.invoiceId === invoice._id && editingListCell.field === "totalAmountMinor" ? (
-                              <>
-                                <input className="extracted-value-input" value={editListValue} onChange={(e) => setEditListValue(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") void handleSaveListCell(); if (e.key === "Escape") setEditingListCell(null); }} autoFocus />
-                                <button type="button" className="field-save-button" onClick={() => void handleSaveListCell()}>&#10003;</button>
-                              </>
-                            ) : (
-                              <>
-                                <span className="extracted-value-display">{formatMinorAmountWithCurrency(invoice.parsed?.totalAmountMinor, invoice.parsed?.currency)}</span>
-                                {canEditCell && (
-                                  <button type="button" className="row-action-button field-edit-button" title="Edit amount" onClick={() => { setEditingListCell({ invoiceId: invoice._id, field: "totalAmountMinor" }); setEditListValue(invoice.parsed?.totalAmountMinor != null ? String(invoice.parsed.totalAmountMinor / 100) : ""); }}>
-                                    <span className="material-symbols-outlined">edit</span>
-                                  </button>
-                                )}
-                              </>
-                            )}
-                          </td>
-                          <td>
-                            <ConfidenceBadge score={invoice.confidenceScore ?? 0} />
-                          </td>
-                          <td>
-                            {ingestingIds.has(invoice._id) ? (
-                              <span className="status status-reprocessing">Reprocessing</span>
-                            ) : (
-                              <span className={`status status-${invoice.status.toLowerCase()}`} title={invoice.approval?.approvedBy ? `Approved by ${invoice.approval.approvedBy}` : undefined}>{STATUS_LABELS[invoice.status] ?? invoice.status}</span>
-                            )}
-                            {invoice.possibleDuplicate ? (
-                              <span className="material-symbols-outlined duplicate-warning" title="Possible duplicate — another invoice has identical file contents">warning</span>
-                            ) : null}
-                          </td>
-                          <td>{new Date(invoice.receivedAt).toLocaleString()}</td>
-                          <td onClick={(e) => e.stopPropagation()}>
-                            {(() => {
-                              const actions = getAvailableRowActions(invoice);
-                              const ingesting = ingestingIds.has(invoice._id);
-                              return (
-                                <>
-                                  {actions.includes("approve") && !ingesting && (
-                                    <button type="button" className="row-action-button row-action-approve" title="Approve" onClick={() => void handleApproveSingle(invoice._id)}>
-                                      <span className="material-symbols-outlined">check_circle</span>
-                                    </button>
-                                  )}
-                                  {actions.includes("reingest") && !ingesting && (
-                                    <button type="button" className="row-action-button row-action-retry" title="Reingest" onClick={() => void handleRetrySingle(invoice._id)}>
-                                      <span className="material-symbols-outlined">replay</span>
-                                    </button>
-                                  )}
-                                  {actions.includes("delete") && !ingesting && (
-                                    <button type="button" className="row-action-button" title="Delete" onClick={() => handleDeleteSingle(invoice._id, invoice.attachmentName)}>
-                                      <span className="material-symbols-outlined">delete</span>
-                                    </button>
-                                  )}
-                                </>
-                              );
-                            })()}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </section>
-
-            {detailsPanelVisible ? (
-          <>
-            <div className="panel-divider" onMouseDown={handleDividerMouseDown} />
-            <section className="panel detail-panel">
-            <div className="panel-title">
-              <h2>Invoice Details</h2>
-              <button
-                type="button"
-                className="collapse-button"
-                onClick={() => setDetailsPanelVisible(false)}
-                aria-label="Close details panel"
-              >
-                <span className="material-symbols-outlined">close</span>
-              </button>
-            </div>
-
-            {activeInvoice ? (
-              <div className="detail-scroll">
-                {activeInvoiceDetailLoading ? <p className="muted">Loading full invoice details...</p> : null}
-                <InvoiceSourceViewer
-                  invoice={activeInvoice}
-                  overlayUrlByField={activeOverlayUrlByField}
-                  resolvePreviewUrl={(page) => getInvoicePreviewUrl(activeInvoice._id, page)}
-                />
-              </div>
-            ) : (
-              <p className="muted">Select an invoice to inspect details.</p>
-            )}
-          </section>
-          </>
-            ) : null}
-          </>
-        </main>
+        <TenantInvoicesView
+          tenantId={session.tenant.id}
+          userId={session.user.id}
+          userEmail={session.user.email}
+          isTenantAdmin={isTenantAdmin}
+          requiresTenantSetup={requiresTenantSetup}
+          tenantMode={session.tenant.mode}
+          isViewer={isViewer}
+          tenantUsers={isTenantAdmin ? tenantUsers : undefined}
+          onGmailStatusRefresh={() => void loadGmailConnectionStatus()}
+          onNavCountsChange={setNavCounts}
+          onSessionExpired={() => { clearStoredSessionToken(); setSession(null); }}
+          addToast={addToast}
+        />
       ) : null}
-
-      {popupInvoice ? (
-        <div className="popup-overlay" role="presentation" onClick={() => setPopupInvoiceId(null)}>
-          <section
-            className="popup-card"
-            role="dialog"
-            aria-modal="true"
-            aria-label={`Invoice file details for ${popupInvoice.attachmentName}`}
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div className="popup-header">
-              <h2>File Details: {popupInvoice.attachmentName}</h2>
-              <button type="button" onClick={() => setPopupInvoiceId(null)}>
-                Close
-              </button>
-            </div>
-            <p className="muted popup-meta">
-              Status: <strong>{popupInvoice.status}</strong> | Received: {new Date(popupInvoice.receivedAt).toLocaleString()}
-            </p>
-            <div className="popup-content">
-              {popupInvoiceDetailLoading ? <p className="muted">Loading full invoice details...</p> : null}
-              <div className="source-preview-section">
-                <button
-                  type="button"
-                  className="source-preview-toggle"
-                  onClick={() => setPopupSourcePreviewExpanded((currentValue) => !currentValue)}
-                >
-                  {popupSourcePreviewExpanded ? "Hide Source Preview" : "Show Source Preview"}
-                </button>
-                {popupSourcePreviewExpanded ? (
-                  <InvoiceSourceViewer
-                    invoice={popupInvoice}
-                    overlayUrlByField={popupOverlayUrlByField}
-                    resolvePreviewUrl={(page) => getInvoicePreviewUrl(popupInvoice._id, page)}
-                  />
-                ) : null}
-              </div>
-              <div>
-                <h3>Extracted Invoice Fields</h3>
-                <ExtractedFieldsTable rows={popupExtractedRows} cropUrlByField={popupCropUrlByField} editable={popupInvoice?.status !== "EXPORTED"} onSaveField={(fieldKey, value) => handleSaveField(popupInvoice, fieldKey, value, refreshPopupInvoiceDetail)} />
-              </div>
-              {popupInvoice.ocrText && session?.tenant.mode !== "live" ? (
-                <div>
-                  <button
-                    type="button"
-                    className="source-preview-toggle"
-                    onClick={() => setPopupRawOcrExpanded((v) => !v)}
-                  >
-                    {popupRawOcrExpanded ? "Hide Raw OCR Text" : "Show Raw OCR Text"}
-                  </button>
-                  {popupRawOcrExpanded ? (
-                    <pre className="raw-ocr-text">{popupInvoice.ocrText}</pre>
-                  ) : null}
-                </div>
-              ) : null}
-              <div>
-                <button
-                  type="button"
-                  className="source-preview-toggle"
-                  onClick={() => setPopupMappingExpanded((currentValue) => !currentValue)}
-                >
-                  {popupMappingExpanded ? "Hide Export Mapping" : "Show Export Mapping"}
-                </button>
-                {popupMappingExpanded ? <TallyMappingTable rows={popupTallyMappings} /> : null}
-              </div>
-            </div>
-          </section>
-        </div>
-      ) : null}
+      <ToastContainer toasts={toasts} onRemove={removeToast} />
     </div>
   );
 }

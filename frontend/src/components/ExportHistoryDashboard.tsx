@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { fetchExportHistory, downloadTallyXmlFile } from "../api";
 import type { ExportBatchSummary } from "../types";
+import { EmptyState } from "./EmptyState";
 
 export function ExportHistoryDashboard() {
   const [items, setItems] = useState<ExportBatchSummary[]>([]);
@@ -51,7 +52,7 @@ export function ExportHistoryDashboard() {
       <h3>Export History</h3>
       {error ? <p className="export-history-error">{error}</p> : null}
       {loading ? <p>Loading...</p> : null}
-      {!loading && items.length === 0 ? <p className="muted">No exports found.</p> : null}
+      {!loading && items.length === 0 ? <EmptyState icon="cloud_done" heading="No exports yet" description="Approve invoices and export them to Tally to see export history here." /> : null}
       {items.length > 0 ? (
         <>
           <div className="export-history-table-wrap">

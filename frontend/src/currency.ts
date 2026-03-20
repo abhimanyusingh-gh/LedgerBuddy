@@ -50,11 +50,32 @@ export function minorUnitsToMajorString(amountMinor: number, currency?: string):
   return `${sign}${major}.${fraction}`;
 }
 
+const CURRENCY_SYMBOLS: Record<string, string> = {
+  INR: "\u20B9",
+  USD: "$",
+  EUR: "\u20AC",
+  GBP: "\u00A3",
+  JPY: "\u00A5",
+  AUD: "A$",
+  CAD: "C$",
+  CHF: "CHF",
+  CNY: "\u00A5",
+  SGD: "S$",
+  AED: "AED",
+  SAR: "SAR"
+};
+
+export function getCurrencySymbol(currency?: string): string {
+  if (!currency) return "";
+  return CURRENCY_SYMBOLS[currency.toUpperCase()] ?? currency;
+}
+
 export function formatMinorAmountWithCurrency(amountMinor?: number, currency?: string): string {
   if (!Number.isInteger(amountMinor)) {
     return "-";
   }
 
-  const prefix = currency ? `${currency} ` : "";
-  return `${prefix}${minorUnitsToMajorString(amountMinor as number, currency)}`;
+  const symbol = getCurrencySymbol(currency);
+  const formatted = minorUnitsToMajorString(amountMinor as number, currency);
+  return symbol ? `${symbol}${formatted}` : formatted;
 }

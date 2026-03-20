@@ -7,6 +7,7 @@ import type { FileStore } from "../core/interfaces/FileStore.js";
 import { InvoiceModel } from "../models/Invoice.js";
 import { getCorrelationId, logger, runWithLogContext } from "../utils/logger.js";
 import { requireAuth } from "../auth/requireAuth.js";
+import { requireNotViewer } from "../auth/middleware.js";
 
 type IngestionJobState = "idle" | "running" | "completed" | "failed" | "paused";
 
@@ -27,6 +28,7 @@ interface IngestionJobStatus {
 
 const currentJobStatusByTenant = new Map<string, IngestionJobStatus>();
 const sseSubscribers = new Map<string, Set<import("express").Response>>();
+const pendingRerunByTenant = new Map<string, boolean>();
 
 function broadcastToSubscribers(tenantId: string, status: IngestionJobStatus): void {
   const subs = sseSubscribers.get(tenantId);
@@ -68,12 +70,27 @@ export function createJobsRouter(ingestionService: IngestionService, emailSimula
       sseSubscribers.set(tenantId, new Set());
     }
     sseSubscribers.get(tenantId)!.add(response);
+
+    const heartbeat = setInterval(() => {
+      try {
+        const ok = response.write(":\n\n");
+        if (!ok) {
+          sseSubscribers.get(tenantId)?.delete(response);
+          clearInterval(heartbeat);
+        }
+      } catch {
+        sseSubscribers.get(tenantId)?.delete(response);
+        clearInterval(heartbeat);
+      }
+    }, 30_000);
+
     request.on("close", () => {
+      clearInterval(heartbeat);
       sseSubscribers.get(tenantId)?.delete(response);
     });
   });
 
-  router.post("/jobs/ingest", async (request, response, next) => {
+  router.post("/jobs/ingest", requireNotViewer, async (request, response, next) => {
     try {
       const context = request.authContext!;
       response.status(202).json(startIngestionJob(ingestionService, context.tenantId));
@@ -82,7 +99,7 @@ export function createJobsRouter(ingestionService: IngestionService, emailSimula
     }
   });
 
-  router.post("/jobs/ingest/email-simulate", async (request, response, next) => {
+  router.post("/jobs/ingest/email-simulate", requireNotViewer, async (request, response, next) => {
     try {
       const context = request.authContext!;
       const current = getCurrentStatus(context.tenantId);
@@ -118,7 +135,7 @@ export function createJobsRouter(ingestionService: IngestionService, emailSimula
     }
   });
 
-  router.post("/jobs/upload", (request, response, next) => {
+  router.post("/jobs/upload", requireNotViewer, (request, response, next) => {
     const uploadMiddleware = upload.array("files", 50) as unknown as import("express").RequestHandler;
     uploadMiddleware(request, response, (error: unknown) => {
       if (error instanceof multer.MulterError) {
@@ -147,6 +164,7 @@ export function createJobsRouter(ingestionService: IngestionService, emailSimula
       }
 
       const uploaded: string[] = [];
+      let newlyCreated = 0;
       for (const file of files) {
         const fileId = randomBytes(12).toString("base64url");
         const ext = file.originalname.includes(".") ? file.originalname.slice(file.originalname.lastIndexOf(".")) : "";
@@ -175,11 +193,17 @@ export function createJobsRouter(ingestionService: IngestionService, emailSimula
             contentHash,
             metadata: { uploadKey: key, systemFileName: systemName }
           });
+          newlyCreated++;
         } catch {
           // duplicate sourceDocumentId — skip silently
         }
 
         uploaded.push(key);
+      }
+
+      const currentJob = getCurrentStatus(context.tenantId);
+      if (currentJob.running && newlyCreated > 0) {
+        pendingRerunByTenant.set(context.tenantId, true);
       }
 
       response.status(201).json({ uploaded, count: uploaded.length });
@@ -188,7 +212,7 @@ export function createJobsRouter(ingestionService: IngestionService, emailSimula
     }
   });
 
-  router.post("/jobs/ingest/pause", (request, response) => {
+  router.post("/jobs/ingest/pause", requireNotViewer, (request, response) => {
     const context = request.authContext!;
     const current = getCurrentStatus(context.tenantId);
     if (!current.running) {
@@ -196,6 +220,7 @@ export function createJobsRouter(ingestionService: IngestionService, emailSimula
       return;
     }
     ingestionService.requestPause();
+    pendingRerunByTenant.delete(context.tenantId);
     const paused: IngestionJobStatus = { ...current, state: "paused" };
     setCurrentStatus(context.tenantId, paused);
     broadcastToSubscribers(context.tenantId, paused);
@@ -226,9 +251,10 @@ function buildIdleStatus(): IngestionJobStatus {
   };
 }
 
-function startIngestionJob(ingestionService: IngestionService, tenantId: string): IngestionJobStatus {
+function startIngestionJob(ingestionService: IngestionService, tenantId: string, rerunCount = 0): IngestionJobStatus {
   const existing = getCurrentStatus(tenantId);
   if (existing.running) {
+    pendingRerunByTenant.set(tenantId, true);
     return existing;
   }
 
@@ -283,6 +309,16 @@ function startIngestionJob(ingestionService: IngestionService, tenantId: string)
       setCurrentStatus(tenantId, nextStatus);
       broadcastToSubscribers(tenantId, nextStatus);
       logger.info(summary.paused ? "ingestion.job.paused" : "ingestion.job.complete", { ...summary, correlationId: correlationId ?? null, tenantId });
+
+      if (summary.paused) {
+        pendingRerunByTenant.delete(tenantId);
+        return;
+      }
+
+      if (pendingRerunByTenant.get(tenantId) && rerunCount < 5) {
+        pendingRerunByTenant.delete(tenantId);
+        startIngestionJob(ingestionService, tenantId, rerunCount + 1);
+      }
     })
     .catch((error) => {
       const completedAt = new Date().toISOString();
@@ -297,6 +333,7 @@ function startIngestionJob(ingestionService: IngestionService, tenantId: string)
       };
       setCurrentStatus(tenantId, nextStatus);
       broadcastToSubscribers(tenantId, nextStatus);
+      pendingRerunByTenant.delete(tenantId);
       logger.error("ingestion.job.failed", {
         error: error instanceof Error ? error.message : String(error),
         correlationId: correlationId ?? null,

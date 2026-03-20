@@ -13,6 +13,7 @@ interface PlatformOnboardSectionProps {
   onToggle: () => void;
   onChange: (form: PlatformOnboardForm) => void;
   onSubmit: () => void;
+  helpText?: string;
 }
 
 export function PlatformOnboardSection({
@@ -20,7 +21,8 @@ export function PlatformOnboardSection({
   collapsed,
   onToggle,
   onChange,
-  onSubmit
+  onSubmit,
+  helpText
 }: PlatformOnboardSectionProps) {
   return (
     <PlatformSection
@@ -28,6 +30,7 @@ export function PlatformOnboardSection({
       icon="person_add"
       collapsed={collapsed}
       onToggle={onToggle}
+      helpText={helpText}
       actions={
         <button type="button" className="app-button app-button-primary" onClick={onSubmit}>
           <span className="material-symbols-outlined">add_task</span>

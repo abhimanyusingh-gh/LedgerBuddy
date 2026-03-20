@@ -176,7 +176,8 @@ export function parseInvoiceText(text: string, options?: ParseInvoiceOptions): P
 
   parsed.currency = extractCurrency(compactText);
   if (!parsed.currency) {
-    warnings.push("Could not confidently detect currency.");
+    parsed.currency = "INR";
+    warnings.push("Could not confidently detect currency; defaulting to INR.");
   }
 
   const totalAmount = extractTotalAmount(compactText);

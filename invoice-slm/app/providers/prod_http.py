@@ -29,11 +29,10 @@ class ProdHttpLLMProvider(LLMProvider):
       "provider": "prod_http"
     }
     try:
-      remote = self._request_json("/health")
+      remote = self._request_json("/health", probe=True)
       if isinstance(remote, dict):
         payload["remote"] = remote
     except Exception as error:
-      payload["status"] = "error"
       payload["lastError"] = str(error)
       self.last_error = str(error)
     return payload
@@ -92,7 +91,7 @@ class ProdHttpLLMProvider(LLMProvider):
 
     raise RuntimeError("Remote SLM payload does not contain selected/parsed output.")
 
-  def _request_json(self, path: str, body: dict[str, Any] | None = None) -> Any:
+  def _request_json(self, path: str, body: dict[str, Any] | None = None, probe: bool = False) -> Any:
     url = f"{self.base_url}{ensure_path(path)}"
     headers = {"Content-Type": "application/json"}
     if settings.remote_api_key:
@@ -105,8 +104,9 @@ class ProdHttpLLMProvider(LLMProvider):
       method="POST" if body is not None else "GET"
     )
 
+    timeout_s = settings.probe_timeout_ms // 1000 if probe else max(1, int(settings.remote_timeout_ms / 1000))
     try:
-      with url_request.urlopen(request, timeout=max(1, int(settings.remote_timeout_ms / 1000))) as response:
+      with url_request.urlopen(request, timeout=max(1, timeout_s)) as response:
         return json.loads(response.read().decode("utf-8"))
     except url_error.HTTPError as error:
       detail = error.read().decode("utf-8", errors="replace")

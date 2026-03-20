@@ -4,6 +4,7 @@ WORKDIR /app
 COPY package.json package.json
 COPY yarn.lock yarn.lock
 COPY .yarnrc.yml .yarnrc.yml
+COPY .yarn .yarn
 COPY backend/package.json backend/package.json
 COPY frontend/package.json frontend/package.json
 

@@ -20,7 +20,7 @@ const tenantIntegrationSchema = new Schema(
   }
 );
 
-tenantIntegrationSchema.index({ tenantId: 1, provider: 1 }, { unique: true });
+tenantIntegrationSchema.index({ tenantId: 1, provider: 1, emailAddress: 1 }, { unique: true });
 tenantIntegrationSchema.index({ provider: 1 });
 
 type TenantIntegration = InferSchemaType<typeof tenantIntegrationSchema>;

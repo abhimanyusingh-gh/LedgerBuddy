@@ -15,6 +15,9 @@ interface ListInvoicesParams {
   workloadTier?: WorkloadTier;
   page: number;
   limit: number;
+  from?: Date;
+  to?: Date;
+  approvedBy?: string;
 }
 
 export type UpdateParsedFieldInput = Partial<{
@@ -54,6 +57,16 @@ export class InvoiceService {
     const query: Record<string, unknown> = { ...baseQuery };
     if (params.status) {
       query.status = params.status;
+    }
+    if (params.from || params.to) {
+      const dateFilter: Record<string, Date> = {};
+      if (params.from) dateFilter.$gte = params.from;
+      if (params.to) dateFilter.$lte = params.to;
+      query.createdAt = dateFilter;
+    }
+    if (params.approvedBy) {
+      const userIds = params.approvedBy.split(",").map((id) => id.trim()).filter(Boolean);
+      query["approval.userId"] = userIds.length === 1 ? userIds[0] : { $in: userIds };
     }
 
     const skip = (params.page - 1) * params.limit;
@@ -134,7 +147,7 @@ export class InvoiceService {
       {
         _id: { $in: validIds },
         tenantId: authContext.tenantId,
-        status: { $in: ["PARSED", "NEEDS_REVIEW", "FAILED_PARSE"] }
+        status: { $in: ["PARSED", "NEEDS_REVIEW"] }
       },
       {
         $set: {

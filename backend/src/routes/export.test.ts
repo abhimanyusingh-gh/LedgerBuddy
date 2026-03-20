@@ -1,4 +1,5 @@
 import { createExportRouter } from "./export.ts";
+import { defaultAuth, findHandler, hasMiddleware, mockRequest, mockResponse } from "./testHelpers.ts";
 import type { ExportService } from "../services/exportService.ts";
 
 function createMockExportService(overrides?: Partial<ExportService>): ExportService {
@@ -29,69 +30,6 @@ function createMockExportService(overrides?: Partial<ExportService>): ExportServ
     })),
     ...overrides
   } as unknown as ExportService;
-}
-
-const defaultAuth = {
-  userId: "user-1",
-  email: "admin@test.com",
-  tenantId: "tenant-a",
-  tenantName: "Test Tenant",
-  role: "TENANT_ADMIN",
-  isPlatformAdmin: false
-};
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function findHandler(router: any, method: string, path: string): Function {
-  for (const layer of router.stack) {
-    if (layer.route?.path === path && layer.route.methods[method]) {
-      return layer.route.stack[0].handle;
-    }
-  }
-  throw new Error(`No handler found for ${method.toUpperCase()} ${path}`);
-}
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function hasMiddleware(router: any, name: string): boolean {
-  return router.stack.some(
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (layer: any) => !layer.route && layer.handle?.name === name
-  );
-}
-
-function mockRequest(overrides: Record<string, unknown> = {}) {
-  return {
-    authContext: null,
-    query: {},
-    params: {},
-    body: {},
-    ...overrides
-  };
-}
-
-function mockResponse() {
-  const res: Record<string, unknown> = {
-    statusCode: 200,
-    jsonBody: undefined as unknown,
-    headers: {} as Record<string, string>,
-    sentBody: undefined as unknown,
-    status(code: number) {
-      res.statusCode = code;
-      return res;
-    },
-    json(data: unknown) {
-      res.jsonBody = data;
-      return res;
-    },
-    setHeader(name: string, value: string) {
-      (res.headers as Record<string, string>)[name.toLowerCase()] = value;
-      return res;
-    },
-    send(body: unknown) {
-      res.sentBody = body;
-      return res;
-    }
-  };
-  return res;
 }
 
 describe("export routes", () => {

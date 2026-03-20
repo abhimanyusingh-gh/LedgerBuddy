@@ -40,14 +40,14 @@ services:
       MONGO_URI: mongodb://billforge_app:billforge_local_pass@mongo:27017/billforge?authSource=billforge
       APP_MANIFEST_PATH: ${APP_MANIFEST_PATH:-}
       FRONTEND_BASE_URL: ${FRONTEND_BASE_URL:-http://localhost:5177}
-      STS_CLIENT_ID: ${STS_CLIENT_ID:-billforge-app}
-      STS_CLIENT_SECRET: ${STS_CLIENT_SECRET:-billforge-local-secret}
-      STS_SCOPES: ${STS_SCOPES:-openid profile email offline_access}
-      STS_REDIRECT_URI: ${STS_REDIRECT_URI:-http://localhost:5177/api/auth/callback}
-      STS_AUTH_URL: ${STS_AUTH_URL:-http://localhost:8280/realms/billforge/protocol/openid-connect/auth}
-      STS_TOKEN_URL: ${STS_TOKEN_URL:-http://keycloak:8080/realms/billforge/protocol/openid-connect/token}
-      STS_VALIDATE_URL: ${STS_VALIDATE_URL:-http://keycloak:8080/realms/billforge/protocol/openid-connect/token/introspect}
-      STS_USERINFO_URL: ${STS_USERINFO_URL:-http://keycloak:8080/realms/billforge/protocol/openid-connect/userinfo}
+      OIDC_CLIENT_ID: ${OIDC_CLIENT_ID:-billforge-app}
+      OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET:-billforge-local-secret}
+      OIDC_SCOPES: ${OIDC_SCOPES:-openid profile email offline_access}
+      OIDC_REDIRECT_URI: ${OIDC_REDIRECT_URI:-http://localhost:5177/api/auth/callback}
+      OIDC_AUTH_URL: ${OIDC_AUTH_URL:-http://localhost:8280/realms/billforge/protocol/openid-connect/auth}
+      OIDC_TOKEN_URL: ${OIDC_TOKEN_URL:-http://keycloak:8080/realms/billforge/protocol/openid-connect/token}
+      OIDC_VALIDATE_URL: ${OIDC_VALIDATE_URL:-http://keycloak:8080/realms/billforge/protocol/openid-connect/token/introspect}
+      OIDC_USERINFO_URL: ${OIDC_USERINFO_URL:-http://keycloak:8080/realms/billforge/protocol/openid-connect/userinfo}
       KEYCLOAK_INTERNAL_BASE_URL: ${KEYCLOAK_INTERNAL_BASE_URL:-http://keycloak:8080}
       KEYCLOAK_REALM: ${KEYCLOAK_REALM:-billforge}
       AUTH_STATE_TTL_SECONDS: ${AUTH_STATE_TTL_SECONDS:-600}
@@ -85,7 +85,7 @@ services:
       GMAIL_OAUTH_AUTH_URL: ${GMAIL_OAUTH_AUTH_URL:-http://localhost:8280/realms/billforge/protocol/openid-connect/auth}
       GMAIL_OAUTH_TOKEN_URL: ${GMAIL_OAUTH_TOKEN_URL:-http://keycloak:8080/realms/billforge/protocol/openid-connect/token}
       GMAIL_OAUTH_USERINFO_URL: ${GMAIL_OAUTH_USERINFO_URL:-http://keycloak:8080/realms/billforge/protocol/openid-connect/userinfo}
-      GMAIL_OAUTH_SCOPES: ${GMAIL_OAUTH_SCOPES:-https://mail.google.com/ openid email profile}
+      GMAIL_OAUTH_SCOPES: ${GMAIL_OAUTH_SCOPES:-openid email profile offline_access}
       GMAIL_OAUTH_STATE_TTL_SECONDS: ${GMAIL_OAUTH_STATE_TTL_SECONDS:-600}
       GMAIL_OAUTH_HTTP_TIMEOUT_MS: ${GMAIL_OAUTH_HTTP_TIMEOUT_MS:-15000}
       GMAIL_OAUTH_TOKEN_ENCRYPTION_SECRET: ${GMAIL_OAUTH_TOKEN_ENCRYPTION_SECRET:-local-dev-gmail-oauth-encryption-secret}
@@ -269,7 +269,7 @@ services:
     image: quay.io/keycloak/keycloak:26.0
     container_name: billforge-keycloak
     restart: unless-stopped
-    command: start-dev --import-realm
+    command: start --import-realm --optimized=false
     ports:
       - "8280:8080"
     deploy:
@@ -280,15 +280,18 @@ services:
       KC_BOOTSTRAP_ADMIN_USERNAME: admin
       KC_BOOTSTRAP_ADMIN_PASSWORD: admin
       KC_HTTP_ENABLED: "true"
+      KC_HOSTNAME: ${KC_HOSTNAME:-http://localhost:8280}
       KC_HOSTNAME_STRICT: "false"
+      KC_PROXY_HEADERS: xforwarded
       KC_HEALTH_ENABLED: "true"
       KC_METRICS_ENABLED: "false"
       KC_DB: dev-file
+      KC_LOG_LEVEL: ${KC_LOG_LEVEL:-info}
     volumes:
       - ./keycloak/realm-config.json:/opt/keycloak/data/import/realm-config.json:ro
       - keycloak_data:/opt/keycloak/data
     healthcheck:
-      test: ["CMD-SHELL", "exec 3<>/dev/tcp/localhost/9000 && echo -e 'GET /health/ready HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n' >&3 && cat <&3 | grep -q '200'"]
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/localhost/9000 && echo -e 'GET /health/ready HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n' >&3 && timeout 2 cat <&3 | head -1 | grep -q 200"]
       interval: 10s
       timeout: 5s
       retries: 12
@@ -301,15 +304,16 @@ services:
     container_name: billforge-invoice-ocr
     restart: unless-stopped
     ports:
-      - "8200:8000"
+      - "8202:8000"
     extra_hosts:
       - "host.docker.internal:host-gateway"
     environment:
       OCR_ENGINE: prod_http
       OCR_REMOTE_BASE_URL: ${OCR_REMOTE_BASE_URL:-http://host.docker.internal:8200/v1}
+      OCR_PROBE_TIMEOUT_MS: "3000"
       OCR_VALIDATE_REMOTE_ON_STARTUP: "false"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/v1/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:8000/ping"]
       interval: 10s
       timeout: 5s
       retries: 3
@@ -326,15 +330,16 @@ services:
     container_name: billforge-invoice-slm
     restart: unless-stopped
     ports:
-      - "8300:8100"
+      - "8302:8100"
     extra_hosts:
       - "host.docker.internal:host-gateway"
     environment:
       SLM_ENGINE: prod_http
       SLM_REMOTE_BASE_URL: ${SLM_REMOTE_BASE_URL:-http://host.docker.internal:8300/v1}
+      SLM_PROBE_TIMEOUT_MS: "3000"
       SLM_VALIDATE_REMOTE_ON_STARTUP: "false"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8100/v1/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:8100/ping"]
       interval: 10s
       timeout: 5s
       retries: 3
