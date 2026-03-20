@@ -49,6 +49,8 @@ import { useDebouncedValue } from "../../hooks/useDebouncedValue";
 import { getUserFacingErrorMessage, isAuthenticationError } from "../../apiError";
 import { ConfirmDialog } from "../ConfirmDialog";
 import { EmptyState } from "../EmptyState";
+import { KeyboardShortcutsOverlay } from "../KeyboardShortcutsOverlay";
+import { useKeyboardShortcuts } from "../../hooks/useKeyboardShortcuts";
 
 const STATUS_ICONS: Record<string, string> = {
   PENDING: "hourglass_empty",
@@ -118,6 +120,11 @@ export function TenantInvoicesView({
   const [searchQuery, setSearchQuery] = useState("");
   const [sortColumn, setSortColumn] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
+  const [showShortcutsHelp, setShowShortcutsHelp] = useState(false);
+  const [tableDensity, setTableDensity] = useState<"compact" | "comfortable" | "spacious">(() => {
+    const stored = localStorage.getItem("billforge:table-density");
+    return stored === "compact" || stored === "spacious" ? stored : "comfortable";
+  });
   const [popupSourcePreviewExpanded, setPopupSourcePreviewExpanded] = useState(false);
   const [popupRawOcrExpanded, setPopupRawOcrExpanded] = useState(false);
   const [popupMappingExpanded, setPopupMappingExpanded] = useState(false);
@@ -388,6 +395,33 @@ export function TenantInvoicesView({
     if (!detailsPanelVisible) return undefined;
     return { gridTemplateColumns: `${listPanelPercent}% 6px 1fr` };
   }, [detailsPanelVisible, listPanelPercent]);
+
+  useKeyboardShortcuts({
+    enabled: !popupInvoiceId && !confirmDialog && !showShortcutsHelp,
+    onMoveDown: () => {
+      const idx = filteredInvoices.findIndex((inv) => inv._id === activeId);
+      const next = filteredInvoices[idx + 1];
+      if (next) { setActiveId(next._id); setDetailsPanelVisible(true); }
+    },
+    onMoveUp: () => {
+      const idx = filteredInvoices.findIndex((inv) => inv._id === activeId);
+      const prev = filteredInvoices[idx - 1];
+      if (prev) { setActiveId(prev._id); setDetailsPanelVisible(true); }
+    },
+    onToggleSelect: () => {
+      if (!activeId) return;
+      const inv = filteredInvoices.find((i) => i._id === activeId);
+      if (inv) toggleSelection(inv);
+    },
+    onOpenDetail: () => { if (activeId) setPopupInvoiceId(activeId); },
+    onApprove: () => { if (selectedApprovableIds.length > 0) void handleApprove(); },
+    onExport: () => { if (selectedExportableIds.length > 0) handleExport(); },
+    onEscape: () => {
+      if (selectedIds.length > 0) { setSelectedIds([]); return; }
+      if (detailsPanelVisible) { setDetailsPanelVisible(false); }
+    },
+    onShowHelp: () => setShowShortcutsHelp(true)
+  });
 
   const handleDividerMouseDown = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
@@ -919,6 +953,19 @@ export function TenantInvoicesView({
           </button>
           <span className="toolbar-icon-label">{detailsPanelVisible ? "Hide Details" : "Show Details"}</span>
         </span>
+        <div className="toolbar-divider" />
+        {(["compact", "comfortable", "spacious"] as const).map((d) => (
+          <span key={d} className="toolbar-icon-wrap">
+            <button
+              type="button"
+              className={`toolbar-icon-button${tableDensity === d ? " toolbar-icon-button-active" : ""}`}
+              onClick={() => { setTableDensity(d); localStorage.setItem("billforge:table-density", d); }}
+            >
+              <span className="material-symbols-outlined">{d === "compact" ? "density_small" : d === "comfortable" ? "density_medium" : "density_large"}</span>
+            </button>
+            <span className="toolbar-icon-label">{d.charAt(0).toUpperCase() + d.slice(1)}</span>
+          </span>
+        ))}
       </div>
       <IngestionProgressCard
         status={ingestionStatus}
@@ -929,7 +976,7 @@ export function TenantInvoicesView({
       {error ? <p className="error">{error}</p> : null}
       <main ref={contentRef} className={contentClassName} style={contentStyle}>
         <>
-          <section className="panel list-panel">
+          <section className="panel list-panel" data-density={tableDensity}>
             <div className="panel-title">
               <h2>Invoices</h2>
               {loading ? <span style={{ fontSize: "0.85rem", color: "var(--ink-soft)" }}>Loading...</span> : <span>{invoices.length} records</span>}
@@ -1122,6 +1169,21 @@ export function TenantInvoicesView({
                 </tbody>
               </table>
             </div>
+            {selectedIds.length > 0 && !isViewer ? (
+              <div className="bulk-action-bar">
+                <span className="bulk-count">{selectedIds.length} selected</span>
+                <button type="button" className="app-button app-button-primary app-button-sm" disabled={selectedApprovableIds.length === 0} onClick={() => void handleApprove()}>
+                  Approve ({selectedApprovableIds.length})
+                </button>
+                <button type="button" className="app-button app-button-sm" style={{ background: "var(--chart-violet)", borderColor: "var(--chart-violet)", color: "#fff" }} disabled={selectedExportableIds.length === 0} onClick={handleExport}>
+                  Export ({selectedExportableIds.length})
+                </button>
+                <button type="button" className="app-button app-button-sm" style={{ background: "var(--warn)", borderColor: "var(--warn)", color: "#fff" }} onClick={handleDelete}>
+                  Delete ({selectedIds.length})
+                </button>
+                <button type="button" className="bulk-deselect" onClick={() => setSelectedIds([])}>Deselect All</button>
+              </div>
+            ) : null}
             {totalInvoices > 0 ? (
               <div className="pagination-bar">
                 <div className="pagination-info">
@@ -1179,6 +1241,11 @@ export function TenantInvoicesView({
                         editable={activeInvoice.status !== "EXPORTED" && !isViewer}
                         onSaveField={(fieldKey, value) => handleSaveField(activeInvoice, fieldKey, value, refreshActiveInvoiceDetail)}
                       />
+                      <InvoiceSourceViewer
+                        invoice={activeInvoice}
+                        overlayUrlByField={activeOverlayUrlByField}
+                        resolvePreviewUrl={(page) => getInvoicePreviewUrl(activeInvoice._id, page)}
+                      />
                     </div>
                   </div>
                 ) : (
@@ -1199,6 +1266,7 @@ export function TenantInvoicesView({
         onConfirm={() => confirmDialog?.onConfirm()}
         onCancel={() => setConfirmDialog(null)}
       />
+      <KeyboardShortcutsOverlay open={showShortcutsHelp} onClose={() => setShowShortcutsHelp(false)} />
 
       {popupInvoice ? (
         <div className="popup-overlay" role="presentation" onClick={() => setPopupInvoiceId(null)}>

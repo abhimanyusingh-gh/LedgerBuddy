@@ -475,6 +475,30 @@ export function OverviewDashboard() {
               ) : <ChartEmptyState />}
             </div>
           </div>
+
+          {data.agingBuckets && data.agingBuckets.length > 0 ? (
+            <div className="overview-charts-grid" style={{ gridTemplateColumns: "1fr" }}>
+              <div className="overview-chart-card">
+                <h4>
+                  Invoice Aging
+                  <span className="chart-subtitle">Non-exported invoices by days since received</span>
+                </h4>
+                <ResponsiveContainer width="100%" height={180}>
+                  <BarChart data={data.agingBuckets} margin={{ top: 4, right: 16, left: 4, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--line)" />
+                    <XAxis dataKey="bucket" tick={{ fontSize: 11 }} />
+                    <YAxis tick={{ fontSize: 11 }} allowDecimals={false} width={32} />
+                    <Tooltip formatter={(v: number, name: string) => [name === "amountMinor" ? fmtInr(v) : v, name === "amountMinor" ? "Amount" : "Count"]} />
+                    <Bar dataKey="count" name="Count" animationDuration={800}>
+                      {data.agingBuckets.map((entry) => (
+                        <Cell key={entry.bucket} fill={entry.bucket === "0-30" ? "var(--chart-emerald)" : entry.bucket === "31-60" ? "var(--chart-amber)" : entry.bucket === "61-90" ? "var(--chart-rose)" : "var(--warn)"} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          ) : null}
         </>
       ) : !loading ? (
         <EmptyState
