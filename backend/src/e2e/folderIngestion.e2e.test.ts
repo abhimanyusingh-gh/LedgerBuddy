@@ -5,8 +5,8 @@ import { completeE2ETenantOnboarding, createE2EUserAndLogin } from "./authHelper
 
 const apiBaseUrl = process.env.E2E_API_BASE_URL ?? "http://127.0.0.1:4100";
 const frontendBaseUrl = process.env.E2E_FRONTEND_BASE_URL ?? "http://127.0.0.1:5177";
-const ocrHealthUrl = process.env.E2E_OCR_HEALTH_URL ?? "http://127.0.0.1:8200/v1/health";
-const slmHealthUrl = process.env.E2E_SLM_HEALTH_URL ?? "http://127.0.0.1:8300/v1/health";
+const ocrHealthUrl = process.env.E2E_OCR_HEALTH_URL ?? "http://127.0.0.1:8200/health";
+const slmHealthUrl = process.env.E2E_SLM_HEALTH_URL ?? "http://127.0.0.1:8300/health";
 const inboxDir =
   process.env.E2E_INBOX_DIR ?? path.resolve(process.cwd(), "..", "sample-invoices", "e2e-inbox");
 
@@ -54,12 +54,23 @@ interface InvoiceListResponse {
 interface InvoiceDetailResponse {
   _id: string;
   attachmentName: string;
+  status: string;
+  ocrText?: string;
   ocrBlocks?: Array<{
     text: string;
     cropPath?: string;
   }>;
+  parsed?: {
+    vendorName?: string;
+    totalAmountMinor?: number;
+    invoiceNumber?: string;
+    invoiceDate?: string;
+    currency?: string;
+  };
   metadata?: Record<string, string>;
 }
+
+const RECOGNIZED_CURRENCIES = new Set(["USD", "EUR", "GBP", "INR", "AUD", "CAD", "JPY", "AED", "SGD"]);
 
 const SOURCE_OVERLAY_FIELDS = [
   "vendorName",
@@ -174,6 +185,25 @@ describe("local full-stack ingestion e2e", () => {
     expect(invoicesWithAmount).toBeGreaterThanOrEqual(2);
     expect(invoicesWithIdentifier).toBeGreaterThanOrEqual(1);
 
+    const parsedInvoices = invoices.filter((inv) => inv.status === "PARSED");
+    for (const inv of parsedInvoices) {
+      expect(hasNonEmptyText(inv.parsed?.vendorName)).toBe(true);
+      expect(isPositiveInteger(inv.parsed?.totalAmountMinor)).toBe(true);
+    }
+
+    let invoicesWithDate = 0;
+    let invoicesWithCurrency = 0;
+    for (const inv of invoices) {
+      if (inv.parsed?.invoiceDate && /^\d{4}-\d{2}-\d{2}/.test(inv.parsed.invoiceDate)) {
+        invoicesWithDate += 1;
+      }
+      if (inv.parsed?.currency && RECOGNIZED_CURRENCIES.has(inv.parsed.currency)) {
+        invoicesWithCurrency += 1;
+      }
+    }
+    expect(invoicesWithDate).toBeGreaterThanOrEqual(2);
+    expect(invoicesWithCurrency).toBeGreaterThanOrEqual(1);
+
     const invoiceDetails = await Promise.all(
       invoices.map((invoice) => api.get<InvoiceDetailResponse>(`/api/invoices/${invoice._id}`))
     );
@@ -181,7 +211,10 @@ describe("local full-stack ingestion e2e", () => {
       expect(response.status).toBe(200);
       const detail = response.data;
 
-      // Every successfully extracted invoice should have an invoiceType classification
+      if (NON_FAILED_STATUSES.has(detail.status) && detail.ocrText) {
+        expect(detail.ocrText.length).toBeGreaterThan(50);
+      }
+
       if (detail.metadata?.verifierApplied === "true") {
         expect(typeof detail.metadata.invoiceType).toBe("string");
         expect(detail.metadata.invoiceType.length).toBeGreaterThan(0);

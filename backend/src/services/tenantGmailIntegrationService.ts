@@ -2,6 +2,7 @@ import { createHash, randomBytes } from "node:crypto";
 import { env } from "../config/env.js";
 import { OAuthStateModel } from "../models/OAuthState.js";
 import { TenantIntegrationModel } from "../models/TenantIntegration.js";
+import { TenantMailboxAssignmentModel } from "../models/TenantMailboxAssignment.js";
 import {
   exchangeGoogleAuthorizationCode,
   fetchGoogleUserEmail,
@@ -92,10 +93,11 @@ export class TenantGmailIntegrationService {
     );
     const encryptedRefreshToken = encryptSecret(tokenResult.refreshToken, env.REFRESH_TOKEN_ENCRYPTION_SECRET);
 
-    await TenantIntegrationModel.findOneAndUpdate(
+    const integration = await TenantIntegrationModel.findOneAndUpdate(
       {
         tenantId: oauthState.tenantId,
-        provider: PROVIDER
+        provider: PROVIDER,
+        emailAddress
       },
       {
         tenantId: oauthState.tenantId,
@@ -112,6 +114,12 @@ export class TenantGmailIntegrationService {
         new: true,
         setDefaultsOnInsert: true
       }
+    );
+
+    await TenantMailboxAssignmentModel.updateOne(
+      { tenantId: oauthState.tenantId, integrationId: integration._id, assignedTo: "all" },
+      { tenantId: oauthState.tenantId, integrationId: integration._id, assignedTo: "all" },
+      { upsert: true }
     );
 
     return {

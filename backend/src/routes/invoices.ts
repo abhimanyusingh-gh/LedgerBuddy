@@ -13,6 +13,8 @@ import { env } from "../config/env.js";
 import { loadRuntimeManifest, type FolderSourceManifest } from "../core/runtimeManifest.js";
 import type { WorkloadTier } from "../types/tenant.js";
 import type { FileStore } from "../core/interfaces/FileStore.js";
+import { requireNotViewer } from "../auth/middleware.js";
+import { ViewerScopeModel } from "../models/ViewerScope.js";
 import { getPreviewStorageRoot, isPathInsideRoot } from "../utils/previewStorage.js";
 import { requireAuth } from "../auth/requireAuth.js";
 
@@ -38,13 +40,27 @@ export function createInvoiceRouter(invoiceService: InvoiceService, fileStore?: 
       const limit = Math.min(Math.max(Number(req.query.limit ?? 20), 1), 100);
       const status = typeof req.query.status === "string" ? req.query.status : undefined;
       const workloadTier = parseWorkloadTier(req.query.workloadTier);
+      const fromDate = parseIsoDate(req.query.from);
+      const toDate = parseIsoDate(req.query.to);
+      if (toDate) toDate.setHours(23, 59, 59, 999);
+      let approvedBy = typeof req.query.approvedBy === "string" ? req.query.approvedBy : undefined;
+
+      if (authContext.role === "VIEWER" && !approvedBy) {
+        const scope = await ViewerScopeModel.findOne({ tenantId: authContext.tenantId, viewerUserId: authContext.userId }).lean();
+        if (scope && scope.visibleUserIds.length > 0) {
+          approvedBy = scope.visibleUserIds.join(",");
+        }
+      }
 
       const result = await invoiceService.listInvoices({
         page,
         limit,
         status,
         tenantId: authContext.tenantId,
-        workloadTier
+        workloadTier,
+        from: fromDate ?? undefined,
+        to: toDate ?? undefined,
+        approvedBy
       });
       res.json(result);
     } catch (error) {
@@ -67,7 +83,7 @@ export function createInvoiceRouter(invoiceService: InvoiceService, fileStore?: 
     }
   });
 
-  router.post("/invoices/approve", async (req, res, next) => {
+  router.post("/invoices/approve", requireNotViewer, async (req, res, next) => {
     try {
       const authContext = req.authContext!;
       const ids = Array.isArray(req.body?.ids) ? req.body.ids.filter(isString) : [];
@@ -85,7 +101,7 @@ export function createInvoiceRouter(invoiceService: InvoiceService, fileStore?: 
     }
   });
 
-  router.post("/invoices/retry", async (req, res, next) => {
+  router.post("/invoices/retry", requireNotViewer, async (req, res, next) => {
     try {
       const authContext = req.authContext!;
       const ids = Array.isArray(req.body?.ids) ? req.body.ids.filter(isString) : [];
@@ -102,7 +118,7 @@ export function createInvoiceRouter(invoiceService: InvoiceService, fileStore?: 
     }
   });
 
-  router.post("/invoices/delete", async (req, res, next) => {
+  router.post("/invoices/delete", requireNotViewer, async (req, res, next) => {
     try {
       const authContext = req.authContext!;
       const ids = Array.isArray(req.body?.ids) ? req.body.ids.filter(isString) : [];
@@ -119,7 +135,7 @@ export function createInvoiceRouter(invoiceService: InvoiceService, fileStore?: 
     }
   });
 
-  router.patch("/invoices/:id", async (req, res, next) => {
+  router.patch("/invoices/:id", requireNotViewer, async (req, res, next) => {
     try {
       const authContext = req.authContext!;
 
@@ -553,4 +569,12 @@ function parseWorkloadTier(value: unknown): WorkloadTier | undefined {
     return value;
   }
   return undefined;
+}
+
+function parseIsoDate(value: unknown): Date | null {
+  if (typeof value !== "string" || value.trim() === "") {
+    return null;
+  }
+  const d = new Date(value.trim());
+  return isNaN(d.getTime()) ? null : d;
 }

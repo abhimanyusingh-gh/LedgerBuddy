@@ -19,8 +19,8 @@ const mongoUri = process.env.E2E_MONGO_URI ?? "mongodb://billforge_app:billforge
 
 const sessionSecret = process.env.APP_SESSION_SIGNING_SECRET ?? "local-dev-session-signing-secret-change-me";
 const refreshTokenSecret = process.env.REFRESH_TOKEN_ENCRYPTION_SECRET ?? "local-dev-refresh-token-secret-32-chars";
-const localOauthClientId = process.env.STS_CLIENT_ID ?? "billforge-app";
-const localOauthClientSecret = process.env.STS_CLIENT_SECRET ?? "billforge-local-secret";
+const localOauthClientId = process.env.OIDC_CLIENT_ID ?? "billforge-app";
+const localOauthClientSecret = process.env.OIDC_CLIENT_SECRET ?? "billforge-local-secret";
 
 const api = axios.create({
   baseURL: apiBaseUrl,

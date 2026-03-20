@@ -133,10 +133,58 @@ export interface IngestionJobStatus {
 
 export type GmailConnectionState = "DISCONNECTED" | "CONNECTED" | "NEEDS_REAUTH";
 
+export interface DailyStat { date: string; count: number; amountMinor?: number; }
+export interface VendorStat { vendor: string; count: number; amountMinor: number; }
+export interface StatusStat { status: string; count: number; }
+
+export interface AgingBucket { bucket: string; count: number; amountMinor: number; }
+
+export interface AnalyticsOverview {
+  kpis: {
+    totalInvoices: number;
+    approvedCount: number;
+    approvedAmountMinor: number;
+    pendingAmountMinor: number;
+    exportedCount: number;
+    needsReviewCount: number;
+  };
+  dailyApprovals: DailyStat[];
+  dailyIngestion: DailyStat[];
+  dailyExports: DailyStat[];
+  statusBreakdown: StatusStat[];
+  topVendorsByApproved: VendorStat[];
+  topVendorsByPending: VendorStat[];
+  agingBuckets: AgingBucket[];
+}
+
 export interface GmailConnectionStatus {
   provider: "gmail";
   emailAddress?: string;
   connectionState: GmailConnectionState;
   lastErrorReason?: string;
   lastSyncedAt?: string;
+}
+
+export interface TenantMailbox {
+  _id: string;
+  provider: "gmail";
+  emailAddress?: string;
+  status: string;
+  assignments: "all" | Array<{ userId: string; email: string }>;
+  lastSyncedAt?: string;
+}
+
+export interface BankAccount {
+  _id: string;
+  tenantId: string;
+  status: string;
+  aaAddress: string;
+  displayName?: string;
+  bankName?: string;
+  maskedAccNumber?: string;
+  balanceMinor?: number;
+  currency: string;
+  balanceFetchedAt?: string;
+  lastErrorReason?: string;
+  createdAt: string;
 }

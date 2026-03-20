@@ -1,12 +1,13 @@
 import { Router } from "express";
 import type { ExportService } from "../services/exportService.js";
 import { requireAuth } from "../auth/requireAuth.js";
+import { requireNotViewer } from "../auth/middleware.js";
 
 export function createExportRouter(exportService: ExportService | null) {
   const router = Router();
   router.use(requireAuth);
 
-  router.post("/exports/tally", async (req, res, next) => {
+  router.post("/exports/tally", requireNotViewer, async (req, res, next) => {
     try {
       if (!exportService) {
         res.status(400).json({
@@ -28,7 +29,7 @@ export function createExportRouter(exportService: ExportService | null) {
     }
   });
 
-  router.post("/exports/tally/download", async (req, res, next) => {
+  router.post("/exports/tally/download", requireNotViewer, async (req, res, next) => {
     try {
       if (!exportService) {
         res.status(400).json({

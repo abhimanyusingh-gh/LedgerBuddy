@@ -271,14 +271,39 @@ export class InvoiceExtractionPipeline {
       );
     }
 
-    const heuristicResult = runInvoiceExtractionAgent({
-      candidates: extractionCandidates,
-      expectedMaxTotal: input.expectedMaxTotal,
-      expectedMaxDueDays: input.expectedMaxDueDays,
-      autoSelectMin: input.autoSelectMin,
-      languageHint: detectedLanguage.code,
-      referenceDate: input.referenceDate
-    });
+    let heuristicResult: ReturnType<typeof runInvoiceExtractionAgent>;
+    let heuristicFailed = false;
+    try {
+      heuristicResult = runInvoiceExtractionAgent({
+        candidates: extractionCandidates,
+        expectedMaxTotal: input.expectedMaxTotal,
+        expectedMaxDueDays: input.expectedMaxDueDays,
+        autoSelectMin: input.autoSelectMin,
+        languageHint: detectedLanguage.code,
+        referenceDate: input.referenceDate
+      });
+    } catch (heuristicError) {
+      heuristicFailed = true;
+      processingIssues.push(
+        `Heuristic parser failed: ${heuristicError instanceof Error ? heuristicError.message : String(heuristicError)}. Falling back to SLM-only extraction.`
+      );
+      logger.warn("pipeline.heuristic.failed.slm_fallback", {
+        tenantId: input.tenantId,
+        attachmentName: input.attachmentName,
+        error: heuristicError instanceof Error ? heuristicError.message : String(heuristicError)
+      });
+      const bestCandidate = extractionCandidates[0];
+      heuristicResult = {
+        provider: bestCandidate.provider ?? ocrProvider,
+        text: bestCandidate.text,
+        confidence: bestCandidate.confidence,
+        source: "slm-fallback",
+        strategy: "slm-only",
+        parseResult: { parsed: {} as ParsedInvoiceData, warnings: ["Heuristic parser failed; fields extracted by SLM only."] },
+        confidenceAssessment: this.assessConfidence(input, {} as ParsedInvoiceData, ["Heuristic parser failed"], ocrConfidence),
+        attempts: [{ provider: bestCandidate.provider ?? "unknown", source: bestCandidate.source, strategy: "slm-fallback", score: 0, confidenceScore: 0, warningCount: 1, hasTotalAmountMinor: false, textLength: bestCandidate.text.length }]
+      };
+    }
 
     let parsed = heuristicResult.parseResult.parsed;
     let warnings = uniqueIssues(heuristicResult.parseResult.warnings);
@@ -310,7 +335,9 @@ export class InvoiceExtractionPipeline {
             fingerprint.key
           );
         }
-      } catch {}
+      } catch (err) {
+        logger.warn("extraction.learning.lookup.failed", { error: err instanceof Error ? err.message : String(err), tenantId: input.tenantId });
+      }
 
       const mode: FieldVerificationMode = "relaxed";
       const verifierOutput = await this.fieldVerifier.verify({
@@ -378,11 +405,17 @@ export class InvoiceExtractionPipeline {
       });
       metadata.verifierApplied = "true";
 
-      if (
-        this.llmAssistConfidenceThreshold > 0 &&
-        confidence.score < this.llmAssistConfidenceThreshold &&
-        ocrPageImages.length > 0
-      ) {
+      const essentialFieldsMissing =
+        !parsed.invoiceNumber?.trim() ||
+        !parsed.invoiceDate?.trim() ||
+        parsed.totalAmountMinor == null ||
+        parsed.totalAmountMinor === 0;
+
+      const shouldRunLlmAssist =
+        ocrPageImages.length > 0 &&
+        (essentialFieldsMissing || (this.llmAssistConfidenceThreshold > 0 && confidence.score < this.llmAssistConfidenceThreshold));
+
+      if (shouldRunLlmAssist) {
         try {
           const preLlmParsed = { ...parsed };
           const llmPageImages = ocrPageImages.slice(0, 3);

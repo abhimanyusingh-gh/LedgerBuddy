@@ -1,6 +1,7 @@
 import type { Invoice } from "./types.ts";
 import {
   getAvailableRowActions,
+  hasApprovalWarning,
   isInvoiceApprovable,
   isInvoiceExportable,
   isInvoiceRetryable,
@@ -48,9 +49,16 @@ describe("selection helpers", () => {
   it("marks only review states as approvable", () => {
     expect(isInvoiceApprovable({ ...baseInvoice, status: "PARSED" })).toBe(true);
     expect(isInvoiceApprovable({ ...baseInvoice, status: "NEEDS_REVIEW" })).toBe(true);
-    expect(isInvoiceApprovable({ ...baseInvoice, status: "FAILED_PARSE" })).toBe(true);
+    expect(isInvoiceApprovable({ ...baseInvoice, status: "FAILED_PARSE" })).toBe(false);
     expect(isInvoiceApprovable({ ...baseInvoice, status: "FAILED_OCR" })).toBe(false);
     expect(isInvoiceApprovable({ ...baseInvoice, status: "APPROVED" })).toBe(false);
+  });
+
+  it("flags FAILED_PARSE and FAILED_OCR as having approval warnings", () => {
+    expect(hasApprovalWarning({ ...baseInvoice, status: "FAILED_PARSE" })).toBe(true);
+    expect(hasApprovalWarning({ ...baseInvoice, status: "FAILED_OCR" })).toBe(true);
+    expect(hasApprovalWarning({ ...baseInvoice, status: "PARSED" })).toBe(false);
+    expect(hasApprovalWarning({ ...baseInvoice, status: "NEEDS_REVIEW" })).toBe(false);
   });
 
   it("marks only approved invoices as exportable", () => {
@@ -118,7 +126,7 @@ describe("selection helpers", () => {
       ["PENDING", ["delete"]],
       ["PARSED", ["approve", "reingest", "delete"]],
       ["NEEDS_REVIEW", ["approve", "reingest", "delete"]],
-      ["FAILED_PARSE", ["approve", "reingest", "delete"]],
+      ["FAILED_PARSE", ["reingest", "delete"]],
       ["FAILED_OCR", ["reingest", "delete"]],
       ["APPROVED", ["reingest", "delete"]],
       ["EXPORTED", []]

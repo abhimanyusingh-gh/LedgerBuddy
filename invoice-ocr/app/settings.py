@@ -60,6 +60,7 @@ class Settings:
   remote_base_url: str
   remote_api_key: str
   remote_timeout_ms: int
+  probe_timeout_ms: int
   validate_remote_on_startup: bool
   text_prompt: str
   layout_prompt: str
@@ -78,6 +79,7 @@ settings = Settings(
   remote_base_url=os.getenv("OCR_REMOTE_BASE_URL", "").strip(),
   remote_api_key=os.getenv("OCR_REMOTE_API_KEY", "").strip(),
   remote_timeout_ms=read_int("OCR_REMOTE_TIMEOUT_MS", 300000, 1000),
+  probe_timeout_ms=read_int("OCR_PROBE_TIMEOUT_MS", 3000, 500),
   validate_remote_on_startup=read_bool("OCR_VALIDATE_REMOTE_ON_STARTUP", True),
   text_prompt=os.getenv("OCR_TEXT_PROMPT", "Extract all visible text from this document."),
   layout_prompt=os.getenv("OCR_LAYOUT_PROMPT", "<|grounding|>Convert page to markdown."),

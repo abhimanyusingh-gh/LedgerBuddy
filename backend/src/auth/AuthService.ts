@@ -20,7 +20,7 @@ interface LoginCallbackResult {
 
 export class AuthService {
   constructor(
-    private readonly sts: OidcProvider,
+    private readonly oidc: OidcProvider,
     private readonly keycloakAdmin: KeycloakAdminClient
   ) {}
 
@@ -29,7 +29,7 @@ export class AuthService {
     const codeVerifier = randomBytes(48).toString("base64url");
     const codeChallenge = createHash("sha256").update(codeVerifier).digest("base64url");
     const expiresAt = new Date(Date.now() + env.AUTH_STATE_TTL_SECONDS * 1000);
-    const redirectUri = env.STS_REDIRECT_URI;
+    const redirectUri = env.OIDC_REDIRECT_URI;
     const nextPath = options.nextPath ?? "/";
     const loginHint = options.loginHint?.trim().toLowerCase() ?? "";
 
@@ -41,12 +41,12 @@ export class AuthService {
       expiresAt
     });
 
-    return this.sts.getAuthorizationUrl({
+    return this.oidc.getAuthorizationUrl({
       state,
       redirectUri,
       codeChallenge,
       loginHint: loginHint.length > 0 ? loginHint : undefined,
-      scopes: env.STS_SCOPES.split(" ")
+      scopes: env.OIDC_SCOPES.split(" ")
         .map((scope) => scope.trim())
         .filter(Boolean)
     });
@@ -63,15 +63,15 @@ export class AuthService {
     }
     await AuthLoginStateModel.deleteOne({ _id: stateRecord._id });
 
-    const tokenResult = await this.sts.exchangeAuthorizationCode({
+    const tokenResult = await this.oidc.exchangeAuthorizationCode({
       code,
       redirectUri: stateRecord.redirectUri,
       codeVerifier: stateRecord.codeVerifier
     });
-    const validated = await this.sts.validateAccessToken({
+    const validated = await this.oidc.validateAccessToken({
       accessToken: tokenResult.accessToken
     });
-    const claims = this.sts.normalizeClaims(validated);
+    const claims = this.oidc.normalizeClaims(validated);
     const encryptedRefreshToken = encryptSecret(tokenResult.refreshToken, env.REFRESH_TOKEN_ENCRYPTION_SECRET);
 
     const context = await this.upsertPrincipal({
@@ -97,14 +97,14 @@ export class AuthService {
     }
 
     // Authenticate via Keycloak ROPC
-    const grant = await this.sts.exchangePasswordGrant(normalizedEmail, password);
+    const grant = await this.oidc.exchangePasswordGrant(normalizedEmail, password);
     if (!grant.ok) {
       throw new HttpError("Invalid email or password.", 401, "auth_credentials_invalid");
     }
 
     // Introspect to get claims
-    const validated = await this.sts.validateAccessToken({ accessToken: grant.accessToken });
-    const claims = this.sts.normalizeClaims(validated);
+    const validated = await this.oidc.validateAccessToken({ accessToken: grant.accessToken });
+    const claims = this.oidc.normalizeClaims(validated);
 
     const encryptedRefreshToken = grant.refreshToken
       ? encryptSecret(grant.refreshToken, env.REFRESH_TOKEN_ENCRYPTION_SECRET)
@@ -131,7 +131,7 @@ export class AuthService {
 
   async changePassword(context: AuthenticatedRequestContext, currentPassword: string, newPassword: string): Promise<void> {
     // 1. Verify current password via ROPC
-    const verify = await this.sts.exchangePasswordGrant(context.email, currentPassword);
+    const verify = await this.oidc.exchangePasswordGrant(context.email, currentPassword);
     if (!verify.ok) {
       throw new HttpError("Current password is incorrect.", 401, "auth_invalid_current_password");
     }

@@ -22,26 +22,26 @@ const envSchema = z.object({
   APP_MANIFEST_PATH: z.string().optional(),
   FRONTEND_BASE_URL: z.string().default("http://localhost:5177"),
 
-  STS_CLIENT_ID: z.string().default("billforge-app"),
-  STS_CLIENT_SECRET: z.string().default("billforge-local-secret"),
-  STS_SCOPES: z.string().default("openid profile email offline_access"),
-  STS_REDIRECT_URI: z
+  OIDC_CLIENT_ID: z.string().default("billforge-app"),
+  OIDC_CLIENT_SECRET: z.string().default("billforge-local-secret"),
+  OIDC_SCOPES: z.string().default("openid profile email offline_access"),
+  OIDC_REDIRECT_URI: z
     .string()
     .default("http://localhost:4100/api/auth/callback")
     .transform((value) => normalizeUrl(value)),
-  STS_AUTH_URL: z
+  OIDC_AUTH_URL: z
     .string()
     .default("http://localhost:8280/realms/billforge/protocol/openid-connect/auth")
     .transform((value) => normalizeUrl(value)),
-  STS_TOKEN_URL: z
+  OIDC_TOKEN_URL: z
     .string()
     .default("http://keycloak:8080/realms/billforge/protocol/openid-connect/token")
     .transform((value) => normalizeUrl(value)),
-  STS_VALIDATE_URL: z
+  OIDC_VALIDATE_URL: z
     .string()
     .default("http://keycloak:8080/realms/billforge/protocol/openid-connect/token/introspect")
     .transform((value) => normalizeUrl(value)),
-  STS_USERINFO_URL: z
+  OIDC_USERINFO_URL: z
     .string()
     .default("http://keycloak:8080/realms/billforge/protocol/openid-connect/userinfo")
     .transform((value) => normalizeUrl(value)),
@@ -193,7 +193,15 @@ const envSchema = z.object({
   MAILBOX_ALERT_SMTP_USERNAME: z.string().default(""),
   MAILBOX_ALERT_SMTP_PASSWORD: z.string().default(""),
   MAILBOX_ALERT_FROM: z.string().default(""),
-  MAILBOX_ALERT_TO: z.string().default("")
+  MAILBOX_ALERT_TO: z.string().default(""),
+
+  ANUMATI_ENTITY_ID: z.string().default(""),
+  ANUMATI_API_KEY: z.string().default(""),
+  ANUMATI_JWS_PRIVATE_KEY: z.string().default(""),
+  ANUMATI_AES_KEY: z.string().default(""),
+  ANUMATI_AA_BASE_URL: z.string().default(""),
+  ANUMATI_WEBVIEW_URL: z.string().default(""),
+  ANUMATI_CALLBACK_BASE_URL: z.string().default("")
 });
 
 const parsed = envSchema.safeParse(process.env);
@@ -227,10 +235,10 @@ if (!localMlEnv) {
   }
 }
 
-if (values.STS_AUTH_URL.length === 0 || values.STS_TOKEN_URL.length === 0 || values.STS_VALIDATE_URL.length === 0 || values.STS_USERINFO_URL.length === 0) {
+if (values.OIDC_AUTH_URL.length === 0 || values.OIDC_TOKEN_URL.length === 0 || values.OIDC_VALIDATE_URL.length === 0 || values.OIDC_USERINFO_URL.length === 0) {
   // eslint-disable-next-line no-console
   console.error(
-    "Invalid env vars: STS_AUTH_URL, STS_TOKEN_URL, STS_VALIDATE_URL, and STS_USERINFO_URL must be configured."
+    "Invalid env vars: OIDC_AUTH_URL, OIDC_TOKEN_URL, OIDC_VALIDATE_URL, and OIDC_USERINFO_URL must be configured."
   );
   process.exit(1);
 }

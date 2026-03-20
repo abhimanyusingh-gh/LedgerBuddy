@@ -19,10 +19,11 @@ describe("currency helpers", () => {
     expect(minorUnitsToMajorString(-5432, "BHD")).toBe("-5.432");
   });
 
-  it("formats display labels with currency code", () => {
-    expect(formatMinorAmountWithCurrency(120050, "USD")).toBe("USD 1200.50");
-    expect(formatMinorAmountWithCurrency(5000, "JPY")).toBe("JPY 5000");
+  it("formats display labels with currency symbol", () => {
+    expect(formatMinorAmountWithCurrency(120050, "USD")).toBe("$1200.50");
+    expect(formatMinorAmountWithCurrency(5000, "JPY")).toBe("\u00A55000");
     expect(formatMinorAmountWithCurrency(5000, undefined)).toBe("50.00");
     expect(formatMinorAmountWithCurrency(undefined, "USD")).toBe("-");
+    expect(formatMinorAmountWithCurrency(13000, "INR")).toBe("\u20B9130.00");
   });
 });

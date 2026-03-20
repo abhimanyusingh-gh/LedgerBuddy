@@ -5,6 +5,7 @@ import { healthRouter } from "./routes/health.js";
 import { buildDependencies } from "./core/dependencies.js";
 import { createInvoiceRouter } from "./routes/invoices.js";
 import { createExportRouter } from "./routes/export.js";
+import { createAnalyticsRouter } from "./routes/analytics.js";
 import { createJobsRouter } from "./routes/jobs.js";
 import { createGmailConnectionRouter, createGmailPublicRouter } from "./routes/gmailConnection.js";
 import { createAuthRouter } from "./routes/auth.js";
@@ -12,6 +13,8 @@ import { createSessionRouter } from "./routes/session.js";
 import { createTenantAdminRouter } from "./routes/tenantAdmin.js";
 import { createTenantLifecycleRouter } from "./routes/tenantLifecycle.js";
 import { createPlatformAdminRouter } from "./routes/platformAdmin.js";
+import { createBankAccountsRouter } from "./routes/bankAccounts.js";
+import { createBankWebhooksRouter } from "./routes/bankWebhooks.js";
 import {
   createAuthenticationMiddleware,
   requireNonPlatformAdmin,
@@ -19,13 +22,17 @@ import {
 } from "./auth/middleware.js";
 import { logger, runWithLogContext } from "./utils/logger.js";
 import { isHttpError } from "./errors/HttpError.js";
+import { env } from "./config/env.js";
 
 export async function createApp(prebuiltDependencies?: Awaited<ReturnType<typeof buildDependencies>>) {
   const dependencies = prebuiltDependencies ?? await buildDependencies();
   const app = express();
   const authenticate = createAuthenticationMiddleware(dependencies.authService);
 
-  app.use(cors({ exposedHeaders: ["Content-Disposition"] }));
+  app.use(cors({
+    origin: env.ENV === "local" ? true : env.FRONTEND_BASE_URL,
+    exposedHeaders: ["Content-Disposition"]
+  }));
   app.use(express.json({ limit: "10mb" }));
   app.use((req, res, next) => {
     const incoming = req.header("x-correlation-id");
@@ -45,9 +52,7 @@ export async function createApp(prebuiltDependencies?: Awaited<ReturnType<typeof
 
   app.use("/", healthRouter);
   app.use("/api", createAuthRouter(dependencies.authService));
-  // Gmail public routes bypass the authenticate middleware: /connect/gmail uses its own
-  // ?token= query param auth, and /connect/gmail/callback is an OAuth callback from KC
-  // that carries no Bearer token.
+  app.use("/api", createBankWebhooksRouter(dependencies.bankService));
   app.use("/api", createGmailPublicRouter(dependencies.gmailIntegrationService, dependencies.authService));
   app.use("/api", authenticate);
   app.use("/api", createSessionRouter(dependencies.authService));
@@ -71,6 +76,8 @@ export async function createApp(prebuiltDependencies?: Awaited<ReturnType<typeof
     createJobsRouter(dependencies.ingestionService, dependencies.emailSimulationService, dependencies.fileStore)
   );
   app.use("/api", requireNonPlatformAdmin, requireTenantSetupCompleted, createExportRouter(dependencies.exportService));
+  app.use("/api", requireNonPlatformAdmin, requireTenantSetupCompleted, createAnalyticsRouter());
+  app.use("/api", requireNonPlatformAdmin, createBankAccountsRouter(dependencies.bankService));
 
   app.use((error: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
     const message = error instanceof Error ? error.message : "Unknown server error";

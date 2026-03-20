@@ -21,6 +21,9 @@ import { LocalDiskFileStore } from "../storage/LocalDiskFileStore.js";
 import { S3FileStore } from "../storage/S3FileStore.js";
 import { EmailSimulationService } from "../services/emailSimulationService.js";
 import { TenantGmailIntegrationService } from "../services/tenantGmailIntegrationService.js";
+import type { IBankConnectionService } from "../services/anumati/IBankConnectionService.js";
+import { AnumatiBankConnectionService } from "../services/anumati/AnumatiBankConnectionService.js";
+import { MockBankConnectionService } from "../services/anumati/MockBankConnectionService.js";
 import { HttpOidcProvider } from "../sts/HttpOidcProvider.js";
 import { AuthService } from "../auth/AuthService.js";
 import { TenantAdminService } from "../services/tenantAdminService.js";
@@ -43,6 +46,7 @@ interface Dependencies {
   tenantInviteService: TenantInviteService;
   platformAdminService: PlatformAdminService;
   gmailIntegrationService: TenantGmailIntegrationService;
+  bankService: IBankConnectionService;
   fileStore: FileStore;
   keycloakAdmin: KeycloakAdminClient;
 }
@@ -52,16 +56,16 @@ export async function buildDependencies(): Promise<Dependencies> {
   const keycloakAdmin = new KeycloakAdminClient(
     env.keycloakInternalBaseUrl,
     env.keycloakRealm,
-    env.STS_CLIENT_ID,
-    env.STS_CLIENT_SECRET
+    env.OIDC_CLIENT_ID,
+    env.OIDC_CLIENT_SECRET
   );
   const oidcProvider = new HttpOidcProvider({
-    clientId: env.STS_CLIENT_ID,
-    clientSecret: env.STS_CLIENT_SECRET,
-    authUrl: env.STS_AUTH_URL,
-    tokenUrl: env.STS_TOKEN_URL,
-    validateUrl: env.STS_VALIDATE_URL,
-    userInfoUrl: env.STS_USERINFO_URL,
+    clientId: env.OIDC_CLIENT_ID,
+    clientSecret: env.OIDC_CLIENT_SECRET,
+    authUrl: env.OIDC_AUTH_URL,
+    tokenUrl: env.OIDC_TOKEN_URL,
+    validateUrl: env.OIDC_VALIDATE_URL,
+    userInfoUrl: env.OIDC_USERINFO_URL,
     timeoutMs: 10_000
   });
   const authService = new AuthService(oidcProvider, keycloakAdmin);
@@ -70,6 +74,9 @@ export async function buildDependencies(): Promise<Dependencies> {
   const tenantInviteService = new TenantInviteService(inviteEmailSender, keycloakAdmin);
   const platformAdminService = new PlatformAdminService(inviteEmailSender, keycloakAdmin);
   const gmailIntegrationService = new TenantGmailIntegrationService();
+  const bankService: IBankConnectionService = env.ANUMATI_ENTITY_ID
+    ? new AnumatiBankConnectionService()
+    : new MockBankConnectionService();
   const ocrProvider = await resolveOcrProvider(manifest);
   const fieldVerifier = await resolveFieldVerifier(manifest);
   const fileStore = resolveFileStore(manifest);
@@ -106,6 +113,7 @@ export async function buildDependencies(): Promise<Dependencies> {
     tenantInviteService,
     platformAdminService,
     gmailIntegrationService,
+    bankService,
     fileStore,
     keycloakAdmin
   };
@@ -246,7 +254,8 @@ async function assertFieldVerifierConfigIsValid(runtimeManifest: RuntimeManifest
 }
 
 async function assertServiceHealth(baseUrl: string, headers: Record<string, string>, timeoutMs: number, label: string): Promise<void> {
-  const response = await withTimeout(axios.get(`${baseUrl}/health`, { headers, timeout: timeoutMs }), timeoutMs);
+  const origin = new URL(baseUrl).origin;
+  const response = await withTimeout(axios.get(`${origin}/health`, { headers, timeout: timeoutMs }), timeoutMs);
   const payload = response?.data;
   if (payload && typeof payload === "object" && !Array.isArray(payload)) {
     const p = payload as Record<string, unknown>;

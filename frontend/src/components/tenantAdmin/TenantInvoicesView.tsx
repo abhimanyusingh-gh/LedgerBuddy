@@ -3,6 +3,7 @@ import {
   approveInvoices,
   deleteInvoices,
   downloadTallyXmlFile,
+  exportToTally,
   generateTallyXmlFile,
   retryInvoices,
   fetchIngestionStatus,
@@ -48,22 +49,13 @@ import { useDebouncedValue } from "../../hooks/useDebouncedValue";
 import { getUserFacingErrorMessage, isAuthenticationError } from "../../apiError";
 import { ConfirmDialog } from "../ConfirmDialog";
 import { EmptyState } from "../EmptyState";
-import { ApprovalTimeline } from "./ApprovalTimeline";
 import { KeyboardShortcutsOverlay } from "../KeyboardShortcutsOverlay";
 import { useKeyboardShortcuts } from "../../hooks/useKeyboardShortcuts";
-
-function formatApproverName(value?: string): string {
-  if (!value) return "-";
-  const atIdx = value.indexOf("@");
-  if (atIdx <= 0) return value;
-  return value.slice(0, atIdx).replace(/[._-]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
-}
 
 const STATUS_ICONS: Record<string, string> = {
   PENDING: "hourglass_empty",
   PARSED: "task_alt",
   NEEDS_REVIEW: "flag",
-  AWAITING_APPROVAL: "pending_actions",
   FAILED_OCR: "error",
   FAILED_PARSE: "error",
   APPROVED: "check_circle",
@@ -126,10 +118,8 @@ export function TenantInvoicesView({
   const [editingListCell, setEditingListCell] = useState<{ invoiceId: string; field: string } | null>(null);
   const [editListValue, setEditListValue] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
-  const [sortColumn, setSortColumnRaw] = useState<string | null>(() => localStorage.getItem("billforge:sort-col"));
-  const [sortDirection, setSortDirectionRaw] = useState<"asc" | "desc">(() => localStorage.getItem("billforge:sort-dir") === "desc" ? "desc" : "asc");
-  const setSortColumn = (col: string) => { setSortColumnRaw(col); localStorage.setItem("billforge:sort-col", col); };
-  const setSortDirection = (v: "asc" | "desc" | ((d: "asc" | "desc") => "asc" | "desc")) => { setSortDirectionRaw((prev) => { const next = typeof v === "function" ? v(prev) : v; localStorage.setItem("billforge:sort-dir", next); return next; }); };
+  const [sortColumn, setSortColumn] = useState<string | null>(null);
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   const [showShortcutsHelp, setShowShortcutsHelp] = useState(false);
   const [tableDensity, setTableDensity] = useState<"compact" | "comfortable" | "spacious">(() => {
     const stored = localStorage.getItem("billforge:table-density");
@@ -553,20 +543,22 @@ export function TenantInvoicesView({
 
   async function handleApprove() {
     if (selectedApprovableIds.length === 0) {
-      addToast("error", "Select at least one invoice to approve.");
+      setError("Select at least one PARSED or NEEDS_REVIEW invoice to approve.");
       return;
     }
     try {
+      setError(null);
       setActionLoading("approve");
       const response = await approveInvoices(selectedApprovableIds, userEmail);
       if (response.modifiedCount === 0) {
-        addToast("info", "No eligible invoices found for approval.");
-      } else {
-        addToast("success", `${response.modifiedCount} invoice(s) approved.`);
+        setError("No selected invoices were eligible for approval.");
+        return;
       }
+      addToast("success", `${response.modifiedCount} invoice(s) approved.`);
       await loadInvoices();
     } catch (approveError) {
       addToast("error", getUserFacingErrorMessage(approveError, "Approval failed."));
+      setError(getUserFacingErrorMessage(approveError, "Approval failed."));
     } finally {
       setActionLoading(null);
     }
@@ -582,17 +574,19 @@ export function TenantInvoicesView({
       onConfirm: async () => {
         setConfirmDialog(null);
         try {
+          setError(null);
           setActionLoading("delete");
           const response = await deleteInvoices(selectedIds);
           if (response.deletedCount === 0) {
-            addToast("info", "No invoices were eligible for deletion.");
-          } else {
-            addToast("success", `${response.deletedCount} invoice(s) deleted.`);
+            setError("No selected invoices were eligible for deletion (exported invoices cannot be deleted).");
+            return;
           }
+          addToast("success", `${response.deletedCount} invoice(s) deleted.`);
           setSelectedIds([]);
           await loadInvoices();
         } catch (deleteError) {
           addToast("error", getUserFacingErrorMessage(deleteError, "Deletion failed."));
+          setError(getUserFacingErrorMessage(deleteError, "Deletion failed."));
         } finally {
           setActionLoading(null);
         }
@@ -602,26 +596,31 @@ export function TenantInvoicesView({
 
   async function handleApproveSingle(invoiceId: string) {
     try {
+      setError(null);
       const response = await approveInvoices([invoiceId], userEmail);
       if (response.modifiedCount === 0) {
-        addToast("info", "Invoice was not eligible for approval.");
+        setError("Invoice was not eligible for approval.");
+        return;
       }
       await loadInvoices();
     } catch (approveError) {
-      addToast("error", getUserFacingErrorMessage(approveError, "Approval failed."));
+      setError(getUserFacingErrorMessage(approveError, "Approval failed."));
     }
   }
 
   async function handleRetrySingle(invoiceId: string) {
     setIngestingIds((prev) => new Set(prev).add(invoiceId));
     try {
+      setError(null);
       const response = await retryInvoices([invoiceId]);
       if (response.modifiedCount === 0) {
-        addToast("info", "Invoice was not eligible for retry.");
+        setError("Invoice was not eligible for retry.");
         setIngestingIds((prev) => { const next = new Set(prev); next.delete(invoiceId); return next; });
         return;
       }
-      if (ingestionStatus?.running) return;
+      if (ingestionStatus?.running) {
+        return;
+      }
       const status = await runIngestion();
       setIngestionStatus(status);
       if (!status.running) {
@@ -629,7 +628,7 @@ export function TenantInvoicesView({
         await loadInvoices();
       }
     } catch (retryError) {
-      addToast("error", getUserFacingErrorMessage(retryError, "Retry failed."));
+      setError(getUserFacingErrorMessage(retryError, "Retry failed."));
       setIngestingIds((prev) => { const next = new Set(prev); next.delete(invoiceId); return next; });
     }
   }
@@ -643,16 +642,18 @@ export function TenantInvoicesView({
       onConfirm: async () => {
         setConfirmDialog(null);
         try {
+          setError(null);
           const response = await deleteInvoices([invoiceId]);
           if (response.deletedCount === 0) {
-            addToast("info", "Invoice could not be deleted.");
-          } else {
-            addToast("success", `"${fileName}" deleted.`);
+            setError("Invoice could not be deleted (exported invoices cannot be deleted).");
+            return;
           }
+          addToast("success", `"${fileName}" deleted.`);
           setSelectedIds((current) => current.filter((id) => id !== invoiceId));
           await loadInvoices();
         } catch (deleteError) {
           addToast("error", getUserFacingErrorMessage(deleteError, "Deletion failed."));
+          setError(getUserFacingErrorMessage(deleteError, "Deletion failed."));
         }
       }
     });
@@ -660,37 +661,73 @@ export function TenantInvoicesView({
 
   async function handleRetry() {
     if (selectedRetryableIds.length === 0) {
-      addToast("error", "Select at least one invoice to retry.");
+      setError("Select at least one non-exported invoice to retry.");
       return;
     }
     try {
       setError(null);
       const response = await retryInvoices(selectedRetryableIds);
       if (response.modifiedCount === 0) {
-        addToast("info", "No invoices were eligible for retry.");
+        setError("No selected invoices were eligible for retry.");
+        return;
       }
       setSelectedIds([]);
       await loadInvoices();
     } catch (retryError) {
-      addToast("error", getUserFacingErrorMessage(retryError, "Retry failed."));
+      setError(getUserFacingErrorMessage(retryError, "Retry failed."));
     }
   }
 
-  async function handleExport() {
+  function handleExport() {
     if (selectedExportableIds.length === 0) {
-      addToast("error", "Select at least one approved invoice to export.");
+      setError("Select at least one APPROVED invoice before export.");
       return;
     }
     if (selectedNonExportableCount > 0) {
-      addToast("error", "Deselect non-approved invoices before exporting.");
+      setError("Only APPROVED invoices can be exported. Deselect non-approved invoices and retry.");
+      return;
+    }
+    setConfirmDialog({
+      title: "Export to Tally",
+      message: `Export ${selectedExportableIds.length} approved invoice file${selectedExportableIds.length === 1 ? "" : "s"} to Tally?`,
+      confirmLabel: `Export ${selectedExportableIds.length} invoice${selectedExportableIds.length === 1 ? "" : "s"}`,
+      destructive: false,
+      onConfirm: async () => {
+        setConfirmDialog(null);
+        try {
+          setError(null);
+          setActionLoading("export");
+          const exportResult = await exportToTally(selectedExportableIds);
+          const successfullyExportedIds = exportResult.items
+            .filter((item) => item.success)
+            .map((item) => item.invoiceId);
+          addToast("success", `${successfullyExportedIds.length} invoice(s) exported to Tally.`);
+          setSelectedIds((currentSelectedIds) => removeSelectedIds(currentSelectedIds, successfullyExportedIds));
+          await loadInvoices();
+        } catch (exportError) {
+          addToast("error", getUserFacingErrorMessage(exportError, "Export failed."));
+          setError(getUserFacingErrorMessage(exportError, "Export failed."));
+        } finally {
+          setActionLoading(null);
+        }
+      }
+    });
+  }
+
+  async function handleDownloadXml() {
+    if (selectedExportableIds.length === 0) {
+      setError("Select at least one APPROVED invoice before generating XML.");
+      return;
+    }
+    if (selectedNonExportableCount > 0) {
+      setError("Only APPROVED invoices can be exported. Deselect non-approved invoices and retry.");
       return;
     }
     try {
+      setError(null);
       const fileResult = await generateTallyXmlFile(selectedExportableIds);
       if (!fileResult.batchId) {
-        addToast("error", "Export failed — invoices may have invalid amounts or are already exported.");
-        setSelectedIds([]);
-        await loadInvoices();
+        setError("No approved invoices found for export.");
         return;
       }
       const blob = await downloadTallyXmlFile(fileResult.batchId);
@@ -706,14 +743,9 @@ export function TenantInvoicesView({
         (id) => !fileResult.skippedItems.some((item) => item.invoiceId === id)
       );
       setSelectedIds((currentSelectedIds) => removeSelectedIds(currentSelectedIds, exportedIds));
-      addToast("success", `${fileResult.includedCount} invoice(s) exported. XML file downloaded.`);
       await loadInvoices();
-      if (fileResult.skippedCount > 0) {
-        addToast("info", `${fileResult.skippedCount} invoice(s) skipped (already exported or missing fields).`);
-      }
     } catch (downloadError) {
-      addToast("error", getUserFacingErrorMessage(downloadError, "Export failed."));
-      await loadInvoices();
+      setError(getUserFacingErrorMessage(downloadError, "XML file generation failed."));
     }
   }
 
@@ -727,7 +759,7 @@ export function TenantInvoicesView({
       const status = await runIngestion();
       setIngestionStatus(status);
     } catch (uploadError) {
-      addToast("error", getUserFacingErrorMessage(uploadError, "File upload failed."));
+      setError(getUserFacingErrorMessage(uploadError, "File upload failed."));
     } finally {
       if (uploadInputRef.current) uploadInputRef.current.value = "";
     }
@@ -739,7 +771,7 @@ export function TenantInvoicesView({
       const status = await runIngestion();
       setIngestionStatus(status);
     } catch (ingestError) {
-      addToast("error", getUserFacingErrorMessage(ingestError, "Ingestion run failed."));
+      setError(getUserFacingErrorMessage(ingestError, "Ingestion run failed."));
     }
   }
 
@@ -749,7 +781,7 @@ export function TenantInvoicesView({
       const status = await pauseIngestion();
       setIngestionStatus(status);
     } catch (pauseError) {
-      addToast("error", getUserFacingErrorMessage(pauseError, "Failed to pause ingestion."));
+      setError(getUserFacingErrorMessage(pauseError, "Failed to pause ingestion."));
     }
   }
 
@@ -774,7 +806,7 @@ export function TenantInvoicesView({
       await loadInvoices();
       await refreshDetail();
     } catch (saveError) {
-      addToast("error", getUserFacingErrorMessage(saveError, "Failed to save field."));
+      setError(getUserFacingErrorMessage(saveError, "Failed to save field."));
     }
   }
 
@@ -800,7 +832,7 @@ export function TenantInvoicesView({
         await refreshActiveInvoiceDetail();
       }
     } catch (saveError) {
-      addToast("error", getUserFacingErrorMessage(saveError, "Failed to save field."));
+      setError(getUserFacingErrorMessage(saveError, "Failed to save field."));
     }
   }
 
@@ -914,6 +946,18 @@ export function TenantInvoicesView({
               <span className="toolbar-icon-label">Retry</span>
             </span>
             <span className="toolbar-icon-wrap">
+              <button type="button" className={`toolbar-icon-button${actionLoading === "export" ? " app-button-loading" : ""}`} onClick={handleExport} disabled={requiresTenantSetup || selectedExportableIds.length === 0 || selectedNonExportableCount > 0}>
+                <span className="material-symbols-outlined">upload</span>
+              </button>
+              <span className="toolbar-icon-label">Export to Tally</span>
+            </span>
+            <span className="toolbar-icon-wrap">
+              <button type="button" className="toolbar-icon-button" onClick={() => void handleDownloadXml()} disabled={requiresTenantSetup || selectedExportableIds.length === 0 || selectedNonExportableCount > 0}>
+                <span className="material-symbols-outlined">download</span>
+              </button>
+              <span className="toolbar-icon-label">Download XML</span>
+            </span>
+            <span className="toolbar-icon-wrap">
               <button type="button" className="toolbar-icon-button" onClick={() => uploadInputRef.current?.click()} disabled={requiresTenantSetup}>
                 <span className="material-symbols-outlined">upload_file</span>
               </button>
@@ -972,22 +1016,19 @@ export function TenantInvoicesView({
 
             {!loading && invoices.length === 0 ? (
               <EmptyState
-                icon={hasActiveFilters ? "filter_list_off" : "receipt_long"}
-                heading={hasActiveFilters ? "No matching invoices" : "No invoices yet"}
-                description={hasActiveFilters ? "Try adjusting your filters or date range." : "Upload invoice PDFs or connect a Gmail inbox to start processing."}
-                action={hasActiveFilters
-                  ? <button type="button" className="app-button app-button-secondary" onClick={clearAllFilters}>Clear Filters</button>
-                  : (!isViewer ? <button type="button" className="app-button app-button-primary" onClick={() => uploadInputRef.current?.click()}>Upload Files</button> : undefined)}
+                icon="receipt_long"
+                heading="No invoices yet"
+                description="Upload invoice PDFs or connect a Gmail inbox to start processing."
+                action={!isViewer ? <button type="button" className="app-button app-button-primary" onClick={() => uploadInputRef.current?.click()}>Upload Files</button> : undefined}
               />
             ) : null}
 
-            {invoices.length > 0 || loading ? (
             <div className={`list-scroll${loading && invoices.length > 0 ? " list-scroll-loading" : ""}`}>
               <table>
                 <thead>
                   <tr>
                     <th><input type="checkbox" checked={areAllVisibleSelectableSelected && selectableVisibleIds.length > 0} disabled={selectableVisibleIds.length === 0} onChange={toggleSelectAllVisible} /></th>
-                    {([["file", "File"], ["vendor", "Vendor"], ["invoiceNumber", "Invoice #"], ["invoiceDate", "Invoice Date"], ["total", "Total"], ["confidence", "Confidence"], ["status", "Status"], ["approvedBy", "Approved By"], ["received", "Received"]] as const).map(([key, label]) => (
+                    {([["file", "File"], ["vendor", "Vendor"], ["invoiceNumber", "Invoice #"], ["invoiceDate", "Invoice Date"], ["total", "Total"], ["confidence", "Confidence"], ["status", "Status"], ["received", "Received"]] as const).map(([key, label]) => (
                       <th
                         key={key}
                         className="sortable-th"
@@ -1119,18 +1160,15 @@ export function TenantInvoicesView({
                           {ingestingIds.has(invoice._id) ? (
                             <span className="status status-reprocessing">Reprocessing</span>
                           ) : (
-                            <span className={`status status-${invoice.status.toLowerCase()}`}>
+                            <span className={`status status-${invoice.status.toLowerCase()}`} title={invoice.approval?.approvedBy ? `Approved by ${invoice.approval.approvedBy}` : undefined}>
                               {STATUS_ICONS[invoice.status] ? <span className="material-symbols-outlined status-badge-icon">{STATUS_ICONS[invoice.status]}</span> : null}
-                              {invoice.status === "AWAITING_APPROVAL" && invoice.workflowState?.currentStep
-                                ? `Step ${invoice.workflowState.currentStep}`
-                                : (STATUS_LABELS[invoice.status] ?? invoice.status)}
+                              {STATUS_LABELS[invoice.status] ?? invoice.status}
                             </span>
                           )}
                           {invoice.possibleDuplicate ? (
                             <span className="material-symbols-outlined duplicate-warning" title="Possible duplicate — another invoice has identical file contents">warning</span>
                           ) : null}
                         </td>
-                        <td style={{ fontSize: "0.82rem", color: "var(--ink-soft)" }} title={invoice.approval?.email ?? invoice.approval?.approvedBy ?? ""}>{formatApproverName(invoice.approval?.email ?? invoice.approval?.approvedBy)}</td>
                         <td>{new Date(invoice.receivedAt).toLocaleString()}</td>
                         <td onClick={(e) => e.stopPropagation()}>
                           {(() => {
@@ -1163,14 +1201,13 @@ export function TenantInvoicesView({
                 </tbody>
               </table>
             </div>
-            ) : null}
             {selectedIds.length > 0 && !isViewer ? (
               <div className="bulk-action-bar">
                 <span className="bulk-count">{selectedIds.length} selected</span>
                 <button type="button" className="app-button app-button-primary app-button-sm" disabled={selectedApprovableIds.length === 0} onClick={() => void handleApprove()}>
                   Approve ({selectedApprovableIds.length})
                 </button>
-                <button type="button" className="app-button app-button-sm" style={{ background: "var(--chart-violet)", borderColor: "var(--chart-violet)", color: "#fff" }} disabled={selectedExportableIds.length === 0} onClick={() => void handleExport()}>
+                <button type="button" className="app-button app-button-sm" style={{ background: "var(--chart-violet)", borderColor: "var(--chart-violet)", color: "#fff" }} disabled={selectedExportableIds.length === 0} onClick={handleExport}>
                   Export ({selectedExportableIds.length})
                 </button>
                 <button type="button" className="app-button app-button-sm" style={{ background: "var(--warn)", borderColor: "var(--warn)", color: "#fff" }} onClick={handleDelete}>
@@ -1279,11 +1316,8 @@ export function TenantInvoicesView({
               </button>
             </div>
             <p className="muted popup-meta">
-              Status: <strong>{STATUS_LABELS[popupInvoice.status] ?? popupInvoice.status}</strong>
-              {popupInvoice.workflowState?.currentStep ? ` (Step ${popupInvoice.workflowState.currentStep})` : ""}
-              {" | "}Received: {new Date(popupInvoice.receivedAt).toLocaleString()}
+              Status: <strong>{popupInvoice.status}</strong> | Received: {new Date(popupInvoice.receivedAt).toLocaleString()}
             </p>
-            <ApprovalTimeline invoice={popupInvoice} />
             <div className="popup-content">
               {popupInvoiceDetailLoading ? <p className="muted">Loading full invoice details...</p> : null}
               <div className="source-preview-section">

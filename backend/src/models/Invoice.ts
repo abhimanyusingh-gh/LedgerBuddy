@@ -135,6 +135,10 @@ invoiceSchema.index(
 );
 
 invoiceSchema.index({ tenantId: 1, status: 1, createdAt: -1 });
+invoiceSchema.index({ tenantId: 1, createdAt: 1 });
+invoiceSchema.index({ tenantId: 1, "approval.approvedAt": 1 });
+invoiceSchema.index({ tenantId: 1, "export.exportedAt": 1 });
+invoiceSchema.index({ tenantId: 1, "parsed.vendorName": 1, status: 1 });
 
 type Invoice = InferSchemaType<typeof invoiceSchema>;
 export type InvoiceDocument = HydratedDocument<Invoice>;

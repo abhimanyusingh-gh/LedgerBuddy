@@ -68,7 +68,17 @@ export function BankConnectionsTab({
               <div key={mailbox._id} style={{ border: "1px solid var(--line)", borderRadius: 8, padding: "0.75rem 1rem" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", flexWrap: "wrap" }}>
                   <span style={{ fontWeight: 600, fontSize: "0.9rem" }}>{mailbox.emailAddress ?? "(unknown)"}</span>
-                  <span className={`bank-status-badge ${mailbox.status === "connected" ? "bank-status-active" : "bank-status-error"}`}>
+                  <span
+                    style={{
+                      fontSize: "0.72rem",
+                      padding: "0.2rem 0.5rem",
+                      borderRadius: 4,
+                      fontWeight: 600,
+                      textTransform: "uppercase",
+                      background: mailbox.status === "connected" ? "#dcfce7" : "#fee2e2",
+                      color: mailbox.status === "connected" ? "#166534" : "#991b1b"
+                    }}
+                  >
                     {mailbox.status}
                   </span>
                   {mailbox.lastSyncedAt ? (
@@ -149,7 +159,7 @@ export function BankConnectionsTab({
         <div className="editor-header">
           <h3>Bank Accounts</h3>
         </div>
-        <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", marginTop: "0.5rem", marginBottom: "1rem" }}>
+        <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", marginBottom: "1rem" }}>
           <input
             value={aaAddress}
             onChange={(e) => setAaAddress(e.target.value)}

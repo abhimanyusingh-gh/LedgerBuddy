@@ -4,8 +4,6 @@ import {
   Area,
   BarChart,
   Bar,
-  LineChart,
-  Line,
   PieChart,
   Pie,
   Cell,
@@ -17,36 +15,28 @@ import {
 } from "recharts";
 import { fetchAnalyticsOverview } from "../api";
 import { EmptyState } from "./EmptyState";
-import type { AnalyticsOverview, DailyStat, VendorStat } from "../types";
+import type { AnalyticsOverview, DailyStat } from "../types";
 import { STATUS_LABELS } from "../invoiceView";
-import { computeBurndown } from "../burndown";
-
-function toLocalDateStr(d: Date): string {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
-}
 
 function todayStr(): string {
-  return toLocalDateStr(new Date());
+  return new Date().toISOString().slice(0, 10);
 }
 
 function firstOfMonthStr(): string {
   const now = new Date();
-  return toLocalDateStr(new Date(now.getFullYear(), now.getMonth(), 1));
+  return new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
 }
 
 function firstOfQuarterStr(): string {
   const now = new Date();
   const quarterStart = Math.floor(now.getMonth() / 3) * 3;
-  return toLocalDateStr(new Date(now.getFullYear(), quarterStart, 1));
+  return new Date(now.getFullYear(), quarterStart, 1).toISOString().slice(0, 10);
 }
 
 function nDaysAgoStr(n: number): string {
   const d = new Date();
   d.setDate(d.getDate() - n + 1);
-  return toLocalDateStr(d);
+  return d.toISOString().slice(0, 10);
 }
 
 function lastMonthRange(): { from: string; to: string } {
@@ -55,12 +45,10 @@ function lastMonthRange(): { from: string; to: string } {
   const lastOfLastMonth = new Date(firstOfThisMonth.getTime() - 1);
   const firstOfLastMonth = new Date(lastOfLastMonth.getFullYear(), lastOfLastMonth.getMonth(), 1);
   return {
-    from: toLocalDateStr(firstOfLastMonth),
-    to: toLocalDateStr(lastOfLastMonth)
+    from: firstOfLastMonth.toISOString().slice(0, 10),
+    to: lastOfLastMonth.toISOString().slice(0, 10)
   };
 }
-
-type PresetKey = "this-month" | "last-month" | "7d" | "30d" | "quarter" | null;
 
 function priorPeriodRange(from: string, to: string): { from: string; to: string } {
   const start = new Date(from);
@@ -112,20 +100,7 @@ const STATUS_COLORS: Record<string, string> = {
   FAILED_PARSE: "var(--status-failed-parse)"
 };
 
-const VENDOR_COLORS = ["var(--chart-blue)", "var(--chart-emerald)", "var(--chart-amber)", "var(--chart-rose)", "var(--chart-violet)", "#94a3b8"];
-const TOP_VENDOR_COUNT = 5;
-
-function collapseVendors(vendors: VendorStat[]): VendorStat[] {
-  if (vendors.length <= TOP_VENDOR_COUNT) return vendors;
-  const top = vendors.slice(0, TOP_VENDOR_COUNT);
-  const rest = vendors.slice(TOP_VENDOR_COUNT);
-  const others: VendorStat = {
-    vendor: `Others (${rest.length})`,
-    count: rest.reduce((s, v) => s + v.count, 0),
-    amountMinor: rest.reduce((s, v) => s + v.amountMinor, 0)
-  };
-  return [...top, others];
-}
+const VENDOR_COLORS = ["var(--chart-blue)", "var(--chart-emerald)", "var(--chart-amber)", "var(--chart-rose)", "var(--chart-violet)", "var(--chart-cyan)", "#6366f1", "#a855f7", "#db2777", "#0ea5e9"];
 
 const KPI_ICONS: Record<string, string> = {
   total: "receipt_long",
@@ -224,7 +199,6 @@ function ChartTooltip({ active, payload, label }: { active?: boolean; payload?: 
 export function OverviewDashboard() {
   const [from, setFrom] = useState(firstOfMonthStr());
   const [to, setTo] = useState(todayStr());
-  const [activePreset, setActivePreset] = useState<PresetKey>("this-month");
   const [scope, setScope] = useState<"mine" | "all">("all");
   const [data, setData] = useState<AnalyticsOverview | null>(null);
   const [priorData, setPriorData] = useState<AnalyticsOverview | null>(null);
@@ -255,10 +229,9 @@ export function OverviewDashboard() {
     return () => { cancelled = true; };
   }, [from, to, scope]);
 
-  function applyPreset(f: string, t: string, key: PresetKey) {
+  function applyPreset(f: string, t: string) {
     setFrom(f);
     setTo(t);
-    setActivePreset(key);
   }
 
   const kpis = data?.kpis;
@@ -284,14 +257,14 @@ export function OverviewDashboard() {
     <div className="overview-dashboard">
       <div className="overview-date-bar">
         <span style={{ fontWeight: 600, fontSize: "0.85rem", color: "var(--ink-soft)" }}>Date range:</span>
-        <input type="date" value={from} max={to} onChange={(e) => { setFrom(e.target.value); setActivePreset(null); }} />
+        <input type="date" value={from} max={to} onChange={(e) => setFrom(e.target.value)} />
         <span style={{ color: "var(--ink-soft)" }}>–</span>
-        <input type="date" value={to} min={from} onChange={(e) => { setTo(e.target.value); setActivePreset(null); }} />
-        <button className={`overview-preset-btn${activePreset === "this-month" ? " overview-preset-btn-active" : ""}`} onClick={() => applyPreset(firstOfMonthStr(), todayStr(), "this-month")}>This Month</button>
-        <button className={`overview-preset-btn${activePreset === "last-month" ? " overview-preset-btn-active" : ""}`} onClick={() => { const r = lastMonthRange(); applyPreset(r.from, r.to, "last-month"); }}>Last Month</button>
-        <button className={`overview-preset-btn${activePreset === "7d" ? " overview-preset-btn-active" : ""}`} onClick={() => applyPreset(nDaysAgoStr(7), todayStr(), "7d")}>Last 7 Days</button>
-        <button className={`overview-preset-btn${activePreset === "30d" ? " overview-preset-btn-active" : ""}`} onClick={() => applyPreset(nDaysAgoStr(30), todayStr(), "30d")}>Last 30 Days</button>
-        <button className={`overview-preset-btn${activePreset === "quarter" ? " overview-preset-btn-active" : ""}`} onClick={() => applyPreset(firstOfQuarterStr(), todayStr(), "quarter")}>This Quarter</button>
+        <input type="date" value={to} min={from} max={todayStr()} onChange={(e) => setTo(e.target.value)} />
+        <button className="overview-preset-btn" onClick={() => applyPreset(firstOfMonthStr(), todayStr())}>This Month</button>
+        <button className="overview-preset-btn" onClick={() => { const r = lastMonthRange(); applyPreset(r.from, r.to); }}>Last Month</button>
+        <button className="overview-preset-btn" onClick={() => applyPreset(nDaysAgoStr(7), todayStr())}>Last 7 Days</button>
+        <button className="overview-preset-btn" onClick={() => applyPreset(nDaysAgoStr(30), todayStr())}>Last 30 Days</button>
+        <button className="overview-preset-btn" onClick={() => applyPreset(firstOfQuarterStr(), todayStr())}>This Quarter</button>
         {loading ? <span style={{ fontSize: "0.8rem", color: "var(--ink-soft)" }}>Refreshing…</span> : null}
         <div style={{ marginLeft: "auto", display: "flex", gap: 0, borderRadius: 6, overflow: "hidden", border: "1px solid var(--line)" }}>
           <button
@@ -435,13 +408,15 @@ export function OverviewDashboard() {
                 </>
               ) : <ChartEmptyState />}
             </div>
+          </div>
 
-            <div className="overview-chart-card">
-              <h4>
-                Daily Exports
-                <span className="chart-subtitle">Invoices exported to Tally per day</span>
-              </h4>
-              {data.dailyExports.length > 0 ? (
+          {data.dailyExports.length > 0 ? (
+            <div className="overview-charts-grid" style={{ gridTemplateColumns: "1fr" }}>
+              <div className="overview-chart-card">
+                <h4>
+                  Daily Exports
+                  <span className="chart-subtitle">Invoices exported to Tally per day</span>
+                </h4>
                 <ResponsiveContainer width="100%" height={220}>
                   <BarChart data={data.dailyExports} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="var(--line)" />
@@ -451,91 +426,86 @@ export function OverviewDashboard() {
                     <Bar dataKey="count" name="count" fill="var(--chart-violet)" radius={[3, 3, 0, 0]} animationDuration={800} />
                   </BarChart>
                 </ResponsiveContainer>
+              </div>
+            </div>
+          ) : null}
+
+          <div className="overview-vendors-grid">
+            <div className="overview-chart-card">
+              <h4>
+                Top 10 Vendors by Approved Amount
+                <span className="chart-subtitle">Highest-value approved vendors</span>
+              </h4>
+              {data.topVendorsByApproved.length > 0 ? (
+                <ResponsiveContainer width="100%" height={280}>
+                  <BarChart data={data.topVendorsByApproved} layout="vertical" margin={{ top: 4, right: 16, left: 4, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--line)" horizontal={false} />
+                    <XAxis type="number" tick={{ fontSize: 11 }} tickFormatter={(v: number) => fmtInrShort(v)} />
+                    <YAxis type="category" dataKey="vendor" width={110} tick={{ fontSize: 11 }} />
+                    <Tooltip formatter={(v: number) => [fmtInr(v), "Approved"]} />
+                    <Bar dataKey="amountMinor" radius={[0, 3, 3, 0]} animationDuration={800}>
+                      {data.topVendorsByApproved.map((_, i) => (
+                        <Cell key={i} fill={VENDOR_COLORS[i % VENDOR_COLORS.length]} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
               ) : <ChartEmptyState />}
             </div>
 
             <div className="overview-chart-card">
               <h4>
-                Pending Burndown
-                <span className="chart-subtitle">Remaining unapproved value (₹)</span>
-              </h4>
-              {(() => {
-                const totalAmount = (kpis?.approvedAmountMinor ?? 0) + (kpis?.pendingAmountMinor ?? 0);
-                const burndown = computeBurndown(totalAmount, data.dailyApprovals);
-                return burndown.length > 0 ? (
-                  <ResponsiveContainer width="100%" height={220}>
-                    <LineChart data={burndown} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="var(--line)" />
-                      <XAxis dataKey="date" tick={{ fontSize: 11 }} tickFormatter={fmtDate} />
-                      <YAxis tick={{ fontSize: 11 }} tickFormatter={(v: number) => fmtInrShort(v)} width={52} />
-                      <Tooltip formatter={(v: number) => [fmtInr(v), "Remaining"]} labelFormatter={fmtDate} />
-                      <Line type="monotone" dataKey="remainingMinor" stroke="var(--chart-rose)" strokeWidth={2} dot={false} animationDuration={800} />
-                    </LineChart>
-                  </ResponsiveContainer>
-                ) : <ChartEmptyState />;
-              })()}
-            </div>
-          </div>
-
-          <div className="overview-vendors-grid">
-            <div className="overview-chart-card">
-              <h4>
-                Top Vendors by Approved Amount
-                <span className="chart-subtitle">Highest-value approved vendors</span>
-              </h4>
-              {data.topVendorsByApproved.length > 0 ? (() => {
-                const collapsed = collapseVendors(data.topVendorsByApproved);
-                return (
-                  <ResponsiveContainer width="100%" height={Math.max(160, collapsed.length * 36)}>
-                    <BarChart data={collapsed} layout="vertical" margin={{ top: 4, right: 16, left: 4, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="var(--line)" horizontal={false} />
-                      <XAxis type="number" tick={{ fontSize: 11 }} tickFormatter={(v: number) => fmtInrShort(v)} />
-                      <YAxis type="category" dataKey="vendor" width={120} tick={{ fontSize: 11 }} />
-                      <Tooltip formatter={(v: number) => [fmtInr(v), "Approved"]} />
-                      <Bar dataKey="amountMinor" radius={[0, 3, 3, 0]} animationDuration={800}>
-                        {collapsed.map((_, i) => (
-                          <Cell key={i} fill={VENDOR_COLORS[i % VENDOR_COLORS.length]} />
-                        ))}
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
-                );
-              })() : <ChartEmptyState />}
-            </div>
-
-            <div className="overview-chart-card">
-              <h4>
-                Top Vendors by Pending Amount
+                Top 10 Vendors by Pending Amount
                 <span className="chart-subtitle">Vendors with highest pending value</span>
               </h4>
-              {data.topVendorsByPending.length > 0 ? (() => {
-                const collapsed = collapseVendors(data.topVendorsByPending);
-                return (
-                  <ResponsiveContainer width="100%" height={Math.max(160, collapsed.length * 36)}>
-                    <BarChart data={collapsed} layout="vertical" margin={{ top: 4, right: 16, left: 4, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="var(--line)" horizontal={false} />
-                      <XAxis type="number" tick={{ fontSize: 11 }} tickFormatter={(v: number) => fmtInrShort(v)} />
-                      <YAxis type="category" dataKey="vendor" width={120} tick={{ fontSize: 11 }} />
-                      <Tooltip formatter={(v: number) => [fmtInr(v), "Pending"]} />
-                      <Bar dataKey="amountMinor" radius={[0, 3, 3, 0]} animationDuration={800}>
-                        {collapsed.map((_, i) => (
-                          <Cell key={i} fill={VENDOR_COLORS[i % VENDOR_COLORS.length]} />
-                        ))}
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
-                );
-              })() : <ChartEmptyState />}
+              {data.topVendorsByPending.length > 0 ? (
+                <ResponsiveContainer width="100%" height={280}>
+                  <BarChart data={data.topVendorsByPending} layout="vertical" margin={{ top: 4, right: 16, left: 4, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--line)" horizontal={false} />
+                    <XAxis type="number" tick={{ fontSize: 11 }} tickFormatter={(v: number) => fmtInrShort(v)} />
+                    <YAxis type="category" dataKey="vendor" width={110} tick={{ fontSize: 11 }} />
+                    <Tooltip formatter={(v: number) => [fmtInr(v), "Pending"]} />
+                    <Bar dataKey="amountMinor" radius={[0, 3, 3, 0]} animationDuration={800}>
+                      {data.topVendorsByPending.map((_, i) => (
+                        <Cell key={i} fill={VENDOR_COLORS[i % VENDOR_COLORS.length]} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : <ChartEmptyState />}
             </div>
           </div>
 
+          {data.agingBuckets && data.agingBuckets.length > 0 ? (
+            <div className="overview-charts-grid" style={{ gridTemplateColumns: "1fr" }}>
+              <div className="overview-chart-card">
+                <h4>
+                  Invoice Aging
+                  <span className="chart-subtitle">Non-exported invoices by days since received</span>
+                </h4>
+                <ResponsiveContainer width="100%" height={180}>
+                  <BarChart data={data.agingBuckets} margin={{ top: 4, right: 16, left: 4, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--line)" />
+                    <XAxis dataKey="bucket" tick={{ fontSize: 11 }} />
+                    <YAxis tick={{ fontSize: 11 }} allowDecimals={false} width={32} />
+                    <Tooltip formatter={(v: number, name: string) => [name === "amountMinor" ? fmtInr(v) : v, name === "amountMinor" ? "Amount" : "Count"]} />
+                    <Bar dataKey="count" name="Count" animationDuration={800}>
+                      {data.agingBuckets.map((entry) => (
+                        <Cell key={entry.bucket} fill={entry.bucket === "0-30" ? "var(--chart-emerald)" : entry.bucket === "31-60" ? "var(--chart-amber)" : entry.bucket === "61-90" ? "var(--chart-rose)" : "var(--warn)"} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          ) : null}
         </>
       ) : !loading ? (
         <EmptyState
           icon="insights"
           heading="No data for this period"
           description="Try adjusting the date range or check back after some invoices are processed."
-          action={<button type="button" className="app-button app-button-primary" onClick={() => applyPreset(firstOfMonthStr(), todayStr(), "this-month")}>Reset to This Month</button>}
+          action={<button type="button" className="app-button app-button-primary" onClick={() => applyPreset(firstOfMonthStr(), todayStr())}>Reset to This Month</button>}
         />
       ) : null}
     </div>

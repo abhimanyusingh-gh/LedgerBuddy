@@ -1,4 +1,4 @@
-export type TenantViewTab = "dashboard" | "config" | "exports";
+export type TenantViewTab = "overview" | "dashboard" | "config" | "exports" | "connections";
 
 interface TenantViewTabsProps {
   activeTab: TenantViewTab;
@@ -7,25 +7,21 @@ interface TenantViewTabsProps {
 }
 
 export function TenantViewTabs({ activeTab, canViewTenantConfig, onTabChange }: TenantViewTabsProps) {
-  if (!canViewTenantConfig) {
-    return null;
-  }
-
   return (
     <div className="tenant-view-tabs" role="tablist" aria-label="Tenant workspace sections">
+      <button
+        type="button"
+        className={activeTab === "overview" ? "tenant-view-tab tenant-view-tab-active" : "tenant-view-tab"}
+        onClick={() => onTabChange("overview")}
+      >
+        Overview
+      </button>
       <button
         type="button"
         className={activeTab === "dashboard" ? "tenant-view-tab tenant-view-tab-active" : "tenant-view-tab"}
         onClick={() => onTabChange("dashboard")}
       >
-        Dashboard
-      </button>
-      <button
-        type="button"
-        className={activeTab === "config" ? "tenant-view-tab tenant-view-tab-active" : "tenant-view-tab"}
-        onClick={() => onTabChange("config")}
-      >
-        Tenant Config
+        Invoices
       </button>
       <button
         type="button"
@@ -34,6 +30,24 @@ export function TenantViewTabs({ activeTab, canViewTenantConfig, onTabChange }: 
       >
         Exports
       </button>
+      {canViewTenantConfig ? (
+        <button
+          type="button"
+          className={activeTab === "config" ? "tenant-view-tab tenant-view-tab-active" : "tenant-view-tab"}
+          onClick={() => onTabChange("config")}
+        >
+          Tenant Config
+        </button>
+      ) : null}
+      {canViewTenantConfig ? (
+        <button
+          type="button"
+          className={activeTab === "connections" ? "tenant-view-tab tenant-view-tab-active" : "tenant-view-tab"}
+          onClick={() => onTabChange("connections")}
+        >
+          Connections
+        </button>
+      ) : null}
     </div>
   );
 }
