@@ -935,7 +935,6 @@ body {
 .list-scroll,
 .detail-scroll {
   overflow: auto;
-  overflow-x: hidden;
   flex: 1;
   min-height: 0;
 }
@@ -957,6 +956,13 @@ td {
   text-align: left;
   padding: 0.5rem 0.65rem;
   border-bottom: 1px solid rgba(215, 209, 191, 0.6);
+}
+
+.list-scroll thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--bg-panel);
 }
 
 tr {
@@ -2713,4 +2719,44 @@ pre {
   z-index: 50;
   pointer-events: none;
   box-shadow: var(--shadow-lg);
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 2.5rem 1rem;
+  color: var(--ink-soft);
+  min-height: 12rem;
+}
+
+.empty-state-icon-wrap {
+  border-radius: 999px;
+  background: #f1f5f9;
+  padding: 0.85rem;
+  margin-bottom: 0.75rem;
+}
+
+.empty-state-icon-wrap .material-symbols-outlined {
+  font-size: 2rem;
+  color: #94a3b8;
+}
+
+.empty-state h4 {
+  margin: 0;
+  font-size: 1rem;
+  color: var(--ink);
+}
+
+.empty-state p {
+  margin: 0.4rem 0 0;
+  max-width: 22rem;
+  line-height: 1.5;
+  font-size: 0.85rem;
+}
+
+.empty-state .app-button {
+  margin-top: 1rem;
 }

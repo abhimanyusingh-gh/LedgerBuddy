@@ -471,8 +471,8 @@ export function TenantInvoicesView({
     if (selectedIds.length === 0) return;
     setConfirmDialog({
       title: "Delete Invoices",
-      message: `Delete ${selectedIds.length} invoice(s)? This cannot be undone.`,
-      confirmLabel: "Delete",
+      message: `Delete ${selectedIds.length} invoice${selectedIds.length === 1 ? "" : "s"}? This cannot be undone.`,
+      confirmLabel: `Delete ${selectedIds.length} invoice${selectedIds.length === 1 ? "" : "s"}`,
       destructive: true,
       onConfirm: async () => {
         setConfirmDialog(null);
@@ -540,7 +540,7 @@ export function TenantInvoicesView({
     setConfirmDialog({
       title: "Delete Invoice",
       message: `Delete "${fileName}"? This cannot be undone.`,
-      confirmLabel: "Delete",
+      confirmLabel: "Delete invoice",
       destructive: true,
       onConfirm: async () => {
         setConfirmDialog(null);
@@ -593,7 +593,7 @@ export function TenantInvoicesView({
     setConfirmDialog({
       title: "Export to Tally",
       message: `Export ${selectedExportableIds.length} approved invoice file${selectedExportableIds.length === 1 ? "" : "s"} to Tally?`,
-      confirmLabel: "Export",
+      confirmLabel: `Export ${selectedExportableIds.length} invoice${selectedExportableIds.length === 1 ? "" : "s"}`,
       destructive: false,
       onConfirm: async () => {
         setConfirmDialog(null);
@@ -948,7 +948,7 @@ export function TenantInvoicesView({
                             onClick={(event) => event.stopPropagation()}
                           />
                         </td>
-                        <td className="file-name-cell" onClick={(e) => e.stopPropagation()}>
+                        <td className="file-name-cell">
                           {editingListCell?.invoiceId === invoice._id && editingListCell.field === "attachmentName" ? (
                             <>
                               <input className="extracted-value-input" value={editListValue} onChange={(e) => setEditListValue(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") void handleSaveListCell(); if (e.key === "Escape") setEditingListCell(null); }} autoFocus />
@@ -965,7 +965,7 @@ export function TenantInvoicesView({
                             </>
                           )}
                         </td>
-                        <td className="extracted-value-cell" onClick={(e) => e.stopPropagation()}>
+                        <td className="extracted-value-cell">
                           {editingListCell?.invoiceId === invoice._id && editingListCell.field === "vendorName" ? (
                             <>
                               <input className="extracted-value-input" value={editListValue} onChange={(e) => setEditListValue(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") void handleSaveListCell(); if (e.key === "Escape") setEditingListCell(null); }} autoFocus />
@@ -982,7 +982,7 @@ export function TenantInvoicesView({
                             </>
                           )}
                         </td>
-                        <td className="extracted-value-cell" onClick={(e) => e.stopPropagation()}>
+                        <td className="extracted-value-cell">
                           {editingListCell?.invoiceId === invoice._id && editingListCell.field === "invoiceNumber" ? (
                             <>
                               <input className="extracted-value-input" value={editListValue} onChange={(e) => setEditListValue(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") void handleSaveListCell(); if (e.key === "Escape") setEditingListCell(null); }} autoFocus />
@@ -999,7 +999,7 @@ export function TenantInvoicesView({
                             </>
                           )}
                         </td>
-                        <td className="extracted-value-cell" onClick={(e) => e.stopPropagation()}>
+                        <td className="extracted-value-cell">
                           {editingListCell?.invoiceId === invoice._id && editingListCell.field === "invoiceDate" ? (
                             <>
                               <input className="extracted-value-input" type="date" value={editListValue} onChange={(e) => setEditListValue(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") void handleSaveListCell(); if (e.key === "Escape") setEditingListCell(null); }} autoFocus />
@@ -1020,7 +1020,6 @@ export function TenantInvoicesView({
                           className={
                             [invoice.riskFlags.includes("TOTAL_AMOUNT_ABOVE_EXPECTED") ? "value-risk" : null, "extracted-value-cell"].filter(Boolean).join(" ")
                           }
-                          onClick={(e) => e.stopPropagation()}
                         >
                           {editingListCell?.invoiceId === invoice._id && editingListCell.field === "totalAmountMinor" ? (
                             <>

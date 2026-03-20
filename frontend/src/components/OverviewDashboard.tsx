@@ -14,6 +14,7 @@ import {
   ResponsiveContainer
 } from "recharts";
 import { fetchAnalyticsOverview } from "../api";
+import { EmptyState } from "./EmptyState";
 import type { AnalyticsOverview, DailyStat } from "../types";
 import { STATUS_LABELS } from "../invoiceView";
 
@@ -476,7 +477,12 @@ export function OverviewDashboard() {
           </div>
         </>
       ) : !loading ? (
-        <p style={{ color: "var(--ink-soft)", fontSize: "0.9rem" }}>No data available for selected range.</p>
+        <EmptyState
+          icon="insights"
+          heading="No data for this period"
+          description="Try adjusting the date range or check back after some invoices are processed."
+          action={<button type="button" className="app-button app-button-primary" onClick={() => applyPreset(firstOfMonthStr(), todayStr())}>Reset to This Month</button>}
+        />
       ) : null}
     </div>
   );
