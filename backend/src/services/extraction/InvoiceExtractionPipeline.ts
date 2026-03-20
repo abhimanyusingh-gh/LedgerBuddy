@@ -405,11 +405,17 @@ export class InvoiceExtractionPipeline {
       });
       metadata.verifierApplied = "true";
 
-      if (
-        this.llmAssistConfidenceThreshold > 0 &&
-        confidence.score < this.llmAssistConfidenceThreshold &&
-        ocrPageImages.length > 0
-      ) {
+      const essentialFieldsMissing =
+        !parsed.invoiceNumber?.trim() ||
+        !parsed.invoiceDate?.trim() ||
+        parsed.totalAmountMinor == null ||
+        parsed.totalAmountMinor === 0;
+
+      const shouldRunLlmAssist =
+        ocrPageImages.length > 0 &&
+        (essentialFieldsMissing || (this.llmAssistConfidenceThreshold > 0 && confidence.score < this.llmAssistConfidenceThreshold));
+
+      if (shouldRunLlmAssist) {
         try {
           const preLlmParsed = { ...parsed };
           const llmPageImages = ocrPageImages.slice(0, 3);
