@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, useCallback } from "react";
+import { useTheme } from "./hooks/useTheme";
 import {
   assignTenantUserRole,
   changePassword,
@@ -97,6 +98,7 @@ export function App() {
   const [platformOnboardResult, setPlatformOnboardResult] = useState<{ tempPassword: string; adminEmail: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const { toasts, addToast, removeToast } = useToast();
+  const { theme, toggleTheme } = useTheme();
 
   useEffect(() => {
     void bootstrapSession();
@@ -607,9 +609,12 @@ export function App() {
           onLogout={handleLogout}
           onChangePassword={() => setShowChangePassword(true)}
           counts={{ tenants: platformStats.tenants, failedDocuments: platformStats.failedDocuments }}
+          themeToggle={<button type="button" className="app-button app-button-secondary" style={{ padding: "0.3rem 0.5rem" }} onClick={toggleTheme} title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}><span className="material-symbols-outlined" style={{ fontSize: "1.1rem" }}>{theme === "dark" ? "light_mode" : "dark_mode"}</span></button>}
         />
       ) : (
-        <TenantAdminTopNav userEmail={session.user.email} onLogout={handleLogout} onChangePassword={() => setShowChangePassword(true)} counts={navCounts} />
+        <TenantAdminTopNav userEmail={session.user.email} onLogout={handleLogout} onChangePassword={() => setShowChangePassword(true)} counts={navCounts}
+          themeToggle={<button type="button" className="app-button app-button-secondary" style={{ padding: "0.3rem 0.5rem" }} onClick={toggleTheme} title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}><span className="material-symbols-outlined" style={{ fontSize: "1.1rem" }}>{theme === "dark" ? "light_mode" : "dark_mode"}</span></button>}
+        />
       )}
 
       {!isPlatformAdmin ? (
