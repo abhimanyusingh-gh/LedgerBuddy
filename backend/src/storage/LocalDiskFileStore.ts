@@ -36,8 +36,33 @@ export class LocalDiskFileStore implements FileStore {
     return { body, contentType };
   }
 
-  async listObjects(_prefix: string): Promise<{ key: string }[]> {
-    return [];
+  async listObjects(prefix: string): Promise<{ key: string }[]> {
+    const normalizedPrefix = normalizeKey(prefix);
+    const dirPath = path.resolve(this.rootPath, normalizedPrefix);
+    if (!isPathInsideRoot(this.rootPath, dirPath)) {
+      return [];
+    }
+
+    const results: { key: string }[] = [];
+    const walk = async (dir: string): Promise<void> => {
+      let entries;
+      try {
+        entries = await fs.readdir(dir, { withFileTypes: true });
+      } catch {
+        return;
+      }
+      for (const entry of entries) {
+        const fullPath = path.join(dir, entry.name);
+        if (entry.isDirectory()) {
+          await walk(fullPath);
+        } else if (!entry.name.endsWith(".meta.json")) {
+          const key = path.relative(this.rootPath, fullPath).replace(/\\/g, "/");
+          results.push({ key });
+        }
+      }
+    };
+    await walk(dirPath);
+    return results;
   }
 
   async deleteObject(key: string): Promise<void> {

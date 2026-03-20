@@ -71,7 +71,10 @@ export class AnumatiBankConnectionService implements IBankConnectionService {
           account.consentId = payload.consentId;
         }
       } catch {
+        account.status = "error";
         account.lastErrorReason = "Failed to decrypt consent callback params.";
+        await account.save();
+        return;
       }
     }
 

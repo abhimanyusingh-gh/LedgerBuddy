@@ -254,7 +254,8 @@ async function assertFieldVerifierConfigIsValid(runtimeManifest: RuntimeManifest
 }
 
 async function assertServiceHealth(baseUrl: string, headers: Record<string, string>, timeoutMs: number, label: string): Promise<void> {
-  const response = await withTimeout(axios.get(`${baseUrl}/health`, { headers, timeout: timeoutMs }), timeoutMs);
+  const origin = new URL(baseUrl).origin;
+  const response = await withTimeout(axios.get(`${origin}/health`, { headers, timeout: timeoutMs }), timeoutMs);
   const payload = response?.data;
   if (payload && typeof payload === "object" && !Array.isArray(payload)) {
     const p = payload as Record<string, unknown>;

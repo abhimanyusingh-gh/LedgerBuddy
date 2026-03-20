@@ -1,6 +1,6 @@
 {
   "$schema": "https://unpkg.com/knip@latest/schema.json",
-  "ignore": ["local-sts/**", "mailhog-oauth-wrapper/**"],
+  "ignore": ["mailhog-oauth-wrapper/**"],
   "workspaces": {
     "backend": {
       "project": ["src/**/*.ts"]
