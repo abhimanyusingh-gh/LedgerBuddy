@@ -33,8 +33,10 @@ import { PlatformAdminService } from "../services/platformAdminService.js";
 import { KeycloakAdminClient } from "../keycloak/KeycloakAdminClient.js";
 import { env } from "../config/env.js";
 
-const OCR_BOOTSTRAP_TIMEOUT_MS = 5_000;
-const VERIFIER_BOOTSTRAP_TIMEOUT_MS = 5_000;
+import {
+  OCR_BOOTSTRAP_TIMEOUT_MS,
+  VERIFIER_BOOTSTRAP_TIMEOUT_MS
+} from "../constants.js";
 
 interface Dependencies {
   ingestionService: IngestionService;
@@ -51,8 +53,7 @@ interface Dependencies {
   keycloakAdmin: KeycloakAdminClient;
 }
 
-export async function buildDependencies(): Promise<Dependencies> {
-  const manifest = loadRuntimeManifest();
+function buildAuthServices(manifest: RuntimeManifest) {
   const keycloakAdmin = new KeycloakAdminClient(
     env.keycloakInternalBaseUrl,
     env.keycloakRealm,
@@ -73,14 +74,13 @@ export async function buildDependencies(): Promise<Dependencies> {
   const inviteEmailSender = createInviteEmailSenderProvider();
   const tenantInviteService = new TenantInviteService(inviteEmailSender, keycloakAdmin);
   const platformAdminService = new PlatformAdminService(inviteEmailSender, keycloakAdmin);
-  const gmailIntegrationService = new TenantGmailIntegrationService();
-  const bankService: IBankConnectionService = env.ANUMATI_ENTITY_ID
-    ? new AnumatiBankConnectionService()
-    : new MockBankConnectionService();
+  return { authService, keycloakAdmin, tenantAdminService, tenantInviteService, platformAdminService };
+}
+
+async function buildExtractionPipeline(manifest: RuntimeManifest) {
   const ocrProvider = await resolveOcrProvider(manifest);
   const fieldVerifier = await resolveFieldVerifier(manifest);
-  const fileStore = resolveFileStore(manifest);
-  const extractionPipeline = new InvoiceExtractionPipeline(
+  const pipeline = new InvoiceExtractionPipeline(
     ocrProvider,
     fieldVerifier,
     new MongoVendorTemplateStore(),
@@ -90,32 +90,41 @@ export async function buildDependencies(): Promise<Dependencies> {
       llmAssistConfidenceThreshold: manifest.extraction.llmAssistConfidenceThreshold
     }
   );
-  const sources = buildIngestionSources(manifest.sources, {
-    gmailMailboxBoundary: gmailIntegrationService
-  });
-  const ingestionService = new IngestionService(sources, ocrProvider, {
-    pipeline: extractionPipeline,
-    fileStore
-  });
-  const invoiceService = new InvoiceService({ fileStore });
-  const emailSimulationService = new EmailSimulationService();
+  return { ocrProvider, fieldVerifier, pipeline };
+}
 
+function buildStorageAndExport(manifest: RuntimeManifest) {
+  const fileStore = resolveFileStore(manifest);
   const exporter = buildExporter(manifest);
   const exportService = exporter ? new ExportService(exporter, fileStore) : null;
+  return { fileStore, exportService };
+}
+
+export async function buildDependencies(): Promise<Dependencies> {
+  const manifest = loadRuntimeManifest();
+  const auth = buildAuthServices(manifest);
+  const extraction = await buildExtractionPipeline(manifest);
+  const storage = buildStorageAndExport(manifest);
+
+  const gmailIntegrationService = new TenantGmailIntegrationService();
+  const bankService: IBankConnectionService = env.ANUMATI_ENTITY_ID
+    ? new AnumatiBankConnectionService()
+    : new MockBankConnectionService();
+  const sources = buildIngestionSources(manifest.sources, { gmailMailboxBoundary: gmailIntegrationService });
+  const ingestionService = new IngestionService(sources, extraction.ocrProvider, {
+    pipeline: extraction.pipeline,
+    fileStore: storage.fileStore
+  });
 
   return {
     ingestionService,
-    invoiceService,
-    exportService,
-    emailSimulationService,
-    authService,
-    tenantAdminService,
-    tenantInviteService,
-    platformAdminService,
+    invoiceService: new InvoiceService({ fileStore: storage.fileStore }),
+    exportService: storage.exportService,
+    emailSimulationService: new EmailSimulationService(),
+    ...auth,
     gmailIntegrationService,
     bankService,
-    fileStore,
-    keycloakAdmin
+    fileStore: storage.fileStore
   };
 }
 

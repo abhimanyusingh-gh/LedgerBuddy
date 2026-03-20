@@ -275,7 +275,7 @@ export class ExportService {
   }
 }
 
-const EXPORT_SAVE_CONCURRENCY = 20;
+import { EXPORT_SAVE_CONCURRENCY } from "../constants.js";
 
 async function saveBatch<T>(
   items: T[],

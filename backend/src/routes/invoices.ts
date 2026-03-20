@@ -17,6 +17,8 @@ import { requireNotViewer } from "../auth/middleware.js";
 import { ViewerScopeModel } from "../models/ViewerScope.js";
 import { getPreviewStorageRoot, isPathInsideRoot } from "../utils/previewStorage.js";
 import { requireAuth } from "../auth/requireAuth.js";
+import { logger } from "../utils/logger.js";
+import { validateDateRange } from "../utils/validation.js";
 
 let s3Client: S3Client | null = null;
 const SOURCE_OVERLAY_FIELDS = new Set([
@@ -43,6 +45,11 @@ export function createInvoiceRouter(invoiceService: InvoiceService, fileStore?: 
       const fromDate = parseIsoDate(req.query.from);
       const toDate = parseIsoDate(req.query.to);
       if (toDate) toDate.setHours(23, 59, 59, 999);
+      const dateCheck = validateDateRange(fromDate ?? undefined, toDate ?? undefined);
+      if (!dateCheck.valid) {
+        res.status(400).json({ message: dateCheck.message });
+        return;
+      }
       let approvedBy = typeof req.query.approvedBy === "string" ? req.query.approvedBy : undefined;
 
       if (authContext.role === "VIEWER" && !approvedBy) {
@@ -235,7 +242,12 @@ export function createInvoiceRouter(invoiceService: InvoiceService, fileStore?: 
             res.type(invoice.mimeType);
             res.send(obj.body);
             return;
-          } catch {
+          } catch (error) {
+            logger.warn("invoices.preview.s3.fetch.failed", {
+              uploadKey,
+              invoiceId: req.params.id,
+              error: error instanceof Error ? error.message : String(error)
+            });
             res.status(404).json({ message: "Uploaded file not found in storage." });
             return;
           }

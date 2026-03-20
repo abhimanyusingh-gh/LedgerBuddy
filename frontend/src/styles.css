@@ -171,6 +171,42 @@
 
 [data-theme="dark"] .help-tooltip { background: #f1f5f9; color: #0f172a; }
 
+[data-theme="dark"] .overview-preset-btn { background: var(--bg-panel); color: var(--ink-soft); border-color: var(--line); }
+[data-theme="dark"] .overview-preset-btn-active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+[data-theme="dark"] .bank-account-card { background: var(--bg-panel); border-color: var(--line); }
+[data-theme="dark"] .bank-status-active { background: rgba(34, 197, 94, 0.15); color: #86efac; }
+[data-theme="dark"] .bank-status-pending { background: rgba(234, 179, 8, 0.15); color: #fde047; }
+[data-theme="dark"] .bank-status-error { background: rgba(239, 68, 68, 0.15); color: #fca5a5; }
+
+[data-theme="dark"] .platform-hero-metric { background: var(--bg-panel); border-color: var(--line); }
+[data-theme="dark"] .platform-hero-metric span { color: var(--ink-soft); }
+[data-theme="dark"] .platform-hero-metric strong { color: var(--accent); }
+[data-theme="dark"] .platform-hero-metric-alert strong { color: var(--warn); }
+
+[data-theme="dark"] .source-highlight-chip { background: var(--bg-panel); border-color: var(--line); }
+[data-theme="dark"] .source-highlight-chip-active { border-color: rgba(31, 122, 108, 0.6); background: rgba(31, 122, 108, 0.18); }
+
+[data-theme="dark"] .mailbox-banner { border-color: rgba(244, 63, 94, 0.35); background: rgba(244, 63, 94, 0.08); }
+[data-theme="dark"] .mailbox-banner button { border-color: rgba(244, 63, 94, 0.4); background: rgba(244, 63, 94, 0.12); color: #fb7185; }
+
+[data-theme="dark"] .tenant-nav-divider { background: var(--line); }
+[data-theme="dark"] .tenant-avatar { background: rgba(59, 130, 246, 0.15); color: #93c5fd; border-color: var(--line); }
+
+[data-theme="dark"] .tenant-view-tabs { border-bottom-color: var(--line); }
+[data-theme="dark"] .tenant-view-tab { color: var(--ink-soft); }
+[data-theme="dark"] .tenant-view-tab-active { color: var(--accent); border-bottom-color: var(--accent); }
+
+[data-theme="dark"] .chart-empty-state .material-symbols-outlined { color: #475569; }
+
+[data-theme="dark"] .app-button-secondary { background: var(--bg-panel); border-color: var(--line); color: var(--ink); }
+[data-theme="dark"] .app-button-secondary:hover:not(:disabled) { background: #334155; border-color: #475569; }
+
+[data-theme="dark"] .empty-state-icon-wrap { background: rgba(59, 130, 246, 0.1); }
+[data-theme="dark"] .empty-state-icon-wrap .material-symbols-outlined { color: #64748b; }
+
+[data-theme="dark"] .editor-card select { background: #0f172a; border-color: var(--line); color: var(--ink); }
+
 * {
   box-sizing: border-box;
 }

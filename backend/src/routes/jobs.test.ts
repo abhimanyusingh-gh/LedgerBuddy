@@ -172,6 +172,18 @@ describe("jobs routes", () => {
       expect(res.statusCode).toBe(400);
     });
 
+    it("rejects unsupported file extensions", async () => {
+      const fileStore = createMockFileStore();
+      const router = createJobsRouter(createMockIngestionService(), undefined, fileStore);
+      const files = [{ originalname: "malware.exe", buffer: Buffer.from("bad"), mimetype: "application/octet-stream" }];
+      const res = mockResponse();
+
+      await findSecondHandler(router, "post", "/jobs/upload")(mockRequest({ authContext: defaultAuth, files }), res, jest.fn());
+
+      expect(res.statusCode).toBe(400);
+      expect((res.jsonBody as { message: string }).message).toContain("Unsupported file type");
+    });
+
     it("sets pendingRerun instead of inflating totalFiles during running job", async () => {
       const service = createMockIngestionService({ runOnce: jest.fn(() => new Promise(() => {})) });
       const fileStore = createMockFileStore();
@@ -193,10 +205,11 @@ describe("jobs routes", () => {
       expect((statusRes.jsonBody as { totalFiles: number }).totalFiles).toBe(initialTotal);
     });
 
-    it("handles duplicate invoice creation gracefully", async () => {
+    it("handles E11000 duplicate invoice creation gracefully", async () => {
       const router = createJobsRouter(createMockIngestionService(), undefined, createMockFileStore());
       const { InvoiceModel } = await import("../models/Invoice.ts");
-      (InvoiceModel.create as jest.Mock).mockResolvedValueOnce({ _id: "inv-1" }).mockRejectedValueOnce(new Error("dup"));
+      const dupError = Object.assign(new Error("E11000 duplicate key error"), { code: 11000 });
+      (InvoiceModel.create as jest.Mock).mockResolvedValueOnce({ _id: "inv-1" }).mockRejectedValueOnce(dupError);
 
       const res = mockResponse();
       await findSecondHandler(router, "post", "/jobs/upload")(

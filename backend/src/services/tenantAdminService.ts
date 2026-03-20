@@ -2,6 +2,10 @@ import { TenantModel } from "../models/Tenant.js";
 import { TenantUserRoleModel, type TenantRole } from "../models/TenantUserRole.js";
 import { UserModel } from "../models/User.js";
 import { HttpError } from "../errors/HttpError.js";
+import { TenantIntegrationModel } from "../models/TenantIntegration.js";
+import { TenantMailboxAssignmentModel } from "../models/TenantMailboxAssignment.js";
+import { ViewerScopeModel } from "../models/ViewerScope.js";
+import { Types } from "mongoose";
 
 export class TenantAdminService {
   async completeOnboarding(input: {
@@ -93,6 +97,74 @@ export class TenantAdminService {
         setDefaultsOnInsert: true
       }
     );
+  }
+
+  async listMailboxes(tenantId: string) {
+    const integrations = await TenantIntegrationModel.find({ tenantId }).lean();
+    const integrationIds = integrations.map((i) => i._id);
+    const assignments = await TenantMailboxAssignmentModel.find({ tenantId, integrationId: { $in: integrationIds } }).lean();
+    const users = await this.listTenantUsers(tenantId);
+    const userMap = new Map(users.map((u) => [u.userId, u.email]));
+
+    return integrations.map((integration) => {
+      const iid = (integration._id as Types.ObjectId).toString();
+      const integrationAssignments = assignments.filter((a) => a.integrationId.toString() === iid);
+      const hasAll = integrationAssignments.some((a) => a.assignedTo === "all");
+      const specificAssignments = integrationAssignments
+        .filter((a) => a.assignedTo !== "all")
+        .map((a) => ({ userId: a.assignedTo, email: userMap.get(a.assignedTo) ?? a.assignedTo }));
+
+      return {
+        _id: iid,
+        provider: integration.provider,
+        emailAddress: integration.emailAddress,
+        status: integration.status,
+        lastSyncedAt: integration.lastSyncedAt,
+        assignments: hasAll ? ("all" as const) : specificAssignments
+      };
+    });
+  }
+
+  async assignMailbox(tenantId: string, integrationId: string, userId: string): Promise<void> {
+    const oid = new Types.ObjectId(integrationId);
+    const integration = await TenantIntegrationModel.findOne({ _id: oid, tenantId }).lean();
+    if (!integration) {
+      throw new HttpError("Mailbox not found.", 404, "mailbox_not_found");
+    }
+    await TenantMailboxAssignmentModel.updateOne(
+      { tenantId, integrationId: oid, assignedTo: userId },
+      { tenantId, integrationId: oid, assignedTo: userId },
+      { upsert: true }
+    );
+  }
+
+  async removeMailboxAssignment(tenantId: string, integrationId: string, userId: string): Promise<void> {
+    const oid = new Types.ObjectId(integrationId);
+    await TenantMailboxAssignmentModel.deleteOne({ tenantId, integrationId: oid, assignedTo: userId });
+  }
+
+  async deleteMailbox(tenantId: string, integrationId: string): Promise<void> {
+    const oid = new Types.ObjectId(integrationId);
+    const integration = await TenantIntegrationModel.findOne({ _id: oid, tenantId }).lean();
+    if (!integration) {
+      throw new HttpError("Mailbox not found.", 404, "mailbox_not_found");
+    }
+    await TenantMailboxAssignmentModel.deleteMany({ tenantId, integrationId: oid });
+    await TenantIntegrationModel.deleteOne({ _id: oid, tenantId });
+  }
+
+  async getViewerScope(tenantId: string, viewerUserId: string) {
+    const scope = await ViewerScopeModel.findOne({ tenantId, viewerUserId }).lean();
+    return { visibleUserIds: scope?.visibleUserIds ?? [] };
+  }
+
+  async setViewerScope(tenantId: string, viewerUserId: string, visibleUserIds: string[]): Promise<{ visibleUserIds: string[] }> {
+    await ViewerScopeModel.findOneAndUpdate(
+      { tenantId, viewerUserId },
+      { $set: { visibleUserIds } },
+      { upsert: true }
+    );
+    return { visibleUserIds };
   }
 
   async removeUser(input: { tenantId: string; userId: string }): Promise<void> {
