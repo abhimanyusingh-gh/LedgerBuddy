@@ -909,57 +909,53 @@ export function TenantInvoicesView({
           </button>
         ) : null}
       </div>
-      <div className="status-tabs">
-        {STATUSES.map((status) => (
-          <button
-            key={status}
-            className={status === statusFilter ? "tab tab-active" : "tab"}
-            onClick={() => setStatusFilter(status)}
-          >
-            {STATUS_LABELS[status] ?? status}
-            {allStatusCounts[status] != null ? <span className="tab-count">{allStatusCounts[status]}</span> : null}
-          </button>
-        ))}
-      </div>
       <div className="toolbar">
-        {!isViewer ? (
-          <>
-            <div className="toolbar-divider" />
-            <span className="toolbar-icon-wrap">
-              <button type="button" className="toolbar-icon-button" onClick={() => uploadInputRef.current?.click()} disabled={requiresTenantSetup}>
-                <span className="material-symbols-outlined">upload_file</span>
-              </button>
-              <span className="toolbar-icon-label">Upload</span>
-            </span>
-            <input ref={uploadInputRef} type="file" multiple accept=".pdf,.jpg,.jpeg,.png" style={{ display: "none" }} onChange={(e) => void handleUpload(e)} />
-            <span className="toolbar-icon-wrap">
-              <button type="button" className="toolbar-icon-button" onClick={() => void handleIngest()} disabled={requiresTenantSetup || ingestionStatus?.running === true}>
-                <span className="material-symbols-outlined">play_arrow</span>
-              </button>
-              <span className="toolbar-icon-label">{ingestionStatus?.state === "paused" ? "Resume" : "Ingest"}</span>
-            </span>
-            {ingestionStatus?.running === true ? (
+        <div className="status-tabs">
+          {STATUSES.map((status) => (
+            <button
+              key={status}
+              className={status === statusFilter ? "tab tab-active" : "tab"}
+              onClick={() => setStatusFilter(status)}
+            >
+              {STATUS_LABELS[status] ?? status}
+              {allStatusCounts[status] != null ? <span className="tab-count">{allStatusCounts[status]}</span> : null}
+            </button>
+          ))}
+        </div>
+        <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: "var(--sp-1)" }}>
+          {!isViewer ? (
+            <>
               <span className="toolbar-icon-wrap">
-                <button type="button" className="toolbar-icon-button" onClick={() => void handlePauseIngestion()}>
-                  <span className="material-symbols-outlined">pause</span>
+                <button type="button" className="toolbar-icon-button" onClick={() => uploadInputRef.current?.click()} disabled={requiresTenantSetup}>
+                  <span className="material-symbols-outlined">upload_file</span>
                 </button>
-                <span className="toolbar-icon-label">Pause</span>
               </span>
-            ) : null}
-          </>
-        ) : null}
-        <span className="toolbar-icon-wrap">
-          <button type="button" className="toolbar-icon-button" onClick={() => setDetailsPanelVisible((currentValue) => !currentValue)}>
-            <span className="material-symbols-outlined">{detailsPanelVisible ? "visibility_off" : "visibility"}</span>
-          </button>
-          <span className="toolbar-icon-label">{detailsPanelVisible ? "Hide Details" : "Show Details"}</span>
-        </span>
-        <div className="toolbar-divider" />
-        <select className="search-input" style={{ flex: "none", minWidth: "auto", width: "auto", fontSize: "0.8rem" }} value={tableDensity} onChange={(e) => { const d = e.target.value as "compact" | "comfortable" | "spacious"; setTableDensity(d); localStorage.setItem("billforge:table-density", d); }}>
-          <option value="compact">Compact</option>
-          <option value="comfortable">Comfortable</option>
-          <option value="spacious">Spacious</option>
-        </select>
+              <input ref={uploadInputRef} type="file" multiple accept=".pdf,.jpg,.jpeg,.png" style={{ display: "none" }} onChange={(e) => void handleUpload(e)} />
+              <span className="toolbar-icon-wrap">
+                <button type="button" className="toolbar-icon-button" onClick={() => void handleIngest()} disabled={requiresTenantSetup || ingestionStatus?.running === true}>
+                  <span className="material-symbols-outlined">play_arrow</span>
+                </button>
+              </span>
+              {ingestionStatus?.running === true ? (
+                <span className="toolbar-icon-wrap">
+                  <button type="button" className="toolbar-icon-button" onClick={() => void handlePauseIngestion()}>
+                    <span className="material-symbols-outlined">pause</span>
+                  </button>
+                </span>
+              ) : null}
+            </>
+          ) : null}
+          <span className="toolbar-icon-wrap">
+            <button type="button" className="toolbar-icon-button" onClick={() => setDetailsPanelVisible((currentValue) => !currentValue)}>
+              <span className="material-symbols-outlined">{detailsPanelVisible ? "visibility_off" : "visibility"}</span>
+            </button>
+          </span>
+          <select className="toolbar-date-input" style={{ minWidth: "auto", width: "auto" }} value={tableDensity} onChange={(e) => { const d = e.target.value as "compact" | "comfortable" | "spacious"; setTableDensity(d); localStorage.setItem("billforge:table-density", d); }}>
+            <option value="compact">Compact</option>
+            <option value="comfortable">Comfortable</option>
+            <option value="spacious">Spacious</option>
+          </select>
+        </div>
       </div>
       <IngestionProgressCard
         status={ingestionStatus}
