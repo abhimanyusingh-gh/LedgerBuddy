@@ -2,6 +2,7 @@ import { Router } from "express";
 import type { ExportService } from "../services/exportService.js";
 import { requireAuth } from "../auth/requireAuth.js";
 import { requireNotViewer } from "../auth/middleware.js";
+import { isString } from "../utils/validation.js";
 
 export function createExportRouter(exportService: ExportService | null) {
   const router = Router();
@@ -110,6 +111,3 @@ export function createExportRouter(exportService: ExportService | null) {
   return router;
 }
 
-function isString(value: unknown): value is string {
-  return typeof value === "string";
-}

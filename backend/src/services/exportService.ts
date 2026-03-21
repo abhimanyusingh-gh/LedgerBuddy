@@ -156,6 +156,19 @@ export class ExportService {
     }
 
     const fileResult = this.exporter.generateImportFile(invoices);
+
+    if (fileResult.includedCount === 0) {
+      return {
+        batchId: undefined,
+        fileKey: undefined,
+        filename: undefined,
+        total: invoices.length,
+        includedCount: 0,
+        skippedCount: fileResult.skippedItems.length,
+        skippedItems: fileResult.skippedItems
+      };
+    }
+
     const fileKey = `tally-exports/${request.tenantId}/${fileResult.filename}`;
 
     await this.fileStore.putObject({
@@ -275,7 +288,7 @@ export class ExportService {
   }
 }
 
-const EXPORT_SAVE_CONCURRENCY = 20;
+import { EXPORT_SAVE_CONCURRENCY } from "../constants.js";
 
 async function saveBatch<T>(
   items: T[],

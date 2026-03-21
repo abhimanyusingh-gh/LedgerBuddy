@@ -27,31 +27,28 @@ export function ApprovalWorkflowSection({ tenantUsers }: ApprovalWorkflowSection
     simpleConfig: { requireManagerReview: false, requireFinalSignoff: false },
     steps: []
   });
-  const [savedConfig, setSavedConfig] = useState<ApprovalWorkflowConfig | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [dirty, setDirty] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
     fetchApprovalWorkflow()
-      .then((data) => { if (!cancelled) { setConfig(data); setSavedConfig(data); setLoaded(true); } })
+      .then((data) => { if (!cancelled) { setConfig(data); setLoaded(true); } })
       .catch(() => { if (!cancelled) setLoaded(true); });
     return () => { cancelled = true; };
   }, []);
 
   const update = useCallback((patch: Partial<ApprovalWorkflowConfig>) => {
     setConfig((prev) => ({ ...prev, ...patch }));
+    setDirty(true);
     setSuccess(false);
   }, []);
 
-  const dirty = savedConfig !== null && JSON.stringify(config) !== JSON.stringify(savedConfig);
-
-  const isValid = !config.enabled || config.mode === "simple" || config.steps.length > 0;
-
   const handleSave = useCallback(async () => {
-    if (!isValid) {
+    if (config.enabled && config.mode === "advanced" && config.steps.length === 0) {
       setError("Add at least one approval step.");
       return;
     }
@@ -61,7 +58,7 @@ export function ApprovalWorkflowSection({ tenantUsers }: ApprovalWorkflowSection
     try {
       const result = await saveApprovalWorkflow(config);
       setConfig(result);
-      setSavedConfig(result);
+      setDirty(false);
       setSuccess(true);
       setTimeout(() => setSuccess(false), 3000);
     } catch (e) {
@@ -69,7 +66,7 @@ export function ApprovalWorkflowSection({ tenantUsers }: ApprovalWorkflowSection
     } finally {
       setSaving(false);
     }
-  }, [config, isValid]);
+  }, [config]);
 
   const switchToAdvanced = useCallback(() => {
     setConfig((prev) => ({
@@ -77,6 +74,7 @@ export function ApprovalWorkflowSection({ tenantUsers }: ApprovalWorkflowSection
       mode: "advanced" as const,
       steps: prev.steps.length > 0 ? prev.steps : buildSimpleSteps(prev.simpleConfig)
     }));
+    setDirty(true);
   }, []);
 
   const addStep = useCallback(() => {
@@ -91,6 +89,7 @@ export function ApprovalWorkflowSection({ tenantUsers }: ApprovalWorkflowSection
       };
       return { ...prev, steps: [...prev.steps, newStep] };
     });
+    setDirty(true);
   }, []);
 
   const removeStep = useCallback((order: number) => {
@@ -99,6 +98,7 @@ export function ApprovalWorkflowSection({ tenantUsers }: ApprovalWorkflowSection
       const renumbered = filtered.map((s, i) => ({ ...s, order: i + 1, name: s.name.startsWith("Step ") ? `Step ${i + 1}` : s.name }));
       return { ...prev, steps: renumbered };
     });
+    setDirty(true);
   }, []);
 
   const updateStep = useCallback((order: number, patch: Partial<WorkflowStep>) => {
@@ -106,6 +106,7 @@ export function ApprovalWorkflowSection({ tenantUsers }: ApprovalWorkflowSection
       ...prev,
       steps: prev.steps.map((s) => s.order === order ? { ...s, ...patch } : s)
     }));
+    setDirty(true);
   }, []);
 
   if (!loaded) {
@@ -117,16 +118,10 @@ export function ApprovalWorkflowSection({ tenantUsers }: ApprovalWorkflowSection
     );
   }
 
-  const noUsers = tenantUsers.length === 0;
-
   return (
-    <div className="editor-card" style={noUsers ? { opacity: 0.5, pointerEvents: "none" } : undefined}>
+    <div className="editor-card">
       <div className="editor-header"><h3>Approval Workflow</h3></div>
 
-      {noUsers ? (
-        <p className="workflow-hint">Add team members before configuring approval workflows.</p>
-      ) : (
-        <>
       <div className="workflow-toggle-row">
         <label>
           <input
@@ -303,17 +298,15 @@ export function ApprovalWorkflowSection({ tenantUsers }: ApprovalWorkflowSection
         </div>
       ) : null}
 
-      {dirty && isValid ? (
+      {dirty ? (
         <div className="workflow-actions">
           <button type="button" className="app-button app-button-primary" style={{ fontSize: "0.85rem" }} onClick={() => void handleSave()} disabled={saving}>
-            {saving ? "Saving…" : "Save Workflow"}
+            {saving ? "Saving…" : config.enabled ? "Save Workflow" : "Save"}
           </button>
           {error ? <span style={{ color: "var(--warn)", fontSize: "0.82rem" }}>{error}</span> : null}
           {success ? <span style={{ color: "var(--status-approved)", fontSize: "0.82rem" }}>Saved</span> : null}
         </div>
       ) : null}
-        </>
-      )}
     </div>
   );
 }

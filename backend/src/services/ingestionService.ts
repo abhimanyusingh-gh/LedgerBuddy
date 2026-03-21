@@ -254,11 +254,7 @@ export class IngestionService {
     }
 
     const normalizedMimeType = normalizeInvoiceMimeType(file.mimeType);
-    let ocrProvider = this.ocrProvider.name;
-    let ocrText = "";
-    let ocrConfidence: number | undefined;
-    let ocrBlocks: OcrBlock[] = [];
-    let status: InvoiceStatus;
+    const baseOcrState = { ocrProvider: this.ocrProvider.name, ocrText: "", ocrConfidence: undefined as number | undefined, ocrBlocks: [] as OcrBlock[] };
 
     try {
       const extraction = await this.pipeline.extract({
@@ -271,142 +267,80 @@ export class IngestionService {
         expectedMaxDueDays: env.CONFIDENCE_EXPECTED_MAX_DUE_DAYS,
         autoSelectMin: env.CONFIDENCE_AUTO_SELECT_MIN
       });
-      ocrProvider = extraction.provider;
-      ocrText = extraction.text;
-      ocrConfidence = extraction.confidence;
-      ocrBlocks = extraction.ocrBlocks;
 
-      const parsedResult = extraction.parseResult;
-      const confidence = extraction.confidenceAssessment;
-      const processingIssues = [...extraction.processingIssues];
-
-      if (extraction.attempts.length > 1) {
-        processingIssues.push(
-          `Extraction agent selected ${extraction.source}/${extraction.strategy} from ${extraction.attempts.length} candidates.`
-        );
-      }
-
-      status =
-        parsedResult.warnings.length > 0 || confidence.riskFlags.length > 0 ? "NEEDS_REVIEW" : "PARSED";
-
-      const metadata: Record<string, string> = {
-        ...file.metadata,
-        extractionSource: extraction.source,
-        extractionStrategy: extraction.strategy,
-        extractionCandidates: String(extraction.attempts.length),
-        ocrBlocksCount: String(ocrBlocks.length),
-        ...extraction.metadata
-      };
-      const artifactPrefix = buildArtifactPrefix(file);
-      const pageSources = await buildPageSourcesForCropping(file, normalizedMimeType, extraction.ocrPageImages);
-      const fieldProvenance = parseFieldProvenance(metadata.fieldProvenance);
-      const [previewImagePaths, cropPathsByIndex] = await Promise.all([
-        persistPreviewImages(file, normalizedMimeType, extraction.ocrPageImages, getPreviewStorageRoot(), artifactPrefix),
-        this.fileStore
-          ? persistOcrBlockCrops({
-              file,
-              mimeType: normalizedMimeType,
-              blocks: ocrBlocks,
-              pageSources,
-              keyPrefix: `${artifactPrefix}/ocr-blocks`,
-              fileStore: this.fileStore
-            })
-          : Promise.resolve(new Map<number, string>())
-      ]);
-      const fieldOverlayPaths =
-        this.fileStore && Object.keys(fieldProvenance).length > 0
-          ? await persistFieldOverlayImages({
-              file,
-              fieldProvenance,
-              pageSources,
-              keyPrefix: `${artifactPrefix}/source-overlays`,
-              fileStore: this.fileStore
-            })
-          : new Map<string, string>();
-      if (Object.keys(previewImagePaths).length > 0) {
-        metadata.previewPageImages = JSON.stringify(previewImagePaths);
-      }
-      if (cropPathsByIndex.size > 0) {
-        metadata.ocrBlockCropCount = String(cropPathsByIndex.size);
-        metadata.ocrBlockCropProvider = this.fileStore?.name ?? "";
-        metadata.ocrBlockCropPaths = JSON.stringify(Object.fromEntries(cropPathsByIndex));
-      }
-
-      if (cropPathsByIndex.size > 0) {
-        ocrBlocks = ocrBlocks.map((block, index) => {
-          const cropPath = cropPathsByIndex.get(index);
-          return cropPath ? { ...block, cropPath } : block;
-        });
-      }
-      if (fieldOverlayPaths.size > 0) {
-        metadata.fieldOverlayPaths = JSON.stringify(Object.fromEntries(fieldOverlayPaths));
-      }
-
-      const mergedProcessingIssues = uniqueIssues([
-        ...processingIssues,
-        ...parsedResult.warnings,
-        ...confidence.riskMessages
-      ]);
-
-      const baseFields = {
-        sourceType: file.sourceType, tenantId: file.tenantId, workloadTier: file.workloadTier,
-        sourceKey: file.sourceKey, sourceDocumentId: file.sourceDocumentId,
-        attachmentName: file.attachmentName, mimeType: normalizedMimeType,
-        receivedAt: file.receivedAt, ocrProvider, ocrText, ocrConfidence, ocrBlocks,
-        ocrTokens: extraction.ocrTokens, slmTokens: extraction.slmTokens
-      };
-
-      const successData = {
-        ...baseFields, status, metadata,
-        parsed: parsedResult.parsed,
-        confidenceScore: confidence.score, confidenceTone: confidence.tone,
-        autoSelectForApproval: confidence.autoSelectForApproval,
-        riskFlags: confidence.riskFlags, riskMessages: confidence.riskMessages,
-        processingIssues: mergedProcessingIssues
-      };
+      const ocrBlocks = extraction.ocrBlocks;
+      const artifactResults = await this.persistFieldArtifacts(file, normalizedMimeType, extraction, ocrBlocks);
+      const successData = buildSuccessData(file, normalizedMimeType, extraction, ocrBlocks, artifactResults);
       await upsertFromPending(file, successData);
 
-      return status === "PARSED" || status === "NEEDS_REVIEW" ? "created" : "failed";
+      return successData.status === "PARSED" || successData.status === "NEEDS_REVIEW" ? "created" : "failed";
     } catch (error) {
       if (isDuplicateKeyError(error)) {
         return "duplicate";
       }
 
-      const failBaseFields = {
-        sourceType: file.sourceType, tenantId: file.tenantId, workloadTier: file.workloadTier,
-        sourceKey: file.sourceKey, sourceDocumentId: file.sourceDocumentId,
-        attachmentName: file.attachmentName, mimeType: normalizedMimeType,
-        receivedAt: file.receivedAt, metadata: file.metadata, ocrProvider, ocrText, ocrConfidence, ocrBlocks,
-        confidenceScore: 0, confidenceTone: "red" as const,
-        autoSelectForApproval: false, riskFlags: [] as string[], riskMessages: [] as string[]
-      };
-
-      if (error instanceof ExtractionPipelineError && error.code === "FAILED_OCR") {
-        await upsertFromPending(file, { ...failBaseFields, status: "FAILED_OCR", processingIssues: [error.message] });
-        return "failed";
-      }
-
-      logger.error("Failed to process ingested file", {
-        sourceKey: file.sourceKey, sourceDocumentId: file.sourceDocumentId,
-        attachmentName: file.attachmentName, error: error instanceof Error ? error.message : String(error)
-      });
-
-      try {
-        await upsertFromPending(file, {
-          ...failBaseFields, status: "FAILED_PARSE",
-          processingIssues: [error instanceof Error ? error.message : "Unknown processing error"]
-        });
-      } catch (createError) {
-        logger.error("Failed persisting failed invoice", {
-          sourceKey: file.sourceKey,
-          sourceDocumentId: file.sourceDocumentId,
-          attachmentName: file.attachmentName,
-          error: createError instanceof Error ? createError.message : String(createError)
-        });
-        throw createError;
-      }
-
+      const failureData = buildFailureData(file, normalizedMimeType, baseOcrState, error);
+      await this.persistFailure(file, failureData, error);
       return "failed";
+    }
+  }
+
+  private async persistFieldArtifacts(
+    file: IngestedFile,
+    mimeType: string,
+    extraction: { ocrPageImages: OcrPageImage[]; metadata: Record<string, string> },
+    ocrBlocks: OcrBlock[]
+  ) {
+    const artifactPrefix = buildArtifactPrefix(file);
+    const pageSources = await buildPageSourcesForCropping(file, mimeType, extraction.ocrPageImages);
+    const fieldProvenance = parseFieldProvenance(extraction.metadata.fieldProvenance);
+
+    const [previewImagePaths, cropPathsByIndex] = await Promise.all([
+      persistPreviewImages(file, mimeType, extraction.ocrPageImages, getPreviewStorageRoot(), artifactPrefix),
+      this.fileStore
+        ? persistOcrBlockCrops({
+            file, mimeType, blocks: ocrBlocks, pageSources,
+            keyPrefix: `${artifactPrefix}/ocr-blocks`, fileStore: this.fileStore
+          })
+        : Promise.resolve(new Map<number, string>())
+    ]);
+
+    const fieldOverlayPaths =
+      this.fileStore && Object.keys(fieldProvenance).length > 0
+        ? await persistFieldOverlayImages({
+            file, fieldProvenance, pageSources,
+            keyPrefix: `${artifactPrefix}/source-overlays`, fileStore: this.fileStore
+          })
+        : new Map<string, string>();
+
+    return { previewImagePaths, cropPathsByIndex, fieldOverlayPaths };
+  }
+
+  private async persistFailure(
+    file: IngestedFile,
+    failureData: Record<string, unknown>,
+    originalError: unknown
+  ): Promise<void> {
+    if (originalError instanceof ExtractionPipelineError && originalError.code === "FAILED_OCR") {
+      await upsertFromPending(file, failureData);
+      return;
+    }
+
+    logger.error("Failed to process ingested file", {
+      sourceKey: file.sourceKey, sourceDocumentId: file.sourceDocumentId,
+      attachmentName: file.attachmentName,
+      error: originalError instanceof Error ? originalError.message : String(originalError)
+    });
+
+    try {
+      await upsertFromPending(file, failureData);
+    } catch (createError) {
+      logger.error("Failed persisting failed invoice", {
+        sourceKey: file.sourceKey, sourceDocumentId: file.sourceDocumentId,
+        attachmentName: file.attachmentName,
+        error: createError instanceof Error ? createError.message : String(createError)
+      });
+      throw createError;
     }
   }
 }
@@ -420,6 +354,119 @@ async function upsertFromPending(file: IngestedFile, data: Record<string, unknow
   if (!updated) {
     await InvoiceModel.create(data);
   }
+}
+
+interface ExtractionResult {
+  provider: string;
+  text: string;
+  confidence?: number | undefined;
+  ocrBlocks: OcrBlock[];
+  ocrPageImages: OcrPageImage[];
+  ocrTokens?: number;
+  slmTokens?: number;
+  parseResult: { parsed: unknown; warnings: string[] };
+  confidenceAssessment: { score: number; tone: string; autoSelectForApproval: boolean; riskFlags: string[]; riskMessages: string[] };
+  processingIssues: string[];
+  attempts: unknown[];
+  source: string;
+  strategy: string;
+  metadata: Record<string, string>;
+}
+
+interface ArtifactResults {
+  previewImagePaths: Record<string, string>;
+  cropPathsByIndex: Map<number, string>;
+  fieldOverlayPaths: Map<string, string>;
+}
+
+function buildSuccessData(
+  file: IngestedFile,
+  mimeType: string,
+  extraction: ExtractionResult,
+  ocrBlocks: OcrBlock[],
+  artifacts: ArtifactResults
+): Record<string, unknown> {
+  const processingIssues = [...extraction.processingIssues];
+  if (extraction.attempts.length > 1) {
+    processingIssues.push(
+      `Extraction agent selected ${extraction.source}/${extraction.strategy} from ${extraction.attempts.length} candidates.`
+    );
+  }
+
+  const parsedResult = extraction.parseResult;
+  const confidence = extraction.confidenceAssessment;
+  const status: InvoiceStatus =
+    parsedResult.warnings.length > 0 || confidence.riskFlags.length > 0 ? "NEEDS_REVIEW" : "PARSED";
+
+  const metadata: Record<string, string> = {
+    ...file.metadata,
+    extractionSource: extraction.source,
+    extractionStrategy: extraction.strategy,
+    extractionCandidates: String(extraction.attempts.length),
+    ocrBlocksCount: String(ocrBlocks.length),
+    ...extraction.metadata
+  };
+
+  if (Object.keys(artifacts.previewImagePaths).length > 0) {
+    metadata.previewPageImages = JSON.stringify(artifacts.previewImagePaths);
+  }
+
+  let finalBlocks = ocrBlocks;
+  if (artifacts.cropPathsByIndex.size > 0) {
+    metadata.ocrBlockCropCount = String(artifacts.cropPathsByIndex.size);
+    metadata.ocrBlockCropProvider = "";
+    metadata.ocrBlockCropPaths = JSON.stringify(Object.fromEntries(artifacts.cropPathsByIndex));
+    finalBlocks = ocrBlocks.map((block, index) => {
+      const cropPath = artifacts.cropPathsByIndex.get(index);
+      return cropPath ? { ...block, cropPath } : block;
+    });
+  }
+  if (artifacts.fieldOverlayPaths.size > 0) {
+    metadata.fieldOverlayPaths = JSON.stringify(Object.fromEntries(artifacts.fieldOverlayPaths));
+  }
+
+  return {
+    sourceType: file.sourceType, tenantId: file.tenantId, workloadTier: file.workloadTier,
+    sourceKey: file.sourceKey, sourceDocumentId: file.sourceDocumentId,
+    attachmentName: file.attachmentName, mimeType,
+    receivedAt: file.receivedAt,
+    ocrProvider: extraction.provider, ocrText: extraction.text,
+    ocrConfidence: extraction.confidence, ocrBlocks: finalBlocks,
+    ocrTokens: extraction.ocrTokens, slmTokens: extraction.slmTokens,
+    status, metadata,
+    parsed: parsedResult.parsed,
+    confidenceScore: confidence.score, confidenceTone: confidence.tone,
+    autoSelectForApproval: confidence.autoSelectForApproval,
+    riskFlags: confidence.riskFlags, riskMessages: confidence.riskMessages,
+    processingIssues: uniqueIssues([...processingIssues, ...parsedResult.warnings, ...confidence.riskMessages])
+  };
+}
+
+function buildFailureData(
+  file: IngestedFile,
+  mimeType: string,
+  ocrState: { ocrProvider: string; ocrText: string; ocrConfidence: number | undefined; ocrBlocks: OcrBlock[] },
+  error: unknown
+): Record<string, unknown> {
+  const base = {
+    sourceType: file.sourceType, tenantId: file.tenantId, workloadTier: file.workloadTier,
+    sourceKey: file.sourceKey, sourceDocumentId: file.sourceDocumentId,
+    attachmentName: file.attachmentName, mimeType,
+    receivedAt: file.receivedAt, metadata: file.metadata,
+    ocrProvider: ocrState.ocrProvider, ocrText: ocrState.ocrText,
+    ocrConfidence: ocrState.ocrConfidence, ocrBlocks: ocrState.ocrBlocks,
+    confidenceScore: 0, confidenceTone: "red" as const,
+    autoSelectForApproval: false, riskFlags: [] as string[], riskMessages: [] as string[]
+  };
+
+  if (error instanceof ExtractionPipelineError && error.code === "FAILED_OCR") {
+    return { ...base, status: "FAILED_OCR", processingIssues: [error.message] };
+  }
+
+  return {
+    ...base, status: "FAILED_PARSE",
+    processingIssues: [error instanceof Error ? error.message : "Unknown processing error"]
+  };
 }
 
 function isDuplicateKeyError(error: unknown): boolean {

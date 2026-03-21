@@ -616,13 +616,13 @@ function mergeParsedWithVerification(
     }
 
     if (mode === "relaxed") {
-      merged[field] = candidateValue as never;
+      assignParsedField(merged, field, candidateValue);
       continue;
     }
 
     const currentValue = merged[field];
     if (currentValue === undefined) {
-      merged[field] = candidateValue as never;
+      assignParsedField(merged, field, candidateValue);
       continue;
     }
 
@@ -640,6 +640,14 @@ function mergeParsedWithVerification(
   }
 
   return merged;
+}
+
+function assignParsedField<K extends keyof ParsedInvoiceData>(
+  target: ParsedInvoiceData,
+  field: K,
+  value: ParsedInvoiceData[K]
+): void {
+  target[field] = value;
 }
 
 function detectChangedFields(before: ParsedInvoiceData, after: ParsedInvoiceData): string[] {

@@ -2,6 +2,7 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 import type { FileStore, FileStoreGetResult, FileStoreObjectRef, FileStorePutInput } from "../core/interfaces/FileStore.js";
 import { isPathInsideRoot } from "../utils/previewStorage.js";
+import { logger } from "../utils/logger.js";
 
 interface LocalDiskFileStoreOptions {
   rootPath: string;
@@ -30,8 +31,14 @@ export class LocalDiskFileStore implements FileStore {
       if (typeof meta.contentType === "string" && meta.contentType.length > 0) {
         contentType = meta.contentType;
       }
-    } catch {
-      // No metadata file — fall back to generic content type
+    } catch (error) {
+      const isNotFound = error instanceof Error && "code" in error && (error as NodeJS.ErrnoException).code === "ENOENT";
+      if (!isNotFound) {
+        logger.info("filestore.local.metadata.read.failed", {
+          metaPath,
+          error: error instanceof Error ? error.message : String(error)
+        });
+      }
     }
     return { body, contentType };
   }
@@ -48,7 +55,14 @@ export class LocalDiskFileStore implements FileStore {
       let entries;
       try {
         entries = await fs.readdir(dir, { withFileTypes: true });
-      } catch {
+      } catch (error) {
+        const isNotFound = error instanceof Error && "code" in error && (error as NodeJS.ErrnoException).code === "ENOENT";
+        if (!isNotFound) {
+          logger.warn("filestore.local.listObjects.readdir.failed", {
+            dir,
+            error: error instanceof Error ? error.message : String(error)
+          });
+        }
         return;
       }
       for (const entry of entries) {

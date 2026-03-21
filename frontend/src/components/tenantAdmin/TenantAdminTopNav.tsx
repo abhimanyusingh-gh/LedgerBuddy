@@ -5,9 +5,10 @@ interface TenantAdminTopNavProps {
   onLogout: () => void;
   onChangePassword: () => void;
   counts: { total: number; approved: number; pending: number };
+  themeToggle?: React.ReactNode;
 }
 
-export function TenantAdminTopNav({ userEmail, onLogout, onChangePassword, counts }: TenantAdminTopNavProps) {
+export function TenantAdminTopNav({ userEmail, onLogout, onChangePassword, counts, themeToggle }: TenantAdminTopNavProps) {
   const avatarLabel = useMemo(() => {
     const trimmed = userEmail.trim();
     if (!trimmed) {
@@ -33,6 +34,7 @@ export function TenantAdminTopNav({ userEmail, onLogout, onChangePassword, count
       </div>
 
       <div className="tenant-top-nav-right">
+        {themeToggle ?? null}
         <div className="tenant-avatar" aria-label={`Signed in as ${userEmail}`} title={userEmail}>
           {avatarLabel}
         </div>

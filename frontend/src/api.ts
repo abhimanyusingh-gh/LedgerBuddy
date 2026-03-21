@@ -1,6 +1,7 @@
 import axios from "axios";
 import type {
   AnalyticsOverview,
+  ApprovalWorkflowConfig,
   BankAccount,
   ExportHistoryResponse,
   GmailConnectionStatus,
@@ -473,4 +474,23 @@ export async function revokeBankAccount(id: string): Promise<void> {
 
 export async function refreshBankBalance(id: string): Promise<void> {
   await apiClient.post(`/bank/accounts/${id}/refresh`);
+}
+
+export async function fetchApprovalWorkflow(): Promise<ApprovalWorkflowConfig> {
+  const response = await apiClient.get("/admin/approval-workflow");
+  return response.data;
+}
+
+export async function saveApprovalWorkflow(config: ApprovalWorkflowConfig): Promise<ApprovalWorkflowConfig> {
+  const response = await apiClient.put("/admin/approval-workflow", config);
+  return response.data;
+}
+
+export async function workflowApproveInvoice(invoiceId: string): Promise<{ advanced: boolean; fullyApproved: boolean }> {
+  const response = await apiClient.post(`/invoices/${invoiceId}/workflow-approve`);
+  return response.data;
+}
+
+export async function workflowRejectInvoice(invoiceId: string, reason: string): Promise<void> {
+  await apiClient.post(`/invoices/${invoiceId}/workflow-reject`, { reason });
 }

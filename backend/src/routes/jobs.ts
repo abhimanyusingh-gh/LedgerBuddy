@@ -5,113 +5,54 @@ import type { IngestionService } from "../services/ingestionService.js";
 import type { EmailSimulationService } from "../services/emailSimulationService.js";
 import type { FileStore } from "../core/interfaces/FileStore.js";
 import { InvoiceModel } from "../models/Invoice.js";
-import { getCorrelationId, logger, runWithLogContext } from "../utils/logger.js";
+import { logger } from "../utils/logger.js";
 import { requireAuth } from "../auth/requireAuth.js";
 import { requireNotViewer } from "../auth/middleware.js";
+import { IngestionJobOrchestrator } from "../services/IngestionJobOrchestrator.js";
+import { MAX_UPLOAD_FILE_COUNT, MAX_UPLOAD_FILE_SIZE_BYTES } from "../constants.js";
+import { isAllowedFileExtension } from "../utils/validation.js";
 
-type IngestionJobState = "idle" | "running" | "completed" | "failed" | "paused";
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: MAX_UPLOAD_FILE_SIZE_BYTES, files: MAX_UPLOAD_FILE_COUNT }
+});
 
-interface IngestionJobStatus {
-  state: IngestionJobState;
-  running: boolean;
-  totalFiles: number;
-  processedFiles: number;
-  newInvoices: number;
-  duplicates: number;
-  failures: number;
-  startedAt?: string;
-  completedAt?: string;
-  error?: string;
-  correlationId?: string;
-  lastUpdatedAt: string;
-}
-
-const currentJobStatusByTenant = new Map<string, IngestionJobStatus>();
-const sseSubscribers = new Map<string, Set<import("express").Response>>();
-const pendingRerunByTenant = new Map<string, boolean>();
-
-function broadcastToSubscribers(tenantId: string, status: IngestionJobStatus): void {
-  const subs = sseSubscribers.get(tenantId);
-  if (!subs || subs.size === 0) return;
-  const payload = `data: ${JSON.stringify(status)}\n\n`;
-  for (const client of subs) {
-    client.write(payload);
-  }
-}
-
-const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * 1024 * 1024, files: 50 } });
-
-export function createJobsRouter(ingestionService: IngestionService, emailSimulationService?: EmailSimulationService, fileStore?: FileStore) {
+export function createJobsRouter(
+  ingestionService: IngestionService,
+  emailSimulationService?: EmailSimulationService,
+  fileStore?: FileStore
+) {
   const router = Router();
+  const orchestrator = new IngestionJobOrchestrator();
   router.use(requireAuth);
 
-  router.get("/jobs/ingest/status", (request, response) => {
-    const context = request.authContext!;
-    response.json(getCurrentStatus(context.tenantId));
+  router.get("/jobs/ingest/status", (req, res) => {
+    res.json(orchestrator.getCurrentStatus(req.authContext!.tenantId));
   });
 
-  router.get("/jobs/ingest/sse", (request, response) => {
-    const context = request.authContext!;
-    const tenantId = context.tenantId;
-
-    response.writeHead(200, {
-      "Content-Type": "text/event-stream",
-      "Cache-Control": "no-cache",
-      Connection: "keep-alive"
-    });
-    response.write(":\n\n");
-
-    const current = currentJobStatusByTenant.get(tenantId);
-    if (current) {
-      response.write(`data: ${JSON.stringify(current)}\n\n`);
-    }
-
-    if (!sseSubscribers.has(tenantId)) {
-      sseSubscribers.set(tenantId, new Set());
-    }
-    sseSubscribers.get(tenantId)!.add(response);
-
-    const heartbeat = setInterval(() => {
-      try {
-        const ok = response.write(":\n\n");
-        if (!ok) {
-          sseSubscribers.get(tenantId)?.delete(response);
-          clearInterval(heartbeat);
-        }
-      } catch {
-        sseSubscribers.get(tenantId)?.delete(response);
-        clearInterval(heartbeat);
-      }
-    }, 30_000);
-
-    request.on("close", () => {
-      clearInterval(heartbeat);
-      sseSubscribers.get(tenantId)?.delete(response);
-    });
+  router.get("/jobs/ingest/sse", (req, res) => {
+    orchestrator.addSubscriber(req.authContext!.tenantId, res, req);
   });
 
-  router.post("/jobs/ingest", requireNotViewer, async (request, response, next) => {
+  router.post("/jobs/ingest", requireNotViewer, async (req, res, next) => {
     try {
-      const context = request.authContext!;
-      response.status(202).json(startIngestionJob(ingestionService, context.tenantId));
+      res.status(202).json(orchestrator.startJob(ingestionService, req.authContext!.tenantId));
     } catch (error) {
       next(error);
     }
   });
 
-  router.post("/jobs/ingest/email-simulate", requireNotViewer, async (request, response, next) => {
+  router.post("/jobs/ingest/email-simulate", requireNotViewer, async (req, res, next) => {
     try {
-      const context = request.authContext!;
-      const current = getCurrentStatus(context.tenantId);
+      const context = req.authContext!;
+      const current = orchestrator.getCurrentStatus(context.tenantId);
       if (current.running) {
-        response.status(202).json(current);
+        res.status(202).json(current);
         return;
       }
 
       if (!emailSimulationService) {
-        response.status(400).json({
-          message: "Email simulation service is unavailable."
-        });
+        res.status(400).json({ message: "Email simulation service is unavailable." });
         return;
       }
 
@@ -121,26 +62,21 @@ export function createJobsRouter(ingestionService: IngestionService, emailSimula
         attachmentsSeeded: simulation.attachmentsSeeded,
         tenantId: context.tenantId
       });
-      const status = startIngestionJob(ingestionService, context.tenantId);
-      response.status(202).json({
-        ...status,
-        emailSimulation: simulation
-      });
+      const status = orchestrator.startJob(ingestionService, context.tenantId);
+      res.status(202).json({ ...status, emailSimulation: simulation });
     } catch (error) {
       if (error instanceof Error) {
-        response.status(400).json({ message: error.message });
+        res.status(400).json({ message: error.message });
         return;
       }
       next(error);
     }
   });
 
-  router.post("/jobs/upload", requireNotViewer, (request, response, next) => {
-    const uploadMiddleware = upload.array("files", 50) as unknown as import("express").RequestHandler;
-    uploadMiddleware(request, response, (error: unknown) => {
+  router.post("/jobs/upload", requireNotViewer, (req, res, next) => {
+    (upload.array("files", MAX_UPLOAD_FILE_COUNT) as unknown as import("express").RequestHandler)(req, res, (error: unknown) => {
       if (error instanceof multer.MulterError) {
-        const userMessage = multerErrorMessage(error);
-        response.status(400).json({ message: userMessage });
+        res.status(400).json({ message: multerErrorMessage(error) });
         return;
       }
       if (error) {
@@ -149,17 +85,25 @@ export function createJobsRouter(ingestionService: IngestionService, emailSimula
       }
       next();
     });
-  }, async (request, response, next) => {
+  }, async (req, res, next) => {
     try {
-      const context = request.authContext!;
+      const context = req.authContext!;
       if (!fileStore) {
-        response.status(400).json({ message: "File storage is not configured." });
+        res.status(400).json({ message: "File storage is not configured." });
         return;
       }
 
-      const files = request.files as Express.Multer.File[] | undefined;
+      const files = req.files as Express.Multer.File[] | undefined;
       if (!files || files.length === 0) {
-        response.status(400).json({ message: "No files provided." });
+        res.status(400).json({ message: "No files provided." });
+        return;
+      }
+
+      const rejected = files.filter((f) => !isAllowedFileExtension(f.originalname));
+      if (rejected.length > 0) {
+        res.status(400).json({
+          message: `Unsupported file type. Allowed extensions: .pdf, .jpg, .jpeg, .png. Rejected: ${rejected.map((f) => f.originalname).join(", ")}`
+        });
         return;
       }
 
@@ -194,154 +138,45 @@ export function createJobsRouter(ingestionService: IngestionService, emailSimula
             metadata: { uploadKey: key, systemFileName: systemName }
           });
           newlyCreated++;
-        } catch {
-          // duplicate sourceDocumentId — skip silently
+        } catch (error) {
+          if (isDuplicateKeyError(error)) {
+            logger.warn("jobs.upload.duplicate.skipped", {
+              key,
+              originalName: file.originalname,
+              tenantId: context.tenantId
+            });
+          } else {
+            throw error;
+          }
         }
 
         uploaded.push(key);
       }
 
-      const currentJob = getCurrentStatus(context.tenantId);
-      if (currentJob.running && newlyCreated > 0) {
-        pendingRerunByTenant.set(context.tenantId, true);
+      if (orchestrator.getCurrentStatus(context.tenantId).running && newlyCreated > 0) {
+        orchestrator.setPendingRerun(context.tenantId);
       }
 
-      response.status(201).json({ uploaded, count: uploaded.length });
+      res.status(201).json({ uploaded, count: uploaded.length });
     } catch (error) {
       next(error);
     }
   });
 
-  router.post("/jobs/ingest/pause", requireNotViewer, (request, response) => {
-    const context = request.authContext!;
-    const current = getCurrentStatus(context.tenantId);
-    if (!current.running) {
-      response.json(current);
-      return;
-    }
-    ingestionService.requestPause();
-    pendingRerunByTenant.delete(context.tenantId);
-    const paused: IngestionJobStatus = { ...current, state: "paused" };
-    setCurrentStatus(context.tenantId, paused);
-    broadcastToSubscribers(context.tenantId, paused);
-    response.json(paused);
+  router.post("/jobs/ingest/pause", requireNotViewer, (req, res) => {
+    res.json(orchestrator.pauseJob(ingestionService, req.authContext!.tenantId));
   });
 
   return router;
 }
 
-function getCurrentStatus(tenantId: string): IngestionJobStatus {
-  return currentJobStatusByTenant.get(tenantId) ?? buildIdleStatus();
-}
-
-function setCurrentStatus(tenantId: string, status: IngestionJobStatus): void {
-  currentJobStatusByTenant.set(tenantId, status);
-}
-
-function buildIdleStatus(): IngestionJobStatus {
-  return {
-    state: "idle",
-    running: false,
-    totalFiles: 0,
-    processedFiles: 0,
-    newInvoices: 0,
-    duplicates: 0,
-    failures: 0,
-    lastUpdatedAt: new Date().toISOString()
-  };
-}
-
-function startIngestionJob(ingestionService: IngestionService, tenantId: string, rerunCount = 0): IngestionJobStatus {
-  const existing = getCurrentStatus(tenantId);
-  if (existing.running) {
-    pendingRerunByTenant.set(tenantId, true);
-    return existing;
-  }
-
-  const startedAt = new Date().toISOString();
-  const correlationId = getCorrelationId();
-  const runningStatus: IngestionJobStatus = {
-    state: "running",
-    running: true,
-    totalFiles: 0,
-    processedFiles: 0,
-    newInvoices: 0,
-    duplicates: 0,
-    failures: 0,
-    startedAt,
-    lastUpdatedAt: startedAt,
-    ...(correlationId ? { correlationId } : {})
-  };
-  setCurrentStatus(tenantId, runningStatus);
-  logger.info("ingestion.job.start", { correlationId: correlationId ?? null, tenantId });
-
-  const runJob = () =>
-    ingestionService.runOnce({
-      tenantId,
-      onProgress: async (progress) => {
-        const current = getCurrentStatus(tenantId);
-        const updated = {
-          ...current,
-          ...progress,
-          state: progress.running ? "running" : current.state,
-          running: progress.running
-        };
-        setCurrentStatus(tenantId, updated);
-        broadcastToSubscribers(tenantId, updated);
-      }
-    });
-
-  void (correlationId ? runWithLogContext(correlationId, runJob) : runJob())
-    .then((summary) => {
-      const completedAt = new Date().toISOString();
-      const current = getCurrentStatus(tenantId);
-      const finalState: IngestionJobState = summary.paused ? "paused" : "completed";
-      const nextStatus: IngestionJobStatus = {
-        ...current,
-        ...summary,
-        processedFiles: Math.max(current.processedFiles, summary.totalFiles),
-        state: finalState,
-        running: false,
-        completedAt: summary.paused ? undefined : completedAt,
-        error: undefined,
-        lastUpdatedAt: completedAt
-      };
-      setCurrentStatus(tenantId, nextStatus);
-      broadcastToSubscribers(tenantId, nextStatus);
-      logger.info(summary.paused ? "ingestion.job.paused" : "ingestion.job.complete", { ...summary, correlationId: correlationId ?? null, tenantId });
-
-      if (summary.paused) {
-        pendingRerunByTenant.delete(tenantId);
-        return;
-      }
-
-      if (pendingRerunByTenant.get(tenantId) && rerunCount < 5) {
-        pendingRerunByTenant.delete(tenantId);
-        startIngestionJob(ingestionService, tenantId, rerunCount + 1);
-      }
-    })
-    .catch((error) => {
-      const completedAt = new Date().toISOString();
-      const current = getCurrentStatus(tenantId);
-      const nextStatus: IngestionJobStatus = {
-        ...current,
-        state: "failed",
-        running: false,
-        completedAt,
-        error: error instanceof Error ? error.message : String(error),
-        lastUpdatedAt: completedAt
-      };
-      setCurrentStatus(tenantId, nextStatus);
-      broadcastToSubscribers(tenantId, nextStatus);
-      pendingRerunByTenant.delete(tenantId);
-      logger.error("ingestion.job.failed", {
-        error: error instanceof Error ? error.message : String(error),
-        correlationId: correlationId ?? null,
-        tenantId
-      });
-    });
-
-  return runningStatus;
+function isDuplicateKeyError(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    (error as { code?: number }).code === 11000
+  );
 }
 
 function multerErrorMessage(error: multer.MulterError): string {

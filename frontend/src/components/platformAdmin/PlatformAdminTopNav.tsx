@@ -3,9 +3,10 @@ interface PlatformAdminTopNavProps {
   onLogout: () => void;
   onChangePassword: () => void;
   counts: { tenants: number; failedDocuments: number };
+  themeToggle?: React.ReactNode;
 }
 
-export function PlatformAdminTopNav({ userEmail, onLogout, onChangePassword, counts }: PlatformAdminTopNavProps) {
+export function PlatformAdminTopNav({ userEmail, onLogout, onChangePassword, counts, themeToggle }: PlatformAdminTopNavProps) {
   return (
     <header className="platform-top-nav">
       <div className="platform-top-nav-left">
@@ -25,6 +26,7 @@ export function PlatformAdminTopNav({ userEmail, onLogout, onChangePassword, cou
       </div>
 
       <div className="platform-top-nav-right">
+        {themeToggle ?? null}
         <div className="platform-account">
           <span>Platform Admin</span>
           <strong>{userEmail}</strong>

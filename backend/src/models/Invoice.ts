@@ -48,6 +48,20 @@ const ocrBlockSchema = new Schema(
   }
 );
 
+const workflowStepResultSchema = new Schema(
+  {
+    step: { type: Number, required: true },
+    name: { type: String, required: true },
+    action: { type: String, enum: ["approved", "rejected", "skipped"], required: true },
+    userId: { type: String },
+    email: { type: String },
+    role: { type: String },
+    timestamp: { type: Date, required: true },
+    note: { type: String }
+  },
+  { _id: false }
+);
+
 const invoiceSchema = new Schema(
   {
     tenantId: { type: String, required: true, default: "default" },
@@ -106,6 +120,16 @@ const invoiceSchema = new Schema(
       userId: { type: String },
       email: { type: String },
       role: { type: String }
+    },
+
+    workflowState: {
+      type: new Schema({
+        workflowId: { type: String },
+        currentStep: { type: Number },
+        status: { type: String, enum: ["in_progress", "approved", "rejected"] },
+        stepResults: { type: [workflowStepResultSchema], default: [] }
+      }, { _id: false }),
+      default: undefined
     },
 
     export: {

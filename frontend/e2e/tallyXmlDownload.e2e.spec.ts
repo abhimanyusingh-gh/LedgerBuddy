@@ -35,7 +35,8 @@ test.describe("Tally XML download", () => {
   test("downloads XML from toolbar, validates Tally envelope structure", async ({ page }) => {
     await seedAuthToken(page, authToken);
     await page.goto("/", { waitUntil: "domcontentloaded" });
-    await expect(page.getByRole("heading", { name: "Invoice Workspace" })).toBeVisible();
+    await page.getByRole("button", { name: /^Invoices$/i }).click();
+    await expect(page.locator("table tbody")).toBeVisible({ timeout: 15_000 });
 
     // Wait for invoices to load
     await expect.poll(async () => page.locator("tbody tr").count()).toBeGreaterThan(0);
@@ -90,7 +91,8 @@ test.describe("Tally XML download", () => {
 
     await seedAuthToken(page, authToken);
     await page.goto("/", { waitUntil: "domcontentloaded" });
-    await expect(page.getByRole("heading", { name: "Invoice Workspace" })).toBeVisible();
+    await page.getByRole("button", { name: /^Invoices$/i }).click();
+    await expect(page.locator("table tbody")).toBeVisible({ timeout: 15_000 });
 
     // Navigate to Exports tab
     const exportsTab = page.getByRole("button", { name: /Exports/i });
@@ -129,7 +131,8 @@ test.describe("Tally XML download", () => {
   test("export history shows batch metadata after generation", async ({ page, request }) => {
     await seedAuthToken(page, authToken);
     await page.goto("/", { waitUntil: "domcontentloaded" });
-    await expect(page.getByRole("heading", { name: "Invoice Workspace" })).toBeVisible();
+    await page.getByRole("button", { name: /^Invoices$/i }).click();
+    await expect(page.locator("table tbody")).toBeVisible({ timeout: 15_000 });
 
     // Navigate to Exports tab
     const exportsTab = page.getByRole("button", { name: /Exports/i });
@@ -165,7 +168,7 @@ async function expectBackendReady(request: APIRequestContext): Promise<void> {
 
 async function createE2ESessionToken(apiRoot: string): Promise<string> {
   const response = await axios.post<{ token?: string }>(
-    `${apiRoot}/auth/token`,
+    `${apiRoot}/api/auth/token`,
     { email: loginEmail, password: loginPassword },
     { timeout: 30_000, validateStatus: () => true }
   );

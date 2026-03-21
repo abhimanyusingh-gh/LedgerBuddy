@@ -15,6 +15,7 @@ import { createTenantLifecycleRouter } from "./routes/tenantLifecycle.js";
 import { createPlatformAdminRouter } from "./routes/platformAdmin.js";
 import { createBankAccountsRouter } from "./routes/bankAccounts.js";
 import { createBankWebhooksRouter } from "./routes/bankWebhooks.js";
+import { createApprovalWorkflowRouter } from "./routes/approvalWorkflow.js";
 import {
   createAuthenticationMiddleware,
   requireNonPlatformAdmin,
@@ -67,6 +68,7 @@ export async function createApp(prebuiltDependencies?: Awaited<ReturnType<typeof
     requireNonPlatformAdmin,
     createTenantAdminRouter(dependencies.tenantAdminService, dependencies.tenantInviteService)
   );
+  app.use("/api", requireNonPlatformAdmin, createApprovalWorkflowRouter(dependencies.approvalWorkflowService));
   app.use("/api", createGmailConnectionRouter(dependencies.gmailIntegrationService));
   app.use("/api", requireNonPlatformAdmin, requireTenantSetupCompleted, createInvoiceRouter(dependencies.invoiceService, dependencies.fileStore));
   app.use(

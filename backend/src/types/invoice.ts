@@ -2,6 +2,7 @@ export const InvoiceStatuses = [
   "PENDING",
   "PARSED",
   "NEEDS_REVIEW",
+  "AWAITING_APPROVAL",
   "FAILED_OCR",
   "FAILED_PARSE",
   "APPROVED",

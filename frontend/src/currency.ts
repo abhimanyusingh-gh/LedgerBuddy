@@ -70,12 +70,15 @@ export function getCurrencySymbol(currency?: string): string {
   return CURRENCY_SYMBOLS[currency.toUpperCase()] ?? currency;
 }
 
+const DEFAULT_DISPLAY_CURRENCY = "INR";
+
 export function formatMinorAmountWithCurrency(amountMinor?: number, currency?: string): string {
   if (!Number.isInteger(amountMinor)) {
     return "-";
   }
 
-  const symbol = getCurrencySymbol(currency);
-  const formatted = minorUnitsToMajorString(amountMinor as number, currency);
+  const effectiveCurrency = currency || DEFAULT_DISPLAY_CURRENCY;
+  const symbol = getCurrencySymbol(effectiveCurrency);
+  const formatted = minorUnitsToMajorString(amountMinor as number, effectiveCurrency);
   return symbol ? `${symbol}${formatted}` : formatted;
 }

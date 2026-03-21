@@ -17,6 +17,8 @@ import { requireNotViewer } from "../auth/middleware.js";
 import { ViewerScopeModel } from "../models/ViewerScope.js";
 import { getPreviewStorageRoot, isPathInsideRoot } from "../utils/previewStorage.js";
 import { requireAuth } from "../auth/requireAuth.js";
+import { logger } from "../utils/logger.js";
+import { isRecord, isString, validateDateRange } from "../utils/validation.js";
 
 let s3Client: S3Client | null = null;
 const SOURCE_OVERLAY_FIELDS = new Set([
@@ -43,6 +45,11 @@ export function createInvoiceRouter(invoiceService: InvoiceService, fileStore?: 
       const fromDate = parseIsoDate(req.query.from);
       const toDate = parseIsoDate(req.query.to);
       if (toDate) toDate.setHours(23, 59, 59, 999);
+      const dateCheck = validateDateRange(fromDate ?? undefined, toDate ?? undefined);
+      if (!dateCheck.valid) {
+        res.status(400).json({ message: dateCheck.message });
+        return;
+      }
       let approvedBy = typeof req.query.approvedBy === "string" ? req.query.approvedBy : undefined;
 
       if (authContext.role === "VIEWER" && !approvedBy) {
@@ -235,7 +242,12 @@ export function createInvoiceRouter(invoiceService: InvoiceService, fileStore?: 
             res.type(invoice.mimeType);
             res.send(obj.body);
             return;
-          } catch {
+          } catch (error) {
+            logger.warn("invoices.preview.s3.fetch.failed", {
+              uploadKey,
+              invoiceId: req.params.id,
+              error: error instanceof Error ? error.message : String(error)
+            });
             res.status(404).json({ message: "Uploaded file not found in storage." });
             return;
           }
@@ -548,20 +560,12 @@ async function assertPathReadable(filePath: string): Promise<void> {
   await access(filePath, fsConstants.R_OK);
 }
 
-function isString(value: unknown): value is string {
-  return typeof value === "string";
-}
-
 function safeSendFile(res: Response, filePath: string, next: (err: unknown) => void): void {
   res.sendFile(filePath, (err) => {
     if (err && !res.headersSent) {
       next(err);
     }
   });
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function parseWorkloadTier(value: unknown): WorkloadTier | undefined {

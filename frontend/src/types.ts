@@ -2,6 +2,7 @@ export type InvoiceStatus =
   | "PENDING"
   | "PARSED"
   | "NEEDS_REVIEW"
+  | "AWAITING_APPROVAL"
   | "FAILED_OCR"
   | "FAILED_PARSE"
   | "APPROVED"
@@ -50,6 +51,22 @@ export interface Invoice {
   approval?: {
     approvedBy?: string;
     approvedAt?: string;
+    email?: string;
+  };
+  workflowState?: {
+    workflowId?: string;
+    currentStep?: number;
+    status?: "in_progress" | "approved" | "rejected";
+    stepResults?: Array<{
+      step: number;
+      name: string;
+      action: "approved" | "rejected" | "skipped";
+      userId?: string;
+      email?: string;
+      role?: string;
+      timestamp: string;
+      note?: string;
+    }>;
   };
   export?: {
     system?: string;
@@ -172,6 +189,32 @@ export interface TenantMailbox {
   status: string;
   assignments: "all" | Array<{ userId: string; email: string }>;
   lastSyncedAt?: string;
+}
+
+export interface WorkflowStepCondition {
+  field: string;
+  operator: "gt" | "gte" | "lt" | "lte";
+  value: number;
+}
+
+export interface WorkflowStep {
+  order: number;
+  name: string;
+  approverType: "any_member" | "role" | "specific_users";
+  approverRole?: string;
+  approverUserIds?: string[];
+  rule: "any" | "all";
+  condition?: WorkflowStepCondition | null;
+}
+
+export interface ApprovalWorkflowConfig {
+  enabled: boolean;
+  mode: "simple" | "advanced";
+  simpleConfig: {
+    requireManagerReview: boolean;
+    requireFinalSignoff: boolean;
+  };
+  steps: WorkflowStep[];
 }
 
 export interface BankAccount {

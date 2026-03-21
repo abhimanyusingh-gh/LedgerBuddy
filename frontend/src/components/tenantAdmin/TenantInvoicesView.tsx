@@ -49,6 +49,7 @@ import { useDebouncedValue } from "../../hooks/useDebouncedValue";
 import { getUserFacingErrorMessage, isAuthenticationError } from "../../apiError";
 import { ConfirmDialog } from "../ConfirmDialog";
 import { EmptyState } from "../EmptyState";
+import { ApprovalTimeline } from "./ApprovalTimeline";
 import { KeyboardShortcutsOverlay } from "../KeyboardShortcutsOverlay";
 import { useKeyboardShortcuts } from "../../hooks/useKeyboardShortcuts";
 
@@ -56,6 +57,7 @@ const STATUS_ICONS: Record<string, string> = {
   PENDING: "hourglass_empty",
   PARSED: "task_alt",
   NEEDS_REVIEW: "flag",
+  AWAITING_APPROVAL: "pending_actions",
   FAILED_OCR: "error",
   FAILED_PARSE: "error",
   APPROVED: "check_circle",
@@ -1028,7 +1030,7 @@ export function TenantInvoicesView({
                 <thead>
                   <tr>
                     <th><input type="checkbox" checked={areAllVisibleSelectableSelected && selectableVisibleIds.length > 0} disabled={selectableVisibleIds.length === 0} onChange={toggleSelectAllVisible} /></th>
-                    {([["file", "File"], ["vendor", "Vendor"], ["invoiceNumber", "Invoice #"], ["invoiceDate", "Invoice Date"], ["total", "Total"], ["confidence", "Confidence"], ["status", "Status"], ["received", "Received"]] as const).map(([key, label]) => (
+                    {([["file", "File"], ["vendor", "Vendor"], ["invoiceNumber", "Invoice #"], ["invoiceDate", "Invoice Date"], ["total", "Total"], ["confidence", "Confidence"], ["status", "Status"], ["approvedBy", "Approved By"], ["received", "Received"]] as const).map(([key, label]) => (
                       <th
                         key={key}
                         className="sortable-th"
@@ -1160,15 +1162,18 @@ export function TenantInvoicesView({
                           {ingestingIds.has(invoice._id) ? (
                             <span className="status status-reprocessing">Reprocessing</span>
                           ) : (
-                            <span className={`status status-${invoice.status.toLowerCase()}`} title={invoice.approval?.approvedBy ? `Approved by ${invoice.approval.approvedBy}` : undefined}>
+                            <span className={`status status-${invoice.status.toLowerCase()}`}>
                               {STATUS_ICONS[invoice.status] ? <span className="material-symbols-outlined status-badge-icon">{STATUS_ICONS[invoice.status]}</span> : null}
-                              {STATUS_LABELS[invoice.status] ?? invoice.status}
+                              {invoice.status === "AWAITING_APPROVAL" && invoice.workflowState?.currentStep
+                                ? `Step ${invoice.workflowState.currentStep}`
+                                : (STATUS_LABELS[invoice.status] ?? invoice.status)}
                             </span>
                           )}
                           {invoice.possibleDuplicate ? (
                             <span className="material-symbols-outlined duplicate-warning" title="Possible duplicate — another invoice has identical file contents">warning</span>
                           ) : null}
                         </td>
+                        <td style={{ fontSize: "0.82rem", color: "var(--ink-soft)" }}>{invoice.approval?.email ?? invoice.approval?.approvedBy ?? "-"}</td>
                         <td>{new Date(invoice.receivedAt).toLocaleString()}</td>
                         <td onClick={(e) => e.stopPropagation()}>
                           {(() => {
@@ -1207,7 +1212,7 @@ export function TenantInvoicesView({
                 <button type="button" className="app-button app-button-primary app-button-sm" disabled={selectedApprovableIds.length === 0} onClick={() => void handleApprove()}>
                   Approve ({selectedApprovableIds.length})
                 </button>
-                <button type="button" className="app-button app-button-sm" style={{ background: "var(--chart-violet)", borderColor: "var(--chart-violet)", color: "#fff" }} disabled={selectedExportableIds.length === 0} onClick={handleExport}>
+                <button type="button" className="app-button app-button-sm" style={{ background: "var(--chart-violet)", borderColor: "var(--chart-violet)", color: "#fff" }} disabled={selectedExportableIds.length === 0} onClick={() => void handleDownloadXml()}>
                   Export ({selectedExportableIds.length})
                 </button>
                 <button type="button" className="app-button app-button-sm" style={{ background: "var(--warn)", borderColor: "var(--warn)", color: "#fff" }} onClick={handleDelete}>
@@ -1316,8 +1321,11 @@ export function TenantInvoicesView({
               </button>
             </div>
             <p className="muted popup-meta">
-              Status: <strong>{popupInvoice.status}</strong> | Received: {new Date(popupInvoice.receivedAt).toLocaleString()}
+              Status: <strong>{STATUS_LABELS[popupInvoice.status] ?? popupInvoice.status}</strong>
+              {popupInvoice.workflowState?.currentStep ? ` (Step ${popupInvoice.workflowState.currentStep})` : ""}
+              {" | "}Received: {new Date(popupInvoice.receivedAt).toLocaleString()}
             </p>
+            <ApprovalTimeline invoice={popupInvoice} />
             <div className="popup-content">
               {popupInvoiceDetailLoading ? <p className="muted">Loading full invoice details...</p> : null}
               <div className="source-preview-section">

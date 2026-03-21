@@ -56,6 +56,7 @@ BillForge ingests invoices from email or folder sources, extracts structured dat
 | **Confidence** | Multi-signal scoring (OCR, parser, field verification), risk flagging, configurable tone bands and auto-select thresholds, confidence boost after successful LLM vision re-extraction |
 | **Review Dashboard** | Inline row actions (approve, ingest, reingest, delete), humanized status filter tabs, server-side pagination, user-level filtering, reingesting visual state, confidence badges, value-source highlighting, bbox overlay inspect, batch approval, toast notifications |
 | **Export** | Tally XML purchase voucher generation with GST ledger entries (CGST/SGST/IGST/Cess), downloadable file or direct POST, S3 artifact storage |
+| **Approval Workflows** | Configurable per-tenant: toggle ON/OFF, simple mode (checkboxes for manager review + final sign-off), advanced mode (multi-step builder with role/user approvers, any-one/all-must rules, amount conditions), step-by-step progression, rejection with reason, audit trail per step |
 | **Multi-Tenancy** | Tenant onboarding, RBAC (admin/member/viewer), invite flow, tenant-scoped data isolation, per-tenant Gmail integration |
 | **Platform Admin** | Tenant usage aggregates, admin onboarding, cross-tenant analytics dashboard, documents-by-tenant charts |
 | **Amount Model** | Currency-aware integer minor units (USD 1200.50 = 120050), zero floating-point drift |
@@ -183,7 +184,68 @@ BillForge/
 
 <br />
 
+## Approval Workflow System
+
+BillForge supports optional multi-step approval workflows configured per tenant. When disabled, the existing single-step approval flow (any Member or Admin approves directly) is preserved with zero behavioral change.
+
+### Configuration
+
+Tenant admins configure workflows in the **Config** tab:
+
+| Mode | Description |
+|------|-------------|
+| **OFF** | Any authorized user approves directly (default, backward compatible) |
+| **Simple** | Toggle checkboxes: "Require manager review", "Require final sign-off" |
+| **Advanced** | Visual step builder with role/user approvers, any/all rules, amount conditions |
+
+### Invoice Lifecycle with Workflow
+
+```
+PARSED / NEEDS_REVIEW
+       │
+       ▼ (workflow ON)
+AWAITING_APPROVAL ──→ Step 1 ──→ Step 2 ──→ ... ──→ APPROVED ──→ EXPORTED
+       │                                      │
+       │ (condition not met)                  │ (rejected)
+       └──→ skip step ──→ next               └──→ NEEDS_REVIEW (can re-submit)
+```
+
+### Key Behaviors
+
+| Scenario | Behavior |
+|----------|----------|
+| Workflow OFF | Direct approval, no change from legacy |
+| Workflow toggled OFF with in-flight invoices | All AWAITING_APPROVAL revert to NEEDS_REVIEW |
+| Invoice edited while in workflow | Workflow resets, returns to NEEDS_REVIEW |
+| Rejection | Records reason, returns to NEEDS_REVIEW with full audit trail |
+| ALL rule (3 admins) | Requires each to approve individually before advancing |
+| Condition: amount > threshold | Step auto-skipped if condition not met |
+
+### Data Model
+
+Workflow config is stored per-tenant in `approvalWorkflows` collection. Invoice progress is tracked in the `workflowState` embedded field on the invoice document, with a `stepResults` array recording every approve/reject/skip action with user, timestamp, and reason.
+
+<br />
+
 ## Architecture
+
+### Interactive Diagram
+
+The full architecture diagram is available as a draw.io file:
+
+**[`docs/architecture.drawio`](docs/architecture.drawio)** — open in [draw.io](https://app.diagrams.net) or VS Code with the Draw.io Integration extension.
+
+The diagram covers:
+- Ingestion sources (Gmail, Folder, S3 Upload)
+- Extraction pipeline (OCR → Parser → SLM → Confidence)
+- Approval engine (workflow config, step engine, audit trail)
+- Export layer (Tally XML, file store, batch history)
+- API layer (all route groups with middleware)
+- Frontend components (invoice table, viewer, workflow config, timeline)
+- Data layer (MongoDB, S3/MinIO, Keycloak)
+- Invoice lifecycle state machine (PENDING → PARSED → AWAITING_APPROVAL → APPROVED → EXPORTED)
+
+<br />
 
 <details>
 <summary><strong>Extraction Pipeline</strong> -- Staged ML processing with confidence gates</summary>
@@ -235,6 +297,7 @@ MLX imports exist only in `local_*.py` modules. Docker images install `requireme
 | `vendorTemplate` | `tenantId` | `(tenantId, fingerprintHash)` |
 | `extractionLearnings` | `tenantId` | `(tenantId, groupKey, groupType)` |
 | `tenantIntegration` | `tenantId` | `(tenantId, provider)` |
+| `approvalWorkflows` | `tenantId` | `(tenantId)` |
 
 </details>
 

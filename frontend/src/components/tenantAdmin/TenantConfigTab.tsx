@@ -1,4 +1,5 @@
 import type { GmailConnectionStatus, TenantMailbox } from "../../types";
+import { ApprovalWorkflowSection } from "./ApprovalWorkflowSection";
 
 interface TenantConfigTabProps {
   gmailConnection: GmailConnectionStatus | null;
@@ -60,17 +61,7 @@ export function TenantConfigTab({
               <div key={mailbox._id} style={{ border: "1px solid var(--line)", borderRadius: 8, padding: "0.75rem 1rem" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", flexWrap: "wrap" }}>
                   <span style={{ fontWeight: 600, fontSize: "0.9rem" }}>{mailbox.emailAddress ?? "(unknown)"}</span>
-                  <span
-                    style={{
-                      fontSize: "0.72rem",
-                      padding: "0.2rem 0.5rem",
-                      borderRadius: 4,
-                      fontWeight: 600,
-                      textTransform: "uppercase",
-                      background: mailbox.status === "connected" ? "#dcfce7" : "#fee2e2",
-                      color: mailbox.status === "connected" ? "#166534" : "#991b1b"
-                    }}
-                  >
+                  <span className={`bank-status-badge ${mailbox.status === "connected" ? "bank-status-active" : "bank-status-error"}`}>
                     {mailbox.status}
                   </span>
                   {mailbox.lastSyncedAt ? (
@@ -146,6 +137,8 @@ export function TenantConfigTab({
           </div>
         )}
       </div>
+
+      <ApprovalWorkflowSection tenantUsers={tenantUsers} />
 
       <div className="editor-card">
         <div className="editor-header">
