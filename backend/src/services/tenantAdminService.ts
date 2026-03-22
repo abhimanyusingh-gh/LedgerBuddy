@@ -45,7 +45,10 @@ export class TenantAdminService {
     }
   }
 
-  async setUserEnabled(input: { tenantId: string; userId: string; enabled: boolean }): Promise<void> {
+  async setUserEnabled(input: { tenantId: string; userId: string; enabled: boolean; actingUserId?: string }): Promise<void> {
+    if (input.actingUserId && input.userId === input.actingUserId && !input.enabled) {
+      throw new HttpError("You cannot disable your own account.", 400, "cannot_disable_self");
+    }
     const user = await UserModel.findOne({ _id: input.userId, tenantId: input.tenantId });
     if (!user) {
       throw new HttpError("User not found.", 404, "tenant_user_not_found");
@@ -80,7 +83,10 @@ export class TenantAdminService {
       .filter((value): value is NonNullable<typeof value> => value !== null);
   }
 
-  async assignRole(input: { tenantId: string; userId: string; role: TenantRole }): Promise<void> {
+  async assignRole(input: { tenantId: string; userId: string; role: TenantRole; actingUserId?: string }): Promise<void> {
+    if (input.actingUserId && input.userId === input.actingUserId && input.role !== "TENANT_ADMIN") {
+      throw new HttpError("You cannot change your own role.", 400, "cannot_demote_self");
+    }
     await TenantUserRoleModel.findOneAndUpdate(
       {
         tenantId: input.tenantId,
@@ -114,13 +120,16 @@ export class TenantAdminService {
         .filter((a) => a.assignedTo !== "all")
         .map((a) => ({ userId: a.assignedTo, email: userMap.get(a.assignedTo) ?? a.assignedTo }));
 
+      const pollingConfig = (integration as Record<string, unknown>).pollingConfig as { enabled?: boolean; intervalHours?: number; lastPolledAt?: Date; nextPollAfter?: Date } | undefined;
+
       return {
         _id: iid,
         provider: integration.provider,
         emailAddress: integration.emailAddress,
         status: integration.status,
         lastSyncedAt: integration.lastSyncedAt,
-        assignments: hasAll ? ("all" as const) : specificAssignments
+        assignments: hasAll ? ("all" as const) : specificAssignments,
+        ...(pollingConfig ? { pollingConfig: { enabled: pollingConfig.enabled ?? false, intervalHours: pollingConfig.intervalHours ?? 4, lastPolledAt: pollingConfig.lastPolledAt, nextPollAfter: pollingConfig.nextPollAfter } } : {})
       };
     });
   }

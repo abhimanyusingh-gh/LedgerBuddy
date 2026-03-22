@@ -117,11 +117,10 @@ export class ApprovalWorkflowService {
     if (step.approverType === "specific_users") {
       return (step.approverUserIds ?? []).includes(userId);
     }
+    const roleRecord = await TenantUserRoleModel.findOne({ tenantId, userId }).lean();
     if (step.approverType === "role") {
-      const roleRecord = await TenantUserRoleModel.findOne({ tenantId, userId }).lean();
       return roleRecord?.role === step.approverRole;
     }
-    const roleRecord = await TenantUserRoleModel.findOne({ tenantId, userId }).lean();
     return roleRecord?.role === "MEMBER" || roleRecord?.role === "TENANT_ADMIN";
   }
 
@@ -285,9 +284,15 @@ export class ApprovalWorkflowService {
     }
 
     const workflow = await ApprovalWorkflowModel.findById(workflowState.workflowId).lean();
-    const currentStep = workflow?.steps.find((s) => s.order === workflowState.currentStep);
+    if (!workflow) {
+      throw new HttpError("Workflow configuration not found.", 404, "workflow_missing");
+    }
+    const currentStep = workflow.steps.find((s) => s.order === workflowState.currentStep);
+    if (!currentStep) {
+      throw new HttpError("Current workflow step not found.", 400, "step_missing");
+    }
 
-    const canApprove = currentStep ? await this.canUserApproveStep(authContext.userId, authContext.tenantId, currentStep as WorkflowStep) : false;
+    const canApprove = await this.canUserApproveStep(authContext.userId, authContext.tenantId, currentStep as WorkflowStep);
     if (!canApprove) {
       throw new HttpError("You are not eligible to reject this step.", 403, "not_eligible");
     }

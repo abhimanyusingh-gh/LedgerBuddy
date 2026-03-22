@@ -17,12 +17,6 @@ export interface StatusStat {
   count: number;
 }
 
-export interface AgingBucket {
-  bucket: string;
-  count: number;
-  amountMinor: number;
-}
-
 export interface AnalyticsOverview {
   kpis: {
     totalInvoices: number;
@@ -38,20 +32,19 @@ export interface AnalyticsOverview {
   statusBreakdown: StatusStat[];
   topVendorsByApproved: VendorStat[];
   topVendorsByPending: VendorStat[];
-  agingBuckets: AgingBucket[];
 }
 
 const AGG_OPTIONS = { allowDiskUse: true };
 
 export async function getOverview(tenantId: string, from: Date, to: Date, approverId?: string): Promise<AnalyticsOverview> {
-  const approverFilter = approverId ? { "approval.approvedBy": approverId } : {};
+  const approverFilter = approverId ? { "approval.userId": approverId } : {};
 
-  const [kpiResult, dailyApprovalsResult, dailyIngestionResult, dailyExportsResult, statusResult, vendorsApprovedResult, vendorsPendingResult, agingResult] =
+  const [kpiResult, dailyApprovalsResult, dailyIngestionResult, dailyExportsResult, statusResult, vendorsApprovedResult, vendorsPendingResult] =
     await Promise.all([
       InvoiceModel.aggregate(
         [
           { $match: { tenantId, createdAt: { $gte: from, $lte: to } } },
-          { $project: { status: 1, "parsed.totalAmountMinor": 1, "approval.approvedBy": 1, "export.exportedAt": 1 } },
+          { $project: { status: 1, "parsed.totalAmountMinor": 1, "approval.approvedBy": 1, "approval.userId": 1, "export.exportedAt": 1 } },
           {
             $facet: {
               total: [{ $count: "n" }],
@@ -147,7 +140,7 @@ export async function getOverview(tenantId: string, from: Date, to: Date, approv
 
       InvoiceModel.aggregate(
         [
-          { $match: { tenantId, status: { $in: ["PARSED", "NEEDS_REVIEW"] } } },
+          { $match: { tenantId, status: { $in: ["PARSED", "NEEDS_REVIEW"] }, createdAt: { $gte: from, $lte: to } } },
           { $project: { "parsed.vendorName": 1, "parsed.totalAmountMinor": 1 } },
           {
             $group: {
@@ -158,42 +151,6 @@ export async function getOverview(tenantId: string, from: Date, to: Date, approv
           },
           { $sort: { amountMinor: -1 } },
           { $limit: 10 }
-        ],
-        AGG_OPTIONS
-      ),
-
-      InvoiceModel.aggregate(
-        [
-          { $match: { tenantId, status: { $nin: ["EXPORTED"] } } },
-          {
-            $addFields: {
-              ageDays: {
-                $dateDiff: { startDate: "$receivedAt", endDate: "$$NOW", unit: "day" }
-              }
-            }
-          },
-          {
-            $addFields: {
-              agingBucket: {
-                $switch: {
-                  branches: [
-                    { case: { $lte: ["$ageDays", 30] }, then: "0-30" },
-                    { case: { $lte: ["$ageDays", 60] }, then: "31-60" },
-                    { case: { $lte: ["$ageDays", 90] }, then: "61-90" }
-                  ],
-                  default: "90+"
-                }
-              }
-            }
-          },
-          {
-            $group: {
-              _id: "$agingBucket",
-              count: { $sum: 1 },
-              amountMinor: { $sum: "$parsed.totalAmountMinor" }
-            }
-          },
-          { $sort: { _id: 1 } }
         ],
         AGG_OPTIONS
       )
@@ -215,7 +172,6 @@ export async function getOverview(tenantId: string, from: Date, to: Date, approv
     dailyExports: dailyExportsResult.map((d) => ({ date: d._id as string, count: d.count as number })),
     statusBreakdown: statusResult.map((d) => ({ status: d._id as string, count: d.count as number })),
     topVendorsByApproved: vendorsApprovedResult.map((d) => ({ vendor: d._id as string, count: d.count as number, amountMinor: d.amountMinor as number })),
-    topVendorsByPending: vendorsPendingResult.map((d) => ({ vendor: d._id as string, count: d.count as number, amountMinor: d.amountMinor as number })),
-    agingBuckets: agingResult.map((d) => ({ bucket: d._id as string, count: d.count as number, amountMinor: d.amountMinor as number }))
+    topVendorsByPending: vendorsPendingResult.map((d) => ({ vendor: d._id as string, count: d.count as number, amountMinor: d.amountMinor as number }))
   };
 }

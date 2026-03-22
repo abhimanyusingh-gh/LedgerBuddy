@@ -88,13 +88,7 @@ export class ExportService {
           externalReference: result.externalReference
         };
       } else {
-        update.export = {
-          system: this.exporter.system,
-          batchId,
-          exportedAt: new Date(),
-          error: result.error
-        };
-        update.$push = { processingIssues: `Export failure: ${result.error}` };
+        update.$push = { processingIssues: `Export failed: ${result.error}` };
       }
 
       await InvoiceModel.updateOne({ _id: invoice._id }, update);
@@ -143,6 +137,20 @@ export class ExportService {
     }
 
     const invoices = await InvoiceModel.find(query).select({ ocrText: 0 });
+
+    let alreadyExportedCount = 0;
+    if (request.ids && request.ids.length > 0) {
+      const foundIds = new Set(invoices.map((i) => String(i._id)));
+      const missingIds = request.ids.filter((id) => Types.ObjectId.isValid(id) && !foundIds.has(id));
+      if (missingIds.length > 0) {
+        alreadyExportedCount = await InvoiceModel.countDocuments({
+          _id: { $in: missingIds.map((id) => new Types.ObjectId(id)) },
+          tenantId: request.tenantId,
+          status: "EXPORTED"
+        });
+      }
+    }
+
     if (invoices.length === 0) {
       return {
         batchId: undefined,
@@ -150,8 +158,9 @@ export class ExportService {
         filename: undefined,
         total: 0,
         includedCount: 0,
-        skippedCount: 0,
-        skippedItems: []
+        skippedCount: alreadyExportedCount,
+        skippedItems: [],
+        alreadyExportedCount
       };
     }
 

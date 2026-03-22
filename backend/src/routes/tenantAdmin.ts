@@ -46,7 +46,8 @@ export function createTenantAdminRouter(tenantAdminService: TenantAdminService, 
       await tenantAdminService.assignRole({
         tenantId: request.authContext!.tenantId,
         userId: request.params.userId,
-        role: role as TenantRole
+        role: role as TenantRole,
+        actingUserId: request.authContext!.userId
       });
       response.status(204).send();
     } catch (error) {
@@ -64,7 +65,8 @@ export function createTenantAdminRouter(tenantAdminService: TenantAdminService, 
       await tenantAdminService.setUserEnabled({
         tenantId: request.authContext!.tenantId,
         userId: request.params.userId,
-        enabled
+        enabled,
+        actingUserId: request.authContext!.userId
       });
       response.json({ userId: request.params.userId, enabled });
     } catch (error) {

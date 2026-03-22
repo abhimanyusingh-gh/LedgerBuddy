@@ -52,7 +52,10 @@ export function createExportRouter(exportService: ExportService | null) {
       });
 
       if (result.includedCount === 0) {
-        res.status(404).json({ message: "No approved invoices found for export." });
+        const reason = result.skippedCount > 0
+          ? `${result.skippedCount} invoice(s) skipped: ${result.skippedItems.map((s) => s.error ?? "unknown").join("; ").substring(0, 200)}`
+          : "No approved invoices found for export.";
+        res.status(404).json({ message: reason, skippedCount: result.skippedCount, alreadyExportedCount: (result as Record<string, unknown>).alreadyExportedCount ?? 0 });
         return;
       }
 
