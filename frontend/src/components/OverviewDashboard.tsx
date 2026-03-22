@@ -4,6 +4,8 @@ import {
   Area,
   BarChart,
   Bar,
+  LineChart,
+  Line,
   PieChart,
   Pie,
   Cell,
@@ -17,6 +19,7 @@ import { fetchAnalyticsOverview } from "../api";
 import { EmptyState } from "./EmptyState";
 import type { AnalyticsOverview, DailyStat, VendorStat } from "../types";
 import { STATUS_LABELS } from "../invoiceView";
+import { computeBurndown } from "../burndown";
 
 function toLocalDateStr(d: Date): string {
   const y = d.getFullYear();
@@ -432,15 +435,13 @@ export function OverviewDashboard() {
                 </>
               ) : <ChartEmptyState />}
             </div>
-          </div>
 
-          {data.dailyExports.length > 0 ? (
-            <div className="overview-charts-grid" style={{ gridTemplateColumns: "1fr" }}>
-              <div className="overview-chart-card">
-                <h4>
-                  Daily Exports
-                  <span className="chart-subtitle">Invoices exported to Tally per day</span>
-                </h4>
+            <div className="overview-chart-card">
+              <h4>
+                Daily Exports
+                <span className="chart-subtitle">Invoices exported to Tally per day</span>
+              </h4>
+              {data.dailyExports.length > 0 ? (
                 <ResponsiveContainer width="100%" height={220}>
                   <BarChart data={data.dailyExports} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="var(--line)" />
@@ -450,9 +451,31 @@ export function OverviewDashboard() {
                     <Bar dataKey="count" name="count" fill="var(--chart-violet)" radius={[3, 3, 0, 0]} animationDuration={800} />
                   </BarChart>
                 </ResponsiveContainer>
-              </div>
+              ) : <ChartEmptyState />}
             </div>
-          ) : null}
+
+            <div className="overview-chart-card">
+              <h4>
+                Pending Burndown
+                <span className="chart-subtitle">Remaining unapproved value (₹)</span>
+              </h4>
+              {(() => {
+                const totalAmount = (kpis?.approvedAmountMinor ?? 0) + (kpis?.pendingAmountMinor ?? 0);
+                const burndown = computeBurndown(totalAmount, data.dailyApprovals);
+                return burndown.length > 0 ? (
+                  <ResponsiveContainer width="100%" height={220}>
+                    <LineChart data={burndown} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="var(--line)" />
+                      <XAxis dataKey="date" tick={{ fontSize: 11 }} tickFormatter={fmtDate} />
+                      <YAxis tick={{ fontSize: 11 }} tickFormatter={(v: number) => fmtInrShort(v)} width={52} />
+                      <Tooltip formatter={(v: number) => [fmtInr(v), "Remaining"]} labelFormatter={fmtDate} />
+                      <Line type="monotone" dataKey="remainingMinor" stroke="var(--chart-rose)" strokeWidth={2} dot={false} animationDuration={800} />
+                    </LineChart>
+                  </ResponsiveContainer>
+                ) : <ChartEmptyState />;
+              })()}
+            </div>
+          </div>
 
           <div className="overview-vendors-grid">
             <div className="overview-chart-card">
@@ -506,29 +529,6 @@ export function OverviewDashboard() {
             </div>
           </div>
 
-          {data.agingBuckets && data.agingBuckets.length > 0 ? (
-            <div className="overview-charts-grid" style={{ gridTemplateColumns: "1fr" }}>
-              <div className="overview-chart-card">
-                <h4>
-                  Invoice Aging
-                  <span className="chart-subtitle">Non-exported invoices by days since received</span>
-                </h4>
-                <ResponsiveContainer width="100%" height={180}>
-                  <BarChart data={data.agingBuckets} margin={{ top: 4, right: 16, left: 4, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="var(--line)" />
-                    <XAxis dataKey="bucket" tick={{ fontSize: 11 }} />
-                    <YAxis tick={{ fontSize: 11 }} allowDecimals={false} width={32} />
-                    <Tooltip formatter={(v: number, name: string) => [name === "amountMinor" ? fmtInr(v) : v, name === "amountMinor" ? "Amount" : "Count"]} />
-                    <Bar dataKey="count" name="Count" animationDuration={800}>
-                      {data.agingBuckets.map((entry) => (
-                        <Cell key={entry.bucket} fill={entry.bucket === "0-30" ? "var(--chart-emerald)" : entry.bucket === "31-60" ? "var(--chart-amber)" : entry.bucket === "61-90" ? "var(--chart-rose)" : "var(--warn)"} />
-                      ))}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-          ) : null}
         </>
       ) : !loading ? (
         <EmptyState
