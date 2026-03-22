@@ -82,9 +82,9 @@ services:
       GMAIL_OAUTH_CLIENT_ID: ${GMAIL_OAUTH_CLIENT_ID:-billforge-app}
       GMAIL_OAUTH_CLIENT_SECRET: ${GMAIL_OAUTH_CLIENT_SECRET:-billforge-local-secret}
       GMAIL_OAUTH_REDIRECT_URI: ${GMAIL_OAUTH_REDIRECT_URI:-http://localhost:4100/api/connect/gmail/callback}
-      GMAIL_OAUTH_AUTH_URL: ${GMAIL_OAUTH_AUTH_URL:-http://localhost:8280/realms/billforge/protocol/openid-connect/auth}
-      GMAIL_OAUTH_TOKEN_URL: ${GMAIL_OAUTH_TOKEN_URL:-http://keycloak:8080/realms/billforge/protocol/openid-connect/token}
-      GMAIL_OAUTH_USERINFO_URL: ${GMAIL_OAUTH_USERINFO_URL:-http://keycloak:8080/realms/billforge/protocol/openid-connect/userinfo}
+      GMAIL_OAUTH_AUTH_URL: ${GMAIL_OAUTH_AUTH_URL:-https://accounts.google.com/o/oauth2/v2/auth}
+      GMAIL_OAUTH_TOKEN_URL: ${GMAIL_OAUTH_TOKEN_URL:-https://oauth2.googleapis.com/token}
+      GMAIL_OAUTH_USERINFO_URL: ${GMAIL_OAUTH_USERINFO_URL:-https://www.googleapis.com/oauth2/v3/userinfo}
       GMAIL_OAUTH_SCOPES: ${GMAIL_OAUTH_SCOPES:-openid email profile offline_access}
       GMAIL_OAUTH_STATE_TTL_SECONDS: ${GMAIL_OAUTH_STATE_TTL_SECONDS:-600}
       GMAIL_OAUTH_HTTP_TIMEOUT_MS: ${GMAIL_OAUTH_HTTP_TIMEOUT_MS:-15000}

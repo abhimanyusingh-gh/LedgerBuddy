@@ -3,6 +3,7 @@ import type { AuthService } from "../auth/AuthService.js";
 import { requireTenantAdmin } from "../auth/middleware.js";
 import type { TenantGmailIntegrationService } from "../services/tenantGmailIntegrationService.js";
 import { logger } from "../utils/logger.js";
+import { apiUrl } from "../config/env.js";
 
 /**
  * Public Gmail routes — mounted BEFORE the authenticate middleware.
@@ -136,9 +137,20 @@ export function createGmailConnectionRouter(gmailIntegrationService: TenantGmail
         return;
       }
 
-      const connectUrl = new URL("/api/connect/gmail", `${request.protocol}://${request.get("host")}`);
-      connectUrl.searchParams.set("token", sessionToken);
-      response.json({ connectUrl: connectUrl.toString(), tenantId: context.tenantId });
+      const connectUrl = `${apiUrl("/api/connect/gmail")}?token=${encodeURIComponent(sessionToken)}`;
+      response.json({ connectUrl, tenantId: context.tenantId });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  router.put("/integrations/gmail/:id/polling", requireTenantAdmin, async (request, response, next) => {
+    try {
+      const context = request.authContext!;
+      const enabled = typeof request.body?.enabled === "boolean" ? request.body.enabled : false;
+      const intervalHours = typeof request.body?.intervalHours === "number" ? request.body.intervalHours : 4;
+      await gmailIntegrationService.updatePollingConfig(request.params.id, context.tenantId, { enabled, intervalHours });
+      response.json({ enabled, intervalHours });
     } catch (error) {
       next(error);
     }

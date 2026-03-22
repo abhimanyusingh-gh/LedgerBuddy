@@ -240,6 +240,15 @@ export class IngestionService {
   }
 
   private async processFile(file: IngestedFile): Promise<"created" | "duplicate" | "failed"> {
+    const gmailMessageId = file.sourceType === "email" && file.metadata?.messageId
+      ? String(file.metadata.messageId).trim()
+      : undefined;
+
+    if (gmailMessageId) {
+      const msgDup = await InvoiceModel.findOne({ tenantId: file.tenantId, gmailMessageId }).lean();
+      if (msgDup) return "duplicate";
+    }
+
     const duplicate = await InvoiceModel.findOne({
       tenantId: file.tenantId,
       sourceType: file.sourceType,
@@ -425,11 +434,16 @@ function buildSuccessData(
     metadata.fieldOverlayPaths = JSON.stringify(Object.fromEntries(artifacts.fieldOverlayPaths));
   }
 
+  const gmailMessageId = file.sourceType === "email" && file.metadata?.messageId
+    ? String(file.metadata.messageId).trim()
+    : undefined;
+
   return {
     sourceType: file.sourceType, tenantId: file.tenantId, workloadTier: file.workloadTier,
     sourceKey: file.sourceKey, sourceDocumentId: file.sourceDocumentId,
     attachmentName: file.attachmentName, mimeType,
     receivedAt: file.receivedAt,
+    ...(gmailMessageId ? { gmailMessageId } : {}),
     ocrProvider: extraction.provider, ocrText: extraction.text,
     ocrConfidence: extraction.confidence, ocrBlocks: finalBlocks,
     ocrTokens: extraction.ocrTokens, slmTokens: extraction.slmTokens,

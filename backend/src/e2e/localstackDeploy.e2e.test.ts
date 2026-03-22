@@ -23,6 +23,7 @@ import { createInviteEmailSenderProvider } from "../providers/email/createInvite
 import { MongoVendorTemplateStore } from "../services/extraction/vendorTemplateStore.js";
 import { MongoExtractionLearningStore } from "../services/extraction/extractionLearningStore.js";
 import { env } from "../config/env.js";
+import { ApprovalWorkflowService } from "../services/approvalWorkflowService.js";
 
 const LOCALSTACK_ENDPOINT = process.env.LOCALSTACK_ENDPOINT;
 const MONGO_URI = process.env.MONGO_URI || env.MONGO_URI;
@@ -88,8 +89,9 @@ describeIf("LocalStack deployment smoke test", () => {
       { ocrHighConfidenceThreshold: 0.88, llmAssistConfidenceThreshold: 85 }
     );
 
+    const approvalWorkflowService = new ApprovalWorkflowService();
     const ingestionService = new IngestionService([], ocrProvider, { pipeline, fileStore });
-    const invoiceService = new InvoiceService({ fileStore });
+    const invoiceService = new InvoiceService({ fileStore, workflowService: approvalWorkflowService });
     const exporter = new TallyExporter({
       endpoint: "http://tally.example.local",
       companyName: "Test Company",
@@ -129,7 +131,8 @@ describeIf("LocalStack deployment smoke test", () => {
       gmailIntegrationService,
       bankService,
       fileStore,
-      keycloakAdmin
+      keycloakAdmin,
+      approvalWorkflowService
     });
 
     server = app.listen(0);

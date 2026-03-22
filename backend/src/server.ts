@@ -8,6 +8,9 @@ import { buildDependencies } from "./core/dependencies.js";
 
 let server: Server | undefined;
 let shuttingDown = false;
+let pollingTimer: ReturnType<typeof setInterval> | undefined;
+
+const POLLING_TICK_INTERVAL_MS = 60_000;
 
 async function bootstrap() {
   await connectToDatabase();
@@ -25,6 +28,31 @@ async function bootstrap() {
 
   server.keepAliveTimeout = 65_000;
   server.headersTimeout = 66_000;
+
+  pollingTimer = setInterval(() => {
+    void runPollingTick(dependencies).catch((error) => {
+      logger.error("polling.tick.failed", { error: error instanceof Error ? error.message : String(error) });
+    });
+  }, POLLING_TICK_INTERVAL_MS);
+}
+
+async function runPollingTick(dependencies: Awaited<ReturnType<typeof buildDependencies>>): Promise<void> {
+  const eligible = await dependencies.gmailIntegrationService.getPollingEligibleIntegrations();
+  if (eligible.length === 0) return;
+
+  for (const { tenantId, integrationId } of eligible) {
+    try {
+      await dependencies.ingestionService.runOnce({ tenantId });
+      await dependencies.gmailIntegrationService.markPollingCompleted(integrationId);
+      logger.info("polling.completed", { tenantId, integrationId });
+    } catch (error) {
+      logger.error("polling.tenant.failed", {
+        tenantId,
+        integrationId,
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  }
 }
 
 async function shutdown(signal: string) {
@@ -33,6 +61,10 @@ async function shutdown(signal: string) {
   }
   shuttingDown = true;
   logger.info("shutdown.start", { signal });
+
+  if (pollingTimer) {
+    clearInterval(pollingTimer);
+  }
 
   if (server) {
     await new Promise<void>((resolve) => {

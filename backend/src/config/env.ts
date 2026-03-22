@@ -18,6 +18,7 @@ const envSchema = z.object({
   ENV: z.enum(APP_ENVIRONMENTS),
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   PORT: z.coerce.number().default(4000),
+  API_BASE_URL: z.string().default("http://localhost:4100"),
   MONGO_URI: z.string().min(1),
   APP_MANIFEST_PATH: z.string().optional(),
   FRONTEND_BASE_URL: z.string().default("http://localhost:5177"),
@@ -263,8 +264,11 @@ if ((values.ENV === "stg" || values.ENV === "prod") && values.REFRESH_TOKEN_ENCR
   process.exit(1);
 }
 
+const apiBaseUrl = normalizeUrl(values.API_BASE_URL);
+
 export const env = {
   ...values,
+  API_BASE_URL: apiBaseUrl,
   DEEPSEEK_BASE_URL: resolvedOcrBaseUrl,
   FIELD_VERIFIER_BASE_URL: resolvedSlmBaseUrl,
   isLocalMlEnv: localMlEnv,
@@ -277,3 +281,7 @@ export const env = {
     .map((source) => source.trim())
     .filter(Boolean)
 };
+
+export function apiUrl(path: string): string {
+  return `${apiBaseUrl}${path.startsWith("/") ? path : "/" + path}`;
+}
