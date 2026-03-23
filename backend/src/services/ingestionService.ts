@@ -249,18 +249,19 @@ export class IngestionService {
       if (msgDup) return "duplicate";
     }
 
-    const duplicate = await InvoiceModel.findOne({
+    const pendingDoc = await InvoiceModel.findOne({
       tenantId: file.tenantId,
-      sourceType: file.sourceType,
-      sourceKey: file.sourceKey,
       sourceDocumentId: file.sourceDocumentId,
-      attachmentName: file.attachmentName,
-      status: { $ne: "PENDING" }
-    }).lean();
-
-    if (duplicate) {
-      return "duplicate";
-    }
+      status: "PENDING"
+    }).select({ contentHash: 1 }).lean();
+    const contentDuplicate = pendingDoc?.contentHash
+      ? await InvoiceModel.findOne({
+          tenantId: file.tenantId,
+          contentHash: pendingDoc.contentHash,
+          sourceDocumentId: { $ne: file.sourceDocumentId },
+          status: { $ne: "PENDING" }
+        }).select({ _id: 1, attachmentName: 1 }).lean()
+      : null;
 
     const normalizedMimeType = normalizeInvoiceMimeType(file.mimeType);
     const baseOcrState = { ocrProvider: this.ocrProvider.name, ocrText: "", ocrConfidence: undefined as number | undefined, ocrBlocks: [] as OcrBlock[] };
@@ -280,12 +281,21 @@ export class IngestionService {
       const ocrBlocks = extraction.ocrBlocks;
       const artifactResults = await this.persistFieldArtifacts(file, normalizedMimeType, extraction, ocrBlocks);
       const successData = buildSuccessData(file, normalizedMimeType, extraction, ocrBlocks, artifactResults);
+      if (contentDuplicate) {
+        const issues = (successData.processingIssues as string[]) ?? [];
+        issues.push(`Duplicate content detected (matches "${contentDuplicate.attachmentName ?? "unknown"}").`);
+        successData.processingIssues = issues;
+      }
       await upsertFromPending(file, successData);
 
       return successData.status === "PARSED" || successData.status === "NEEDS_REVIEW" ? "created" : "failed";
     } catch (error) {
       if (isDuplicateKeyError(error)) {
-        return "duplicate";
+        logger.warn("ingestion.file.duplicate_key", {
+          sourceDocumentId: file.sourceDocumentId,
+          attachmentName: file.attachmentName
+        });
+        return "created";
       }
 
       const failureData = buildFailureData(file, normalizedMimeType, baseOcrState, error);
@@ -360,9 +370,15 @@ async function upsertFromPending(file: IngestedFile, data: Record<string, unknow
     { tenantId: file.tenantId, sourceDocumentId: file.sourceDocumentId, status: "PENDING" },
     { $set: updateData }
   );
-  if (!updated) {
-    await InvoiceModel.create(data);
-  }
+  if (updated) return;
+
+  const overwritten = await InvoiceModel.findOneAndUpdate(
+    { tenantId: file.tenantId, sourceDocumentId: file.sourceDocumentId },
+    { $set: updateData }
+  );
+  if (overwritten) return;
+
+  await InvoiceModel.create(data);
 }
 
 interface ExtractionResult {

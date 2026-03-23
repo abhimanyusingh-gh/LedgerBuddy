@@ -1,8 +1,6 @@
-version: "3.8"
-
 services:
   localstack:
-    image: localstack/localstack:3.7
+    image: localstack/localstack:4
     container_name: localstack-infra-test
     ports:
       - "4566:4566"            # LocalStack Gateway

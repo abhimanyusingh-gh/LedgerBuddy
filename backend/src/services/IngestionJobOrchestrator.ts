@@ -5,7 +5,7 @@ import { SSE_HEARTBEAT_INTERVAL_MS, RERUN_MAX_COUNT } from "../constants.js";
 
 type IngestionJobState = "idle" | "running" | "completed" | "failed" | "paused";
 
-export interface IngestionJobStatus {
+interface IngestionJobStatus {
   state: IngestionJobState;
   running: boolean;
   totalFiles: number;
@@ -49,8 +49,9 @@ export class IngestionJobOrchestrator {
   addSubscriber(tenantId: string, res: Response, req: Request): void {
     res.writeHead(200, {
       "Content-Type": "text/event-stream",
-      "Cache-Control": "no-cache",
-      Connection: "keep-alive"
+      "Cache-Control": "no-cache, no-transform",
+      Connection: "keep-alive",
+      "X-Accel-Buffering": "no"
     });
     res.write(":\n\n");
 

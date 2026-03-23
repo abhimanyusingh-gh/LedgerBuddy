@@ -59,30 +59,67 @@ prepare_local_demo_inbox() {
   done
 }
 
-resolve_python_bin() {
-  if [[ -x "$ROOT_DIR/.venv-ml/bin/python" ]]; then
-    printf "%s" "$ROOT_DIR/.venv-ml/bin/python"
-    return 0
-  fi
-  if command -v python3.11 >/dev/null 2>&1; then
-    command -v python3.11
-    return 0
-  fi
-  if command -v python3 >/dev/null 2>&1; then
-    command -v python3
-    return 0
-  fi
-  echo "Missing Python runtime. Install Python 3.10+ or create .venv-ml." >&2
+find_system_python310() {
+  for candidate in python3.13 python3.12 python3.11 python3.10 python3; do
+    local bin
+    bin="$(command -v "$candidate" 2>/dev/null || true)"
+    if [[ -n "$bin" ]]; then
+      local ok
+      ok="$("$bin" -c 'import sys; print("ok" if sys.version_info >= (3,10) else "no")' 2>/dev/null || echo "no")"
+      if [[ "$ok" == "ok" ]]; then
+        printf "%s" "$bin"
+        return 0
+      fi
+    fi
+  done
   return 1
 }
 
-assert_python_version() {
-  local python_bin="$1"
-  "$python_bin" - <<'PY'
-import sys
-if sys.version_info < (3, 10):
-  raise SystemExit(f"Python 3.10+ required, found {sys.version.split()[0]}")
-PY
+ensure_venv_ml() {
+  local venv_dir="$ROOT_DIR/.venv-ml"
+  local needs_create="false"
+  local needs_deps="false"
+
+  if [[ ! -x "$venv_dir/bin/python" ]]; then
+    needs_create="true"
+  else
+    local ok
+    ok="$("$venv_dir/bin/python" -c 'import sys; print("ok" if sys.version_info >= (3,10) else "no")' 2>/dev/null || echo "no")"
+    if [[ "$ok" != "ok" ]]; then
+      echo "Existing .venv-ml has Python < 3.10, recreating..." >&2
+      rm -rf "$venv_dir"
+      needs_create="true"
+    fi
+  fi
+
+  if [[ "$needs_create" == "true" ]]; then
+    local sys_python
+    sys_python="$(find_system_python310)" || {
+      echo "No Python 3.10+ found. Install via: brew install python@3.12" >&2
+      exit 1
+    }
+    echo "Creating .venv-ml with $sys_python..." >&2
+    "$sys_python" -m venv "$venv_dir"
+    needs_deps="true"
+  fi
+
+  if [[ "$needs_deps" == "false" ]]; then
+    local missing
+    missing="$("$venv_dir/bin/python" -c 'import uvicorn, fastapi' 2>&1 || echo "missing")"
+    if [[ "$missing" == *"missing"* || "$missing" == *"ModuleNotFoundError"* ]]; then
+      needs_deps="true"
+    fi
+  fi
+
+  if [[ "$needs_deps" == "true" ]]; then
+    echo "Installing Python dependencies into .venv-ml..." >&2
+    "$venv_dir/bin/pip" install --quiet --upgrade pip
+    "$venv_dir/bin/pip" install --quiet -r invoice-ocr/requirements.txt
+    "$venv_dir/bin/pip" install --quiet -r invoice-slm/requirements.txt
+    echo "Python dependencies installed." >&2
+  fi
+
+  printf "%s" "$venv_dir/bin/python"
 }
 
 is_model_ready() {
@@ -208,8 +245,7 @@ if [[ "$ENV_MODE" == "local" || "$ENV_MODE" == "dev" ]]; then
     prepare_local_demo_inbox "$ROOT_DIR/sample-invoices/inbox" "$INVOICE_INBOX_PATH"
   fi
 
-  PYTHON_BIN="$(resolve_python_bin)"
-  assert_python_version "$PYTHON_BIN"
+  PYTHON_BIN="$(ensure_venv_ml)"
 
   start_local_service_if_needed \
     "OCR" \

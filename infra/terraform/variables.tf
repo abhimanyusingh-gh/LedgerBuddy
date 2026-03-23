@@ -124,14 +124,9 @@ variable "app_image" {
 
 variable "mongo_uri" {
   type        = string
-  description = "MongoDB connection string used by worker runs."
+  description = "MongoDB connection string used by worker runs. Required when provision_documentdb is false."
   default     = ""
   sensitive   = true
-
-  validation {
-    condition     = var.provision_documentdb || length(trimspace(var.mongo_uri)) > 0
-    error_message = "Set mongo_uri when provision_documentdb is false."
-  }
 }
 
 variable "ingestion_sources" {
@@ -274,36 +269,21 @@ variable "provision_documentdb" {
 
 variable "documentdb_allowed_cidrs" {
   type        = list(string)
-  description = "CIDR blocks allowed to access DocumentDB on port 27017."
+  description = "CIDR blocks allowed to access DocumentDB on port 27017. Required when provision_documentdb is true."
   default     = []
-
-  validation {
-    condition     = !var.provision_documentdb || length(var.documentdb_allowed_cidrs) > 0
-    error_message = "Provide documentdb_allowed_cidrs when provision_documentdb is true."
-  }
 }
 
 variable "documentdb_master_username" {
   type        = string
   description = "Master username for the provisioned DocumentDB cluster."
   default     = "invoice_admin"
-
-  validation {
-    condition     = !var.provision_documentdb || length(trimspace(var.documentdb_master_username)) > 0
-    error_message = "Provide documentdb_master_username when provision_documentdb is true."
-  }
 }
 
 variable "documentdb_master_password" {
   type        = string
-  description = "Master password for the provisioned DocumentDB cluster."
+  description = "Master password for the provisioned DocumentDB cluster (12+ chars). Required when provision_documentdb is true."
   default     = ""
   sensitive   = true
-
-  validation {
-    condition     = !var.provision_documentdb || length(var.documentdb_master_password) >= 12
-    error_message = "Provide documentdb_master_password (12+ chars) when provision_documentdb is true."
-  }
 }
 
 variable "documentdb_db_name" {

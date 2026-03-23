@@ -78,7 +78,7 @@ describe("jobs routes", () => {
       findHandler(router, "get", "/jobs/ingest/sse")(mockRequest({ authContext: defaultAuth }), res);
 
       expect((res.headers as Record<string, string>)["Content-Type"]).toBe("text/event-stream");
-      expect((res.headers as Record<string, string>)["Cache-Control"]).toBe("no-cache");
+      expect((res.headers as Record<string, string>)["Cache-Control"]).toBe("no-cache, no-transform");
       expect((res.written as string[])[0]).toBe(":\n\n");
     });
 

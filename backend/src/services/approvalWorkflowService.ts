@@ -15,7 +15,7 @@ interface WorkflowStep {
   condition?: { field: string; operator: string; value: number } | null;
 }
 
-export interface WorkflowConfig {
+interface WorkflowConfig {
   enabled: boolean;
   mode: "simple" | "advanced";
   simpleConfig: { requireManagerReview: boolean; requireFinalSignoff: boolean };

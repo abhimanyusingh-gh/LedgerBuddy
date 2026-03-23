@@ -140,7 +140,7 @@ const invoiceSchema = new Schema(
       error: { type: String }
     },
 
-    gmailMessageId: { type: String },
+    gmailMessageId: { type: String, default: undefined },
     metadata: { type: Map, of: String, default: {} }
   },
   {
@@ -159,7 +159,10 @@ invoiceSchema.index(
   { unique: true }
 );
 
-invoiceSchema.index({ tenantId: 1, gmailMessageId: 1 }, { unique: true, sparse: true });
+invoiceSchema.index(
+  { tenantId: 1, gmailMessageId: 1 },
+  { unique: true, partialFilterExpression: { gmailMessageId: { $type: "string" } } }
+);
 invoiceSchema.index({ tenantId: 1, "approval.userId": 1 });
 invoiceSchema.index({ tenantId: 1, status: 1, createdAt: -1 });
 invoiceSchema.index({ tenantId: 1, createdAt: 1 });

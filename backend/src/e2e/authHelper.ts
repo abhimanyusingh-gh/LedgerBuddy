@@ -76,7 +76,7 @@ export async function loginWithPassword(apiBaseUrl: string, email: string, passw
 /**
  * Delete a Keycloak user by email (call in afterAll for cleanup).
  */
-export async function deleteE2EKeycloakUser(email: string): Promise<void> {
+async function deleteE2EKeycloakUser(email: string): Promise<void> {
   try {
     const token = await getKcAdminToken();
     const searchResponse = await axios.get(

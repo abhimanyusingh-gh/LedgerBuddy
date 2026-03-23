@@ -1,3 +1,13 @@
+terraform {
+  required_version = ">= 1.6"
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = ">= 5.0"
+    }
+  }
+}
+
 locals {
   launch_template_name_prefix = "${var.name}-lt-"
   security_group_name         = "${var.name}-sg"

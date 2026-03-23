@@ -1,3 +1,13 @@
+terraform {
+  required_version = ">= 1.6"
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = ">= 5.0"
+    }
+  }
+}
+
 locals {
   cluster_name = "${var.name}-cluster"
   service_name = "${var.name}-service"
@@ -46,7 +56,6 @@ resource "aws_ecs_cluster" "this" {
 # ---------------------------------------------------------------------------
 
 data "aws_region" "current" {}
-data "aws_caller_identity" "current" {}
 
 resource "aws_iam_role" "ecs_execution" {
   name = "${var.name}-ecs-exec-role"

@@ -76,10 +76,10 @@ assert_equals() {
   local label="$1" expected="$2" actual="$3"
   if [ "$expected" = "$actual" ]; then
     info "PASS: ${label}"
-    ((PASSED++))
+    PASSED=$((PASSED + 1))
   else
     fail "FAIL: ${label} (expected='${expected}', actual='${actual}')"
-    ((FAILED++))
+    FAILED=$((FAILED + 1))
   fi
 }
 
@@ -87,10 +87,10 @@ assert_contains() {
   local label="$1" haystack="$2" needle="$3"
   if echo "$haystack" | grep -q "$needle"; then
     info "PASS: ${label}"
-    ((PASSED++))
+    PASSED=$((PASSED + 1))
   else
     fail "FAIL: ${label} (expected to contain '${needle}')"
-    ((FAILED++))
+    FAILED=$((FAILED + 1))
   fi
 }
 
@@ -98,10 +98,10 @@ assert_not_empty() {
   local label="$1" value="$2"
   if [ -n "$value" ]; then
     info "PASS: ${label}"
-    ((PASSED++))
+    PASSED=$((PASSED + 1))
   else
     fail "FAIL: ${label} (value was empty)"
-    ((FAILED++))
+    FAILED=$((FAILED + 1))
   fi
 }
 

@@ -3,7 +3,7 @@ import { Schema, model, type InferSchemaType } from "mongoose";
 const TenantIntegrationProviders = ["gmail"] as const;
 const TenantIntegrationStatuses = ["connected", "requires_reauth", "error"] as const;
 export const ALLOWED_POLLING_INTERVALS_HOURS = [1, 2, 4, 8] as const;
-export type PollingIntervalHours = (typeof ALLOWED_POLLING_INTERVALS_HOURS)[number];
+type PollingIntervalHours = (typeof ALLOWED_POLLING_INTERVALS_HOURS)[number];
 
 const pollingConfigSchema = new Schema({
   enabled: { type: Boolean, required: true, default: false },

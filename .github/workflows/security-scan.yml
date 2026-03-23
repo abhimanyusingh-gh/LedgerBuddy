@@ -71,7 +71,7 @@ jobs:
           load: true
           tags: scan-${{ matrix.service }}:latest
       - name: Run Trivy scan
-        uses: aquasecurity/trivy-action@0.31.0
+        uses: aquasecurity/trivy-action@v0.35.0
         with:
           image-ref: scan-${{ matrix.service }}:latest
           format: sarif

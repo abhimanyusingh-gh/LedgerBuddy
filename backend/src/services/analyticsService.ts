@@ -1,23 +1,23 @@
 import { InvoiceModel } from "../models/Invoice.js";
 
-export interface DailyStat {
+interface DailyStat {
   date: string;
   count: number;
   amountMinor?: number;
 }
 
-export interface VendorStat {
+interface VendorStat {
   vendor: string;
   count: number;
   amountMinor: number;
 }
 
-export interface StatusStat {
+interface StatusStat {
   status: string;
   count: number;
 }
 
-export interface AnalyticsOverview {
+interface AnalyticsOverview {
   kpis: {
     totalInvoices: number;
     approvedCount: number;

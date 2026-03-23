@@ -9,12 +9,12 @@
     "start": "ENV=${ENV:-local} node dist/server.js",
     "worker:once": "ENV=${ENV:-local} tsx src/scripts/runWorkerOnce.ts",
     "seed:platform-admin": "ENV=${ENV:-local} node dist/scripts/seedPlatformAdmin.js",
-    "test": "ENV=${ENV:-local} MONGO_URI=${MONGO_URI:-mongodb://billforge_app:billforge_local_pass@127.0.0.1:27018/billforge?authSource=billforge} jest --config jest.config.cjs --runInBand --testPathIgnorePatterns=/src/e2e/",
-    "coverage": "ENV=${ENV:-local} MONGO_URI=${MONGO_URI:-mongodb://billforge_app:billforge_local_pass@127.0.0.1:27018/billforge?authSource=billforge} jest --config jest.config.cjs --runInBand --testPathIgnorePatterns=/src/e2e/ --coverage",
-    "test:e2e": "ENV=${ENV:-local} MONGO_URI=${MONGO_URI:-mongodb://billforge_app:billforge_local_pass@127.0.0.1:27018/billforge?authSource=billforge} jest --config jest.config.cjs --runInBand src/e2e/folderIngestion.e2e.test.ts src/e2e/saasLifecycle.e2e.test.ts src/e2e/sendgridInviteFormatting.e2e.test.ts src/e2e/platformAdminUsage.e2e.test.ts src/e2e/tenantLifecycle.e2e.test.ts src/e2e/emailVerification.e2e.test.ts",
-    "test:e2e:saas": "ENV=${ENV:-local} MONGO_URI=${MONGO_URI:-mongodb://billforge_app:billforge_local_pass@127.0.0.1:27018/billforge?authSource=billforge} jest --config jest.config.cjs --runInBand src/e2e/saasLifecycle.e2e.test.ts",
-    "test:e2e:email-oauth": "ENV=${ENV:-local} MONGO_URI=${MONGO_URI:-mongodb://billforge_app:billforge_local_pass@127.0.0.1:27018/billforge?authSource=billforge} jest --config jest.config.cjs --runInBand src/e2e/emailOAuthIngestion.e2e.test.ts",
-    "test:integration": "ENV=local LOCALSTACK_ENDPOINT=http://localhost:4566 jest --config jest.config.cjs --runInBand --testPathPattern=\\.integration\\.test\\.ts$"
+    "test": "jest --config jest.config.cjs --runInBand --forceExit --testPathIgnorePatterns=/src/e2e/",
+    "coverage": "jest --config jest.config.cjs --runInBand --forceExit --testPathIgnorePatterns=/src/e2e/ --coverage",
+    "test:e2e": "jest --config jest.config.cjs --runInBand src/e2e/folderIngestion.e2e.test.ts src/e2e/saasLifecycle.e2e.test.ts src/e2e/sendgridInviteFormatting.e2e.test.ts src/e2e/platformAdminUsage.e2e.test.ts src/e2e/tenantLifecycle.e2e.test.ts src/e2e/emailVerification.e2e.test.ts",
+    "test:e2e:saas": "jest --config jest.config.cjs --runInBand src/e2e/saasLifecycle.e2e.test.ts",
+    "test:e2e:email-oauth": "jest --config jest.config.cjs --runInBand src/e2e/emailOAuthIngestion.e2e.test.ts",
+    "test:integration": "LOCALSTACK_ENDPOINT=http://localhost:4566 jest --config jest.config.cjs --runInBand --testPathPattern=\\.integration\\.test\\.ts$"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.893.0",

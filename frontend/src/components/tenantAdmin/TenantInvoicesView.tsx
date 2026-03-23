@@ -146,6 +146,8 @@ export function TenantInvoicesView({
   const [popupMappingExpanded, setPopupMappingExpanded] = useState(false);
   const uploadInputRef = useRef<HTMLInputElement>(null);
   const ingestionWasRunningRef = useRef(false);
+  const sseLoadPendingRef = useRef(false);
+  const sseLoadTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [confirmDialog, setConfirmDialog] = useState<{ title: string; message: string; confirmLabel: string; destructive: boolean; onConfirm: () => void } | null>(null);
   const [allStatusCounts, setAllStatusCounts] = useState<Record<string, number>>({});
@@ -209,14 +211,32 @@ export function TenantInvoicesView({
     const unsub = subscribeIngestionSSE(
       (status) => {
         setIngestionStatus(status);
-        void loadInvoices();
+        if (!sseLoadTimerRef.current) {
+          void loadInvoices();
+          sseLoadTimerRef.current = setTimeout(() => {
+            sseLoadTimerRef.current = null;
+            if (sseLoadPendingRef.current) {
+              sseLoadPendingRef.current = false;
+              void loadInvoices();
+            }
+          }, 2000);
+        } else {
+          sseLoadPendingRef.current = true;
+        }
       },
       () => {
         void refreshIngestionStatus();
+        void loadInvoices();
       }
     );
 
-    return unsub;
+    return () => {
+      unsub();
+      if (sseLoadTimerRef.current) {
+        clearTimeout(sseLoadTimerRef.current);
+        sseLoadTimerRef.current = null;
+      }
+    };
   }, [ingestionStatus?.running]);
 
   useEffect(() => {

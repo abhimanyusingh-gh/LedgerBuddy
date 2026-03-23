@@ -28,6 +28,7 @@ jobs:
     name: Backend Unit Tests
     needs: backend-typecheck
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     services:
       mongo:
         image: mongo:7
@@ -199,7 +200,7 @@ jobs:
           cache-from: type=gha,scope=${{ matrix.service }}
           cache-to: type=gha,mode=max,scope=${{ matrix.service }}
       - name: Scan image with Trivy
-        uses: aquasecurity/trivy-action@0.31.0
+        uses: aquasecurity/trivy-action@v0.35.0
         with:
           image-ref: billforge-${{ matrix.service }}:ci-${{ github.sha }}
           format: table

@@ -25,7 +25,7 @@ export function mergeSelectedIds(currentSelectedIds: string[], invoices: Invoice
   return currentSelectedIds.filter((selectedId) => !blockedIds.has(selectedId));
 }
 
-export type RowAction = "approve" | "reingest" | "delete";
+type RowAction = "approve" | "reingest" | "delete";
 
 export function getAvailableRowActions(invoice: Invoice): RowAction[] {
   const actions: RowAction[] = [];

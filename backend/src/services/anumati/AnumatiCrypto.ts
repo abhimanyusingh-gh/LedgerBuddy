@@ -2,9 +2,7 @@ import {
   createSign,
   createCipheriv,
   createDecipheriv,
-  generateKeyPairSync,
-  randomBytes,
-  type KeyObject
+  randomBytes
 } from "node:crypto";
 
 export function jwsSign(payload: string, privateKeyPem: string): string {
@@ -36,8 +34,4 @@ export function aesDecrypt(encryptedBase64url: string, ivBase64url: string, aesK
   const decipher = createDecipheriv("aes-256-cbc", key, ivBytes);
   const decrypted = Buffer.concat([decipher.update(encryptedBytes), decipher.final()]);
   return decrypted.toString("utf8");
-}
-
-export function generateEcdhKeyPair(): { publicKey: KeyObject; privateKey: KeyObject } {
-  return generateKeyPairSync("ec", { namedCurve: "P-256" });
 }

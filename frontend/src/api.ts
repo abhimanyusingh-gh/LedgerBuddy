@@ -54,7 +54,7 @@ interface SessionContextResponse {
   };
 }
 
-export interface TenantUserSummary {
+interface TenantUserSummary {
   userId: string;
   email: string;
   role: "TENANT_ADMIN" | "MEMBER";

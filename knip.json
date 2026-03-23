@@ -3,10 +3,12 @@
   "ignore": ["mailhog-oauth-wrapper/**"],
   "workspaces": {
     "backend": {
-      "project": ["src/**/*.ts"]
+      "project": ["src/**/*.ts"],
+      "entry": ["src/scripts/seedPlatformAdmin.ts"]
     },
     "frontend": {
-      "project": ["src/**/*.ts", "src/**/*.tsx"]
+      "project": ["src/**/*.ts", "src/**/*.tsx"],
+      "ignoreDependencies": ["jsdom", "@testing-library/jest-dom", "jest-environment-jsdom"]
     }
   }
 }

@@ -49,7 +49,7 @@ jobs:
         working-directory: infra/terraform
 
       - name: Run TFLint on root
-        run: tflint --recursive --config "$GITHUB_WORKSPACE/infra/.tflint.hcl"
+        run: tflint --recursive --config "$GITHUB_WORKSPACE/infra/.tflint.hcl" --minimum-failure-severity=error
         working-directory: infra/
 
   module-validate:
