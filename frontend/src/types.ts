@@ -87,6 +87,13 @@ export interface InvoiceListResponse {
   totalAll?: number;
   approvedAll?: number;
   pendingAll?: number;
+  failedAll?: number;
+  needsReviewAll?: number;
+  parsedAll?: number;
+  awaitingApprovalAll?: number;
+  failedOcrAll?: number;
+  failedParseAll?: number;
+  exportedAll?: number;
 }
 
 export interface ExportResultItem {

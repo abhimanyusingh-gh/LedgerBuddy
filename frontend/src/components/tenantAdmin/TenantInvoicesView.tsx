@@ -169,17 +169,17 @@ export function TenantInvoicesView({
     refresh: refreshPopupInvoiceDetail
   } = useInvoiceDetail(popupInvoiceId);
 
-  const prevFiltersRef = useRef({ statusFilter, invoiceDateFrom, invoiceDateTo, pageSize, approvedByFilter });
+  const prevFiltersRef = useRef({ statusFilter, invoiceDateFrom, invoiceDateTo, pageSize, approvedByFilter, sortColumn, sortDirection });
   useEffect(() => {
     const prev = prevFiltersRef.current;
     const filtersChanged = prev.statusFilter !== statusFilter || prev.invoiceDateFrom !== invoiceDateFrom || prev.invoiceDateTo !== invoiceDateTo || prev.pageSize !== pageSize || prev.approvedByFilter !== approvedByFilter;
-    prevFiltersRef.current = { statusFilter, invoiceDateFrom, invoiceDateTo, pageSize, approvedByFilter };
+    prevFiltersRef.current = { statusFilter, invoiceDateFrom, invoiceDateTo, pageSize, approvedByFilter, sortColumn, sortDirection };
     if (filtersChanged && currentPage !== 1) {
       setCurrentPage(1);
       return;
     }
     void loadInvoices();
-  }, [statusFilter, invoiceDateFrom, invoiceDateTo, currentPage, pageSize, approvedByFilter]);
+  }, [statusFilter, invoiceDateFrom, invoiceDateTo, currentPage, pageSize, approvedByFilter, sortColumn, sortDirection]);
 
   useEffect(() => {
     void refreshIngestionStatus();
@@ -383,37 +383,17 @@ export function TenantInvoicesView({
   );
 
   const filteredInvoices = useMemo(() => {
-    let result = invoices;
-    if (debouncedSearch.trim()) {
-      const q = debouncedSearch.trim().toLowerCase();
-      result = result.filter(
-        (invoice) =>
-          invoice.attachmentName.toLowerCase().includes(q) ||
-          (invoice.parsed?.vendorName ?? "").toLowerCase().includes(q) ||
-          (invoice.parsed?.invoiceNumber ?? "").toLowerCase().includes(q)
-      );
+    if (!debouncedSearch.trim()) {
+      return invoices;
     }
-    if (sortColumn) {
-      const dir = sortDirection === "asc" ? 1 : -1;
-      result = [...result].sort((a, b) => {
-        let va: string | number = "";
-        let vb: string | number = "";
-        switch (sortColumn) {
-          case "file": va = a.attachmentName; vb = b.attachmentName; break;
-          case "vendor": va = a.parsed?.vendorName ?? ""; vb = b.parsed?.vendorName ?? ""; break;
-          case "invoiceNumber": va = a.parsed?.invoiceNumber ?? ""; vb = b.parsed?.invoiceNumber ?? ""; break;
-          case "invoiceDate": va = a.parsed?.invoiceDate ?? ""; vb = b.parsed?.invoiceDate ?? ""; break;
-          case "total": va = a.parsed?.totalAmountMinor ?? 0; vb = b.parsed?.totalAmountMinor ?? 0; break;
-          case "confidence": va = a.confidenceScore ?? 0; vb = b.confidenceScore ?? 0; break;
-          case "status": va = a.status; vb = b.status; break;
-          case "received": va = a.receivedAt; vb = b.receivedAt; break;
-        }
-        if (typeof va === "number" && typeof vb === "number") return (va - vb) * dir;
-        return String(va).localeCompare(String(vb)) * dir;
-      });
-    }
-    return result;
-  }, [invoices, debouncedSearch, sortColumn, sortDirection]);
+    const q = debouncedSearch.trim().toLowerCase();
+    return invoices.filter(
+      (invoice) =>
+        invoice.attachmentName.toLowerCase().includes(q) ||
+        (invoice.parsed?.vendorName ?? "").toLowerCase().includes(q) ||
+        (invoice.parsed?.invoiceNumber ?? "").toLowerCase().includes(q)
+    );
+  }, [invoices, debouncedSearch]);
 
   const selectableVisibleIds = useMemo(
     () => filteredInvoices.filter((invoice) => isInvoiceSelectable(invoice)).map((invoice) => invoice._id),
@@ -542,23 +522,29 @@ export function TenantInvoicesView({
         invoiceDateTo || undefined,
         currentPage,
         pageSize,
-        approvedByFilter || undefined
+        approvedByFilter || undefined,
+        sortColumn || undefined,
+        sortColumn ? sortDirection : undefined
       );
       setInvoices(data.items);
       setTotalInvoices(data.total);
-      const failedCount = data.items.filter((inv) => inv.status === "FAILED_OCR" || inv.status === "FAILED_PARSE").length;
       onNavCountsChange({
         total: data.totalAll ?? data.total,
         approved: data.approvedAll ?? 0,
         pending: data.pendingAll ?? 0,
-        failed: failedCount
+        failed: data.failedAll ?? 0
       });
       if (statusFilter === "ALL") {
-        const counts: Record<string, number> = { ALL: data.total };
-        for (const inv of data.items) {
-          counts[inv.status] = (counts[inv.status] ?? 0) + 1;
-        }
-        setAllStatusCounts(counts);
+        setAllStatusCounts({
+          ALL: data.totalAll ?? data.total,
+          PARSED: data.parsedAll ?? 0,
+          NEEDS_REVIEW: data.needsReviewAll ?? 0,
+          AWAITING_APPROVAL: data.awaitingApprovalAll ?? 0,
+          FAILED_OCR: data.failedOcrAll ?? 0,
+          FAILED_PARSE: data.failedParseAll ?? 0,
+          APPROVED: data.approvedAll ?? 0,
+          EXPORTED: data.exportedAll ?? 0
+        });
       }
       const ids = new Set(data.items.map((item) => item._id));
       setSelectedIds((currentSelectedIds) => mergeSelectedIds(currentSelectedIds, data.items));

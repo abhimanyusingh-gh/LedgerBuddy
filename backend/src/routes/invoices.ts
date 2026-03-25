@@ -34,6 +34,8 @@ export function createInvoiceRouter(invoiceService: InvoiceService, fileStore?: 
   router.use(requireAuth);
   const runtimeManifest = loadRuntimeManifest();
 
+  const ALLOWED_SORT_COLUMNS = new Set(["file", "vendor", "invoiceNumber", "invoiceDate", "total", "confidence", "status", "received"]);
+
   router.get("/invoices", async (req, res, next) => {
     try {
       const authContext = req.authContext!;
@@ -58,6 +60,11 @@ export function createInvoiceRouter(invoiceService: InvoiceService, fileStore?: 
         }
       }
 
+      const rawSortBy = typeof req.query.sortBy === "string" ? req.query.sortBy : undefined;
+      const sortBy = rawSortBy && ALLOWED_SORT_COLUMNS.has(rawSortBy) ? rawSortBy : undefined;
+      const rawSortDir = typeof req.query.sortDir === "string" ? req.query.sortDir : undefined;
+      const sortDir: "asc" | "desc" | undefined = rawSortDir === "asc" || rawSortDir === "desc" ? rawSortDir : undefined;
+
       const result = await invoiceService.listInvoices({
         page,
         limit,
@@ -66,7 +73,9 @@ export function createInvoiceRouter(invoiceService: InvoiceService, fileStore?: 
         workloadTier,
         from: fromDate ?? undefined,
         to: toDate ?? undefined,
-        approvedBy
+        approvedBy,
+        sortBy,
+        sortDir
       });
       res.json(result);
     } catch (error) {

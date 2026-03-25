@@ -19,7 +19,20 @@ interface ListInvoicesParams {
   from?: Date;
   to?: Date;
   approvedBy?: string;
+  sortBy?: string;
+  sortDir?: "asc" | "desc";
 }
+
+const SORT_COLUMN_MAP: Record<string, string> = {
+  file: "attachmentName",
+  vendor: "parsed.vendorName",
+  invoiceNumber: "parsed.invoiceNumber",
+  invoiceDate: "parsed.invoiceDate",
+  total: "parsed.totalAmountMinor",
+  confidence: "confidenceScore",
+  status: "status",
+  received: "receivedAt"
+};
 
 export type UpdateParsedFieldInput = Partial<{
   invoiceNumber: string | null;
@@ -82,10 +95,15 @@ export class InvoiceService {
       ]
     };
 
+    const mongoSortField = params.sortBy && SORT_COLUMN_MAP[params.sortBy]
+      ? SORT_COLUMN_MAP[params.sortBy]
+      : "receivedAt";
+    const mongoSortDir = params.sortDir === "asc" ? 1 : -1;
+
     const [items, counts] = await Promise.all([
       InvoiceModel.find(query)
         .select({ ocrText: 0, ocrBlocks: 0 })
-        .sort({ createdAt: -1 })
+        .sort({ [mongoSortField]: mongoSortDir })
         .skip(skip)
         .limit(params.limit)
         .lean(),
@@ -98,6 +116,11 @@ export class InvoiceService {
             pending: [{ $match: { status: { $in: ["PARSED", "NEEDS_REVIEW"] } } }, { $count: "n" }],
             failed: [{ $match: { status: { $in: ["FAILED_OCR", "FAILED_PARSE"] } } }, { $count: "n" }],
             needsReview: [{ $match: { status: "NEEDS_REVIEW" } }, { $count: "n" }],
+            parsed: [{ $match: { status: "PARSED" } }, { $count: "n" }],
+            awaitingApproval: [{ $match: { status: "AWAITING_APPROVAL" } }, { $count: "n" }],
+            failedOcr: [{ $match: { status: "FAILED_OCR" } }, { $count: "n" }],
+            failedParse: [{ $match: { status: "FAILED_PARSE" } }, { $count: "n" }],
+            exported: [{ $match: { status: "EXPORTED" } }, { $count: "n" }],
             ...(params.status ? { filtered: [{ $match: { status: params.status } }, { $count: "n" }] } : {}),
             ...contentHashFacet
           }
@@ -111,6 +134,11 @@ export class InvoiceService {
     const pendingAll = facet.pending?.[0]?.n ?? 0;
     const failedAll = facet.failed?.[0]?.n ?? 0;
     const needsReviewAll = facet.needsReview?.[0]?.n ?? 0;
+    const parsedAll = facet.parsed?.[0]?.n ?? 0;
+    const awaitingApprovalAll = facet.awaitingApproval?.[0]?.n ?? 0;
+    const failedOcrAll = facet.failedOcr?.[0]?.n ?? 0;
+    const failedParseAll = facet.failedParse?.[0]?.n ?? 0;
+    const exportedAll = facet.exported?.[0]?.n ?? 0;
     const total = params.status ? (facet.filtered?.[0]?.n ?? 0) : totalAll;
 
     const duplicateHashes = new Set<string>();
@@ -132,7 +160,12 @@ export class InvoiceService {
       approvedAll,
       pendingAll,
       failedAll,
-      needsReviewAll
+      needsReviewAll,
+      parsedAll,
+      awaitingApprovalAll,
+      failedOcrAll,
+      failedParseAll,
+      exportedAll
     };
   }
 

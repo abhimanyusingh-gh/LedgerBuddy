@@ -190,7 +190,7 @@ export async function fetchAnalyticsOverview(from: string, to: string, scope: "m
   return response.data;
 }
 
-export async function fetchInvoices(status?: string, from?: string, to?: string, page = 1, limit = 20, approvedBy?: string) {
+export async function fetchInvoices(status?: string, from?: string, to?: string, page = 1, limit = 20, approvedBy?: string, sortBy?: string, sortDir?: "asc" | "desc") {
   const response = await apiClient.get<InvoiceListResponse>("/invoices", {
     params: {
       page,
@@ -198,7 +198,9 @@ export async function fetchInvoices(status?: string, from?: string, to?: string,
       status: status || undefined,
       from: from || undefined,
       to: to || undefined,
-      approvedBy: approvedBy || undefined
+      approvedBy: approvedBy || undefined,
+      sortBy: sortBy || undefined,
+      sortDir: sortBy ? sortDir : undefined
     }
   });
 
@@ -210,7 +212,14 @@ export async function fetchInvoices(status?: string, from?: string, to?: string,
     total: data.total,
     totalAll: data.totalAll,
     approvedAll: data.approvedAll,
-    pendingAll: data.pendingAll
+    pendingAll: data.pendingAll,
+    failedAll: data.failedAll,
+    needsReviewAll: data.needsReviewAll,
+    parsedAll: data.parsedAll,
+    awaitingApprovalAll: data.awaitingApprovalAll,
+    failedOcrAll: data.failedOcrAll,
+    failedParseAll: data.failedParseAll,
+    exportedAll: data.exportedAll
   };
 }
 
@@ -372,7 +381,10 @@ function sanitizeInvoiceListResponse(value: unknown): InvoiceListResponse {
     items: Array.isArray(data.items) ? data.items : [],
     page: safeNum(data.page, 1), limit: safeNum(data.limit, 0), total: safeNum(data.total, 0),
     totalAll: safeNum(data.totalAll!, undefined!), approvedAll: safeNum(data.approvedAll!, undefined!),
-    pendingAll: safeNum(data.pendingAll!, undefined!)
+    pendingAll: safeNum(data.pendingAll!, undefined!), failedAll: safeNum(data.failedAll!, undefined!),
+    needsReviewAll: safeNum(data.needsReviewAll!, undefined!), parsedAll: safeNum(data.parsedAll!, undefined!),
+    awaitingApprovalAll: safeNum(data.awaitingApprovalAll!, undefined!), failedOcrAll: safeNum(data.failedOcrAll!, undefined!),
+    failedParseAll: safeNum(data.failedParseAll!, undefined!), exportedAll: safeNum(data.exportedAll!, undefined!)
   };
 }
 
