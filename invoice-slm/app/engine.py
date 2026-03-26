@@ -148,6 +148,7 @@ def select_with_fallback(
     reason_codes = normalize_reason_codes(slm_payload.get("reasonCodes"))
     issues.extend(normalize_issues(slm_payload.get("issues")))
 
+    block_indices = selected.pop("_blockIndices", None)
     validated = validate_selected_values(selected, candidate_map)
     if validated:
       for field in validated:
@@ -155,6 +156,8 @@ def select_with_fallback(
       merged = apply_mode(mode, current, validated)
       if repair_vendor_name(merged, candidate_map, field_regions.get("vendorName") or blocks):
         reason_codes.setdefault("vendorName", "heuristic_vendor_repair")
+      if isinstance(block_indices, dict) and block_indices:
+        merged["_blockIndices"] = block_indices
       return merged, reason_codes, issues
     issues.append("SLM returned no valid field selections.")
 
@@ -181,10 +184,18 @@ def normalize_selected_payload(value: Any) -> dict[str, Any]:
   if not isinstance(value, dict):
     return {}
   selected: dict[str, Any] = {}
+  block_indices: dict[str, int] = {}
   for field in ("invoiceNumber", "vendorName", "currency", "totalAmountMinor", "invoiceDate", "dueDate"):
     if field not in value:
       continue
-    candidate = value[field]
+    raw = value[field]
+    candidate = raw
+    if isinstance(raw, dict):
+      candidate = raw.get("value", raw.get("v"))
+      bi = raw.get("blockIndex", raw.get("block_index"))
+      if isinstance(bi, int) and bi >= 0:
+        block_indices[field] = bi
+
     if field == "totalAmountMinor":
       if isinstance(candidate, int) and candidate > 0:
         selected[field] = candidate
@@ -197,6 +208,8 @@ def normalize_selected_payload(value: Any) -> dict[str, Any]:
 
     if isinstance(candidate, str) and candidate.strip():
       selected[field] = candidate.strip()
+  if block_indices:
+    selected["_blockIndices"] = block_indices
   return selected
 
 

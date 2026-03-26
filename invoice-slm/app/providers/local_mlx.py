@@ -151,7 +151,8 @@ def build_prompt(tokenizer: Any, payload: dict[str, Any], strict: bool) -> str:
 
   instruction = (
     "You are an information extraction engine.\n\n"
-    "Task: Extract structured data from OCR invoice input.\n\n"
+    "Task: Extract structured data from OCR invoice input.\n"
+    "The input includes ocrBlocks — an array of text blocks with indices.\n\n"
     "Rules:\n"
     "- Perform all reasoning internally.\n"
     "- DO NOT output reasoning.\n"
@@ -159,12 +160,16 @@ def build_prompt(tokenizer: Any, payload: dict[str, Any], strict: bool) -> str:
     "- Output MUST be valid JSON only.\n"
     "- No extra text, no comments, no markdown.\n"
     "- If a field is missing, use null.\n"
-    "- totalAmountMinor = total in minor units (paise/cents). INR example: ₹1,11,510.00 = 11151000.\n"
+    "- totalAmountMinor = total in minor units (paise/cents). INR: ₹1,11,510.00 = 11151000.\n"
     "- Dates in YYYY-MM-DD format.\n"
-    "- If GSTIN, CGST, SGST, or IGST appears in the text, currency MUST be INR regardless of any $ symbol.\n\n"
+    "- If GSTIN, CGST, SGST, or IGST appears, currency MUST be INR.\n"
+    "- For each field, include blockIndex: the index of the ocrBlock containing the VALUE (not the label).\n"
+    "- vendorName: use the company/seller name at the TOP of the invoice, NOT from bank/beneficiary details.\n\n"
     "Output format:\n"
-    '{"selected":{"invoiceNumber":"","vendorName":"","currency":"","totalAmountMinor":0,'
-    '"invoiceDate":"","dueDate":""},"reasonCodes":{},"issues":[],"invoiceType":""}\n\n'
+    '{"selected":{"invoiceNumber":{"value":"","blockIndex":0},"vendorName":{"value":"","blockIndex":0},'
+    '"currency":{"value":"","blockIndex":null},"totalAmountMinor":{"value":0,"blockIndex":0},'
+    '"invoiceDate":{"value":"","blockIndex":0},"dueDate":{"value":"","blockIndex":0}},'
+    '"reasonCodes":{},"issues":[],"invoiceType":""}\n\n'
     "Input:\n"
     + prior_corrections_text
   )

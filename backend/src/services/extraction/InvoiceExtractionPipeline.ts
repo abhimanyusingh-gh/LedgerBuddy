@@ -222,7 +222,9 @@ export class InvoiceExtractionPipeline {
       });
 
       if (slmResult.tokenUsage?.totalTokens) slmTokensUsed += slmResult.tokenUsage.totalTokens;
-      const slmParsed = slmResult.parsed;
+      const slmBlockIndices: Record<string, number> = (slmResult.parsed as Record<string, unknown>)._blockIndices as Record<string, number> ?? {};
+      const slmParsed = { ...slmResult.parsed };
+      delete (slmParsed as Record<string, unknown>)._blockIndices;
       const slmWarnings = uniqueIssues([...processingIssues, ...slmResult.issues]);
       const slmConfidence = this.assessConfidence(input, slmParsed, slmWarnings, ocrConfidence);
       const slmValidation = validateInvoiceFields({
@@ -252,7 +254,8 @@ export class InvoiceExtractionPipeline {
         validationIssues: slmValidation.issues,
         warnings: slmWarnings,
         templateAppliedFields: new Set<string>(),
-        verifierChangedFields: Object.keys(slmParsed)
+        verifierChangedFields: Object.keys(slmParsed),
+        slmBlockIndices: slmBlockIndices
       });
 
       return {
@@ -697,6 +700,7 @@ function addFieldDiagnosticsToMetadata(params: {
   warnings: string[];
   templateAppliedFields: Set<string>;
   verifierChangedFields: string[];
+  slmBlockIndices?: Record<string, number>;
 }): void {
   const fieldNames: Array<keyof ParsedInvoiceData> = [
     "invoiceNumber",
@@ -743,12 +747,14 @@ function addFieldDiagnosticsToMetadata(params: {
         : params.source.includes("template")
           ? "template"
           : "heuristic";
-    const matched = findBlockForField(
-      field,
-      value,
-      params.ocrBlocks,
-      params.fieldRegions[field] ?? []
-    );
+    const slmBlockIndex = params.slmBlockIndices?.[field];
+    let matched: { block: OcrBlock; index: number } | undefined;
+    if (typeof slmBlockIndex === "number" && slmBlockIndex >= 0 && slmBlockIndex < params.ocrBlocks.length) {
+      matched = { block: params.ocrBlocks[slmBlockIndex], index: slmBlockIndex };
+    } else {
+      matched = findBlockByLabelProximity(field, params.ocrBlocks) ??
+        findBlockForField(field, value, params.ocrBlocks, params.fieldRegions[field] ?? []);
+    }
     const block = matched?.block;
     if (block) {
       fieldProvenance[field] = {
@@ -808,6 +814,80 @@ const VALIDATION_KEY_BY_FIELD: Record<string, string> = {
 function inferValidationBonus(field: keyof ParsedInvoiceData, validationText: string): number {
   const key = VALIDATION_KEY_BY_FIELD[field] ?? field;
   return validationText.includes(key) ? 0.7 : 1;
+}
+
+const FIELD_LABEL_PATTERNS: Record<string, RegExp> = {
+  invoiceNumber: /^(invoice\s*(?:number|no\.?|#)|bill\s*(?:number|no\.?|#)|inv\s*(?:no\.?|#))$/i,
+  vendorName: /^(vendor|supplier|sold\s*by|company|from)$/i,
+  invoiceDate: /^(invoice\s*date|bill\s*date|date)$/i,
+  dueDate: /^(due\s*date|payment\s*due)$/i,
+  totalAmountMinor: /^(grand\s*total|total|amount\s*due|balance\s*due|net\s*payable)$/i,
+  currency: /^(currency)$/i
+};
+
+function findBlockByLabelProximity(
+  field: keyof ParsedInvoiceData,
+  blocks: OcrBlock[]
+): { block: OcrBlock; index: number } | undefined {
+  const labelPattern = FIELD_LABEL_PATTERNS[field];
+  if (!labelPattern || blocks.length === 0) {
+    return undefined;
+  }
+
+  if (field === "vendorName") {
+    for (let i = 0; i < Math.min(5, blocks.length); i++) {
+      const block = blocks[i];
+      const text = block.text.trim();
+      if (text.length >= 3 && !/\b(invoice|bill|date|tax|gst|gstin|msme|address)\b/i.test(text)) {
+        return { block, index: i };
+      }
+    }
+    return undefined;
+  }
+
+  for (let i = 0; i < blocks.length; i++) {
+    const block = blocks[i];
+    if (!labelPattern.test(block.text.trim())) {
+      continue;
+    }
+
+    const labelBbox = block.bbox;
+    if (!labelBbox || labelBbox.length < 4) {
+      continue;
+    }
+
+    const labelTop = labelBbox[1];
+    const labelBottom = labelBbox[3];
+    const labelRight = labelBbox[2];
+    const yOverlapThreshold = (labelBottom - labelTop) * 0.5;
+
+    let bestValue: { block: OcrBlock; index: number; distance: number } | undefined;
+    for (let j = 0; j < blocks.length; j++) {
+      if (j === i) continue;
+      const candidate = blocks[j];
+      const cBbox = candidate.bbox;
+      if (!cBbox || cBbox.length < 4) continue;
+
+      const cTop = cBbox[1];
+      const cBottom = cBbox[3];
+      const cLeft = cBbox[0];
+      const yOverlap = Math.min(labelBottom, cBottom) - Math.max(labelTop, cTop);
+      if (yOverlap < yOverlapThreshold) continue;
+
+      if (cLeft <= labelRight) continue;
+
+      const distance = cLeft - labelRight;
+      if (!bestValue || distance < bestValue.distance) {
+        bestValue = { block: candidate, index: j, distance };
+      }
+    }
+
+    if (bestValue) {
+      return { block: bestValue.block, index: bestValue.index };
+    }
+  }
+
+  return undefined;
 }
 
 function findBlockForField(
