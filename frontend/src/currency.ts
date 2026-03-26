@@ -79,6 +79,33 @@ export function formatMinorAmountWithCurrency(amountMinor?: number, currency?: s
 
   const effectiveCurrency = currency || DEFAULT_DISPLAY_CURRENCY;
   const symbol = getCurrencySymbol(effectiveCurrency);
-  const formatted = minorUnitsToMajorString(amountMinor as number, effectiveCurrency);
+  const majorString = minorUnitsToMajorString(amountMinor as number, effectiveCurrency);
+  const formatted = effectiveCurrency.toUpperCase() === "INR"
+    ? formatIndianNumber(majorString)
+    : formatWesternNumber(majorString);
   return symbol ? `${symbol}${formatted}` : formatted;
+}
+
+function formatIndianNumber(value: string): string {
+  const negative = value.startsWith("-");
+  const clean = negative ? value.slice(1) : value;
+  const [intPart, decPart] = clean.split(".");
+  if (!intPart || intPart.length <= 3) {
+    return value;
+  }
+  const last3 = intPart.slice(-3);
+  const remaining = intPart.slice(0, -3);
+  const grouped = remaining.replace(/\B(?=(\d{2})+(?!\d))/g, ",");
+  const formatted = `${grouped},${last3}${decPart !== undefined ? `.${decPart}` : ""}`;
+  return negative ? `-${formatted}` : formatted;
+}
+
+function formatWesternNumber(value: string): string {
+  const negative = value.startsWith("-");
+  const clean = negative ? value.slice(1) : value;
+  const [intPart, decPart] = clean.split(".");
+  if (!intPart) return value;
+  const grouped = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  const formatted = `${grouped}${decPart !== undefined ? `.${decPart}` : ""}`;
+  return negative ? `-${formatted}` : formatted;
 }
