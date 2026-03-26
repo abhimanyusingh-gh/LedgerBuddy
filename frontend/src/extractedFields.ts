@@ -33,8 +33,38 @@ export function getExtractedFieldRows(invoice: Invoice): ExtractedFieldRow[] {
       confidence: confidenceMap?.totalAmountMinor
     },
     { fieldKey: "currency", label: "Currency", value: invoice.parsed?.currency ?? "-", rawValue: invoice.parsed?.currency, confidence: confidenceMap?.currency },
+    ...getGstRows(invoice),
     { fieldKey: "notes", label: "Notes", value: notes }
   ];
+}
+
+function getGstRows(invoice: Invoice): ExtractedFieldRow[] {
+  const gst = invoice.parsed?.gst;
+  if (!gst) return [];
+  const cur = invoice.parsed?.currency;
+  const rows: ExtractedFieldRow[] = [];
+  if (gst.gstin) {
+    rows.push({ fieldKey: "currency" as SourceFieldKey, label: "GSTIN", value: gst.gstin });
+  }
+  if (gst.subtotalMinor) {
+    rows.push({ fieldKey: "totalAmountMinor" as SourceFieldKey, label: "Subtotal", value: formatMinorAmountWithCurrency(gst.subtotalMinor, cur) });
+  }
+  if (gst.cgstMinor) {
+    rows.push({ fieldKey: "totalAmountMinor" as SourceFieldKey, label: "CGST", value: formatMinorAmountWithCurrency(gst.cgstMinor, cur) });
+  }
+  if (gst.sgstMinor) {
+    rows.push({ fieldKey: "totalAmountMinor" as SourceFieldKey, label: "SGST", value: formatMinorAmountWithCurrency(gst.sgstMinor, cur) });
+  }
+  if (gst.igstMinor) {
+    rows.push({ fieldKey: "totalAmountMinor" as SourceFieldKey, label: "IGST", value: formatMinorAmountWithCurrency(gst.igstMinor, cur) });
+  }
+  if (gst.cessMinor) {
+    rows.push({ fieldKey: "totalAmountMinor" as SourceFieldKey, label: "Cess", value: formatMinorAmountWithCurrency(gst.cessMinor, cur) });
+  }
+  if (gst.totalTaxMinor) {
+    rows.push({ fieldKey: "totalAmountMinor" as SourceFieldKey, label: "Total Tax", value: formatMinorAmountWithCurrency(gst.totalTaxMinor, cur) });
+  }
+  return rows;
 }
 
 export function formatOcrConfidenceLabel(value?: number): string {

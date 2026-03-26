@@ -169,10 +169,14 @@ def build_prompt(tokenizer: Any, payload: dict[str, Any], strict: bool) -> str:
     "- If GSTIN, CGST, SGST, or IGST appears, currency MUST be INR.\n"
     "- For each field, include blockIndex: the index of the ocrBlock containing the VALUE (not the label).\n"
     "- vendorName: use the company/seller name at the TOP of the invoice, NOT from bank/beneficiary details.\n\n"
+    "- Extract GST/VAT tax breakdown if present. All tax amounts in minor units.\n"
+    "  gstin = GST identification number. cgstMinor/sgstMinor for intra-state, igstMinor for inter-state.\n"
+    "  For VAT invoices: use totalTaxMinor for the VAT amount.\n\n"
     "Output format:\n"
     '{"selected":{"invoiceNumber":{"value":"","blockIndex":0},"vendorName":{"value":"","blockIndex":0},'
     '"currency":{"value":"","blockIndex":null},"totalAmountMinor":{"value":0,"blockIndex":0},'
-    '"invoiceDate":{"value":"","blockIndex":0},"dueDate":{"value":"","blockIndex":0}},'
+    '"invoiceDate":{"value":"","blockIndex":0},"dueDate":{"value":"","blockIndex":0},'
+    '"gst":{"gstin":"","subtotalMinor":0,"cgstMinor":0,"sgstMinor":0,"igstMinor":0,"cessMinor":0,"totalTaxMinor":0}},'
     '"reasonCodes":{},"issues":[],"invoiceType":""}\n\n'
     "Input:\n"
     + prior_corrections_text

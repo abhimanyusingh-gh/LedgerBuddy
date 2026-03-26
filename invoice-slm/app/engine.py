@@ -208,6 +208,22 @@ def normalize_selected_payload(value: Any) -> dict[str, Any]:
 
     if isinstance(candidate, str) and candidate.strip():
       selected[field] = candidate.strip()
+  gst_raw = value.get("gst")
+  if isinstance(gst_raw, dict):
+    gst: dict[str, Any] = {}
+    gstin = gst_raw.get("gstin")
+    if isinstance(gstin, str) and gstin.strip():
+      gst["gstin"] = gstin.strip()
+    for tax_field in ("subtotalMinor", "cgstMinor", "sgstMinor", "igstMinor", "cessMinor", "totalTaxMinor"):
+      raw_val = gst_raw.get(tax_field)
+      if isinstance(raw_val, int) and raw_val > 0:
+        gst[tax_field] = raw_val
+      elif isinstance(raw_val, str) and raw_val.strip():
+        parsed_tax = parse_minor_units(raw_val.strip())
+        if parsed_tax is not None and parsed_tax > 0:
+          gst[tax_field] = parsed_tax
+    if gst:
+      selected["gst"] = gst
   if block_indices:
     selected["_blockIndices"] = block_indices
   return selected

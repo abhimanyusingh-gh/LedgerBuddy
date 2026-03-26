@@ -52,6 +52,15 @@ import { ApprovalTimeline } from "./ApprovalTimeline";
 import { KeyboardShortcutsOverlay } from "../KeyboardShortcutsOverlay";
 import { useKeyboardShortcuts } from "../../hooks/useKeyboardShortcuts";
 
+function formatTaxSummary(invoice: { parsed?: { gst?: { cgstMinor?: number; sgstMinor?: number; igstMinor?: number; totalTaxMinor?: number }; currency?: string } }): string {
+  const gst = invoice.parsed?.gst;
+  if (!gst) return "-";
+  const cur = invoice.parsed?.currency;
+  if (gst.totalTaxMinor) return formatMinorAmountWithCurrency(gst.totalTaxMinor, cur);
+  const sum = (gst.cgstMinor ?? 0) + (gst.sgstMinor ?? 0) + (gst.igstMinor ?? 0);
+  return sum > 0 ? formatMinorAmountWithCurrency(sum, cur) : "-";
+}
+
 function formatApproverName(value?: string): string {
   if (!value) return "-";
   const atIdx = value.indexOf("@");
@@ -1028,7 +1037,7 @@ export function TenantInvoicesView({
                 <thead>
                   <tr>
                     <th><input type="checkbox" checked={areAllVisibleSelectableSelected && selectableVisibleIds.length > 0} disabled={selectableVisibleIds.length === 0} onChange={toggleSelectAllVisible} /></th>
-                    {([["file", "File"], ["vendor", "Vendor"], ["invoiceNumber", "Invoice #"], ["invoiceDate", "Invoice Date"], ["total", "Total"], ["confidence", "Confidence"], ["status", "Status"], ["approvedBy", "Approved By"], ["received", "Received"]] as const).map(([key, label]) => (
+                    {([["file", "File"], ["vendor", "Vendor"], ["invoiceNumber", "Invoice #"], ["invoiceDate", "Invoice Date"], ["total", "Total"], ["tax", "Tax"], ["confidence", "Confidence"], ["status", "Status"], ["approvedBy", "Approved By"], ["received", "Received"]] as const).map(([key, label]) => (
                       <th
                         key={key}
                         className="sortable-th"
@@ -1153,6 +1162,7 @@ export function TenantInvoicesView({
                             </>
                           )}
                         </td>
+                        <td className="muted">{formatTaxSummary(invoice)}</td>
                         <td>
                           <ConfidenceBadge score={invoice.confidenceScore ?? 0} />
                         </td>

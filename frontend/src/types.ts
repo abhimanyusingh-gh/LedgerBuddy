@@ -43,6 +43,15 @@ export interface Invoice {
     totalAmountMinor?: number;
     currency?: string;
     notes?: string[];
+    gst?: {
+      gstin?: string;
+      subtotalMinor?: number;
+      cgstMinor?: number;
+      sgstMinor?: number;
+      igstMinor?: number;
+      cessMinor?: number;
+      totalTaxMinor?: number;
+    };
   };
   metadata?: Record<string, string | undefined>;
   status: InvoiceStatus;

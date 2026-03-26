@@ -197,6 +197,22 @@ function normalizeParsed(value: unknown): ParsedInvoiceData | undefined {
     }
   }
 
+  if (isRecord(source.gst)) {
+    const gstSource = source.gst as Record<string, unknown>;
+    const gst: Record<string, unknown> = {};
+    if (typeof gstSource.gstin === "string" && gstSource.gstin.trim()) {
+      gst.gstin = gstSource.gstin.trim();
+    }
+    for (const field of ["subtotalMinor", "cgstMinor", "sgstMinor", "igstMinor", "cessMinor", "totalTaxMinor"]) {
+      if (Number.isInteger(gstSource[field]) && Number(gstSource[field]) > 0) {
+        gst[field] = Number(gstSource[field]);
+      }
+    }
+    if (Object.keys(gst).length > 0) {
+      parsed.gst = gst as ParsedInvoiceData["gst"];
+    }
+  }
+
   return Object.keys(parsed).length > 0 ? parsed : undefined;
 }
 
