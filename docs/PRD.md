@@ -8,9 +8,21 @@
 
 ### The Problem
 
+**Source: constructed scenario, not collected from customer interviews.** This must be validated through Gate G2. The story below is our best hypothesis of what the workflow looks like, based on the first adopter's operational model. It has not been verified through timed observation or direct interviews with AP clerks.
+
 An AP clerk at an Indian accounting services firm opens a PDF invoice from a client. She needs the vendor name, invoice number, total amount, and GST breakdown to enter into Tally. She scrolls to find the vendor header. Scrolls again for the invoice number. Flips to page two for the total. Cross-references the CGST and SGST lines. Types everything into Tally. Then opens the next PDF and does it again — 150 times a day.
 
 The bottleneck is not the judgment call ("should I approve this?"). The bottleneck is the hunt ("where is the vendor name on this invoice?"). Every new invoice format from every new vendor restarts the search from scratch.
+
+### Market Category
+
+**Not yet defined.** BillForge needs to declare what category it competes in before external positioning. The options:
+
+- **Invoice data entry software** — positions against manual processes and spreadsheets
+- **AP automation tool** — positions against Tipalti, Stampli, Bill.com
+- **India-first accounting assistant** — positions against the status quo (junior accountant + Tally)
+
+The category choice changes how every benefit lands with buyers. Gate G2 (first adopter trigger) and G3 (competitive analysis) must inform this decision. Until then, we do not externally position BillForge in any category.
 
 ### Why BillForge Wins
 
@@ -46,12 +58,12 @@ An Indian accounting services firm. Each staff member handles invoices for a spe
 
 **This section is intentionally incomplete.** Understanding what the first adopter was doing before BillForge — and what finally pushed them to change — is the most important input for positioning and go-to-market. The real competitive set is almost certainly not other invoice software; it's likely a manual process, a junior accountant, an Excel sheet, or just tolerating errors.
 
-Two interviews are required before this section can be filled:
+At least 5-8 interviews are required before this section can be filled — two data points are an anecdote, not a pattern:
 
-1. **The AP clerk:** What was frustrating in the moment? What did a bad day look like? What workarounds had she built?
-2. **The decision-maker:** What changed? Why now? What else did they consider? Why BillForge over doing nothing?
+1. **3-5 AP clerks:** What was frustrating in the moment? What did a bad day look like? What workarounds had they built? Time their actual current process — don't ask them to estimate.
+2. **2-3 decision-makers:** When did they first think about this problem? How long did they tolerate it? What made them stop tolerating it on that specific day? What did they evaluate? What was their definition of "working" before BillForge? The timeline from first thought to active search reveals whether the market is passively aware or actively buying.
 
-These interviews are **Gate G2** — they block all external positioning work.
+These interviews are **Gate G2** — they block all external positioning work. G2 should be an ongoing activity, not a one-time checkbox.
 
 ### Operational Model
 
@@ -72,7 +84,7 @@ The flat model is deliberate for this adopter. The approval workflow engine supp
 
 ### 3.1 Source-Verified Review
 
-**The need:** "I can't trust an extracted value without seeing where it came from."
+**The underlying need:** "I'm afraid of approving an incorrect invoice and being held responsible for it." Source evidence is our solution to that need — it builds trust by showing proof. Other solutions to the same need (e.g., confidence-based auto-escalation, peer review) may emerge from customer interviews.
 
 **The solution:** Every extracted field is paired with a cropped image of the exact document region where the value was found, plus a bounding box overlay on the full page. The reviewer doesn't search; the evidence is brought to them.
 
@@ -82,7 +94,7 @@ The flat model is deliberate for this adopter. The approval workflow engine supp
 - Every correction feeds the learning store for future invoices from that vendor.
 - Clicks Approve. **Approval is always a deliberate human action.** The system pre-selects high-confidence invoices for batch approval but never auto-approves. The human decides; the system assists.
 
-**Why this is hard to copy:** The entire extraction pipeline — OCR bounding boxes, SLM block indices, spatial proximity matching, crop generation — exists to enable this interaction. A competitor can't add source crops without rebuilding their extraction pipeline.
+**Why switching away is costly:** Every correction a reviewer makes accumulates as vendor-specific learning data. A new entrant can replicate the source-evidence UI, but they can't replicate six months of learned corrections for 200 vendors. The moat is the accumulated data, not the technical architecture.
 
 ### 3.2 Extraction Learning
 
@@ -90,7 +102,9 @@ The flat model is deliberate for this adopter. The approval workflow engine supp
 
 **The solution:** Every correction is recorded per vendor and per invoice type. On future extractions, corrections are passed to the SLM as hints. Vendor-specific corrections override type-level corrections.
 
-**Current mode: Assistive.** Based on consistent reviewer feedback, the learning loop should start assistive — showing corrections as suggestions with a visible "learning applied" indicator — rather than silently applying them. This builds trust before the system operates autonomously. The decision trigger for moving to active mode: correction rate for returning vendors is declining and false correction rate is below a defined threshold (to be determined from production data).
+**Current mode: Assistive** (`LEARNING_MODE=assistive`). Corrections are fetched and stored in metadata but not passed to the SLM. The UI shows "N learned patterns available" so the reviewer sees the system is learning. This builds trust before the system operates autonomously.
+
+**Decision trigger for active mode:** Correction rate for returning vendors declines by ≥20% over 30 days AND false correction rate (stale hints that made extraction worse) is below 5%. These are starting hypotheses — adjust based on production data, but having a threshold before go-live means you're instrumenting with intent.
 
 **Constraints:** 6 corrections per grouping key (bounds SLM token cost), 90-day TTL (auto-prunes stale corrections). Both are engineering starting points, not validated thresholds. Instrument from day one: track correction rate per vendor before and after hints are applied.
 
@@ -160,7 +174,7 @@ All behind interface boundaries. Swapping or adding a provider is configuration,
 | Anumati (Account Aggregator) | Built, not validated | `IBankConnectionService` |
 | S3 / MinIO | Live | `FileStore` |
 
-Anumati is forward investment. Payment reconciliation is not in scope for the first adopter. The infrastructure carries maintenance cost ahead of validated need.
+**Anumati: explicit bet.** Infrastructure built for bank connection via India's Account Aggregator framework. Payment reconciliation is not in scope for the first adopter. This is a bet on the India-first strategy — the trigger for validating it is a specific customer request for payment-to-invoice matching. Until then, it carries maintenance cost with no validated return. If no customer requests this within 6 months of launch, descope it.
 
 ---
 
@@ -169,6 +183,10 @@ Anumati is forward investment. Payment reconciliation is not in scope for the fi
 ### 4.1 The Reviewer's Day
 
 **Priya** is an AP clerk. She handles invoices for 3 clients. Each client's invoices land in a dedicated Gmail inbox assigned to her.
+
+**Before BillForge (to be validated through G2 interviews):** Priya opened each email, downloaded the PDF, scrolled through it to find the vendor name, invoice number, date, and total. She typed each value into Tally manually. For GST invoices, she cross-referenced CGST and SGST amounts. Each invoice took 3-5 minutes. By the end of 150 invoices, she was exhausted and error-prone.
+
+**With BillForge:**
 
 1. **Morning.** Dashboard shows 47 invoices ingested overnight. 38 green, 6 yellow, 3 red.
 2. **Green batch.** Select All Green → scan vendor names and amounts → "Approve 38 invoices" → confirm. 30 seconds.
@@ -217,6 +235,10 @@ Anumati is forward investment. Payment reconciliation is not in scope for the fi
 
 **Invoices successfully exported per tenant per month**, tracked by onboarding cohort at 30/60/90 days. Pair with correction rate per tenant — a tenant exporting high volume with flat correction rate means the learning moat isn't working.
 
+**Individual reviewer activity** is also trackable (one-person-one-client model). A tenant can be "active" while one clerk has quietly stopped using BillForge and gone back to manual entry. Track per-reviewer export and approval activity from day one.
+
+**Returned on day 2** is the habit formation signal. The transition from first use to habit is where most products fail. Track the cohort split: tenants who hit first export under 30 minutes vs those who took longer, and watch their 60/90-day volume. Also track absolute number of tenants reaching first export — not just median time for those who do.
+
 ### Leading Indicators
 
 | Metric | Target | Validation Status |
@@ -239,7 +261,7 @@ Hard dependencies. Each blocks specific external activities.
 | **G1** | Time 3+ AP clerks: baseline process vs BillForge. Record median and P90. | Product | Any "seconds not minutes" claim |
 | **G2** | Interview first adopter's decision-maker: what they fired, why now, what they evaluated. Interview AP clerks: what was frustrating, what workarounds existed. | Product | All positioning and go-to-market |
 | **G3** | Name 3-5 competitors. Document Tally support, GST capability, source-verified review. Source from first adopter's evaluation if possible. | Product | "India-first wedge" claim |
-| **G4** | Call with first adopter's CA: "For ITC reconciliation during audit, do you need per-line-item tax breakdowns or are header-level totals sufficient?" | Product + CA | Tally export value prop; may escalate line-item to blocker |
+| **G4** | Call with first adopter's CA. Do NOT ask a hypothetical ("would you need line items?"). Instead: walk them through a real exported Tally file and ask them to simulate an ITC reconciliation. Ask: "Tell me about the last time you did an ITC reconciliation during an audit — what documents did you need?" Stories reveal behavior; hypotheticals reveal opinions. | Product + CA | Tally export value prop; may escalate line-item to blocker |
 | **G5** | After 30 days production: measure correction rate for returning vendors (should decline) and false correction rate (stale hints making things worse). | Engineering | "Compounding accuracy" claim; active-mode decision |
 | **G6** | Name a specific second adopter with documented AP hierarchy needs. If none: acknowledge workflow builder as a bet and stop investing. | Product | Workflow builder roadmap |
 
@@ -252,7 +274,7 @@ Hard dependencies. Each blocks specific external activities.
 | 6-correction cap sufficient? | Engineering | Instrument from day one; let data decide |
 | 90-day TTL matches vendor format change frequency? | Product | Need stories from AP clerks about real format changes |
 | Concurrent edit protection needed? | Product | Low risk with single-reviewer-per-client model |
-| Anumati bank connection in scope? | Product | Built ahead of need; document the bet or descope |
+| Anumati bank connection in scope? | Product | Explicit bet with 6-month trigger. Descope if no customer requests payment-to-invoice matching by then. |
 | Tenant mode transition API (test → live)? | Engineering | Must exist before second adopter |
 
 ---
@@ -261,7 +283,7 @@ Hard dependencies. Each blocks specific external activities.
 
 | Item | Risk Level | Watch For |
 |------|-----------|-----------|
-| Line-item extraction | **HIGH** — May be required for ITC reconciliation. Gate G4 may escalate this to blocker. | CA feedback, GST audit requirements |
+| Line-item extraction | **HIGH** — May be required for ITC reconciliation. Gate G4 may escalate this to blocker. **Contingency plan:** If G4 escalates, minimum viable path is SLM-based line-item extraction from OCR blocks (extend the existing FieldVerifier response to include line items). Estimated effort: 2-3 weeks. Must be scoped before G4 call so the team isn't scrambling. | CA feedback, GST audit requirements |
 | Payment reconciliation | Medium — Anumati infrastructure built but unvalidated | Whether bank data drives export decisions |
 | Multi-currency | Low — adopter one is INR-only | International expansion |
 | Webhooks | Low — no validated downstream automation use case | ERP workflow triggers |
