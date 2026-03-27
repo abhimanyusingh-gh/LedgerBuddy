@@ -78,17 +78,18 @@ function buildAuthServices(manifest: RuntimeManifest) {
   return { authService, keycloakAdmin, tenantAdminService, tenantInviteService, platformAdminService };
 }
 
-async function buildExtractionPipeline(manifest: RuntimeManifest) {
+async function buildExtractionPipeline(manifest: RuntimeManifest, learningStore: MongoExtractionLearningStore) {
   const ocrProvider = await resolveOcrProvider(manifest);
   const fieldVerifier = await resolveFieldVerifier(manifest);
   const pipeline = new InvoiceExtractionPipeline(
     ocrProvider,
     fieldVerifier,
     new MongoVendorTemplateStore(),
-    new MongoExtractionLearningStore(),
+    learningStore,
     {
       ocrHighConfidenceThreshold: manifest.extraction.ocrHighConfidenceThreshold,
-      llmAssistConfidenceThreshold: manifest.extraction.llmAssistConfidenceThreshold
+      llmAssistConfidenceThreshold: manifest.extraction.llmAssistConfidenceThreshold,
+      learningMode: env.LEARNING_MODE
     }
   );
   return { ocrProvider, fieldVerifier, pipeline };
@@ -104,7 +105,8 @@ function buildStorageAndExport(manifest: RuntimeManifest) {
 export async function buildDependencies(): Promise<Dependencies> {
   const manifest = loadRuntimeManifest();
   const auth = buildAuthServices(manifest);
-  const extraction = await buildExtractionPipeline(manifest);
+  const learningStore = new MongoExtractionLearningStore();
+  const extraction = await buildExtractionPipeline(manifest, learningStore);
   const storage = buildStorageAndExport(manifest);
 
   const gmailIntegrationService = new TenantGmailIntegrationService();
@@ -120,7 +122,7 @@ export async function buildDependencies(): Promise<Dependencies> {
 
   return {
     ingestionService,
-    invoiceService: new InvoiceService({ fileStore: storage.fileStore, workflowService: approvalWorkflowService }),
+    invoiceService: new InvoiceService({ fileStore: storage.fileStore, workflowService: approvalWorkflowService, learningStore }),
     exportService: storage.exportService,
     emailSimulationService: new EmailSimulationService(),
     ...auth,

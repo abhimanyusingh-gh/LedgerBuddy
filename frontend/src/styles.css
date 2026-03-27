@@ -2294,6 +2294,11 @@ pre {
   object-fit: contain;
 }
 
+.learning-badge {
+  color: var(--color-info, #2563eb);
+  font-size: 0.8125rem;
+}
+
 .field-confidence-badge {
   display: inline-block;
   border-radius: 999px;

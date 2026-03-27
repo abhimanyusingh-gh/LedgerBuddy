@@ -4,7 +4,7 @@ import { EmptyState } from "./EmptyState";
 
 interface BankConnectionsTabProps {
   mailboxes: TenantMailbox[];
-  tenantUsers: Array<{ userId: string; email: string; role: "TENANT_ADMIN" | "MEMBER"; enabled: boolean }>;
+  tenantUsers: Array<{ userId: string; email: string; role: "TENANT_ADMIN" | "MEMBER" | "VIEWER"; enabled: boolean }>;
   onAddGmailInbox: () => void;
   onAssignMailboxUser: (integrationId: string, userId: string) => void;
   onRemoveMailboxAssignment: (integrationId: string, userId: string) => void;

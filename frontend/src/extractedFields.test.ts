@@ -44,7 +44,7 @@ describe("extracted field helpers", () => {
       expect.arrayContaining([
         expect.objectContaining({ label: "Invoice Number", value: "INV-42" }),
         expect.objectContaining({ label: "Vendor Name", value: "Acme Corp" }),
-        expect.objectContaining({ label: "Total Amount", value: "$1200.50" }),
+        expect.objectContaining({ label: "Total Amount", value: "$1,200.50" }),
         expect.objectContaining({ label: "Notes", value: "first note | second note" })
       ])
     );

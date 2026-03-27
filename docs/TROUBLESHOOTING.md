@@ -3,33 +3,51 @@
 ## Docker Status Commands
 
 ```bash
-# All BillForge containers
 docker ps -a --filter "label=com.docker.compose.project=billforge" --format 'table {{.Names}}\t{{.Status}}'
 
-# Volumes
 docker volume ls --format '{{.Name}}' | grep billforge
 
-# Networks
 docker network ls --format '{{.Name}}' | grep billforge
 ```
 
 ## Health Checks
 
 ```bash
-# Backend
 curl http://localhost:4100/health
+curl http://localhost:4100/health/ready
 
-# OCR service
 curl http://localhost:8200/v1/health
-
-# SLM service
 curl http://localhost:8300/v1/health
 
-# MinIO
 curl http://localhost:9100/minio/health/live
 ```
 
 ## Common Issues
+
+### Login returns 403
+
+**Symptom**: Login redirects back with a 403 error.
+
+**Cause**: `AUTH_AUTO_PROVISION_USERS` is not set to `true`. The Keycloak user exists but no matching MongoDB user record was auto-created.
+
+**Fix**: Ensure `AUTH_AUTO_PROVISION_USERS=true` in docker-compose.yml environment (this is the default). If you've overridden it in `backend/.env`, remove that override.
+
+### OCR / SLM services not ready
+
+**Symptom**: Backend hangs on startup or returns 503.
+
+**Cause**: Backend blocks readiness until OCR and SLM services are healthy and reachable. The native ML services must be running on the host.
+
+**Fix**:
+```bash
+curl http://localhost:8200/v1/health
+curl http://localhost:8300/v1/health
+
+cat .local-run/ocr.log
+cat .local-run/slm.log
+
+yarn docker:reload
+```
 
 ### MinIO bucket missing
 
@@ -43,33 +61,22 @@ docker compose up -d minio-init
 docker logs billforge-minio-init
 ```
 
-### Login returns 403
+### Keycloak not starting
 
-**Symptom**: `/auth/callback` returns 403 after local-sts login.
+**Symptom**: Backend can't connect to Keycloak, health check fails.
 
-**Cause**: `AUTH_AUTO_PROVISION_USERS` is not set to `true`. The local-sts user (`admin@local.test`) doesn't exist in MongoDB and auto-provisioning is disabled.
-
-**Fix**: Ensure `AUTH_AUTO_PROVISION_USERS=true` in docker-compose.yml environment (this is the default). If you've overridden it in `backend/.env`, remove that override.
-
-### OCR / SLM services not ready
-
-**Symptom**: Backend hangs on startup or returns 503.
-
-**Cause**: Backend blocks readiness until OCR and SLM services are healthy and reachable.
+**Cause**: Keycloak has a 30-second start period and can take up to 2 minutes on first boot (realm import).
 
 **Fix**:
 ```bash
-# Check if ML services are running on host
-curl http://localhost:8200/v1/health
-curl http://localhost:8300/v1/health
+docker logs billforge-keycloak --tail 50
 
-# Check logs
-cat .local-run/ocr.log
-cat .local-run/slm.log
+curl http://localhost:8280/health/ready
+```
 
-# Restart ML services
-yarn ocr:start
-yarn slm:start
+If Keycloak is stuck, restart it:
+```bash
+docker restart billforge-keycloak
 ```
 
 ### Orphaned volumes from old project name
@@ -80,10 +87,8 @@ yarn slm:start
 
 **Fix**:
 ```bash
-# List old volumes
 docker volume ls --format '{{.Name}}' | grep invoiceprocessor
 
-# Remove them (data will be lost)
 docker volume rm invoiceprocessor_mongo_data invoiceprocessor_minio_data
 ```
 
@@ -94,27 +99,31 @@ docker volume rm invoiceprocessor_mongo_data invoiceprocessor_minio_data
 **Fix**: Check what's using the port and stop it:
 ```bash
 lsof -i :4100   # Backend
-lsof -i :5174   # Frontend
+lsof -i :5177   # Frontend
 lsof -i :27018  # MongoDB
-lsof -i :8200   # OCR (host service)
-lsof -i :8300   # SLM (host service)
+lsof -i :8200   # OCR (native host service)
+lsof -i :8300   # SLM (native host service)
+lsof -i :8280   # Keycloak
 ```
+
+### Yarn lockfile stale after workspace rename
+
+**Symptom**: `yarn docker:up` fails with "Package for billforge@workspace:. not found".
+
+**Cause**: `yarn.lock` has stale workspace names after a rename.
+
+**Fix**: Run `yarn install` to regenerate the lockfile.
 
 ## Log Access
 
 ```bash
-# Backend logs
 docker logs billforge-backend --tail 50
 
-# MinIO init logs
+docker logs billforge-keycloak --tail 50
+
 docker logs billforge-minio-init
 
-# Local-STS logs
-docker logs billforge-local-sts --tail 20
-
-# MailHog OAuth wrapper
 docker logs billforge-mailhog-oauth --tail 20
 
-# Follow logs in real-time
 docker logs -f billforge-backend
 ```

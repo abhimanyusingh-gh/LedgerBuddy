@@ -2,13 +2,11 @@
 
 # BillForge
 
-**Ingest invoices from email. Extract data with OCR + ML. Review, approve, export.**
-
-A multi-tenant invoice processing platform with pluggable OCR, staged ML extraction, configurable approval workflows, and Tally XML export — designed for finance teams managing high-volume invoice flows.
+**Verify invoices in seconds, not minutes. Every extracted field shows you exactly where in the document it came from.**
 
 [![Node.js](https://img.shields.io/badge/Node.js-20-339933.svg?logo=nodedotjs&logoColor=white)](https://nodejs.org)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.7-3178C6.svg?logo=typescript&logoColor=white)](https://www.typescriptlang.org)
-[![React](https://img.shields.io/badge/React-19-61DAFB.svg?logo=react&logoColor=black)](https://react.dev)
+[![React](https://img.shields.io/badge/React-18-61DAFB.svg?logo=react&logoColor=black)](https://react.dev)
 [![Python](https://img.shields.io/badge/Python-3.11-3776AB.svg?logo=python&logoColor=white)](https://www.python.org)
 [![MongoDB](https://img.shields.io/badge/MongoDB-7-47A248.svg?logo=mongodb&logoColor=white)](https://www.mongodb.com)
 [![Docker](https://img.shields.io/badge/Docker-Compose-2496ED.svg?logo=docker&logoColor=white)](https://www.docker.com)
@@ -18,47 +16,25 @@ A multi-tenant invoice processing platform with pluggable OCR, staged ML extract
 
 ---
 
-## What It Does
+## Why BillForge
 
-BillForge connects to Gmail inboxes (or folder/S3 sources), runs invoices through a staged OCR → ML extraction → confidence scoring pipeline, and presents them in a review dashboard where teams can approve, edit, and export to accounting systems.
+AP clerks processing 150+ invoices daily spend most of their time hunting — scrolling through PDFs to find a vendor name, cross-referencing totals buried on page three. BillForge eliminates the search: for every extracted field, the reviewer sees the value alongside a **cropped image of exactly where in the document it was found**. Verification drops from minutes to seconds.
 
-**Typical workflow:**
+Three things make BillForge different:
 
-```
-Gmail inbox  →  OCR extraction  →  Field parsing  →  Confidence scoring
-     →  Human review  →  Approval workflow  →  Tally XML export
-```
+1. **Source-verified review** — Every extracted field is paired with its source crop and bounding box overlay. The reviewer doesn't search the document; the evidence is brought to them.
+2. **Accuracy that compounds** — Every correction is recorded per vendor and invoice type. The next invoice from that vendor extracts better. BillForge gets more accurate the longer you use it.
+3. **India-first Tally export** — Native XML with full GST breakdown (CGST/SGST/IGST/Cess), ready to import with no manual mapping. Built on an adapter pattern — Tally is the first connector, not the last.
 
-## Features
-
-- **Multi-source ingestion** — Gmail (IMAP/OAuth2), local folders, S3 upload with crash-safe checkpointing and duplicate filtering
-- **Staged extraction pipeline** — Vendor fingerprint → OCR → heuristic parsing → SLM verification → LLM vision re-extraction (cost-gated by confidence)
-- **Extraction learning** — Records field corrections per vendor/invoice type, feeds prior learnings to future extractions
-- **Configurable approval workflows** — Simple (checkboxes) or advanced (multi-step builder with role/user approvers, amount conditions, any/all rules)
-- **Tally XML export** — Purchase voucher generation with India GST support (CGST/SGST/IGST/Cess), downloadable or direct POST
-- **Multi-tenant SaaS** — Tenant onboarding, RBAC (admin/member/viewer), data isolation, per-tenant Gmail integration
-- **Review dashboard** — Inline editing, confidence badges, source overlay inspection, batch approval, keyboard shortcuts
-- **Financial burndown** — Real-time analytics with approval trends, vendor breakdown, pending value burndown chart
-- **Gmail auto-polling** — Optional background polling per inbox (1/2/4/8h intervals) with tenant-wide messageId dedup
-
-## Architecture
+## How It Works
 
 ```
-┌─ Ingestion ─────┐    ┌─ Extraction ──────────┐    ┌─ Approval ──┐    ┌─ Export ─┐
-│ Gmail / Folder   │ →  │ OCR → Parser → SLM    │ →  │ Workflow    │ →  │ Tally    │
-│ S3 Upload        │    │ → LLM Assist           │    │ Engine      │    │ XML      │
-└──────────────────┘    │ → Learning Store       │    └─────────────┘    └──────────┘
-                        └────────────────────────┘
-┌─ API Layer ─────────────────────────────────────────────────────────────────────────┐
-│ Express + Auth Middleware + RBAC (Keycloak OIDC)                                    │
-└─────────────────────────────────────────────────────────────────────────────────────┘
-┌─ Frontend ──────────────┐    ┌─ Data ───────────────────┐
-│ React + Vite             │    │ MongoDB / S3 / Keycloak  │
-│ Dashboard + Config       │    │ Tenant-isolated          │
-└──────────────────────────┘    └──────────────────────────┘
+Gmail inbox → OCR extraction → SLM field extraction → Confidence scoring
+  → Source-verified review → Approval workflow → Tally XML export
+  → Corrections feed learning store → Better extraction next time
 ```
 
-Every external dependency (OCR, SLM, file storage, email transport) is defined as an interface with explicit provider selection. Swapping providers is a configuration change, not a code change.
+Every external dependency — OCR, ML model, storage, email, accounting export — is behind an interface. Swapping Gmail for Outlook, or Tally for QuickBooks, is an adapter change — not a rewrite.
 
 > Full architecture diagram: [`docs/architecture.drawio`](docs/architecture.drawio)
 
@@ -67,11 +43,10 @@ Every external dependency (OCR, SLM, file storage, email transport) is defined a
 **Prerequisites:** Node.js 20+, Yarn 4+, Docker, Python 3.11+ (Apple Silicon for local MLX)
 
 ```bash
-# Clone and install
 git clone <repo-url> && cd billforge
 yarn install
 
-# Set up local ML services (optional — mock OCR works without this)
+# Optional: local ML services (mock OCR works without this)
 python3 -m venv .venv-ml
 ./.venv-ml/bin/pip install -r invoice-ocr/requirements.local.txt \
                            -r invoice-slm/requirements.local.txt
@@ -82,9 +57,7 @@ yarn docker:up
 
 Open `http://localhost:5177` and log in as `tenant-admin-1@local.test` / `DemoPass!1`.
 
-**What happens:** The stack starts MongoDB, Keycloak, MinIO, OCR, SLM, backend, and frontend with seeded demo tenants and sample invoices. Click "Ingest" to process invoices through the full pipeline.
-
-### Services
+The stack starts MongoDB, Keycloak, MinIO, OCR, SLM, backend, and frontend with seeded demo tenants and sample invoices. Click "Ingest" to process invoices through the full pipeline.
 
 | Service | URL |
 |---------|-----|
@@ -93,104 +66,78 @@ Open `http://localhost:5177` and log in as `tenant-admin-1@local.test` / `DemoPa
 | Keycloak | `http://localhost:8280` |
 | MinIO Console | `http://localhost:9101` |
 
-## Example: End-to-End Flow
-
-```bash
-# 1. Trigger ingestion (processes sample invoices through OCR + ML)
-curl -X POST http://localhost:4100/api/jobs/ingest \
-  -H "Authorization: Bearer $TOKEN"
-
-# 2. Approve parsed invoices
-curl -X POST http://localhost:4100/api/invoices/approve \
-  -H "Authorization: Bearer $TOKEN" \
-  -d '{"ids": ["<invoice-id>"]}'
-
-# 3. Export to Tally XML (generates file + marks as EXPORTED)
-curl -X POST http://localhost:4100/api/exports/tally/download \
-  -H "Authorization: Bearer $TOKEN" \
-  -d '{"ids": ["<invoice-id>"]}'
-```
-
-Or use the dashboard — select invoices, click Approve, click Export.
-
 ## Extraction Pipeline
 
 Each invoice passes through progressively more expensive stages, gated by confidence:
 
-1. **Vendor Fingerprint** — Match known vendor patterns (free)
-2. **Template Path** — Apply vendor-specific extraction templates (free)
-3. **OCR + Heuristic Parsing** — Text extraction + rule-based field parsing (low cost)
-4. **Deterministic Validation** — Date/amount consistency checks (free)
-5. **SLM Verification** — ML field verification with invoice type classification (medium cost)
-6. **LLM Vision Re-extraction** — Page image analysis when confidence < 85% (high cost)
-7. **Learning Store** — Record corrections for future extractions (free)
+| Stage | What Happens | Cost |
+|-------|-------------|------|
+| Vendor Fingerprint | Match known vendor layout patterns | Free |
+| OCR | Text + bounding box extraction from all pages | Low |
+| SLM-Direct Extraction | OCR blocks + page images → structured fields + invoice type classification | Medium |
+| Deterministic Validation | Date/amount/currency consistency checks | Free |
+| LLM Vision Re-extraction | Page image analysis when confidence < 85% | High |
+| Learning Store | Record and apply corrections for future extractions | Free |
 
 ## Configuration
 
-BillForge uses a runtime manifest file for environment-specific wiring:
+BillForge uses a runtime manifest for environment-specific wiring. The same Docker image serves local, staging, and production — only the manifest differs.
 
-| Adapter | Options |
-|---------|---------|
-| OCR | `deepseek` / `mock` |
-| Field Verifier | `http` / `none` |
-| File Store | Local disk / S3 |
-| Ingestion Sources | `email` / `folder` |
-| Export | Tally endpoint + company + ledger names |
-
-See `backend/runtime-manifest.local.json` for the full schema.
+| Boundary | Current | Next |
+|----------|---------|------|
+| Ingestion | Gmail, S3 Upload, Folder | Outlook, custom IMAP |
+| OCR | DeepSeek MLX / mock | Cloud API endpoint |
+| Export | Tally XML (with GST) | QuickBooks, Zoho Books |
+| Storage | S3 / MinIO | — |
+| Email | SendGrid / SMTP | — |
 
 ## Deployment
 
-**Local development:** `yarn docker:up` — single command, includes demo data.
+**Local:** `yarn docker:up` — single command, includes demo data and seeded tenants.
 
-**AWS with Terraform:**
+**AWS:**
 
 ```bash
 ENV=stg AWS_REGION=us-east-1 bash ./scripts/deploy-aws.sh
 ```
 
-Terraform modules: EC2 Spot workers, DocumentDB, S3, ECS Fargate Keycloak, IAM/STS roles. See [AWS Deployment Guide](docs/AWS_DEPLOYMENT_GUIDE.md).
+Terraform modules: EC2 Spot workers, DocumentDB, S3, ECS Keycloak, IAM/STS roles. See [AWS Deployment Guide](docs/AWS_DEPLOYMENT_GUIDE.md).
 
 ## Tech Stack
 
 **Backend:** Node.js 20, TypeScript (strict), Express, Mongoose, Zod, Sharp, AWS SDK v3
-**Frontend:** React 19, TypeScript (strict), Vite 6, Recharts
+**Frontend:** React 18, TypeScript (strict), Vite 6, Recharts
 **ML Services:** Python 3.11, FastAPI, MLX (dev only), DeepSeek OCR
-**Infrastructure:** Docker Compose, MongoDB 7, Keycloak, MinIO, Terraform, GitHub Actions
-
-## Design Principles
-
-- **Provider boundaries** — OCR, SLM, storage, email are interfaces. MLX imports isolated to `local_*.py` modules. Production images have zero MLX dependencies.
-- **Integer minor units** — All currency stored as integers (cents). No floating-point math. Formatting at display/export boundaries only.
-- **Crash-safe checkpointing** — Per-file ingestion markers. Workers resume from last checkpoint. Unique indexes prevent duplicates.
-- **Tenant-first data model** — Every collection partitioned by `tenantId`. Platform admin sees aggregates only, never invoice-level data.
-- **Runtime composition** — Same image serves local/stg/prod. Environment wiring via manifest files, not code branches.
+**Infrastructure:** Docker Compose, MongoDB 7, Keycloak 26, MinIO, Terraform
 
 ## Testing
 
 ```bash
-yarn test                            # All unit tests (300+ backend, 95 frontend)
-yarn workspace billforge-backend coverage  # Coverage with threshold enforcement
-yarn run knip                        # Dead code analysis
-yarn e2e:local                       # Backend E2E (requires running stack)
+yarn test                                    # All unit tests
+yarn workspace billforge-backend coverage    # Coverage with threshold enforcement
+yarn run knip                                # Dead code analysis
+yarn e2e:local                               # Backend E2E (requires running stack)
 ```
 
-100% branch coverage enforced on tracked modules. CI runs typecheck → test → knip → Docker build → Trivy scan.
-
-## Contributing
-
-1. Read [`docs/RFC.md`](docs/RFC.md) for architecture decisions
-2. Follow provider boundaries — ML imports stay in `local_*.py`
-3. Add tests — unit for services, E2E for workflows
-4. Run `yarn run quality:check` before committing
-5. Use integer minor units for all amounts
+100% branch coverage enforced on tracked modules (export, confidence, currency). CI: typecheck → test → knip → Docker build → Trivy scan.
 
 ## Documentation
 
-- [Architecture Decisions (RFC)](docs/RFC.md)
-- [AWS Deployment Guide](docs/AWS_DEPLOYMENT_GUIDE.md)
-- [Local OCR Setup](docs/LOCAL_DEEPSEEK_OCR_SETUP.md)
-- [Troubleshooting](docs/TROUBLESHOOTING.md)
+| Document | What It Covers |
+|----------|---------------|
+| [Product Requirements (PRD)](docs/PRD.md) | Customer outcomes, user flows, feature requirements, success metrics |
+| [Architecture Decisions (RFC)](docs/RFC.md) | Why each technical decision was made and what would change it |
+| [AWS Deployment Guide](docs/AWS_DEPLOYMENT_GUIDE.md) | Terraform provisioning, ECR push, deploy script |
+| [Local OCR Setup](docs/LOCAL_DEEPSEEK_OCR_SETUP.md) | Apple Silicon MLX services, port mapping, health checks |
+| [Troubleshooting](docs/TROUBLESHOOTING.md) | Common issues, health checks, log access |
+
+## Contributing
+
+1. Read the [Architecture Decisions (RFC)](docs/RFC.md) before making structural changes
+2. Follow provider boundaries — ML imports stay in `local_*.py` modules
+3. Add tests — unit for services, E2E for workflows
+4. Run `yarn run quality:check` before committing
+5. Use integer minor units for all monetary amounts
 
 ## License
 

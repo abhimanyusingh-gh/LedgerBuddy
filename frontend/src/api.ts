@@ -32,12 +32,11 @@ apiClient.interceptors.response.use(
   (error) => Promise.reject(normalizeApiError(error))
 );
 
-
 interface SessionContextResponse {
   user: {
     id: string;
     email: string;
-    role: "PLATFORM_ADMIN" | "TENANT_ADMIN" | "MEMBER";
+    role: "PLATFORM_ADMIN" | "TENANT_ADMIN" | "MEMBER" | "VIEWER";
     isPlatformAdmin: boolean;
   };
   tenant: {
@@ -57,7 +56,7 @@ interface SessionContextResponse {
 interface TenantUserSummary {
   userId: string;
   email: string;
-  role: "TENANT_ADMIN" | "MEMBER";
+  role: "TENANT_ADMIN" | "MEMBER" | "VIEWER";
   enabled: boolean;
 }
 
@@ -90,6 +89,46 @@ interface PlatformTenantOnboardResult {
   tempPassword?: string;
 }
 
+interface UpdateInvoiceParsedPayload {
+  parsed: Partial<{
+    invoiceNumber: string | null;
+    vendorName: string | null;
+    invoiceDate: string | null;
+    dueDate: string | null;
+    currency: string | null;
+    totalAmountMajor: string | number | null;
+    totalAmountMinor: number | null;
+    notes: string[] | null;
+  }>;
+  updatedBy?: string;
+}
+
+function safeNum(v: unknown, fallback: number): number {
+  return typeof v === "number" && Number.isFinite(v) ? v : fallback;
+}
+
+function stripNulls(value: unknown): unknown {
+  if (value == null) return undefined;
+  if (Array.isArray(value)) return value.map((e) => (e == null ? e : stripNulls(e)));
+  if (typeof value !== "object") return value;
+  const proto = Object.getPrototypeOf(value);
+  if (proto !== Object.prototype && proto !== null) return value;
+  const output: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(value)) {
+    const s = stripNulls(v);
+    if (s !== undefined) output[k] = s;
+  }
+  return output;
+}
+
+function authenticatedUrl(path: string, params?: Record<string, unknown>): string {
+  const raw = apiClient.getUri({ url: path, params });
+  const resolved = new URL(raw, window.location.origin);
+  const token = getStoredSessionToken();
+  if (token) resolved.searchParams.set("authToken", token);
+  return resolved.toString();
+}
+
 export function getStoredSessionToken(): string {
   return window.localStorage.getItem(SESSION_TOKEN_KEY) ?? "";
 }
@@ -108,20 +147,14 @@ export function clearStoredSessionToken(): void {
 }
 
 export async function loginWithCredentials(email: string, password: string): Promise<string> {
-  const response = await apiClient.post<{ token?: string }>("/auth/token", {
-    email,
-    password
-  });
+  const response = await apiClient.post<{ token?: string }>("/auth/token", { email, password });
   const token = typeof response.data?.token === "string" ? response.data.token.trim() : "";
-  if (!token) {
-    throw new Error("Login did not return a session token.");
-  }
+  if (!token) throw new Error("Login did not return a session token.");
   return token;
 }
 
 export async function fetchSessionContext(): Promise<SessionContextResponse> {
-  const response = await apiClient.get<SessionContextResponse>("/session");
-  return response.data;
+  return (await apiClient.get<SessionContextResponse>("/session")).data;
 }
 
 export async function completeTenantOnboarding(payload: { tenantName: string; adminEmail: string }): Promise<void> {
@@ -137,7 +170,7 @@ export async function inviteTenantUser(email: string): Promise<void> {
   await apiClient.post("/admin/users/invite", { email });
 }
 
-export async function assignTenantUserRole(userId: string, role: "TENANT_ADMIN" | "MEMBER"): Promise<void> {
+export async function assignTenantUserRole(userId: string, role: "TENANT_ADMIN" | "MEMBER" | "VIEWER"): Promise<void> {
   await apiClient.post(`/admin/users/${userId}/role`, { role });
 }
 
@@ -164,19 +197,15 @@ export async function onboardTenantAdmin(payload: {
   adminDisplayName?: string;
   mode?: string;
 }): Promise<PlatformTenantOnboardResult> {
-  const response = await apiClient.post<PlatformTenantOnboardResult>("/platform/tenants/onboard-admin", payload);
-  return response.data;
+  return (await apiClient.post<PlatformTenantOnboardResult>("/platform/tenants/onboard-admin", payload)).data;
 }
 
 export async function uploadInvoiceFiles(files: File[]): Promise<{ uploaded: string[]; count: number }> {
   const formData = new FormData();
-  for (const file of files) {
-    formData.append("files", file);
-  }
-  const response = await apiClient.post<{ uploaded: string[]; count: number }>("/jobs/upload", formData, {
+  for (const file of files) formData.append("files", file);
+  return (await apiClient.post<{ uploaded: string[]; count: number }>("/jobs/upload", formData, {
     headers: { "Content-Type": "multipart/form-data" }
-  });
-  return response.data;
+  })).data;
 }
 
 export async function changePassword(currentPassword: string, newPassword: string): Promise<void> {
@@ -184,17 +213,13 @@ export async function changePassword(currentPassword: string, newPassword: strin
 }
 
 export async function fetchAnalyticsOverview(from: string, to: string, scope: "mine" | "all" = "mine"): Promise<AnalyticsOverview> {
-  const response = await apiClient.get<AnalyticsOverview>("/analytics/overview", {
-    params: { from, to, scope }
-  });
-  return response.data;
+  return (await apiClient.get<AnalyticsOverview>("/analytics/overview", { params: { from, to, scope } })).data;
 }
 
 export async function fetchInvoices(status?: string, from?: string, to?: string, page = 1, limit = 20, approvedBy?: string, sortBy?: string, sortDir?: "asc" | "desc") {
   const response = await apiClient.get<InvoiceListResponse>("/invoices", {
     params: {
-      page,
-      limit,
+      page, limit,
       status: status || undefined,
       from: from || undefined,
       to: to || undefined,
@@ -203,180 +228,7 @@ export async function fetchInvoices(status?: string, from?: string, to?: string,
       sortDir: sortBy ? sortDir : undefined
     }
   });
-
-  const data = sanitizeInvoiceListResponse(response.data);
-  return {
-    items: data.items,
-    page: data.page,
-    limit: data.limit,
-    total: data.total,
-    totalAll: data.totalAll,
-    approvedAll: data.approvedAll,
-    pendingAll: data.pendingAll,
-    failedAll: data.failedAll,
-    needsReviewAll: data.needsReviewAll,
-    parsedAll: data.parsedAll,
-    awaitingApprovalAll: data.awaitingApprovalAll,
-    failedOcrAll: data.failedOcrAll,
-    failedParseAll: data.failedParseAll,
-    exportedAll: data.exportedAll
-  };
-}
-
-export async function fetchInvoiceById(invoiceId: string) {
-  const response = await apiClient.get<Invoice>(`/invoices/${invoiceId}`);
-  return stripNulls(response.data) as Invoice;
-}
-
-export function getInvoiceBlockCropUrl(invoiceId: string, blockIndex: number): string {
-  const raw = apiClient.getUri({
-    url: `/invoices/${invoiceId}/ocr-blocks/${blockIndex}/crop`
-  });
-  return appendAuthTokenQuery(raw);
-}
-
-export function getInvoiceFieldOverlayUrl(invoiceId: string, field: string): string {
-  const raw = apiClient.getUri({
-    url: `/invoices/${invoiceId}/source-overlays/${field}`
-  });
-  return appendAuthTokenQuery(raw);
-}
-
-export function getInvoicePreviewUrl(invoiceId: string, page = 1): string {
-  const raw = apiClient.getUri({
-    url: `/invoices/${invoiceId}/preview`,
-    params: {
-      page: Math.max(1, Math.round(page))
-    }
-  });
-  return appendAuthTokenQuery(raw);
-}
-
-export async function approveInvoices(ids: string[], approvedBy: string) {
-  const response = await apiClient.post<{ modifiedCount: number }>("/invoices/approve", {
-    ids,
-    approvedBy
-  });
-
-  return response.data;
-}
-
-export async function deleteInvoices(ids: string[]) {
-  const response = await apiClient.post<{ deletedCount: number }>("/invoices/delete", { ids });
-  return response.data;
-}
-
-export async function retryInvoices(ids: string[]) {
-  const response = await apiClient.post<{ modifiedCount: number }>("/invoices/retry", { ids });
-  return response.data;
-}
-
-export async function generateTallyXmlFile(ids?: string[]) {
-  const response = await apiClient.post<TallyFileExportResponse>("/exports/tally/download", { ids });
-  return response.data;
-}
-
-export async function downloadTallyXmlFile(batchId: string): Promise<Blob> {
-  const response = await apiClient.get(`/exports/tally/download/${batchId}`, {
-    responseType: "blob"
-  });
-  return response.data as Blob;
-}
-
-export async function fetchExportHistory(page = 1, limit = 20): Promise<ExportHistoryResponse> {
-  const response = await apiClient.get<ExportHistoryResponse>("/exports/tally/history", {
-    params: { page, limit }
-  });
-  return sanitizeExportHistoryResponse(response.data);
-}
-
-function safeNum(v: unknown, fallback: number): number {
-  return typeof v === "number" && Number.isFinite(v) ? v : fallback;
-}
-
-function safeStr(v: unknown): string | undefined {
-  return typeof v === "string" ? v : undefined;
-}
-
-function sanitizeExportHistoryResponse(value: unknown): ExportHistoryResponse {
-  const data = stripNulls(value) as Partial<ExportHistoryResponse>;
-  return {
-    items: Array.isArray(data.items) ? data.items : [],
-    page: safeNum(data.page, 1), limit: safeNum(data.limit, 20), total: safeNum(data.total, 0)
-  };
-}
-
-export async function runIngestion() {
-  const response = await apiClient.post<IngestionJobStatus>("/jobs/ingest");
-  return sanitizeIngestionStatus(response.data);
-}
-
-
-
-export async function pauseIngestion() {
-  const response = await apiClient.post<IngestionJobStatus>("/jobs/ingest/pause");
-  return sanitizeIngestionStatus(response.data);
-}
-
-export async function fetchIngestionStatus() {
-  const response = await apiClient.get<IngestionJobStatus>("/jobs/ingest/status");
-  return sanitizeIngestionStatus(response.data);
-}
-
-export async function fetchGmailConnectionStatus() {
-  const response = await apiClient.get<GmailConnectionStatus>("/integrations/gmail");
-  return sanitizeGmailConnectionStatus(response.data);
-}
-
-export async function fetchGmailConnectUrl(): Promise<string> {
-  const response = await apiClient.get<{ connectUrl: string }>("/integrations/gmail/connect-url");
-  const connectUrl = typeof response.data?.connectUrl === "string" ? response.data.connectUrl.trim() : "";
-  if (!connectUrl) {
-    throw new Error("Gmail connect URL was not returned.");
-  }
-  return connectUrl;
-}
-
-interface UpdateInvoiceParsedPayload {
-  parsed: Partial<{
-    invoiceNumber: string | null;
-    vendorName: string | null;
-    invoiceDate: string | null;
-    dueDate: string | null;
-    currency: string | null;
-    totalAmountMajor: string | number | null;
-    totalAmountMinor: number | null;
-    notes: string[] | null;
-  }>;
-  updatedBy?: string;
-}
-
-export async function updateInvoiceParsedFields(invoiceId: string, payload: UpdateInvoiceParsedPayload) {
-  const response = await apiClient.patch<Invoice>(`/invoices/${invoiceId}`, payload);
-  return stripNulls(response.data) as Invoice;
-}
-
-export async function renameInvoiceAttachment(invoiceId: string, attachmentName: string) {
-  const response = await apiClient.patch<Invoice>(`/invoices/${invoiceId}`, { attachmentName });
-  return stripNulls(response.data) as Invoice;
-}
-
-function stripNulls(value: unknown): unknown {
-  if (value == null) return undefined;
-  if (Array.isArray(value)) return value.map((e) => (e == null ? e : stripNulls(e)));
-  if (typeof value !== "object") return value;
-  const proto = Object.getPrototypeOf(value);
-  if (proto !== Object.prototype && proto !== null) return value;
-  const output: Record<string, unknown> = {};
-  for (const [k, v] of Object.entries(value)) {
-    const s = stripNulls(v);
-    if (s !== undefined) output[k] = s;
-  }
-  return output;
-}
-
-function sanitizeInvoiceListResponse(value: unknown): InvoiceListResponse {
-  const data = stripNulls(value) as Partial<InvoiceListResponse>;
+  const data = stripNulls(response.data) as Partial<InvoiceListResponse>;
   return {
     items: Array.isArray(data.items) ? data.items : [],
     page: safeNum(data.page, 1), limit: safeNum(data.limit, 0), total: safeNum(data.total, 0),
@@ -388,6 +240,89 @@ function sanitizeInvoiceListResponse(value: unknown): InvoiceListResponse {
   };
 }
 
+export async function fetchInvoiceById(invoiceId: string) {
+  return stripNulls((await apiClient.get<Invoice>(`/invoices/${invoiceId}`)).data) as Invoice;
+}
+
+export function getInvoiceBlockCropUrl(invoiceId: string, blockIndex: number): string {
+  return authenticatedUrl(`/invoices/${invoiceId}/ocr-blocks/${blockIndex}/crop`);
+}
+
+export function getInvoiceFieldOverlayUrl(invoiceId: string, field: string): string {
+  return authenticatedUrl(`/invoices/${invoiceId}/source-overlays/${field}`);
+}
+
+export function getInvoicePreviewUrl(invoiceId: string, page = 1): string {
+  return authenticatedUrl(`/invoices/${invoiceId}/preview`, { page: Math.max(1, Math.round(page)) });
+}
+
+export async function approveInvoices(ids: string[], approvedBy: string) {
+  return (await apiClient.post<{ modifiedCount: number }>("/invoices/approve", { ids, approvedBy })).data;
+}
+
+export async function deleteInvoices(ids: string[]) {
+  return (await apiClient.post<{ deletedCount: number }>("/invoices/delete", { ids })).data;
+}
+
+export async function retryInvoices(ids: string[]) {
+  return (await apiClient.post<{ modifiedCount: number }>("/invoices/retry", { ids })).data;
+}
+
+export async function generateTallyXmlFile(ids?: string[]) {
+  return (await apiClient.post<TallyFileExportResponse>("/exports/tally/download", { ids })).data;
+}
+
+export async function downloadTallyXmlFile(batchId: string): Promise<Blob> {
+  return (await apiClient.get(`/exports/tally/download/${batchId}`, { responseType: "blob" })).data as Blob;
+}
+
+export async function fetchExportHistory(page = 1, limit = 20): Promise<ExportHistoryResponse> {
+  const data = stripNulls((await apiClient.get<ExportHistoryResponse>("/exports/tally/history", { params: { page, limit } })).data) as Partial<ExportHistoryResponse>;
+  return {
+    items: Array.isArray(data.items) ? data.items : [],
+    page: safeNum(data.page, 1), limit: safeNum(data.limit, 20), total: safeNum(data.total, 0)
+  };
+}
+
+export async function runIngestion() {
+  return sanitizeIngestionStatus((await apiClient.post<IngestionJobStatus>("/jobs/ingest")).data);
+}
+
+export async function pauseIngestion() {
+  return sanitizeIngestionStatus((await apiClient.post<IngestionJobStatus>("/jobs/ingest/pause")).data);
+}
+
+export async function fetchIngestionStatus() {
+  return sanitizeIngestionStatus((await apiClient.get<IngestionJobStatus>("/jobs/ingest/status")).data);
+}
+
+export async function fetchGmailConnectionStatus() {
+  const data = stripNulls((await apiClient.get<GmailConnectionStatus>("/integrations/gmail")).data) as Partial<GmailConnectionStatus>;
+  const validStates = ["CONNECTED", "NEEDS_REAUTH", "DISCONNECTED"] as const;
+  return {
+    provider: "gmail" as const,
+    connectionState: validStates.includes(data.connectionState as typeof validStates[number]) ? data.connectionState! : "DISCONNECTED" as const,
+    emailAddress: typeof data.emailAddress === "string" ? data.emailAddress : undefined,
+    lastErrorReason: typeof data.lastErrorReason === "string" ? data.lastErrorReason : undefined,
+    lastSyncedAt: typeof data.lastSyncedAt === "string" ? data.lastSyncedAt : undefined
+  };
+}
+
+export async function fetchGmailConnectUrl(): Promise<string> {
+  const response = await apiClient.get<{ connectUrl: string }>("/integrations/gmail/connect-url");
+  const connectUrl = typeof response.data?.connectUrl === "string" ? response.data.connectUrl.trim() : "";
+  if (!connectUrl) throw new Error("Gmail connect URL was not returned.");
+  return connectUrl;
+}
+
+export async function updateInvoiceParsedFields(invoiceId: string, payload: UpdateInvoiceParsedPayload) {
+  return stripNulls((await apiClient.patch<Invoice>(`/invoices/${invoiceId}`, payload)).data) as Invoice;
+}
+
+export async function renameInvoiceAttachment(invoiceId: string, attachmentName: string) {
+  return stripNulls((await apiClient.patch<Invoice>(`/invoices/${invoiceId}`, { attachmentName })).data) as Invoice;
+}
+
 function sanitizeIngestionStatus(value: unknown): IngestionJobStatus {
   const data = stripNulls(value) as Partial<IngestionJobStatus>;
   const validStates = ["running", "completed", "failed", "idle", "paused"] as const;
@@ -397,20 +332,11 @@ function sanitizeIngestionStatus(value: unknown): IngestionJobStatus {
     totalFiles: safeNum(data.totalFiles, 0), processedFiles: safeNum(data.processedFiles, 0),
     newInvoices: safeNum(data.newInvoices, 0), duplicates: safeNum(data.duplicates, 0),
     failures: safeNum(data.failures, 0),
-    startedAt: safeStr(data.startedAt), completedAt: safeStr(data.completedAt),
-    error: safeStr(data.error), correlationId: safeStr(data.correlationId),
-    lastUpdatedAt: safeStr(data.lastUpdatedAt) ?? new Date(0).toISOString()
-  };
-}
-
-function sanitizeGmailConnectionStatus(value: unknown): GmailConnectionStatus {
-  const data = stripNulls(value) as Partial<GmailConnectionStatus>;
-  const validStates = ["CONNECTED", "NEEDS_REAUTH", "DISCONNECTED"] as const;
-  return {
-    provider: "gmail",
-    connectionState: validStates.includes(data.connectionState as typeof validStates[number]) ? data.connectionState! : "DISCONNECTED",
-    emailAddress: safeStr(data.emailAddress), lastErrorReason: safeStr(data.lastErrorReason),
-    lastSyncedAt: safeStr(data.lastSyncedAt)
+    startedAt: typeof data.startedAt === "string" ? data.startedAt : undefined,
+    completedAt: typeof data.completedAt === "string" ? data.completedAt : undefined,
+    error: typeof data.error === "string" ? data.error : undefined,
+    correlationId: typeof data.correlationId === "string" ? data.correlationId : undefined,
+    lastUpdatedAt: (typeof data.lastUpdatedAt === "string" ? data.lastUpdatedAt : undefined) ?? new Date(0).toISOString()
   };
 }
 
@@ -418,38 +344,18 @@ export function subscribeIngestionSSE(
   onMessage: (status: IngestionJobStatus) => void,
   onError?: () => void
 ): () => void {
-  const base = apiClient.defaults.baseURL ?? "";
-  const url = `${base}/jobs/ingest/sse`;
+  const url = `${apiClient.defaults.baseURL ?? ""}/jobs/ingest/sse`;
   const resolved = new URL(url, window.location.origin);
   const token = getStoredSessionToken();
-  if (token) {
-    resolved.searchParams.set("authToken", token);
-  }
+  if (token) resolved.searchParams.set("authToken", token);
   const source = new EventSource(resolved.toString());
-  source.onmessage = (e) => {
-    onMessage(sanitizeIngestionStatus(JSON.parse(e.data)));
-  };
-  source.onerror = () => {
-    onError?.();
-    source.close();
-  };
+  source.onmessage = (e) => onMessage(sanitizeIngestionStatus(JSON.parse(e.data)));
+  source.onerror = () => { onError?.(); source.close(); };
   return () => source.close();
 }
 
-function appendAuthTokenQuery(url: string): string {
-  const token = getStoredSessionToken();
-  if (!token) {
-    return url;
-  }
-
-  const resolved = new URL(url, window.location.origin);
-  resolved.searchParams.set("authToken", token);
-  return resolved.toString();
-}
-
 export async function fetchMailboxes(): Promise<TenantMailbox[]> {
-  const response = await apiClient.get<{ items: TenantMailbox[] }>("/admin/mailboxes");
-  return response.data.items;
+  return (await apiClient.get<{ items: TenantMailbox[] }>("/admin/mailboxes")).data.items;
 }
 
 export async function assignMailboxUser(integrationId: string, userId: string): Promise<void> {
@@ -465,13 +371,11 @@ export async function removeMailbox(integrationId: string): Promise<void> {
 }
 
 export async function fetchBankAccounts(): Promise<BankAccount[]> {
-  const response = await apiClient.get<{ items: BankAccount[] }>("/bank/accounts");
-  return response.data.items;
+  return (await apiClient.get<{ items: BankAccount[] }>("/bank/accounts")).data.items;
 }
 
 export async function initiateBankConsent(aaAddress: string, displayName: string): Promise<{ _id: string; redirectUrl: string }> {
-  const response = await apiClient.post<{ _id: string; redirectUrl: string }>("/bank/accounts", { aaAddress, displayName });
-  return response.data;
+  return (await apiClient.post<{ _id: string; redirectUrl: string }>("/bank/accounts", { aaAddress, displayName })).data;
 }
 
 export async function revokeBankAccount(id: string): Promise<void> {
@@ -483,12 +387,9 @@ export async function refreshBankBalance(id: string): Promise<void> {
 }
 
 export async function fetchApprovalWorkflow(): Promise<ApprovalWorkflowConfig> {
-  const response = await apiClient.get("/admin/approval-workflow");
-  return response.data;
+  return (await apiClient.get("/admin/approval-workflow")).data;
 }
 
 export async function saveApprovalWorkflow(config: ApprovalWorkflowConfig): Promise<ApprovalWorkflowConfig> {
-  const response = await apiClient.put("/admin/approval-workflow", config);
-  return response.data;
+  return (await apiClient.put("/admin/approval-workflow", config)).data;
 }
-

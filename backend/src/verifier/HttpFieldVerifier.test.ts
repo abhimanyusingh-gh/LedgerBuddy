@@ -123,7 +123,7 @@ describe("HttpFieldVerifier", () => {
       }
     };
 
-    await expect(verifier.verify(input)).rejects.toThrow("SLM verification failed: connection refused");
+    await expect(verifier.verify(input)).rejects.toThrow("SLM verification failed after 3 attempts: connection refused");
     expect(errorSpy).toHaveBeenCalledWith(
       "verifier.http.failed",
       expect.objectContaining({

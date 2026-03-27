@@ -9,8 +9,8 @@ interface TenantConfigTabProps {
   inviteEmail: string;
   onInviteEmailChange: (email: string) => void;
   onInviteUser: () => void;
-  tenantUsers: Array<{ userId: string; email: string; role: "TENANT_ADMIN" | "MEMBER"; enabled: boolean }>;
-  onRoleChange: (userId: string, role: "TENANT_ADMIN" | "MEMBER") => void;
+  tenantUsers: Array<{ userId: string; email: string; role: "TENANT_ADMIN" | "MEMBER" | "VIEWER"; enabled: boolean }>;
+  onRoleChange: (userId: string, role: "TENANT_ADMIN" | "MEMBER" | "VIEWER") => void;
   onToggleUserEnabled: (userId: string, enabled: boolean) => void;
   onRemoveUser: (userId: string) => void;
 }
@@ -92,6 +92,7 @@ export function TenantConfigTab({
                       <div className="role-slider">
                         <button type="button" className={user.role === "TENANT_ADMIN" ? "role-slider-active" : ""} onClick={() => onRoleChange(user.userId, "TENANT_ADMIN")}>Admin</button>
                         <button type="button" className={user.role === "MEMBER" ? "role-slider-active" : ""} onClick={() => onRoleChange(user.userId, "MEMBER")}>Member</button>
+                        <button type="button" className={user.role === "VIEWER" ? "role-slider-active" : ""} onClick={() => onRoleChange(user.userId, "VIEWER")}>Viewer</button>
                       </div>
                     </td>
                     <td>

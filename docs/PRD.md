@@ -1,118 +1,310 @@
-# PRD: BillForge
+# Product Requirements Document: BillForge
 
-## 1. Problem
+> Last updated: 2026-03-27
 
-Finance teams receive invoices in mixed formats and channels. Manual extraction, review, and accounting export are slow, error-prone, and hard to audit.
+---
 
-## 2. Goal
+## 1. Overview
 
-Build a minimal, modular application that ingests invoices, extracts structured data with OCR/AI, supports review + approval, and exports approved data to Tally.
+### The Problem
 
-## 3. Users
+An AP clerk at an Indian accounting services firm opens a PDF invoice from a client. She needs the vendor name, invoice number, total amount, and GST breakdown to enter into Tally. She scrolls to find the vendor header. Scrolls again for the invoice number. Flips to page two for the total. Cross-references the CGST and SGST lines. Types everything into Tally. Then opens the next PDF and does it again — 150 times a day.
 
-- AP/Finance reviewers
-- Operations admins
-- Developers maintaining ingestion/export integrations
+The bottleneck is not the judgment call ("should I approve this?"). The bottleneck is the hunt ("where is the vendor name on this invoice?"). Every new invoice format from every new vendor restarts the search from scratch.
 
-## 4. Functional Requirements
+### Why BillForge Wins
 
-1. Ingestion
-- Support PDF (vector + scanned) and image files (`jpg`, `jpeg`, `png`).
-- Use configurable, extensible ingestion interface.
-- Initial source: email inbox integration.
-- Local/test source: folder ingestion.
-- Assign each source to a tenant and workload tier (`standard` or `heavy`) for operational isolation.
-- For folder ingestion, process all supported files and skip already processed records by source identity to avoid duplicate work.
+**You never have to hunt through a PDF again.** For every extracted field, BillForge shows you the value alongside the exact region of the document where it was found. You glance, you confirm, you move on. The document's evidence comes to you — you don't go looking for it.
 
-2. OCR and Extraction
-- OCR provider abstraction with reliable handwriting-capable provider support.
-- Local OCR runtime: host macOS MLX service with default model `mlx-community/DeepSeek-OCR-4bit`.
-- Local SLM runtime: MLX-based verifier with default model `mlx-community/DeepSeek-R1-Distill-Qwen-1.5B-4bit`.
-- Production OCR runtime: external OCR endpoint through the same OCR interface.
-- No Tesseract fallback in runtime.
-- Agentic extraction flow: evaluate multiple text candidates and select best parse.
-- Extract core fields: invoice number, vendor, dates, currency, total amount.
-- Store amount as integer minor currency unit only (`totalAmountMinor`).
-- Persist OCR engine and extraction source separately for traceability.
-- SLM classifies invoice type during verification (closed set: standard, gst-tax-invoice, vat-invoice, receipt, utility-bill, professional-service, purchase-order, credit-note, proforma, other).
-- LLM-assisted re-extraction: when confidence is below threshold (default 85%) and page images are available, invoke SLM again in strict mode with vision and prior correction hints.
-- Extraction learning feedback loop: record field corrections per tenant, keyed by invoice type and vendor fingerprint. Feed prior learnings to future SLM calls. Cap at 6 corrections per key, auto-prune after 90 days.
+**You corrected it once; you'll never correct it again.** Every correction you make teaches the system. The next invoice from that vendor extracts correctly without your intervention. The system gets better because you used it.
 
-3. Confidence and Risk
-- Show extraction confidence in UI.
-- Confidence color bands:
-  - `0-79`: red
-  - `80-90`: yellow
-  - `91+`: green
-- `91+` can be auto-selected for approval.
-- Flag anomalous values (for example high total amount) and include in confidence scoring.
+**Your approved invoices export straight into Tally** with correct GST breakdown — CGST, SGST, IGST, Cess — ready to import. No manual re-entry, no mapping errors.
 
-4. Review UI
-- List pending, parsed, failed, approved, and exported invoices with humanized status filter tabs.
-- Inline row actions per invoice: approve, ingest (pending), reingest (non-exported), delete. Actions are disabled during active reingest with a visual "REINGESTING" badge and spinner.
-- Reingest triggers the full ingestion pipeline (not just status reset) with SSE-driven progress tracking.
-- Load and display all invoice pages from the backend (no hidden first-page cap).
-- Allow collapsing the right-side Invoice Details section so the Invoice list can expand.
-- Show extracted values and Tally mapping in table format with clear labels.
-- Show confidence and source-highlight overlays for extracted fields.
-- Provide a lightweight inspect icon per extracted field to open the persisted crop image used for that value.
-- File details popup shows detected data + mapping.
-- Batch approval workflow.
-- Export confirmation dialog shows selected file count.
-- Exported invoices marked `EXPORTED` and no longer selectable.
-- Allow approver edits of parsed fields before export, and block edits after export.
+### Target Segment
 
-5. Export
-- Tally export integration using correct API envelope/payload format.
-- Keep approved selection behavior stable for export flow.
+Indian accounting services firms handling 100+ invoices per client per month, using Tally for accounting, processing invoices from multiple vendors in varying formats. This is specific and deliberate — not "Indian SMBs" broadly.
 
-6. Authentication, Tenant Admin, and Platform Admin
-- OAuth2 authorization-code login for all users.
-- Tenant bootstrap on first login with explicit onboarding gate.
-- Tenant RBAC: `TENANT_ADMIN` and `MEMBER`.
-- Tenant invite flow with single-use token lifecycle.
-- Platform admin access controlled by OAuth email allowlist.
-- Platform admin view must expose tenant usage only (counts/status/health metadata), never invoice content or OCR payloads.
+### What We Don't Yet Know
 
-7. Email Integration for Invites and Mailbox
-- Invite email sender must be abstraction-driven and provider-pluggable.
-- Local default invite sender should simulate SendGrid Mail Send API through MailHog wrapper for integration testing.
-- Provider compatibility target: SendGrid Mail Send contract (`/v3/mail/send`, Bearer auth, personalizations/content payload).
+Three things must be validated before these claims become external positioning:
 
-8. Checkpointing and Idempotency
-- Store per-tenant + per-source checkpoint marker in MongoDB.
-- Update checkpoint after each processed file.
-- Crash-safe resume from last checkpoint.
-- Avoid duplicate processing across runs.
+1. **The verification time.** We believe review drops from minutes to under 45 seconds per invoice. This is a hypothesis based on the interaction pattern. It must be confirmed by timing real AP clerks on real invoices — both their current process (baseline) and their BillForge process. Until then, it is an internal design target.
 
-9. Infra
-- Terraform-based AWS provisioning.
-- Spot-instance worker pattern for periodic processing.
-- Provision a production Mongo-compatible DB module (DocumentDB) and use that connection for worker runtime in deployed environments.
-- Use reusable IAM, worker, and DB modules with app-level manifest overrides (`app_manifest`) for future app onboarding.
-- Use `tfvars` for deploy-time configuration and credentials.
+2. **The competitive landscape.** We believe Tally-native export with GST itemization is a gap in the market. This must be confirmed by naming specific competitors and documenting their specific shortfalls — ideally from the first adopter's own evaluation process.
 
-10. Testing
-- Unit tests for parser, confidence, exporter, mapping, and helpers.
-- End-to-end tests for folder ingestion, checkpointing, resume behavior, and OCR engine/extraction-source consistency.
-- End-to-end tests for invite delivery formatting through simulated SendGrid->MailHog path.
-- End-to-end tests for platform-admin authorization and tenant-usage-only visibility.
-- Enforced quality gate: no dead code (Knip) and 100% branch coverage for covered logic modules.
+3. **The learning loop timeline.** We believe correction rates for returning vendors decrease within 30 days. This must be confirmed with production telemetry from the first tenant.
 
-## 5. Non-Functional Requirements
+---
 
-- Backend: Node.js
-- Frontend: React
-- Database: MongoDB
-- Infra: Terraform (modular, extensible)
-- Keep code minimal and maintainable.
-- Runtime wiring must be composable through a manifest file (`APP_MANIFEST_PATH`) with env fallback.
-- Runtime mode switch must be a single variable: `ENV=local|stg|prod`.
-- In `ENV=local`, run OCR/SLM locally on host macOS and use `docker compose up` for backend, frontend, database, local STS, and MailHog.
-- Backend readiness must be blocked until required OCR + SLM capabilities are healthy.
-- Prepare for multitenancy by partitioning data and ingestion workload lanes (`standard` vs `heavy`) to protect low-usage tenants from heavy-usage impact.
+## 2. Target Users
 
-## 6. Out of Scope (Current Phase)
+### First Adopter
 
-- Full accounting reconciliation workflows
-- Advanced line-item intelligence beyond current extraction scope
+An Indian accounting services firm. Each staff member handles invoices for a specific client. Invoices arrive at a client-specific Gmail inbox. The tenant admin assigns each inbox to the responsible team member. The workflow is flat: one person, one client, one inbox.
+
+### What They Fired (To Be Documented)
+
+**This section is intentionally incomplete.** Understanding what the first adopter was doing before BillForge — and what finally pushed them to change — is the most important input for positioning and go-to-market. The real competitive set is almost certainly not other invoice software; it's likely a manual process, a junior accountant, an Excel sheet, or just tolerating errors.
+
+Two interviews are required before this section can be filled:
+
+1. **The AP clerk:** What was frustrating in the moment? What did a bad day look like? What workarounds had she built?
+2. **The decision-maker:** What changed? Why now? What else did they consider? Why BillForge over doing nothing?
+
+These interviews are **Gate G2** — they block all external positioning work.
+
+### Operational Model
+
+| Who | What They Do Daily | Role | Key Constraint |
+|-----|-------------------|------|----------------|
+| **AP Clerk** | Sees assigned invoices already extracted. For each: glances at value + source evidence, corrects if wrong, approves. 100-200 invoices/day. | MEMBER | Approves up to a configured value limit. Above that, escalates to admin. |
+| **Firm Admin** | Connects Gmail inboxes, assigns to team, configures approval rules, reviews escalated invoices, exports approved batches to Tally. | TENANT_ADMIN | Manages the operational configuration. |
+| **Platform Operator** | Onboards firms, monitors health. Never sees invoice content. | PLATFORM_ADMIN | Sees metadata only — never invoice-level data. |
+| **Auditor** | Read-only access to a configurable scope of invoices. | VIEWER | Cannot modify, approve, or export. |
+
+### Role Extensibility
+
+The flat model is deliberate for this adopter. The approval workflow engine supports multi-step, role-based, amount-conditional chains — built but gated behind configuration. This is an explicit bet on a second adopter type (firm with AP hierarchy) that has not yet been validated. See Gate G6.
+
+---
+
+## 3. Core Features
+
+### 3.1 Source-Verified Review
+
+**The need:** "I can't trust an extracted value without seeing where it came from."
+
+**The solution:** Every extracted field is paired with a cropped image of the exact document region where the value was found, plus a bounding box overlay on the full page. The reviewer doesn't search; the evidence is brought to them.
+
+**What the reviewer does:**
+- Scans extracted fields. Green confidence = likely correct. Red = needs checking.
+- For any field, glances at the source evidence next to the value. Matches? Move on. Wrong? Click, correct, Enter.
+- Every correction feeds the learning store for future invoices from that vendor.
+- Clicks Approve. **Approval is always a deliberate human action.** The system pre-selects high-confidence invoices for batch approval but never auto-approves. The human decides; the system assists.
+
+**Why this is hard to copy:** The entire extraction pipeline — OCR bounding boxes, SLM block indices, spatial proximity matching, crop generation — exists to enable this interaction. A competitor can't add source crops without rebuilding their extraction pipeline.
+
+### 3.2 Extraction Learning
+
+**The need:** "I've corrected this vendor's name three times already. Why do I have to do it again?"
+
+**The solution:** Every correction is recorded per vendor and per invoice type. On future extractions, corrections are passed to the SLM as hints. Vendor-specific corrections override type-level corrections.
+
+**Current mode: Assistive.** Based on consistent reviewer feedback, the learning loop should start assistive — showing corrections as suggestions with a visible "learning applied" indicator — rather than silently applying them. This builds trust before the system operates autonomously. The decision trigger for moving to active mode: correction rate for returning vendors is declining and false correction rate is below a defined threshold (to be determined from production data).
+
+**Constraints:** 6 corrections per grouping key (bounds SLM token cost), 90-day TTL (auto-prunes stale corrections). Both are engineering starting points, not validated thresholds. Instrument from day one: track correction rate per vendor before and after hints are applied.
+
+### 3.3 Multi-Source Ingestion
+
+Invoices arrive from whatever channel the client uses and appear in the dashboard ready for review.
+
+| Source | Status | Description |
+|--------|--------|-------------|
+| Gmail (OAuth2) | Production | Per-tenant inbox. Polling at 1/2/4/8h. MessageId dedup. |
+| S3 Upload | Production | Manual upload. Max 50 files, 20MB each. PDF/JPG/PNG. |
+| Folder | Development | Local testing only. |
+
+Every source implements `IngestionSource`. Adding Outlook or a custom IMAP source is an adapter implementation — the pipeline, checkpointing, and dedup are shared.
+
+### 3.4 Staged Extraction Pipeline
+
+High accuracy without high cost — expensive ML stages only trigger when cheaper ones aren't confident enough.
+
+| Stage | What Happens | Cost |
+|-------|-------------|------|
+| Vendor Fingerprint | Match known vendor layout patterns | Free |
+| OCR | Text + bounding boxes from all pages | Low |
+| SLM Field Extraction | Structured fields from OCR blocks + page images + learned corrections | Medium |
+| Deterministic Validation | Date/amount/currency consistency checks | Free |
+| LLM Vision Re-extraction | Page image analysis when confidence < 85% | High |
+
+The SLM classifies each invoice into one of 10 types (`gst-tax-invoice`, `receipt`, `credit-note`, etc.) during extraction — no extra ML call. Classification is displayed in the review UI and keys the learning store.
+
+### 3.5 Confidence Scoring
+
+| Band | Score | Reviewer Experience |
+|------|-------|-------------------|
+| Green | 91-100 | Pre-selected for batch approval. Quick glance, approve. |
+| Yellow | 80-90 | Worth checking. Open detail panel, verify flagged fields. |
+| Red | 0-79 | Needs review. Source evidence becomes critical. |
+
+**Green does not mean auto-approved.** This is a hard constraint. If a CA ever asks "who approved this?", the answer must be a person, not a confidence score.
+
+### 3.6 Approval Workflows
+
+MEMBERs approve up to a configured value limit. Above that, invoices escalate to TENANT_ADMIN. This matches how the first adopter actually works.
+
+Advanced mode (multi-step builder, role/amount conditions) is built but unvalidated — it's a bet on a second adopter type. See Gate G6.
+
+### 3.7 Tally XML Export
+
+Approved invoices export as Tally purchase voucher XML with full GST breakdown (CGST/SGST/IGST/Cess, configurable ledger names). Download as file or POST directly. Export batches tracked with audit trail.
+
+**Open risk (Gate G4):** Header-level GST may not satisfy ITC reconciliation requirements during a GST audit. This must be validated with the first adopter's CA before the product goes live. If line-item detail is required, this moves from out-of-scope to blocker.
+
+Tally is the first implementation of `AccountingExporter`. Adding QuickBooks or Zoho Books is an adapter — the batch tracking, approval checks, and download infrastructure are shared.
+
+### 3.8 Multi-Tenant Data Isolation
+
+Every collection partitioned by `tenantId`. Platform admin sees aggregate metrics only — never invoice content. VIEWER role has configurable scope via `ViewerScope`. Tenant modes: `test` (manual ingest) and `live` (auto-ingest). No mode transition API exists yet.
+
+### 3.9 Integrations
+
+All behind interface boundaries. Swapping or adding a provider is configuration, not code.
+
+| Integration | Status | Boundary |
+|-------------|--------|----------|
+| Gmail (OAuth2) | Live | `IngestionSource` |
+| Tally XML | Live | `AccountingExporter` |
+| SendGrid / SMTP | Live | `InviteEmailSender` |
+| Anumati (Account Aggregator) | Built, not validated | `IBankConnectionService` |
+| S3 / MinIO | Live | `FileStore` |
+
+Anumati is forward investment. Payment reconciliation is not in scope for the first adopter. The infrastructure carries maintenance cost ahead of validated need.
+
+---
+
+## 4. User Flows
+
+### 4.1 The Reviewer's Day
+
+**Priya** is an AP clerk. She handles invoices for 3 clients. Each client's invoices land in a dedicated Gmail inbox assigned to her.
+
+1. **Morning.** Dashboard shows 47 invoices ingested overnight. 38 green, 6 yellow, 3 red.
+2. **Green batch.** Select All Green → scan vendor names and amounts → "Approve 38 invoices" → confirm. 30 seconds.
+3. **Yellow invoice.** Detail panel opens. Next to "Total: ₹1,18,000" she sees a cropped image of the handwritten amount. Matches. Approve.
+4. **Red invoice.** Confidence 62%. Vendor name wrong — source evidence shows "M/s Sharma & Associates", extracted value says "Sharma Associate." Click, correct, Enter. Check remaining fields with their source evidence. Approve.
+5. **Her corrections teach the system.** Next month, Sharma invoices extract correctly.
+6. **End of day.** Admin exports all approved invoices to Tally XML with GST breakdown. Invoices marked EXPORTED and locked.
+
+### 4.2 Tenant Onboarding (Minimum Path to First Value)
+
+1. Platform admin creates tenant → admin gets temporary password → forced to change on login
+2. Connect one Gmail inbox (OAuth popup) → assign to self → click Ingest
+3. Review extracted invoices → approve → export to Tally
+4. **Time to first export target: under 30 minutes.** Additional config (team invites, workflow rules, more inboxes) is optional — not required for first value.
+
+---
+
+## 5. Requirements
+
+### Differentiators
+
+| ID | Requirement | Why |
+|----|-------------|-----|
+| D-1 | Source evidence (crop + overlay) alongside every extracted field | Eliminates the search — the core interaction |
+| D-2 | Extraction learning per tenant/vendor/type with visible indicators | Accuracy compounds; switching cost works in customer's favor |
+| D-3 | Tally XML with India GST itemization (CGST/SGST/IGST/Cess) | Market wedge — pending competitive validation (G3) |
+| D-4 | Interface-driven architecture for all integrations | Adapter extensibility — new connectors without rewrites |
+
+### Table Stakes
+
+| ID | Requirement |
+|----|-------------|
+| TS-1 | OCR from PDF and image invoices |
+| TS-2 | Confidence scoring with visual bands |
+| TS-3 | Batch approval with confirmation |
+| TS-4 | RBAC (4 roles) |
+| TS-5 | Multi-tenant data isolation |
+| TS-6 | Crash-safe ingestion with dedup |
+| TS-7 | Audit trail (who approved what, when) |
+
+---
+
+## 6. Success Metrics
+
+### Primary Signal
+
+**Invoices successfully exported per tenant per month**, tracked by onboarding cohort at 30/60/90 days. Pair with correction rate per tenant — a tenant exporting high volume with flat correction rate means the learning moat isn't working.
+
+### Leading Indicators
+
+| Metric | Target | Validation Status |
+|--------|--------|-------------------|
+| Verification time (median) | < 45 seconds | Hypothesis — Gate G1 |
+| Verification time (P90) | < 3 minutes | Hypothesis — must include red-confidence invoices |
+| Correction rate for returning vendors | Declining month-over-month | Gate G5 |
+| "Other" classification rate | < 15% | Needs production telemetry |
+| Time to first Tally export (new tenant) | < 30 minutes | Pair with "returned on day 2" |
+| Correction rate on first 50 invoices | Establish baseline | Calibrates learning timeline claims |
+
+---
+
+## 7. Pre-Launch Validation Gates
+
+Hard dependencies. Each blocks specific external activities.
+
+| Gate | Action | Owner | Blocks |
+|------|--------|-------|--------|
+| **G1** | Time 3+ AP clerks: baseline process vs BillForge. Record median and P90. | Product | Any "seconds not minutes" claim |
+| **G2** | Interview first adopter's decision-maker: what they fired, why now, what they evaluated. Interview AP clerks: what was frustrating, what workarounds existed. | Product | All positioning and go-to-market |
+| **G3** | Name 3-5 competitors. Document Tally support, GST capability, source-verified review. Source from first adopter's evaluation if possible. | Product | "India-first wedge" claim |
+| **G4** | Call with first adopter's CA: "For ITC reconciliation during audit, do you need per-line-item tax breakdowns or are header-level totals sufficient?" | Product + CA | Tally export value prop; may escalate line-item to blocker |
+| **G5** | After 30 days production: measure correction rate for returning vendors (should decline) and false correction rate (stale hints making things worse). | Engineering | "Compounding accuracy" claim; active-mode decision |
+| **G6** | Name a specific second adopter with documented AP hierarchy needs. If none: acknowledge workflow builder as a bet and stop investing. | Product | Workflow builder roadmap |
+
+---
+
+## 8. Open Questions
+
+| Question | Owner | Status |
+|----------|-------|--------|
+| 6-correction cap sufficient? | Engineering | Instrument from day one; let data decide |
+| 90-day TTL matches vendor format change frequency? | Product | Need stories from AP clerks about real format changes |
+| Concurrent edit protection needed? | Product | Low risk with single-reviewer-per-client model |
+| Anumati bank connection in scope? | Product | Built ahead of need; document the bet or descope |
+| Tenant mode transition API (test → live)? | Engineering | Must exist before second adopter |
+
+---
+
+## 9. Out of Scope
+
+| Item | Risk Level | Watch For |
+|------|-----------|-----------|
+| Line-item extraction | **HIGH** — May be required for ITC reconciliation. Gate G4 may escalate this to blocker. | CA feedback, GST audit requirements |
+| Payment reconciliation | Medium — Anumati infrastructure built but unvalidated | Whether bank data drives export decisions |
+| Multi-currency | Low — adopter one is INR-only | International expansion |
+| Webhooks | Low — no validated downstream automation use case | ERP workflow triggers |
+| Collaborative editing | Low — single-reviewer-per-client model | Multiple reviewers on same invoices |
+
+---
+
+## 10. APIs & Dependencies
+
+### Backend Routes
+
+| Group | Prefix | Endpoints |
+|-------|--------|-----------|
+| Auth | `/api/auth` | Login, callback, password change |
+| Invoices | `/api/invoices` | CRUD, approve, delete, retry, preview, crops, overlays |
+| Jobs | `/api/jobs` | Ingest, upload, pause, SSE progress |
+| Export | `/api/exports` | Tally export + download, history |
+| Workflow | `/api/admin/approval-workflow` | Config CRUD, step approve/reject |
+| Gmail | `/api/connect/gmail` | OAuth flow, status, polling |
+| Admin | `/api/admin` | Users, invites, roles, mailboxes, viewer scope |
+| Platform | `/api/platform` | Tenant onboarding, usage |
+| Health | `/health` | Liveness + readiness |
+
+### Dependencies (all behind interfaces)
+
+| Dependency | Boundary |
+|------------|----------|
+| MongoDB 7 / DocumentDB | Direct (Mongoose) |
+| Keycloak 26.0 | `OidcProvider` |
+| S3 / MinIO | `FileStore` |
+| invoice-ocr (FastAPI) | `OcrProvider` |
+| invoice-slm (FastAPI) | `FieldVerifier` |
+| Gmail API | `IngestionSource` |
+| Tally | `AccountingExporter` |
+| SendGrid / SMTP | `InviteEmailSender` |
+
+---
+
+## 11. Go-to-Market Readiness
+
+| Persona | Key Concern | Status |
+|---------|------------|--------|
+| **Product Manager** | Value prop validated (G1), trigger documented (G2), competitors named (G3), second adopter exists (G6) | BLOCKED on G1, G2, G3 |
+| **Account Auditor (CA)** | GST export meets ITC requirements (G4), audit trail complete, exports immutable, human always approves | BLOCKED on G4; others DONE |
+| **Technical Architect** | Interface boundaries (8 total), learning loop instrumented, same image all envs, ML swap non-disruptive | DONE |
+| **Software Engineer** | CI green, types match contracts, learning wired E2E, invoice type stored + displayed, coverage thresholds met | DONE |

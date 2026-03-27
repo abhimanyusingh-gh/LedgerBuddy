@@ -236,127 +236,29 @@ const runtimeManifestSchema = z.object({
 type RuntimeManifestInput = z.infer<typeof runtimeManifestSchema>;
 type RuntimeSourceInput = NonNullable<RuntimeManifestInput["sources"]>[number];
 
-export function loadRuntimeManifest(): RuntimeManifest {
-  const defaults = createDefaultManifest();
-  const manifestPath = resolveConfiguredManifestPath();
-  if (!manifestPath) {
-    return defaults;
+function deepMerge(base: Record<string, unknown>, overrides: Record<string, unknown>): Record<string, unknown> {
+  const result = { ...base };
+  for (const key of Object.keys(base)) {
+    const ov = overrides[key];
+    if (ov === undefined || ov === null) continue;
+    if (typeof ov === "object" && !Array.isArray(ov) && typeof base[key] === "object" && !Array.isArray(base[key])) {
+      result[key] = deepMerge(base[key] as Record<string, unknown>, ov as Record<string, unknown>);
+    } else {
+      result[key] = ov;
+    }
   }
-
-  const fileBody = readFileSync(manifestPath, "utf-8");
-  const parsed = runtimeManifestSchema.parse(JSON.parse(fileBody));
-
-  const defaultTenantId = parsed.defaultTenantId ?? defaults.defaultTenantId;
-  const defaultWorkloadTier = parsed.defaultWorkloadTier ?? defaults.defaultWorkloadTier;
-  const merged: RuntimeManifest = {
-    defaultTenantId,
-    defaultWorkloadTier,
-    database: {
-      provider: "mongo",
-      uri: parsed.database?.uri ?? defaults.database.uri
-    },
-    ocr: {
-      provider: parsed.ocr?.provider ?? defaults.ocr.provider,
-      deepseek: {
-        baseUrl: parsed.ocr?.deepseek?.baseUrl ?? defaults.ocr.deepseek.baseUrl,
-        apiKey: parsed.ocr?.deepseek?.apiKey ?? defaults.ocr.deepseek.apiKey,
-        model: parsed.ocr?.deepseek?.model ?? defaults.ocr.deepseek.model,
-        timeoutMs: parsed.ocr?.deepseek?.timeoutMs ?? defaults.ocr.deepseek.timeoutMs
-      },
-      mock: {
-        text: parsed.ocr?.mock?.text ?? defaults.ocr.mock.text,
-        confidence: parsed.ocr?.mock?.confidence ?? defaults.ocr.mock.confidence
-      }
-    },
-    verifier: {
-      provider: parsed.verifier?.provider ?? defaults.verifier.provider,
-      http: {
-        baseUrl: parsed.verifier?.http?.baseUrl ?? defaults.verifier.http.baseUrl,
-        timeoutMs: parsed.verifier?.http?.timeoutMs ?? defaults.verifier.http.timeoutMs,
-        apiKey: parsed.verifier?.http?.apiKey ?? defaults.verifier.http.apiKey
-      }
-    },
-    fileStore: {
-      provider: defaults.fileStore.provider,
-      s3: {
-        bucket: parsed.fileStore?.s3?.bucket ?? defaults.fileStore.s3.bucket,
-        region: parsed.fileStore?.s3?.region ?? defaults.fileStore.s3.region,
-        prefix: parsed.fileStore?.s3?.prefix ?? defaults.fileStore.s3.prefix,
-        endpoint: parsed.fileStore?.s3?.endpoint ?? defaults.fileStore.s3.endpoint,
-        forcePathStyle: parsed.fileStore?.s3?.forcePathStyle ?? defaults.fileStore.s3.forcePathStyle
-      }
-    },
-    extraction: {
-      ocrHighConfidenceThreshold:
-        parsed.extraction?.ocrHighConfidenceThreshold ?? defaults.extraction.ocrHighConfidenceThreshold,
-      llmAssistConfidenceThreshold:
-        parsed.extraction?.llmAssistConfidenceThreshold ?? defaults.extraction.llmAssistConfidenceThreshold
-    },
-    export: {
-      tallyEndpoint: parsed.export?.tallyEndpoint ?? defaults.export.tallyEndpoint,
-      tallyCompany: parsed.export?.tallyCompany ?? defaults.export.tallyCompany,
-      tallyPurchaseLedger: parsed.export?.tallyPurchaseLedger ?? defaults.export.tallyPurchaseLedger,
-      tallyGstLedgers: {
-        cgstLedger: parsed.export?.tallyGstLedgers?.cgstLedger ?? defaults.export.tallyGstLedgers.cgstLedger,
-        sgstLedger: parsed.export?.tallyGstLedgers?.sgstLedger ?? defaults.export.tallyGstLedgers.sgstLedger,
-        igstLedger: parsed.export?.tallyGstLedgers?.igstLedger ?? defaults.export.tallyGstLedgers.igstLedger,
-        cessLedger: parsed.export?.tallyGstLedgers?.cessLedger ?? defaults.export.tallyGstLedgers.cessLedger
-      }
-    },
-    sources:
-      parsed.sources?.map((entry) =>
-        resolveManifestSource(entry, {
-          defaultTenantId,
-          defaultWorkloadTier
-        })
-      ) ?? defaults.sources
-  };
-
-  logger.info("runtime.manifest.loaded", {
-    path: manifestPath,
-    sourceCount: merged.sources.length,
-    ocrProvider: merged.ocr.provider,
-    fileStoreProvider: merged.fileStore.provider
-  });
-
-  return merged;
-}
-
-function resolveConfiguredManifestPath(): string | null {
-  if (env.APP_MANIFEST_PATH && env.APP_MANIFEST_PATH.trim().length > 0) {
-    return resolveManifestPath(env.APP_MANIFEST_PATH);
-  }
-
-  if (!env.isLocalMlEnv || env.NODE_ENV === "test") {
-    return null;
-  }
-
-  const candidates = [
-    path.resolve(process.cwd(), "backend/runtime-manifest.local.json"),
-    path.resolve(process.cwd(), "runtime-manifest.local.json"),
-    "/app/backend/runtime-manifest.local.json"
-  ];
-
-  const existingPath = candidates.find((candidatePath) => existsSync(candidatePath));
-  return existingPath ?? null;
+  return result;
 }
 
 function createDefaultManifest(): RuntimeManifest {
   const defaultTenantId = env.DEFAULT_TENANT_ID;
   const defaultWorkloadTier = env.DEFAULT_WORKLOAD_TIER;
-
   return {
     defaultTenantId,
     defaultWorkloadTier,
-    database: {
-      provider: "mongo",
-      uri: env.MONGO_URI
-    },
+    database: { provider: "mongo", uri: env.MONGO_URI },
     sources: env.ingestionSources.map((type) =>
-      resolveEnvSource(type, {
-        defaultTenantId,
-        defaultWorkloadTier
-      })
+      resolveSource({ type } as RuntimeSourceInput, defaultTenantId, defaultWorkloadTier)
     ),
     ocr: {
       provider: env.OCR_PROVIDER,
@@ -366,10 +268,7 @@ function createDefaultManifest(): RuntimeManifest {
         model: env.DEEPSEEK_OCR_MODEL,
         timeoutMs: env.DEEPSEEK_TIMEOUT_MS
       },
-      mock: {
-        text: env.MOCK_OCR_TEXT ?? "",
-        confidence: env.MOCK_OCR_CONFIDENCE
-      }
+      mock: { text: env.MOCK_OCR_TEXT ?? "", confidence: env.MOCK_OCR_CONFIDENCE }
     },
     verifier: {
       provider: env.FIELD_VERIFIER_PROVIDER,
@@ -407,72 +306,18 @@ function createDefaultManifest(): RuntimeManifest {
   };
 }
 
-function resolveEnvSource(
-  sourceType: string,
-  defaults: {
-    defaultTenantId: string;
-    defaultWorkloadTier: WorkloadTier;
-  }
-): IngestionSourceManifest {
-  if (sourceType === "email") {
-    return {
-      type: "email",
-      key: env.EMAIL_SOURCE_KEY,
-      tenantId: defaults.defaultTenantId,
-      workloadTier: defaults.defaultWorkloadTier,
-      oauthUserId: defaults.defaultTenantId,
-      transport: env.EMAIL_TRANSPORT,
-      mailhogApiBaseUrl: env.EMAIL_MAILHOG_API_BASE_URL,
-      host: env.EMAIL_HOST ?? "",
-      port: env.EMAIL_PORT,
-      secure: env.EMAIL_SECURE,
-      smtpHost: env.EMAIL_SMTP_HOST,
-      smtpPort: env.EMAIL_SMTP_PORT,
-      smtpSecure: env.EMAIL_SMTP_SECURE,
-      smtpTimeoutMs: env.EMAIL_SMTP_TIMEOUT_MS,
-      username: env.EMAIL_USERNAME ?? "",
-      authMode: env.EMAIL_AUTH_MODE,
-      password: env.EMAIL_PASSWORD ?? "",
-      oauth2: {
-        clientId: env.EMAIL_OAUTH_CLIENT_ID ?? "",
-        clientSecret: env.EMAIL_OAUTH_CLIENT_SECRET ?? "",
-        refreshToken: env.EMAIL_OAUTH_REFRESH_TOKEN ?? "",
-        accessToken: env.EMAIL_OAUTH_ACCESS_TOKEN ?? "",
-        tokenEndpoint: env.EMAIL_OAUTH_TOKEN_ENDPOINT
-      },
-      mailbox: env.EMAIL_MAILBOX,
-      fromFilter: env.EMAIL_FROM_FILTER ?? ""
-    };
-  }
-
-  if (sourceType === "folder") {
-    return {
-      type: "folder",
-      key: env.FOLDER_SOURCE_KEY,
-      tenantId: defaults.defaultTenantId,
-      workloadTier: defaults.defaultWorkloadTier,
-      folderPath: env.FOLDER_SOURCE_PATH ?? "",
-      recursive: env.FOLDER_RECURSIVE
-    };
-  }
-
-  throw new Error(`Unsupported ingestion source '${sourceType}'. Add an IngestionSource implementation to support it.`);
-}
-
-function resolveManifestSource(
+function resolveSource(
   source: RuntimeSourceInput,
-  defaults: {
-    defaultTenantId: string;
-    defaultWorkloadTier: WorkloadTier;
-  }
+  defaultTenantId: string,
+  defaultWorkloadTier: WorkloadTier
 ): IngestionSourceManifest {
   if (source.type === "email") {
     return {
       type: "email",
       key: source.key ?? env.EMAIL_SOURCE_KEY,
-      tenantId: source.tenantId ?? defaults.defaultTenantId,
-      workloadTier: source.workloadTier ?? defaults.defaultWorkloadTier,
-      oauthUserId: source.oauthUserId ?? source.tenantId ?? defaults.defaultTenantId,
+      tenantId: source.tenantId ?? defaultTenantId,
+      workloadTier: source.workloadTier ?? defaultWorkloadTier,
+      oauthUserId: source.oauthUserId ?? source.tenantId ?? defaultTenantId,
       transport: source.transport ?? env.EMAIL_TRANSPORT,
       mailhogApiBaseUrl: source.mailhogApiBaseUrl ?? env.EMAIL_MAILHOG_API_BASE_URL,
       host: source.host ?? env.EMAIL_HOST ?? "",
@@ -497,21 +342,79 @@ function resolveManifestSource(
     };
   }
 
-  return {
-    type: "folder",
-    key: source.key ?? env.FOLDER_SOURCE_KEY,
-    tenantId: source.tenantId ?? defaults.defaultTenantId,
-    workloadTier: source.workloadTier ?? defaults.defaultWorkloadTier,
-    folderPath: source.folderPath ?? env.FOLDER_SOURCE_PATH ?? "",
-    recursive: source.recursive ?? env.FOLDER_RECURSIVE
-  };
-}
-
-function resolveManifestPath(rawPath: string): string {
-  const trimmedPath = rawPath.trim();
-  if (path.isAbsolute(trimmedPath)) {
-    return trimmedPath;
+  if (source.type === "folder") {
+    return {
+      type: "folder",
+      key: source.key ?? env.FOLDER_SOURCE_KEY,
+      tenantId: source.tenantId ?? defaultTenantId,
+      workloadTier: source.workloadTier ?? defaultWorkloadTier,
+      folderPath: source.folderPath ?? env.FOLDER_SOURCE_PATH ?? "",
+      recursive: source.recursive ?? env.FOLDER_RECURSIVE
+    };
   }
 
-  return path.resolve(process.cwd(), trimmedPath);
+  throw new Error(`Unsupported ingestion source '${(source as { type: string }).type}'.`);
+}
+
+export function loadRuntimeManifest(): RuntimeManifest {
+  const defaults = createDefaultManifest();
+
+  const manifestPath = (() => {
+    if (env.APP_MANIFEST_PATH?.trim()) {
+      const trimmed = env.APP_MANIFEST_PATH.trim();
+      return path.isAbsolute(trimmed) ? trimmed : path.resolve(process.cwd(), trimmed);
+    }
+    if (!env.isLocalMlEnv || env.NODE_ENV === "test") return null;
+    return (
+      [
+        path.resolve(process.cwd(), "backend/runtime-manifest.local.json"),
+        path.resolve(process.cwd(), "runtime-manifest.local.json"),
+        "/app/backend/runtime-manifest.local.json"
+      ].find((p) => existsSync(p)) ?? null
+    );
+  })();
+
+  if (!manifestPath) return defaults;
+
+  const parsed = runtimeManifestSchema.parse(JSON.parse(readFileSync(manifestPath, "utf-8")));
+  const defaultTenantId = parsed.defaultTenantId ?? defaults.defaultTenantId;
+  const defaultWorkloadTier = parsed.defaultWorkloadTier ?? defaults.defaultWorkloadTier;
+
+  const merged = deepMerge(defaults as unknown as Record<string, unknown>, {
+    defaultTenantId,
+    defaultWorkloadTier,
+    database: { uri: parsed.database?.uri },
+    ocr: {
+      provider: parsed.ocr?.provider,
+      deepseek: parsed.ocr?.deepseek,
+      mock: parsed.ocr?.mock
+    },
+    verifier: {
+      provider: parsed.verifier?.provider,
+      http: parsed.verifier?.http
+    },
+    fileStore: {
+      s3: parsed.fileStore?.s3
+    },
+    extraction: {
+      ocrHighConfidenceThreshold: parsed.extraction?.ocrHighConfidenceThreshold,
+      llmAssistConfidenceThreshold: parsed.extraction?.llmAssistConfidenceThreshold
+    },
+    export: {
+      tallyEndpoint: parsed.export?.tallyEndpoint,
+      tallyCompany: parsed.export?.tallyCompany,
+      tallyPurchaseLedger: parsed.export?.tallyPurchaseLedger,
+      tallyGstLedgers: parsed.export?.tallyGstLedgers
+    },
+    sources: parsed.sources?.map((entry) => resolveSource(entry, defaultTenantId, defaultWorkloadTier))
+  }) as unknown as RuntimeManifest;
+
+  logger.info("runtime.manifest.loaded", {
+    path: manifestPath,
+    sourceCount: merged.sources.length,
+    ocrProvider: merged.ocr.provider,
+    fileStoreProvider: merged.fileStore.provider
+  });
+
+  return merged;
 }

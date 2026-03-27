@@ -68,6 +68,11 @@ function formatApproverName(value?: string): string {
   return value.slice(0, atIdx).replace(/[._-]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
+function formatInvoiceType(type?: string): string {
+  if (!type) return "";
+  return type.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
 const STATUS_ICONS: Record<string, string> = {
   PENDING: "hourglass_empty",
   PARSED: "task_alt",
@@ -183,6 +188,19 @@ export function TenantInvoicesView({
     const prev = prevFiltersRef.current;
     const filtersChanged = prev.statusFilter !== statusFilter || prev.invoiceDateFrom !== invoiceDateFrom || prev.invoiceDateTo !== invoiceDateTo || prev.pageSize !== pageSize || prev.approvedByFilter !== approvedByFilter;
     prevFiltersRef.current = { statusFilter, invoiceDateFrom, invoiceDateTo, pageSize, approvedByFilter, sortColumn, sortDirection };
+    if (invoiceDateFrom && invoiceDateTo && invoiceDateFrom > invoiceDateTo) {
+      addToast("error", "Start date must be before end date");
+      return;
+    }
+    if (invoiceDateTo) {
+      const maxDate = new Date();
+      maxDate.setFullYear(maxDate.getFullYear() + 1);
+      const maxDateStr = maxDate.toISOString().slice(0, 10);
+      if (invoiceDateTo > maxDateStr) {
+        addToast("error", "End date cannot be more than one year from today");
+        return;
+      }
+    }
     if (filtersChanged && currentPage !== 1) {
       setCurrentPage(1);
       return;
@@ -770,6 +788,31 @@ export function TenantInvoicesView({
   async function handleUpload(event: React.ChangeEvent<HTMLInputElement>) {
     const files = event.target.files;
     if (!files || files.length === 0) return;
+
+    const MAX_FILES = 50;
+    const MAX_FILE_SIZE = 20 * 1024 * 1024;
+    const ALLOWED_EXTENSIONS = [".pdf", ".jpg", ".jpeg", ".png"];
+
+    if (files.length > MAX_FILES) {
+      addToast("error", "Maximum 50 files per upload");
+      if (uploadInputRef.current) uploadInputRef.current.value = "";
+      return;
+    }
+
+    for (const file of Array.from(files)) {
+      if (file.size > MAX_FILE_SIZE) {
+        addToast("error", `File ${file.name} exceeds the 20 MB limit`);
+        if (uploadInputRef.current) uploadInputRef.current.value = "";
+        return;
+      }
+      const ext = file.name.slice(file.name.lastIndexOf(".")).toLowerCase();
+      if (!ALLOWED_EXTENSIONS.includes(ext)) {
+        addToast("error", `File ${file.name} has an unsupported format. Supported: PDF, JPG, PNG`);
+        if (uploadInputRef.current) uploadInputRef.current.value = "";
+        return;
+      }
+    }
+
     try {
       setError(null);
       await uploadInvoiceFiles(Array.from(files));
@@ -1279,6 +1322,10 @@ export function TenantInvoicesView({
                         <p><span>Status</span><strong>{activeInvoice.status}</strong></p>
                         <p><span>Received</span>{new Date(activeInvoice.receivedAt).toLocaleString()}</p>
                         <p><span>Confidence</span><ConfidenceBadge score={activeInvoice.confidenceScore} /></p>
+                        {activeInvoice.metadata?.invoiceType ? <p><span>Type</span><strong>{formatInvoiceType(activeInvoice.metadata.invoiceType)}</strong></p> : null}
+                        {activeInvoice.metadata?.learningHintsApplied && Number(activeInvoice.metadata.learningHintsApplied) > 0 ? (
+                          <p><span>Learning</span><strong className="learning-badge">{activeInvoice.metadata.learningHintsApplied} learned pattern{Number(activeInvoice.metadata.learningHintsApplied) === 1 ? "" : "s"} available</strong></p>
+                        ) : null}
                         <p><span>File</span>{activeInvoice.attachmentName}</p>
                       </div>
                       <InvoiceSourceViewer
@@ -1334,6 +1381,8 @@ export function TenantInvoicesView({
             <p className="muted popup-meta">
               Status: <strong>{STATUS_LABELS[popupInvoice.status] ?? popupInvoice.status}</strong>
               {popupInvoice.workflowState?.currentStep ? ` (Step ${popupInvoice.workflowState.currentStep})` : ""}
+              {popupInvoice.metadata?.invoiceType ? ` | Type: ${formatInvoiceType(popupInvoice.metadata.invoiceType)}` : ""}
+              {popupInvoice.metadata?.learningHintsApplied && Number(popupInvoice.metadata.learningHintsApplied) > 0 ? ` | ${popupInvoice.metadata.learningHintsApplied} learned pattern${Number(popupInvoice.metadata.learningHintsApplied) === 1 ? "" : "s"} available` : ""}
               {" | "}Received: {new Date(popupInvoice.receivedAt).toLocaleString()}
             </p>
             <ApprovalTimeline invoice={popupInvoice} />

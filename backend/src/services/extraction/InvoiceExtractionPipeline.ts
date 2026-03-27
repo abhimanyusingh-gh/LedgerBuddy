@@ -37,6 +37,7 @@ interface ExtractionPipelineOptions {
   ocrHighConfidenceThreshold?: number;
   enableOcrKeyValueGrounding?: boolean;
   llmAssistConfidenceThreshold?: number;
+  learningMode?: "active" | "assistive";
 }
 
 export class ExtractionPipelineError extends Error {
@@ -54,6 +55,7 @@ export class InvoiceExtractionPipeline {
   private readonly enableOcrKeyValueGrounding: boolean;
   private readonly llmAssistConfidenceThreshold: number;
   private readonly verifierTimeoutMs: number;
+  private readonly learningMode: "active" | "assistive";
 
   constructor(
     private readonly ocrProvider: OcrProvider,
@@ -66,6 +68,7 @@ export class InvoiceExtractionPipeline {
     this.enableOcrKeyValueGrounding = options?.enableOcrKeyValueGrounding ?? true;
     this.llmAssistConfidenceThreshold = options?.llmAssistConfidenceThreshold ?? 85;
     this.verifierTimeoutMs = 60_000;
+    this.learningMode = options?.learningMode ?? "assistive";
   }
 
   async extract(input: ExtractionPipelineInput): Promise<PipelineExtractionResult> {
@@ -205,6 +208,26 @@ export class InvoiceExtractionPipeline {
 
     metadata.ocrGate = "slm-direct";
       const bestText = extractionCandidates[0]?.text ?? "";
+
+      let priorCorrections: Array<{ field: string; hint: string; count: number }> = [];
+      if (this.learningStore) {
+        try {
+          const corrections = await this.learningStore.findCorrections(input.tenantId, template?.vendorName ?? "", fingerprint.key);
+          priorCorrections = corrections.map((c) => ({ field: c.field, hint: c.hint, count: c.count }));
+        } catch {
+          logger.warn("extraction.learning.lookup.skipped", { tenantId: input.tenantId });
+        }
+      }
+
+      if (priorCorrections.length > 0) {
+        logger.info("extraction.learning.hints.provided", {
+          tenantId: input.tenantId,
+          vendorFingerprint: fingerprint.key,
+          hintCount: priorCorrections.length,
+          hintFields: priorCorrections.map(c => c.field)
+        });
+      }
+
       const slmResult = await this.fieldVerifier.verify({
         parsed: {} as ParsedInvoiceData,
         ocrText: bestText,
@@ -217,14 +240,34 @@ export class InvoiceExtractionPipeline {
           vendorTemplateMatched: false,
           fieldCandidates: {},
           pageImages: ocrPageImages.slice(0, 3),
-          llmAssist: true
+          llmAssist: true,
+          priorCorrections: this.learningMode === "active" && priorCorrections.length > 0 ? priorCorrections : undefined
         }
       });
 
+      if (slmResult.invoiceType) metadata.invoiceType = slmResult.invoiceType;
       if (slmResult.tokenUsage?.totalTokens) slmTokensUsed += slmResult.tokenUsage.totalTokens;
       const slmBlockIndices: Record<string, number> = (slmResult.parsed as Record<string, unknown>)._blockIndices as Record<string, number> ?? {};
       const slmParsed = { ...slmResult.parsed };
       delete (slmParsed as Record<string, unknown>)._blockIndices;
+      if (priorCorrections.length > 0) {
+        metadata.learningHintsApplied = String(priorCorrections.length);
+      }
+      if (priorCorrections.length > 0) {
+        const hintedFieldResults = priorCorrections.map(c => ({
+          field: c.field,
+          hintValue: c.hint,
+          extractedValue: String((slmParsed as Record<string, unknown>)[c.field] ?? ""),
+          matched: c.hint.includes(String((slmParsed as Record<string, unknown>)[c.field] ?? "")) || String((slmParsed as Record<string, unknown>)[c.field] ?? "").includes(c.hint.split(" not ")[0])
+        }));
+        logger.info("extraction.learning.hints.result", {
+          tenantId: input.tenantId,
+          vendorFingerprint: fingerprint.key,
+          hintCount: priorCorrections.length,
+          matchedCount: hintedFieldResults.filter(r => r.matched).length,
+          fields: hintedFieldResults
+        });
+      }
       const slmWarnings = uniqueIssues([...processingIssues, ...slmResult.issues]);
       const slmConfidence = this.assessConfidence(input, slmParsed, slmWarnings, ocrConfidence);
       const slmValidation = validateInvoiceFields({

@@ -519,6 +519,60 @@ describe("TallyExporter.exportInvoices", () => {
     ]);
   });
 
+  it("rejects invoice when vendorName is Unknown Vendor", async () => {
+    const exporter = new TallyExporter({
+      endpoint: "http://example.test/tally",
+      companyName: "Demo",
+      purchaseLedgerName: "Purchase"
+    });
+    const invoice = createInvoiceStub({
+      _id: "inv-unknown-vendor",
+      parsed: {
+        invoiceNumber: "INV-UV1",
+        vendorName: "Unknown Vendor",
+        currency: "USD",
+        totalAmountMinor: 5000
+      }
+    });
+
+    const result = await exporter.exportInvoices([invoice]);
+    expect(result).toEqual([
+      {
+        invoiceId: "inv-unknown-vendor",
+        success: false,
+        error: "Vendor name is missing or invalid for Tally export."
+      }
+    ]);
+    expect(axiosPostMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects invoice when invoiceNumber matches a 24-char hex ObjectId pattern", async () => {
+    const exporter = new TallyExporter({
+      endpoint: "http://example.test/tally",
+      companyName: "Demo",
+      purchaseLedgerName: "Purchase"
+    });
+    const invoice = createInvoiceStub({
+      _id: "inv-objectid",
+      parsed: {
+        invoiceNumber: "507f1f77bcf86cd799439011",
+        vendorName: "Legit Vendor",
+        currency: "USD",
+        totalAmountMinor: 5000
+      }
+    });
+
+    const result = await exporter.exportInvoices([invoice]);
+    expect(result).toEqual([
+      {
+        invoiceId: "inv-objectid",
+        success: false,
+        error: "Invoice number is missing or invalid for Tally export."
+      }
+    ]);
+    expect(axiosPostMock).not.toHaveBeenCalled();
+  });
+
   it("returns unknown export failure for non-object thrown values", async () => {
     axiosPostMock.mockRejectedValue("boom-string");
 
@@ -963,6 +1017,121 @@ describe("TallyExporter with GST config", () => {
     const payload = String(axiosPostMock.mock.calls[0]?.[1] ?? "");
     expect(payload).toContain("<AMOUNT>1000.00</AMOUNT>");
     expect(payload).toContain("<LEDGERNAME>Input CGST</LEDGERNAME>");
+  });
+
+  it("uses total amount as subtotal when GST subtotalMinor is missing and all tax amounts are zero", async () => {
+    axiosPostMock.mockResolvedValue({
+      data: "<ENVELOPE><HEADER><STATUS>1</STATUS></HEADER><BODY><DATA><IMPORTRESULT><CREATED>1</CREATED><ALTERED>0</ALTERED><ERRORS>0</ERRORS><LASTVCHID>103</LASTVCHID></IMPORTRESULT></DATA></BODY></ENVELOPE>"
+    });
+
+    const exporter = new TallyExporter({
+      endpoint: "http://example.test/tally",
+      companyName: "Demo",
+      purchaseLedgerName: "Purchase",
+      gstLedgers: {
+        cgstLedger: "Input CGST",
+        sgstLedger: "Input SGST",
+        igstLedger: "Input IGST",
+        cessLedger: "Input Cess"
+      }
+    });
+
+    const invoice = createInvoiceStub({
+      _id: "gst-inv-notax",
+      parsed: {
+        invoiceNumber: "GST-NOTAX",
+        vendorName: "Vendor No Tax",
+        currency: "INR",
+        totalAmountMinor: 100000,
+        gst: {
+          gstin: "29ABCDE1234F1Z5"
+        }
+      }
+    });
+
+    await exporter.exportInvoices([invoice]);
+
+    const payload = String(axiosPostMock.mock.calls[0]?.[1] ?? "");
+    expect(payload).toContain("<AMOUNT>1000.00</AMOUNT>");
+  });
+
+  it("falls back to total amount when derived subtotal is zero or negative", async () => {
+    axiosPostMock.mockResolvedValue({
+      data: "<ENVELOPE><HEADER><STATUS>1</STATUS></HEADER><BODY><DATA><IMPORTRESULT><CREATED>1</CREATED><ALTERED>0</ALTERED><ERRORS>0</ERRORS><LASTVCHID>104</LASTVCHID></IMPORTRESULT></DATA></BODY></ENVELOPE>"
+    });
+
+    const exporter = new TallyExporter({
+      endpoint: "http://example.test/tally",
+      companyName: "Demo",
+      purchaseLedgerName: "Purchase",
+      gstLedgers: {
+        cgstLedger: "Input CGST",
+        sgstLedger: "Input SGST",
+        igstLedger: "Input IGST",
+        cessLedger: "Input Cess"
+      }
+    });
+
+    const invoice = createInvoiceStub({
+      _id: "gst-inv-negative-sub",
+      parsed: {
+        invoiceNumber: "GST-NEGSUB",
+        vendorName: "Vendor NegSub",
+        currency: "INR",
+        totalAmountMinor: 10000,
+        gst: {
+          subtotalMinor: 5000,
+          cgstMinor: 50000,
+          sgstMinor: 50000
+        }
+      }
+    });
+
+    await exporter.exportInvoices([invoice]);
+
+    const payload = String(axiosPostMock.mock.calls[0]?.[1] ?? "");
+    expect(payload).toContain("<AMOUNT>-100.00</AMOUNT>");
+    expect(payload).toContain("<AMOUNT>100.00</AMOUNT>");
+  });
+
+  it("recalculates subtotal when provided subtotal plus tax does not match total", async () => {
+    axiosPostMock.mockResolvedValue({
+      data: "<ENVELOPE><HEADER><STATUS>1</STATUS></HEADER><BODY><DATA><IMPORTRESULT><CREATED>1</CREATED><ALTERED>0</ALTERED><ERRORS>0</ERRORS><LASTVCHID>102</LASTVCHID></IMPORTRESULT></DATA></BODY></ENVELOPE>"
+    });
+
+    const exporter = new TallyExporter({
+      endpoint: "http://example.test/tally",
+      companyName: "Demo",
+      purchaseLedgerName: "Purchase",
+      gstLedgers: {
+        cgstLedger: "Input CGST",
+        sgstLedger: "Input SGST",
+        igstLedger: "Input IGST",
+        cessLedger: "Input Cess"
+      }
+    });
+
+    const invoice = createInvoiceStub({
+      _id: "gst-inv-mismatch",
+      parsed: {
+        invoiceNumber: "GST-MISMATCH",
+        vendorName: "Vendor Mismatch",
+        currency: "INR",
+        totalAmountMinor: 118000,
+        gst: {
+          subtotalMinor: 80000,
+          cgstMinor: 9000,
+          sgstMinor: 9000
+        }
+      }
+    });
+
+    await exporter.exportInvoices([invoice]);
+
+    const payload = String(axiosPostMock.mock.calls[0]?.[1] ?? "");
+    expect(payload).toContain("<AMOUNT>1000.00</AMOUNT>");
+    expect(payload).toContain("<LEDGERNAME>Input CGST</LEDGERNAME>");
+    expect(payload).toContain("<LEDGERNAME>Input SGST</LEDGERNAME>");
   });
 
   it("generates GST import file with multiple invoices", () => {

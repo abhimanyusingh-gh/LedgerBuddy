@@ -4,7 +4,13 @@
   "workspaces": {
     "backend": {
       "project": ["src/**/*.ts"],
-      "entry": ["src/scripts/seedPlatformAdmin.ts"]
+      "entry": ["src/scripts/seedPlatformAdmin.ts"],
+      "ignoreBinaries": [],
+      "ignore": [
+        "src/parser/invoiceParser.ts",
+        "src/services/extraction/extractionLearningStore.ts",
+        "src/services/extraction/vendorTemplateStore.ts"
+      ]
     },
     "frontend": {
       "project": ["src/**/*.ts", "src/**/*.tsx"],
