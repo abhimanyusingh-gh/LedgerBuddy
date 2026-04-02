@@ -8,6 +8,7 @@ from .engine import estimate_confidence, parse_data_url
 from .providers import create_ocr_provider
 from .logging import log_error, log_info, reset_correlation_id, set_correlation_id
 from .schemas import OcrDocumentRequest
+from .settings import settings
 
 provider = create_ocr_provider()
 app = FastAPI(title="Invoice OCR Service", version="2.0.0")
@@ -50,6 +51,11 @@ def health() -> dict[str, Any]:
   return provider.health()
 
 
+@app.get("/v1/health")
+def health_v1() -> dict[str, Any]:
+  return provider.health()
+
+
 @app.get("/ping")
 def ping() -> dict[str, Any]:
   return {"pong": True}
@@ -71,6 +77,7 @@ def ocr_document(request: OcrDocumentRequest) -> dict[str, Any]:
 
   mime_type, document_bytes = parse_data_url(document)
   include_layout = bool(request.includeLayout)
+  max_tokens = max(64, min(int(request.maxTokens), settings.max_new_tokens))
   started_at = time.perf_counter()
 
   try:
@@ -79,7 +86,7 @@ def ocr_document(request: OcrDocumentRequest) -> dict[str, Any]:
       mime_type=mime_type,
       prompt=request.prompt,
       include_layout=include_layout,
-      max_tokens=request.maxTokens
+      max_tokens=max_tokens
     )
   except HTTPException:
     raise

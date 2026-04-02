@@ -8,6 +8,11 @@ def create_llm_provider() -> LLMProvider:
 
     return LocalMlxLLMProvider()
 
+  if settings.provider == "local_codex_cli":
+    from .local_codex_cli import LocalCodexCliLLMProvider
+
+    return LocalCodexCliLLMProvider()
+
   if settings.provider == "prod_http":
     if not settings.remote_base_url:
       raise RuntimeError("SLM_ENGINE=prod_http requires SLM_REMOTE_BASE_URL.")

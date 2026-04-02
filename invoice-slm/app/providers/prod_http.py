@@ -23,7 +23,7 @@ class ProdHttpLLMProvider(LLMProvider):
     payload: dict[str, Any] = {
       "status": "ok",
       "modelId": settings.model_id,
-      "modelLoaded": True,
+      "modelLoaded": False,
       "modelLoading": False,
       "lastError": self.last_error,
       "provider": "prod_http"
@@ -32,7 +32,13 @@ class ProdHttpLLMProvider(LLMProvider):
       remote = self._request_json("/health", probe=True)
       if isinstance(remote, dict):
         payload["remote"] = remote
+        remote_loaded = remote.get("modelLoaded", False)
+        payload["modelLoaded"] = remote_loaded is True
+        if not remote_loaded:
+          payload["status"] = "loading"
+          payload["modelLoading"] = True
     except Exception as error:
+      payload["status"] = "error"
       payload["lastError"] = str(error)
       self.last_error = str(error)
     return payload

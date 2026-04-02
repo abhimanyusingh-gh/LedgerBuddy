@@ -11,9 +11,12 @@ class VerifyInvoiceRequest(BaseModel):
 
 
 class VerifyInvoiceResponse(BaseModel):
+  result: dict[str, Any] = Field(default_factory=dict)
   parsed: dict[str, Any]
   issues: list[str]
   changedFields: list[str]
   reasonCodes: dict[str, str] = Field(default_factory=dict)
   invoiceType: str = "other"
   usage: dict[str, Any] | None = None
+  fieldProvenance: dict[str, Any] = Field(default_factory=dict)
+  lineItemProvenance: list[dict[str, Any]] = Field(default_factory=list)

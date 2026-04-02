@@ -528,7 +528,7 @@ describe("DeepSeekOcrProvider", () => {
 
     const provider = new DeepSeekOcrProvider({ httpClient: { post } });
     await expect(provider.extractText(Buffer.from("img"), "image/png")).rejects.toThrow(
-      "DeepSeek OCR request failed (400): invalid payload"
+      "deepseek OCR request failed (400): invalid payload"
     );
     expect(post).toHaveBeenCalledTimes(1);
   });
@@ -540,7 +540,7 @@ describe("DeepSeekOcrProvider", () => {
 
     const provider = new DeepSeekOcrProvider({ httpClient: { post } });
     await expect(provider.extractText(Buffer.from("img"), "image/png")).rejects.toThrow(
-      "DeepSeek OCR request failed: boom"
+      "deepseek OCR request failed: boom"
     );
     expect(post).toHaveBeenCalledTimes(1);
   });
@@ -552,7 +552,7 @@ describe("DeepSeekOcrProvider", () => {
 
     const provider = new DeepSeekOcrProvider({ httpClient: { post } });
     await expect(provider.extractText(Buffer.from("img"), "image/png")).rejects.toThrow(
-      "DeepSeek OCR request failed: boom"
+      "deepseek OCR request failed: boom"
     );
   });
 
@@ -571,7 +571,7 @@ describe("DeepSeekOcrProvider", () => {
 
     const provider = new DeepSeekOcrProvider({ httpClient: { post } });
     await expect(provider.extractText(Buffer.from("img"), "image/png")).rejects.toThrow(
-      "DeepSeek OCR request failed: provider overloaded"
+      "deepseek OCR request failed: provider overloaded"
     );
   });
 
@@ -591,7 +591,7 @@ describe("DeepSeekOcrProvider", () => {
 
     const provider = new DeepSeekOcrProvider({ httpClient: { post } });
     await expect(provider.extractText(Buffer.from("img"), "image/png")).rejects.toThrow(
-      "DeepSeek OCR request failed (503): retry later"
+      "deepseek OCR request failed (503): retry later"
     );
   });
 
@@ -611,7 +611,7 @@ describe("DeepSeekOcrProvider", () => {
 
     const provider = new DeepSeekOcrProvider({ httpClient: { post } });
     await expect(provider.extractText(Buffer.from("img"), "image/png")).rejects.toThrow(
-      "DeepSeek OCR request failed (502): socket hang up"
+      "deepseek OCR request failed (502): socket hang up"
     );
   });
 

@@ -13,14 +13,6 @@ from ..boundary import LLMProvider
 from ..logging import log_error, log_info
 from ..settings import settings
 
-SYSTEM_PROMPT = (
-  "You are an invoice field verification engine. "
-  "Return one JSON object only. "
-  "Do not emit <think> tags. "
-  "Never return markdown. "
-  "Never explain. "
-  "Never invent values that are not present in candidates or OCR blocks."
-)
 GENERATION_RESULT_PATTERN = re.compile(
   r"GenerationResult\(\s*text\s*=\s*(?P<literal>'(?:\\.|[^'\\])*'|\"(?:\\.|[^\"\\])*\")\s*,",
   re.DOTALL
@@ -30,7 +22,8 @@ THINK_BLOCK_PATTERN = re.compile(r"<think>.*?</think>", re.IGNORECASE | re.DOTAL
 
 class LocalMlxLLMProvider(LLMProvider):
   def __init__(self) -> None:
-    self.lock = Lock()
+    self.load_lock = Lock()
+    self.generation_lock = Lock()
     self.loaded = False
     self.loading = False
     self.last_error = ""
@@ -66,28 +59,33 @@ class LocalMlxLLMProvider(LLMProvider):
     if payload.get("llmAssist"):
       log_info("slm.llm_assist.local_mlx_ignores_images", note="Local MLX provider does not support vision; running text-only re-extraction")
 
-    for strict in (False, True):
-      prompt = build_prompt(self.tokenizer, payload, strict=strict)
-      prompt_tokens = len(self.tokenizer.encode(prompt))
-      output = generate(
-        self.model,
-        self.tokenizer,
-        prompt=prompt,
-        verbose=False,
-        max_tokens=settings.max_new_tokens
-      )
-      output_text = extract_generation_text(output)
-      completion_tokens = len(self.tokenizer.encode(output_text))
-      usage = {"promptTokens": prompt_tokens, "completionTokens": completion_tokens}
-      log_info("slm.raw_output", output_length=len(output_text), completion_tokens=completion_tokens, first_200=output_text[:200], last_200=output_text[-200:] if len(output_text) > 200 else "")
-      parsed = parse_json_object(output_text)
-      if parsed is not None:
-        parsed["_usage"] = usage
-        return parsed
-      recovered = recover_payload_from_text(output_text, payload)
-      if recovered is not None:
-        recovered["_usage"] = usage
-        return recovered
+    # MLX/Metal is unstable under overlapping generations on this model;
+    # serialize inference to avoid command-buffer assertion failures.
+    with self.generation_lock:
+      for strict in (False, True):
+        prompt = build_prompt(self.tokenizer, payload, strict=strict)
+        prompt_tokens = len(self.tokenizer.encode(prompt))
+        output = generate(
+          self.model,
+          self.tokenizer,
+          prompt=prompt,
+          verbose=False,
+          max_tokens=settings.max_new_tokens
+        )
+        output_text = extract_generation_text(output)
+        if prompt.rstrip().endswith("{") and not output_text.lstrip().startswith("{"):
+          output_text = "{" + output_text.lstrip()
+        completion_tokens = len(self.tokenizer.encode(output_text))
+        usage = {"promptTokens": prompt_tokens, "completionTokens": completion_tokens}
+        log_info("slm.raw_output", output_length=len(output_text), completion_tokens=completion_tokens, first_200=output_text[:200], last_200=output_text[-200:] if len(output_text) > 200 else "")
+        parsed = parse_json_object(output_text)
+        if parsed is not None:
+          parsed["_usage"] = usage
+          return parsed
+        recovered = recover_payload_from_text(output_text, payload)
+        if recovered is not None:
+          recovered["_usage"] = usage
+          return recovered
 
     fallback = recover_payload_from_candidates(payload)
     if fallback is not None:
@@ -109,7 +107,7 @@ class LocalMlxLLMProvider(LLMProvider):
     if self.loaded:
       return
 
-    with self.lock:
+    with self.load_lock:
       if self.loaded:
         return
 
@@ -139,7 +137,8 @@ def resolve_model_reference() -> str:
 
 
 def build_prompt(tokenizer: Any, payload: dict[str, Any], strict: bool) -> str:
-  prior_corrections = payload.get("priorCorrections")
+  hints = payload.get("hints") if isinstance(payload.get("hints"), dict) else {}
+  prior_corrections = hints.get("priorCorrections")
   prior_corrections_text = ""
   if isinstance(prior_corrections, list) and prior_corrections:
     parts = []
@@ -150,50 +149,49 @@ def build_prompt(tokenizer: Any, payload: dict[str, Any], strict: bool) -> str:
       prior_corrections_text = " PRIOR_CORRECTIONS: " + "; ".join(parts) + "."
 
   instruction = (
-    "You are an information extraction engine.\n\n"
-    "Task: Extract structured data from OCR invoice input.\n"
-    "The input includes ocrBlocks — an array of text blocks with indices.\n\n"
+    "Extract invoice data from INPUT_JSON.\n"
+    "Return one JSON object only.\n"
+    "No preamble. No markdown. No explanation. No <think>.\n"
+    "Use only values present in INPUT_JSON. Use null or [] when missing.\n"
     "Rules:\n"
-    "- Perform all reasoning internally.\n"
-    "- DO NOT output reasoning.\n"
-    "- DO NOT explain anything.\n"
-    "- Output MUST be valid JSON only.\n"
-    "- No extra text, no comments, no markdown.\n"
-    "- If a field is missing, use null.\n"
-    "- totalAmountMinor = total in minor units (paise/cents).\n"
-    "  INR examples: ₹1,11,510.00 = 11151000. Rs.1,18,000/- = 11800000. Rs.1,00,000/- = 10000000.\n"
-    "  USD example: $279.84 = 27984. In Indian notation X,XX,XXX means lakhs not thousands.\n"
-    "  IMPORTANT: /- or /= after a number means 'rupees only' (no paise). 300/- means ₹300 = 30000 minor. Do NOT treat /- as extra digits.\n"
-    "  Cross-check: if rate × qty is shown, total must equal rate × qty.\n"
-    "- Dates in YYYY-MM-DD format.\n"
-    "- If GSTIN, CGST, SGST, or IGST appears, currency MUST be INR.\n"
-    "- For each field, include blockIndex: the index of the ocrBlock containing the VALUE (not the label).\n"
-    "- vendorName: use the company/seller name at the TOP of the invoice, NOT from bank/beneficiary details.\n\n"
-    "- Extract GST/VAT tax breakdown if present. All tax amounts in minor units.\n"
-    "  gstin = GST identification number. cgstMinor/sgstMinor for intra-state, igstMinor for inter-state.\n"
-    "  For VAT invoices: use totalTaxMinor for the VAT amount.\n\n"
-    "Output format:\n"
-    '{"selected":{"invoiceNumber":{"value":"","blockIndex":0},"vendorName":{"value":"","blockIndex":0},'
-    '"currency":{"value":"","blockIndex":null},"totalAmountMinor":{"value":0,"blockIndex":0},'
-    '"invoiceDate":{"value":"","blockIndex":0},"dueDate":{"value":"","blockIndex":0},'
-    '"gst":{"gstin":"","subtotalMinor":0,"cgstMinor":0,"sgstMinor":0,"igstMinor":0,"cessMinor":0,"totalTaxMinor":0}},'
-    '"reasonCodes":{},"issues":[],"invoiceType":""}\n\n'
-    "Input:\n"
+    "- Dates: YYYY-MM-DD\n"
+    "- Currency: ISO code from explicit symbols/codes in value blocks\n"
+    "- Do not switch USD invoices to INR only because GST identifiers appear in addresses or tax ids\n"
+    "- Amounts like 300/- or 300/= mean 30000 minor units\n"
+    "- All *Minor fields must be integers\n"
+    "- blockIndex must point to INPUT_JSON.ocrBlocks[index] that contains the value\n"
+    "- vendorName must be the seller/company, not bill-to, bank, beneficiary, or email\n"
+    "- Prefer amount due / grand total / balance due rows for totalAmountMinor\n"
+    "- Prefer tax summary rows for gst totals, not per-line tax sums\n"
+    "Extract:\n"
+    "- invoiceNumber, vendorName, currency, totalAmountMinor, invoiceDate, dueDate\n"
+    "- gst.gstin, gst.subtotalMinor, gst.cgstMinor, gst.sgstMinor, gst.igstMinor, gst.cessMinor, gst.totalTaxMinor\n"
+    "- lineItems with description, hsnSac, quantity, rate, amountMinor, taxRate, cgstMinor, sgstMinor, igstMinor\n"
+    "- _fieldConfidence, _fieldProvenance, _lineItemProvenance, _classification\n"
+    "Schema:\n"
+    '{"selected":{"invoiceNumber":{"value":"","blockIndex":null},"vendorName":{"value":"","blockIndex":null},'
+    '"currency":{"value":"","blockIndex":null},"totalAmountMinor":{"value":null,"blockIndex":null},'
+    '"invoiceDate":{"value":null,"blockIndex":null},"dueDate":{"value":null,"blockIndex":null},'
+    '"pan":null,"bankAccountNumber":null,"bankIfsc":null,"udyamNumber":null,'
+    '"gst":{"gstin":null,"subtotalMinor":null,"cgstMinor":null,"sgstMinor":null,"igstMinor":null,"cessMinor":null,"totalTaxMinor":null},'
+    '"lineItems":[],"_fieldConfidence":{},"_fieldProvenance":{},"_lineItemProvenance":[],"_classification":{}},'
+    '"reasonCodes":{},"issues":[],"invoiceType":null}\n'
+    + ("Final check: output must be valid JSON and match schema.\n" if strict else "")
+    + "INPUT_JSON:\n"
     + prior_corrections_text
   )
 
   prompt_payload = sanitize_payload_for_prompt(payload)
   user_message = (
-    f"{instruction}\nINPUT_JSON:{json.dumps(prompt_payload, ensure_ascii=True, separators=(',', ':'))}\nOUTPUT_JSON:"
+    f"{instruction}\nINPUT_JSON:{json.dumps(prompt_payload, ensure_ascii=True, separators=(',', ':'))}\nOUTPUT_JSON:\n{{"
   )
   return str(
     tokenizer.apply_chat_template(
       [
-        {"role": "system", "content": SYSTEM_PROMPT},
         {"role": "user", "content": user_message}
       ],
       tokenize=False,
-      add_generation_prompt=True
+      add_generation_prompt=False
     )
   )
 
@@ -216,60 +214,66 @@ def sanitize_payload_for_prompt(payload: dict[str, Any]) -> dict[str, Any]:
   if not isinstance(payload, dict):
     return {}
 
-  cloned = dict(payload)
+  hints = payload.get("hints") if isinstance(payload.get("hints"), dict) else {}
 
-  page_images = cloned.get("pageImages")
-  if isinstance(page_images, list):
-    summaries: list[dict[str, Any]] = []
-    for entry in page_images[:3]:
+  def pick(name: str, *, expected_type: type[Any] | None = None, default: Any = None) -> Any:
+    value = payload.get(name, hints.get(name, default))
+    if expected_type is not None and not isinstance(value, expected_type):
+      return default
+    return value
+
+  compact_blocks: list[dict[str, Any]] = []
+  raw_blocks = payload.get("ocrBlocks")
+  if isinstance(raw_blocks, list):
+    for index, entry in enumerate(raw_blocks[: settings.max_blocks]):
       if not isinstance(entry, dict):
         continue
-      summary = {
-        "page": entry.get("page"),
-        "mimeType": entry.get("mimeType"),
-        "width": entry.get("width"),
-        "height": entry.get("height"),
-        "dpi": entry.get("dpi")
-      }
+      compact_blocks.append(
+        {
+          "index": index,
+          "text": entry.get("text"),
+          "page": entry.get("page"),
+          "bboxNormalized": entry.get("bboxNormalized") or entry.get("bboxModel") or entry.get("bbox")
+        }
+      )
+
+  compact_page_images: list[dict[str, Any]] = []
+  raw_page_images = pick("pageImages", expected_type=list, default=[])
+  if isinstance(raw_page_images, list):
+    for entry in raw_page_images[:3]:
+      if not isinstance(entry, dict):
+        continue
       data_url = entry.get("dataUrl")
-      if isinstance(data_url, str) and data_url.startswith("data:"):
-        summary["dataUrlPreview"] = data_url[:140]
-        summary["dataUrlLength"] = len(data_url)
-      summaries.append(summary)
-    cloned["pageImages"] = summaries
-
-  document_context = cloned.get("documentContext")
-  if isinstance(document_context, dict):
-    sanitized_context: dict[str, Any] = {}
-    original_doc = document_context.get("originalDocumentDataUrl")
-    if isinstance(original_doc, str) and original_doc.startswith("data:"):
-      sanitized_context["originalDocumentMimeType"] = original_doc.split(";", 1)[0].replace("data:", "")
-      sanitized_context["originalDocumentPreview"] = original_doc[:180]
-      sanitized_context["originalDocumentLength"] = len(original_doc)
-
-    page_images = document_context.get("pageImages")
-    if isinstance(page_images, list):
-      summaries: list[dict[str, Any]] = []
-      for entry in page_images[:3]:
-        if not isinstance(entry, dict):
-          continue
-        summary = {
+      if not isinstance(data_url, str) or not data_url.strip():
+        continue
+      compact_page_images.append(
+        {
           "page": entry.get("page"),
           "mimeType": entry.get("mimeType"),
           "width": entry.get("width"),
           "height": entry.get("height"),
-          "dpi": entry.get("dpi")
+          "dpi": entry.get("dpi"),
+          "dataUrl": data_url
         }
-        data_url = entry.get("dataUrl")
-        if isinstance(data_url, str) and data_url.startswith("data:"):
-          summary["dataUrlPreview"] = data_url[:140]
-          summary["dataUrlLength"] = len(data_url)
-        summaries.append(summary)
-      sanitized_context["pageImages"] = summaries
+      )
 
-    cloned["documentContext"] = sanitized_context
+  compact: dict[str, Any] = {
+    "parsed": payload.get("parsed") if isinstance(payload.get("parsed"), dict) else {},
+    "ocrText": payload.get("ocrText") if isinstance(payload.get("ocrText"), str) else "",
+    "ocrBlocks": compact_blocks,
+    "mode": payload.get("mode"),
+  }
+  if compact_page_images:
+    compact["pageImages"] = compact_page_images
 
-  return cloned
+  compact["hints"] = {
+    "documentLanguage": pick("documentLanguage"),
+    "languageHint": pick("languageHint"),
+    "vendorTemplateMatched": pick("vendorTemplateMatched"),
+    "fieldCandidates": pick("fieldCandidates", expected_type=dict, default={}),
+    "priorCorrections": pick("priorCorrections", expected_type=list, default=[])
+  }
+  return compact
 
 
 def cleanup_generation_text(value: str) -> str:
@@ -384,7 +388,8 @@ def recover_payload_from_text(text: str, payload: dict[str, Any]) -> dict[str, A
 
   selected: dict[str, Any] = {}
   reason_codes: dict[str, str] = {}
-  field_candidates = payload.get("fieldCandidates")
+  hints = payload.get("hints") if isinstance(payload.get("hints"), dict) else {}
+  field_candidates = hints.get("fieldCandidates")
   if isinstance(field_candidates, dict):
     for field in ("invoiceNumber", "vendorName", "currency", "totalAmountMinor", "invoiceDate", "dueDate"):
       raw_candidates = field_candidates.get(field)
@@ -408,7 +413,8 @@ def recover_payload_from_text(text: str, payload: dict[str, Any]) -> dict[str, A
 
 
 def recover_payload_from_candidates(payload: dict[str, Any]) -> dict[str, Any] | None:
-  raw_candidates = payload.get("fieldCandidates")
+  hints = payload.get("hints") if isinstance(payload.get("hints"), dict) else {}
+  raw_candidates = hints.get("fieldCandidates")
   if not isinstance(raw_candidates, dict):
     return None
 

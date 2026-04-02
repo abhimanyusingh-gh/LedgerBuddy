@@ -4,7 +4,8 @@ from typing import Any
 
 from fastapi import FastAPI, Request
 
-from .engine import normalize_blocks, normalize_candidate_map, normalize_field_regions, select_with_fallback, extract_invoice_type
+from .engine import select_with_fallback, extract_invoice_type
+from .payload_normalization import normalize_blocks, normalize_candidate_map, normalize_field_regions
 from .providers import create_llm_provider
 from .logging import log_error, log_info, reset_correlation_id, set_correlation_id
 from .schemas import VerifyInvoiceRequest, VerifyInvoiceResponse
@@ -96,6 +97,10 @@ def verify_invoice(request: VerifyInvoiceRequest) -> VerifyInvoiceResponse:
     slm_error
   )
 
+  if not isinstance(merged.get("currency"), str) or not str(merged.get("currency")).strip():
+    merged["currency"] = "INR"
+    reason_codes["currency"] = "default_currency_inr"
+
   changed_fields = sorted(
     [field for field, value in merged.items() if current.get(field) != value and value not in ("", None)]
   )
@@ -114,12 +119,92 @@ def verify_invoice(request: VerifyInvoiceRequest) -> VerifyInvoiceResponse:
   invoice_type = extract_invoice_type(slm_payload)
 
   usage = slm_payload.pop("_usage", None) if isinstance(slm_payload, dict) else None
+  field_provenance = merged.get("_fieldProvenance") if isinstance(merged.get("_fieldProvenance"), dict) else {}
+  line_item_provenance = merged.get("_lineItemProvenance") if isinstance(merged.get("_lineItemProvenance"), list) else []
+  result = build_contract_result(merged, field_provenance, line_item_provenance, request.hints)
 
   return VerifyInvoiceResponse(
+    result=result,
     parsed=merged,
     issues=deduped_issues,
     changedFields=changed_fields,
     reasonCodes=reason_codes,
     invoiceType=invoice_type,
-    usage=usage if isinstance(usage, dict) else None
+    usage=usage if isinstance(usage, dict) else None,
+    fieldProvenance=field_provenance,
+    lineItemProvenance=line_item_provenance
   )
+
+
+def build_contract_result(
+  merged: dict[str, Any],
+  field_provenance: dict[str, Any],
+  line_item_provenance: list[dict[str, Any]],
+  hints: dict[str, Any]
+) -> dict[str, Any]:
+  result: dict[str, Any] = {}
+  filename = hints.get("fileName") or hints.get("filename") or hints.get("attachmentName")
+  if isinstance(filename, str) and filename.strip():
+    result["file"] = filename.strip()
+  if isinstance(merged.get("lineItems"), list):
+    result["lineItemCount"] = len(merged["lineItems"])
+
+  scalar_mappings = [
+    ("invoiceNumber", "invoiceNumber"),
+    ("vendorNameContains", "vendorName"),
+    ("invoiceDate", "invoiceDate"),
+    ("dueDate", "dueDate"),
+    ("currency", "currency"),
+    ("totalAmountMinor", "totalAmountMinor")
+  ]
+  for contract_key, merged_key in scalar_mappings:
+    value = merged.get(merged_key)
+    if value in (None, "", []):
+      continue
+    payload: dict[str, Any] = {"value": value}
+    provenance = field_provenance.get(merged_key)
+    if isinstance(provenance, dict) and provenance:
+      payload["provenance"] = provenance
+    result[contract_key] = payload
+
+  gst_value = merged.get("gst")
+  if isinstance(gst_value, dict):
+    gst_result: dict[str, Any] = {}
+    for field_name in ("cgstMinor", "sgstMinor", "igstMinor", "cessMinor", "subtotalMinor", "totalTaxMinor"):
+      value = gst_value.get(field_name)
+      if value in (None, "", []):
+        continue
+      payload = {"value": value}
+      provenance = field_provenance.get(f"gst.{field_name}")
+      if isinstance(provenance, dict) and provenance:
+        payload["provenance"] = provenance
+      gst_result[field_name] = payload
+    if gst_result:
+      result["gst"] = gst_result
+
+  line_items = merged.get("lineItems")
+  if isinstance(line_items, list):
+    contract_items: list[dict[str, Any]] = []
+    for index, entry in enumerate(line_items):
+      if not isinstance(entry, dict):
+        continue
+      amount_minor = entry.get("amountMinor")
+      if not isinstance(amount_minor, int):
+        continue
+      item_payload: dict[str, Any] = {
+        "amountMinor": amount_minor
+      }
+      description = entry.get("description")
+      if isinstance(description, str) and description.strip():
+        item_payload["description"] = description.strip()
+      provenance = next((candidate for candidate in line_item_provenance if isinstance(candidate, dict) and candidate.get("index") == index), None)
+      amount_provenance = provenance.get("fields", {}).get("amountMinor") if isinstance(provenance, dict) and isinstance(provenance.get("fields"), dict) else None
+      row_provenance = provenance.get("row") if isinstance(provenance, dict) and isinstance(provenance.get("row"), dict) else None
+      selected_provenance = amount_provenance if isinstance(amount_provenance, dict) else row_provenance
+      if isinstance(selected_provenance, dict) and selected_provenance:
+        item_payload["provenance"] = selected_provenance
+      contract_items.append(item_payload)
+    if contract_items:
+      result["lineItems"] = contract_items
+
+  return result

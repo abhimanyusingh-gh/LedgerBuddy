@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import base64
 import time
+from threading import Lock
 from typing import Any
 
 from Foundation import NSData
@@ -14,7 +15,12 @@ from Quartz import (
 import Vision
 
 from ..boundary import OCRProvider
-from ..engine import estimate_confidence, normalize_model_output, render_pdf_pages, resolve_prompt
+from ..engine import (
+  estimate_confidence,
+  normalize_model_output,
+  render_pdf_pages,
+  resolve_prompt
+)
 from ..settings import settings
 
 
@@ -22,6 +28,9 @@ APPLE_VISION_MODEL_ID = "apple-vision-text-recognition"
 
 
 class LocalAppleVisionOCRProvider(OCRProvider):
+  def __init__(self) -> None:
+    self.extraction_lock = Lock()
+
   def startup(self) -> None:
     return None
 
@@ -54,11 +63,12 @@ class LocalAppleVisionOCRProvider(OCRProvider):
     include_layout: bool,
     max_tokens: int
   ) -> dict[str, Any]:
-    _ = resolve_prompt(prompt, include_layout)
-    _ = max_tokens
-    if mime_type == "application/pdf":
-      return self._extract_pdf(image_bytes, include_layout)
-    return self._extract_image(image_bytes, 1, include_layout)
+    with self.extraction_lock:
+      _ = resolve_prompt(prompt, include_layout)
+      _ = max_tokens
+      if mime_type == "application/pdf":
+        return self._extract_pdf(image_bytes, include_layout)
+      return self._extract_image(image_bytes, 1, include_layout)
 
   def _extract_pdf(self, pdf_bytes: bytes, include_layout: bool) -> dict[str, Any]:
     pages = render_pdf_pages(pdf_bytes, settings.pdf_max_pages)
@@ -83,6 +93,7 @@ class LocalAppleVisionOCRProvider(OCRProvider):
       )
 
       page_result = self._extract_image(page_bytes, page_number, include_layout)
+      page_blocks = page_result.get("blocks") if isinstance(page_result.get("blocks"), list) else []
       page_text = normalize_model_output(page_result.get("rawText"))
       if page_text:
         text_chunks.append(f"[page {page_number}]\n{page_text}")
@@ -92,9 +103,7 @@ class LocalAppleVisionOCRProvider(OCRProvider):
         confidence_samples.append(page_confidence)
 
       if include_layout:
-        page_blocks = page_result.get("blocks")
-        if isinstance(page_blocks, list):
-          blocks.extend(page_blocks)
+        blocks.extend(page_blocks)
 
     raw_text = "\n\n".join(text_chunks).strip()
     confidence = (
@@ -108,6 +117,7 @@ class LocalAppleVisionOCRProvider(OCRProvider):
       "blocks": blocks if include_layout else [],
       "pageImages": page_images,
       "confidence": max(0.0, min(1.0, confidence)),
+      "rawTextSource": "apple_vision",
       "mode": "apple_vision_pdf",
       "model": APPLE_VISION_MODEL_ID,
       "provider": "apple-vision-local"
@@ -177,6 +187,7 @@ class LocalAppleVisionOCRProvider(OCRProvider):
       "rawText": raw_text,
       "blocks": blocks if include_layout else [],
       "confidence": max(0.0, min(1.0, confidence)),
+      "rawTextSource": "apple_vision",
       "mode": "apple_vision",
       "model": APPLE_VISION_MODEL_ID,
       "provider": "apple-vision-local"

@@ -49,7 +49,7 @@ def read_env_mode() -> str:
 
 
 def default_ocr_engine(env_mode: str) -> str:
-  return "local_hybrid" if env_mode in {"local", "dev"} else "prod_http"
+  return "local_apple_vision" if env_mode in {"local", "dev"} else "prod_http"
 
 
 @dataclass(frozen=True)
@@ -68,6 +68,7 @@ class Settings:
   pdf_max_pages: int
   load_on_startup: bool
   hybrid_apple_accept_score: float
+  hybrid_deepseek_enabled: bool
 
 
 env_mode = read_env_mode()
@@ -86,5 +87,6 @@ settings = Settings(
   max_new_tokens=read_int("OCR_MAX_NEW_TOKENS", 512, 64),
   pdf_max_pages=read_int("OCR_PDF_MAX_PAGES", 6, 1),
   load_on_startup=read_bool("OCR_LOAD_ON_STARTUP", True),
-  hybrid_apple_accept_score=read_float("OCR_HYBRID_APPLE_ACCEPT_SCORE", 0.9, 0.0, 1.0)
+  hybrid_apple_accept_score=read_float("OCR_HYBRID_APPLE_ACCEPT_SCORE", 0.9, 0.0, 1.0),
+  hybrid_deepseek_enabled=read_bool("OCR_HYBRID_DEEPSEEK_ENABLED", True)
 )

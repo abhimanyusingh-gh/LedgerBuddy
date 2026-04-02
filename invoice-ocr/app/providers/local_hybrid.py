@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+from threading import Lock
 from typing import Any
 
 from ..boundary import OCRProvider
@@ -13,6 +14,7 @@ from ..settings import settings
 
 class LocalHybridOCRProvider(OCRProvider):
   def __init__(self) -> None:
+    self.lock = Lock()
     self.deepseek = LocalMlxOCRProvider()
     self.apple = LocalAppleVisionOCRProvider()
 
@@ -57,54 +59,89 @@ class LocalHybridOCRProvider(OCRProvider):
     include_layout: bool,
     max_tokens: int
   ) -> dict[str, Any]:
-    deepseek_result: dict[str, Any] | None = None
-    apple_result: dict[str, Any] | None = None
+    with self.lock:
+      deepseek_result: dict[str, Any] | None = None
+      apple_result: dict[str, Any] | None = None
 
-    try:
-      deepseek_result = self.deepseek.extract_document(
-        image_bytes=image_bytes,
-        mime_type=mime_type,
-        prompt=prompt,
-        include_layout=include_layout,
-        max_tokens=max_tokens
-      )
-    except Exception as error:
-      log_error("ocr.hybrid.deepseek.failed", mimeType=mime_type, error=str(error))
+      if settings.hybrid_deepseek_enabled:
+        try:
+          # Run DeepSeek text-only in hybrid mode. Apple Vision provides stable layout blocks.
+          deepseek_result = self.deepseek.extract_document(
+            image_bytes=image_bytes,
+            mime_type=mime_type,
+            prompt="",
+            include_layout=False,
+            max_tokens=max_tokens
+          )
+        except Exception as error:
+          log_error("ocr.hybrid.deepseek.failed", mimeType=mime_type, error=str(error))
+      else:
+        log_info("ocr.hybrid.deepseek.disabled", includeLayout=include_layout, mimeType=mime_type)
 
-    should_run_apple = deepseek_result is None or _should_run_apple_second_pass(deepseek_result, include_layout)
-    if should_run_apple:
-      try:
-        apple_result = self.apple.extract_document(
-          image_bytes=image_bytes,
-          mime_type=mime_type,
-          prompt=prompt,
-          include_layout=include_layout,
-          max_tokens=max_tokens
+      should_run_apple = include_layout or deepseek_result is None or _should_run_apple_second_pass(deepseek_result, False)
+      if should_run_apple:
+        try:
+          apple_result = self.apple.extract_document(
+            image_bytes=image_bytes,
+            mime_type=mime_type,
+            prompt=prompt,
+            include_layout=include_layout,
+            max_tokens=max_tokens
+          )
+        except Exception as error:
+          log_error("ocr.hybrid.apple.failed", mimeType=mime_type, error=str(error))
+
+      if deepseek_result is None and apple_result is None:
+        raise RuntimeError("Both DeepSeek MLX and Apple Vision OCR failed.")
+
+      if deepseek_result is not None and apple_result is not None:
+        deepseek_score = _score_result(deepseek_result, False)
+        apple_score = _score_result(apple_result, include_layout)
+        log_info(
+          "ocr.hybrid.selection",
+          selected="deepseek_text+apple_layout",
+          deepseekScore=round(deepseek_score, 4),
+          appleScore=round(apple_score, 4),
+          includeLayout=include_layout
         )
-      except Exception as error:
-        log_error("ocr.hybrid.apple.failed", mimeType=mime_type, error=str(error))
+        return _compose_hybrid_result(deepseek_result, apple_result, include_layout)
 
-    if deepseek_result is None and apple_result is None:
-      raise RuntimeError("Both DeepSeek MLX and Apple Vision OCR failed.")
+      if deepseek_result is not None:
+        return _merge_mode(deepseek_result, "local_hybrid_deepseek_text")
 
-    if deepseek_result is not None and apple_result is None:
-      return _merge_mode(deepseek_result, "local_hybrid_deepseek")
-
-    if deepseek_result is None and apple_result is not None:
       return _merge_mode(apple_result, "local_hybrid_apple")
 
-    deepseek_score = _score_result(deepseek_result, include_layout)
-    apple_score = _score_result(apple_result, include_layout)
-    selected = deepseek_result if deepseek_score >= apple_score else apple_result
-    selected_name = "deepseek" if selected is deepseek_result else "apple_vision"
-    log_info(
-      "ocr.hybrid.selection",
-      selected=selected_name,
-      deepseekScore=round(deepseek_score, 4),
-      appleScore=round(apple_score, 4),
-      includeLayout=include_layout
-    )
-    return _merge_mode(selected, f"local_hybrid_{selected_name}")
+
+def _compose_hybrid_result(
+  deepseek_result: dict[str, Any],
+  apple_result: dict[str, Any],
+  include_layout: bool
+) -> dict[str, Any]:
+  deepseek_text = str(deepseek_result.get("rawText", "")).strip()
+  apple_text = str(apple_result.get("rawText", "")).strip()
+  apple_text_source = str(apple_result.get("rawTextSource", "")).strip().lower()
+
+  merged = dict(deepseek_result if deepseek_text else apple_result)
+  merged["rawText"] = apple_text if apple_text and apple_text_source == "pdf_text_layer" else (deepseek_text if deepseek_text else apple_text)
+
+  if include_layout:
+    merged["blocks"] = apple_result.get("blocks", [])
+    page_images = apple_result.get("pageImages")
+    if isinstance(page_images, list):
+      merged["pageImages"] = page_images
+  if apple_text_source:
+    merged["rawTextSource"] = apple_text_source
+
+  deepseek_confidence = _read_confidence(deepseek_result.get("confidence"))
+  apple_confidence = _read_confidence(apple_result.get("confidence"))
+  confidence_candidates = [value for value in (deepseek_confidence, apple_confidence) if value is not None]
+  if confidence_candidates:
+    merged["confidence"] = max(confidence_candidates)
+
+  return _merge_mode(
+    merged,
+    "local_hybrid_deepseek_text_apple_layout" if include_layout else "local_hybrid_deepseek_text"
+  )
 
 
 def _score_result(result: dict[str, Any], include_layout: bool) -> float:
