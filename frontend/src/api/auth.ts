@@ -1,0 +1,72 @@
+import { apiClient } from "./client";
+import type { SessionRole, TenantRole, UserCapabilities } from "../types";
+
+interface SessionContextResponse {
+  user: {
+    id: string;
+    email: string;
+    role: SessionRole;
+    isPlatformAdmin: boolean;
+    capabilities: UserCapabilities;
+  };
+  tenant: {
+    id: string;
+    name: string;
+    onboarding_status: "pending" | "completed";
+    mode?: "test" | "live";
+  };
+  flags: {
+    requires_tenant_setup: boolean;
+    requires_reauth: boolean;
+    requires_admin_action: boolean;
+    requires_email_confirmation: boolean;
+    must_change_password: boolean;
+  };
+}
+
+interface TenantUserSummary {
+  userId: string;
+  email: string;
+  role: TenantRole;
+  enabled: boolean;
+}
+
+export async function loginWithCredentials(email: string, password: string): Promise<string> {
+  const response = await apiClient.post<{ token?: string }>("/auth/token", { email, password });
+  const token = typeof response.data?.token === "string" ? response.data.token.trim() : "";
+  if (!token) throw new Error("Login did not return a session token.");
+  return token;
+}
+
+export async function fetchSessionContext(): Promise<SessionContextResponse> {
+  return (await apiClient.get<SessionContextResponse>("/session")).data;
+}
+
+export async function completeTenantOnboarding(payload: { tenantName: string; adminEmail: string }): Promise<void> {
+  await apiClient.post("/tenant/onboarding/complete", payload);
+}
+
+export async function changePassword(currentPassword: string, newPassword: string): Promise<void> {
+  await apiClient.post("/auth/change-password", { currentPassword, newPassword });
+}
+
+export async function fetchTenantUsers(): Promise<TenantUserSummary[]> {
+  const response = await apiClient.get<{ items?: TenantUserSummary[] }>("/admin/users");
+  return Array.isArray(response.data?.items) ? response.data.items : [];
+}
+
+export async function inviteTenantUser(email: string): Promise<void> {
+  await apiClient.post("/admin/users/invite", { email });
+}
+
+export async function assignTenantUserRole(userId: string, role: TenantRole): Promise<void> {
+  await apiClient.post(`/admin/users/${userId}/role`, { role });
+}
+
+export async function removeTenantUser(userId: string): Promise<void> {
+  await apiClient.delete(`/admin/users/${userId}`);
+}
+
+export async function setUserEnabled(userId: string, enabled: boolean): Promise<void> {
+  await apiClient.patch(`/admin/users/${userId}/enabled`, { enabled });
+}

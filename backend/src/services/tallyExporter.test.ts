@@ -1,4 +1,9 @@
 const axiosPostMock = jest.fn();
+const DEFAULT_TALLY_CONFIG = {
+  endpoint: "http://example.test/tally",
+  companyName: "Demo",
+  purchaseLedgerName: "Purchase"
+} as const;
 
 jest.mock("axios", () => ({
   __esModule: true,
@@ -15,6 +20,51 @@ import {
   parseTallyImportResponse,
   resolveInvoiceTotalAmountMinor
 } from "./tallyExporter.ts";
+
+type TallyExporterConfig = ConstructorParameters<typeof TallyExporter>[0];
+
+function createExporter(configOverrides: Partial<TallyExporterConfig> = {}) {
+  return new TallyExporter({
+    ...DEFAULT_TALLY_CONFIG,
+    ...configOverrides
+  });
+}
+
+function mockAxiosPostResolved(xml: string) {
+  axiosPostMock.mockResolvedValue({ data: xml });
+}
+
+function mockAxiosPostRejected(error: unknown) {
+  axiosPostMock.mockRejectedValue(error);
+}
+
+function makeImportResponse(overrides: Partial<{ status: number; created: number; altered: number; errors: number; lastVchId: string; lineError: string }> = {}) {
+  const {
+    status,
+    created = 0,
+    altered = 0,
+    errors = 0,
+    lastVchId,
+    lineError
+  } = overrides;
+
+  return [
+    "<ENVELOPE>",
+    status != null ? `  <HEADER><STATUS>${status}</STATUS></HEADER>` : null,
+    "  <BODY>",
+    "    <DATA>",
+    "      <IMPORTRESULT>",
+    `        <CREATED>${created}</CREATED>`,
+    `        <ALTERED>${altered}</ALTERED>`,
+    `        <ERRORS>${errors}</ERRORS>`,
+    lastVchId != null ? `        <LASTVCHID>${lastVchId}</LASTVCHID>` : null,
+    lineError != null ? `        <LINEERROR>${lineError}</LINEERROR>` : null,
+    "      </IMPORTRESULT>",
+    "    </DATA>",
+    "  </BODY>",
+    "</ENVELOPE>"
+  ].filter((line): line is string => line !== null).join("\n");
+}
 
 describe("buildTallyPurchaseVoucherPayload", () => {
   it("builds a purchase voucher import envelope using balanced ledger entries", () => {
@@ -174,11 +224,7 @@ describe("TallyExporter.exportInvoices", () => {
   });
 
   it("marks invoice as failed when total amount is invalid", async () => {
-    const exporter = new TallyExporter({
-      endpoint: "http://example.test/tally",
-      companyName: "Demo",
-      purchaseLedgerName: "Purchase"
-    });
+    const exporter = createExporter();
     const invoice = createInvoiceStub({
       _id: "inv-1",
       parsed: {
@@ -200,11 +246,7 @@ describe("TallyExporter.exportInvoices", () => {
   });
 
   it("marks invoice as failed when total amount is invalid and invoice number is missing", async () => {
-    const exporter = new TallyExporter({
-      endpoint: "http://example.test/tally",
-      companyName: "Demo",
-      purchaseLedgerName: "Purchase"
-    });
+    const exporter = createExporter();
     const invoice = createInvoiceStub({
       _id: "inv-1b",
       parsed: {
@@ -225,15 +267,9 @@ describe("TallyExporter.exportInvoices", () => {
   });
 
   it("exports successfully and recovers amount from OCR when parsed amount is missing", async () => {
-    axiosPostMock.mockResolvedValue({
-      data: "<ENVELOPE><HEADER><STATUS>1</STATUS></HEADER><BODY><DATA><IMPORTRESULT><CREATED>1</CREATED><ALTERED>0</ALTERED><ERRORS>0</ERRORS><LASTVCHID>77</LASTVCHID></IMPORTRESULT></DATA></BODY></ENVELOPE>"
-    });
+    mockAxiosPostResolved(makeImportResponse({ status: 1, created: 1, altered: 0, errors: 0, lastVchId: "77" }));
 
-    const exporter = new TallyExporter({
-      endpoint: "http://example.test/tally",
-      companyName: "Demo",
-      purchaseLedgerName: "Purchase"
-    });
+    const exporter = createExporter();
     const invoice = createInvoiceStub({
       _id: "inv-2",
       sourceType: "email",
@@ -264,15 +300,9 @@ describe("TallyExporter.exportInvoices", () => {
   });
 
   it("returns failed result when Tally reports line errors", async () => {
-    axiosPostMock.mockResolvedValue({
-      data: "<ENVELOPE><HEADER><STATUS>0</STATUS></HEADER><BODY><DATA><IMPORTRESULT><CREATED>0</CREATED><ALTERED>0</ALTERED><ERRORS>1</ERRORS><LINEERROR>Ledger missing</LINEERROR></IMPORTRESULT></DATA></BODY></ENVELOPE>"
-    });
+    mockAxiosPostResolved(makeImportResponse({ status: 0, created: 0, altered: 0, errors: 1, lineError: "Ledger missing" }));
 
-    const exporter = new TallyExporter({
-      endpoint: "http://example.test/tally",
-      companyName: "Demo",
-      purchaseLedgerName: "Purchase"
-    });
+    const exporter = createExporter();
     const invoice = createInvoiceStub({
       _id: "inv-3",
       parsed: {
@@ -294,15 +324,9 @@ describe("TallyExporter.exportInvoices", () => {
   });
 
   it("treats status=1 responses with non-zero errors as failed imports", async () => {
-    axiosPostMock.mockResolvedValue({
-      data: "<ENVELOPE><HEADER><STATUS>1</STATUS></HEADER><BODY><DATA><IMPORTRESULT><CREATED>0</CREATED><ALTERED>0</ALTERED><ERRORS>1</ERRORS></IMPORTRESULT></DATA></BODY></ENVELOPE>"
-    });
+    mockAxiosPostResolved(makeImportResponse({ status: 1, created: 0, altered: 0, errors: 1 }));
 
-    const exporter = new TallyExporter({
-      endpoint: "http://example.test/tally",
-      companyName: "Demo",
-      purchaseLedgerName: "Purchase"
-    });
+    const exporter = createExporter();
     const invoice = createInvoiceStub({
       _id: "inv-3c",
       parsed: {
@@ -324,15 +348,9 @@ describe("TallyExporter.exportInvoices", () => {
   });
 
   it("returns failed summary when import fails without line errors", async () => {
-    axiosPostMock.mockResolvedValue({
-      data: null
-    });
+    axiosPostMock.mockResolvedValue({ data: null });
 
-    const exporter = new TallyExporter({
-      endpoint: "http://example.test/tally",
-      companyName: "Demo",
-      purchaseLedgerName: "Purchase"
-    });
+    const exporter = createExporter();
     const invoice = createInvoiceStub({
       _id: "inv-3b",
       parsed: {
@@ -354,15 +372,9 @@ describe("TallyExporter.exportInvoices", () => {
   });
 
   it("maps fallback fields when parsed object is missing and preserves altered-success responses", async () => {
-    axiosPostMock.mockResolvedValue({
-      data: "<ENVELOPE><BODY><DATA><IMPORTRESULT><CREATED>0</CREATED><ALTERED>1</ALTERED><ERRORS>0</ERRORS></IMPORTRESULT></DATA></BODY></ENVELOPE>"
-    });
+    mockAxiosPostResolved(makeImportResponse({ created: 0, altered: 1, errors: 0 }));
 
-    const exporter = new TallyExporter({
-      endpoint: "http://example.test/tally",
-      companyName: "Demo",
-      purchaseLedgerName: "Purchase"
-    });
+    const exporter = createExporter();
     const invoice = {
       _id: "inv-6",
       sourceType: "email",
@@ -396,15 +408,9 @@ describe("TallyExporter.exportInvoices", () => {
   });
 
   it("accepts status-only success responses when created and altered are zero", async () => {
-    axiosPostMock.mockResolvedValue({
-      data: "<ENVELOPE><HEADER><STATUS>1</STATUS></HEADER><BODY><DATA><IMPORTRESULT><CREATED>0</CREATED><ALTERED>0</ALTERED><ERRORS>0</ERRORS></IMPORTRESULT></DATA></BODY></ENVELOPE>"
-    });
+    mockAxiosPostResolved(makeImportResponse({ status: 1, created: 0, altered: 0, errors: 0 }));
 
-    const exporter = new TallyExporter({
-      endpoint: "http://example.test/tally",
-      companyName: "Demo",
-      purchaseLedgerName: "Purchase"
-    });
+    const exporter = createExporter();
     const invoice = createInvoiceStub({
       _id: "inv-6b",
       parsed: {
@@ -426,18 +432,14 @@ describe("TallyExporter.exportInvoices", () => {
   });
 
   it("returns parsed tally error details when axios throws with response data", async () => {
-    axiosPostMock.mockRejectedValue({
+    mockAxiosPostRejected({
       message: "Request failed",
       response: {
-        data: "<ENVELOPE><BODY><DATA><IMPORTRESULT><ERRORS>1</ERRORS><LINEERROR>Company mismatch</LINEERROR></IMPORTRESULT></DATA></BODY></ENVELOPE>"
+        data: makeImportResponse({ errors: 1, lineError: "Company mismatch" })
       }
     });
 
-    const exporter = new TallyExporter({
-      endpoint: "http://example.test/tally",
-      companyName: "Demo",
-      purchaseLedgerName: "Purchase"
-    });
+    const exporter = createExporter();
     const invoice = createInvoiceStub({
       _id: "inv-4",
       parsed: {
@@ -459,13 +461,9 @@ describe("TallyExporter.exportInvoices", () => {
   });
 
   it("returns generic error when thrown value is not axios-like", async () => {
-    axiosPostMock.mockRejectedValue(new Error("Boom"));
+    mockAxiosPostRejected(new Error("Boom"));
 
-    const exporter = new TallyExporter({
-      endpoint: "http://example.test/tally",
-      companyName: "Demo",
-      purchaseLedgerName: "Purchase"
-    });
+    const exporter = createExporter();
     const invoice = createInvoiceStub({
       _id: "inv-5",
       parsed: {
@@ -487,18 +485,14 @@ describe("TallyExporter.exportInvoices", () => {
   });
 
   it("returns parsed ERRORS count when axios response has no line errors", async () => {
-    axiosPostMock.mockRejectedValue({
+    mockAxiosPostRejected({
       message: "Request failed",
       response: {
-        data: "<ENVELOPE><BODY><DATA><IMPORTRESULT><ERRORS>4</ERRORS></IMPORTRESULT></DATA></BODY></ENVELOPE>"
+        data: makeImportResponse({ errors: 4 })
       }
     });
 
-    const exporter = new TallyExporter({
-      endpoint: "http://example.test/tally",
-      companyName: "Demo",
-      purchaseLedgerName: "Purchase"
-    });
+    const exporter = createExporter();
     const invoice = createInvoiceStub({
       _id: "inv-7",
       parsed: {
@@ -520,11 +514,7 @@ describe("TallyExporter.exportInvoices", () => {
   });
 
   it("rejects invoice when vendorName is Unknown Vendor", async () => {
-    const exporter = new TallyExporter({
-      endpoint: "http://example.test/tally",
-      companyName: "Demo",
-      purchaseLedgerName: "Purchase"
-    });
+    const exporter = createExporter();
     const invoice = createInvoiceStub({
       _id: "inv-unknown-vendor",
       parsed: {
@@ -547,11 +537,7 @@ describe("TallyExporter.exportInvoices", () => {
   });
 
   it("rejects invoice when invoiceNumber matches a 24-char hex ObjectId pattern", async () => {
-    const exporter = new TallyExporter({
-      endpoint: "http://example.test/tally",
-      companyName: "Demo",
-      purchaseLedgerName: "Purchase"
-    });
+    const exporter = createExporter();
     const invoice = createInvoiceStub({
       _id: "inv-objectid",
       parsed: {
@@ -574,13 +560,9 @@ describe("TallyExporter.exportInvoices", () => {
   });
 
   it("returns unknown export failure for non-object thrown values", async () => {
-    axiosPostMock.mockRejectedValue("boom-string");
+    mockAxiosPostRejected("boom-string");
 
-    const exporter = new TallyExporter({
-      endpoint: "http://example.test/tally",
-      companyName: "Demo",
-      purchaseLedgerName: "Purchase"
-    });
+    const exporter = createExporter();
     const invoice = createInvoiceStub({
       _id: "inv-8",
       parsed: {
@@ -663,11 +645,7 @@ describe("buildTallyBatchImportXml", () => {
 
 describe("TallyExporter.generateImportFile", () => {
   it("generates import file with valid invoices", () => {
-    const exporter = new TallyExporter({
-      endpoint: "http://example.test/tally",
-      companyName: "Demo",
-      purchaseLedgerName: "Purchase"
-    });
+    const exporter = createExporter();
 
     const invoices = [
       createInvoiceStub({
@@ -702,11 +680,7 @@ describe("TallyExporter.generateImportFile", () => {
   });
 
   it("skips invoices with invalid amounts and includes them in skippedItems", () => {
-    const exporter = new TallyExporter({
-      endpoint: "http://example.test/tally",
-      companyName: "Demo",
-      purchaseLedgerName: "Purchase"
-    });
+    const exporter = createExporter();
 
     const invoices = [
       createInvoiceStub({
@@ -736,11 +710,7 @@ describe("TallyExporter.generateImportFile", () => {
   });
 
   it("uses fallback values when parsed fields are missing", () => {
-    const exporter = new TallyExporter({
-      endpoint: "http://example.test/tally",
-      companyName: "Demo",
-      purchaseLedgerName: "Purchase"
-    });
+    const exporter = createExporter();
 
     const invoices = [
       createInvoiceStub({
@@ -759,11 +729,7 @@ describe("TallyExporter.generateImportFile", () => {
   });
 
   it("returns empty content when all invoices are skipped", () => {
-    const exporter = new TallyExporter({
-      endpoint: "http://example.test/tally",
-      companyName: "Demo",
-      purchaseLedgerName: "Purchase"
-    });
+    const exporter = createExporter();
 
     const invoices = [
       createInvoiceStub({
@@ -936,14 +902,10 @@ describe("TallyExporter with GST config", () => {
   });
 
   it("generates GST voucher XML when invoice has GST data and exporter has gstLedgers", async () => {
-    axiosPostMock.mockResolvedValue({
-      data: "<ENVELOPE><HEADER><STATUS>1</STATUS></HEADER><BODY><DATA><IMPORTRESULT><CREATED>1</CREATED><ALTERED>0</ALTERED><ERRORS>0</ERRORS><LASTVCHID>100</LASTVCHID></IMPORTRESULT></DATA></BODY></ENVELOPE>"
-    });
+    mockAxiosPostResolved(makeImportResponse({ status: 1, created: 1, altered: 0, errors: 0, lastVchId: "100" }));
 
-    const exporter = new TallyExporter({
-      endpoint: "http://example.test/tally",
-      companyName: "Demo",
-      purchaseLedgerName: "Purchase",
+    const exporter = createExporter({
+      // preserve the same test-specific GST config
       gstLedgers: {
         cgstLedger: "Input CGST",
         sgstLedger: "Input SGST",
@@ -982,14 +944,9 @@ describe("TallyExporter with GST config", () => {
   });
 
   it("uses total amount as subtotal when GST subtotalMinor is missing", async () => {
-    axiosPostMock.mockResolvedValue({
-      data: "<ENVELOPE><HEADER><STATUS>1</STATUS></HEADER><BODY><DATA><IMPORTRESULT><CREATED>1</CREATED><ALTERED>0</ALTERED><ERRORS>0</ERRORS><LASTVCHID>101</LASTVCHID></IMPORTRESULT></DATA></BODY></ENVELOPE>"
-    });
+    mockAxiosPostResolved(makeImportResponse({ status: 1, created: 1, altered: 0, errors: 0, lastVchId: "101" }));
 
-    const exporter = new TallyExporter({
-      endpoint: "http://example.test/tally",
-      companyName: "Demo",
-      purchaseLedgerName: "Purchase",
+    const exporter = createExporter({
       gstLedgers: {
         cgstLedger: "Input CGST",
         sgstLedger: "Input SGST",
@@ -1020,14 +977,9 @@ describe("TallyExporter with GST config", () => {
   });
 
   it("uses total amount as subtotal when GST subtotalMinor is missing and all tax amounts are zero", async () => {
-    axiosPostMock.mockResolvedValue({
-      data: "<ENVELOPE><HEADER><STATUS>1</STATUS></HEADER><BODY><DATA><IMPORTRESULT><CREATED>1</CREATED><ALTERED>0</ALTERED><ERRORS>0</ERRORS><LASTVCHID>103</LASTVCHID></IMPORTRESULT></DATA></BODY></ENVELOPE>"
-    });
+    mockAxiosPostResolved(makeImportResponse({ status: 1, created: 1, altered: 0, errors: 0, lastVchId: "103" }));
 
-    const exporter = new TallyExporter({
-      endpoint: "http://example.test/tally",
-      companyName: "Demo",
-      purchaseLedgerName: "Purchase",
+    const exporter = createExporter({
       gstLedgers: {
         cgstLedger: "Input CGST",
         sgstLedger: "Input SGST",
@@ -1056,14 +1008,9 @@ describe("TallyExporter with GST config", () => {
   });
 
   it("falls back to total amount when derived subtotal is zero or negative", async () => {
-    axiosPostMock.mockResolvedValue({
-      data: "<ENVELOPE><HEADER><STATUS>1</STATUS></HEADER><BODY><DATA><IMPORTRESULT><CREATED>1</CREATED><ALTERED>0</ALTERED><ERRORS>0</ERRORS><LASTVCHID>104</LASTVCHID></IMPORTRESULT></DATA></BODY></ENVELOPE>"
-    });
+    mockAxiosPostResolved(makeImportResponse({ status: 1, created: 1, altered: 0, errors: 0, lastVchId: "104" }));
 
-    const exporter = new TallyExporter({
-      endpoint: "http://example.test/tally",
-      companyName: "Demo",
-      purchaseLedgerName: "Purchase",
+    const exporter = createExporter({
       gstLedgers: {
         cgstLedger: "Input CGST",
         sgstLedger: "Input SGST",
@@ -1095,14 +1042,9 @@ describe("TallyExporter with GST config", () => {
   });
 
   it("recalculates subtotal when provided subtotal plus tax does not match total", async () => {
-    axiosPostMock.mockResolvedValue({
-      data: "<ENVELOPE><HEADER><STATUS>1</STATUS></HEADER><BODY><DATA><IMPORTRESULT><CREATED>1</CREATED><ALTERED>0</ALTERED><ERRORS>0</ERRORS><LASTVCHID>102</LASTVCHID></IMPORTRESULT></DATA></BODY></ENVELOPE>"
-    });
+    mockAxiosPostResolved(makeImportResponse({ status: 1, created: 1, altered: 0, errors: 0, lastVchId: "102" }));
 
-    const exporter = new TallyExporter({
-      endpoint: "http://example.test/tally",
-      companyName: "Demo",
-      purchaseLedgerName: "Purchase",
+    const exporter = createExporter({
       gstLedgers: {
         cgstLedger: "Input CGST",
         sgstLedger: "Input SGST",
@@ -1135,10 +1077,7 @@ describe("TallyExporter with GST config", () => {
   });
 
   it("generates GST import file with multiple invoices", () => {
-    const exporter = new TallyExporter({
-      endpoint: "http://example.test/tally",
-      companyName: "Demo",
-      purchaseLedgerName: "Purchase",
+    const exporter = createExporter({
       gstLedgers: {
         cgstLedger: "Input CGST",
         sgstLedger: "Input SGST",

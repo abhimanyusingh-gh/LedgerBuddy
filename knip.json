@@ -4,7 +4,7 @@
   "workspaces": {
     "backend": {
       "project": ["src/**/*.ts"],
-      "entry": ["src/scripts/seedPlatformAdmin.ts"],
+      "entry": ["src/scripts/seedPlatformAdmin.ts", "src/scripts/runSampleInvoiceBenchmark.ts"],
       "ignoreBinaries": [],
       "ignore": [
         "src/parser/invoiceParser.ts",

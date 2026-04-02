@@ -158,6 +158,8 @@
 [data-theme="dark"] .overview-preset-btn-active { background: var(--accent); color: #fff; border-color: var(--accent); }
 
 [data-theme="dark"] .bank-account-card { background: var(--bg-panel); border-color: var(--line); }
+[data-theme="dark"] .file-dropzone { background: rgba(30, 41, 59, 0.5); border-color: var(--line); }
+[data-theme="dark"] .file-dropzone-active { border-color: #60a5fa; background: rgba(59, 130, 246, 0.16); }
 [data-theme="dark"] .bank-status-active { background: rgba(34, 197, 94, 0.15); color: #86efac; }
 [data-theme="dark"] .bank-status-pending { background: rgba(234, 179, 8, 0.15); color: #fde047; }
 [data-theme="dark"] .bank-status-error { background: rgba(239, 68, 68, 0.15); color: #fca5a5; }
@@ -198,6 +200,45 @@ body {
     radial-gradient(circle at 0% 0%, rgba(17, 82, 212, 0.08) 0%, transparent 30%),
     radial-gradient(circle at 100% 100%, rgba(15, 23, 42, 0.06) 0%, transparent 34%),
     var(--bg-main);
+}
+
+.file-dropzone {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  padding: 0.95rem 1rem;
+  margin: 0.6rem 0 0.8rem;
+  border: 1.5px dashed rgba(17, 82, 212, 0.28);
+  border-radius: var(--radius-md);
+  background: linear-gradient(180deg, rgba(17, 82, 212, 0.04), rgba(17, 82, 212, 0.02));
+  color: var(--ink);
+  cursor: pointer;
+  transition: border-color 120ms ease, background 120ms ease, box-shadow 120ms ease;
+}
+
+.file-dropzone:hover,
+.file-dropzone:focus-visible,
+.file-dropzone-active {
+  border-color: var(--accent);
+  background: linear-gradient(180deg, rgba(17, 82, 212, 0.08), rgba(17, 82, 212, 0.04));
+  box-shadow: 0 0 0 3px rgba(17, 82, 212, 0.08);
+  outline: none;
+}
+
+.file-dropzone .material-symbols-outlined {
+  font-size: 1.4rem;
+  color: var(--accent);
+}
+
+.file-dropzone strong {
+  display: block;
+  font-size: 0.95rem;
+}
+
+.file-dropzone p {
+  margin: 0.15rem 0 0;
+  font-size: 0.82rem;
+  color: var(--ink-soft);
 }
 
 #root {
@@ -1522,6 +1563,26 @@ tr:hover {
   padding: 1rem 1.1rem;
 }
 
+.detail-section-toggle {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  user-select: none;
+}
+
+.detail-section-toggle h3 {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin: 0;
+  font-size: 1rem;
+}
+
+.detail-section-toggle .material-symbols-outlined {
+  font-size: 1.15rem;
+  color: var(--ink-soft);
+}
+
 .detail-panel-collapsed-body {
   display: flex;
   align-items: center;
@@ -2212,25 +2273,181 @@ pre {
   width: 32%;
 }
 
+.extracted-table {
+  table-layout: fixed;
+}
+
+.extracted-table th,
+.extracted-table td {
+  vertical-align: middle;
+  padding: 0.4rem 0.5rem;
+}
+
 .extracted-table th:nth-child(1),
 .extracted-table td:nth-child(1) {
-  width: 22%;
+  width: 20%;
+  font-weight: 500;
+  font-size: 0.82rem;
+  color: var(--ink-soft, #555);
 }
 
 .extracted-table th:nth-child(2),
 .extracted-table td:nth-child(2) {
-  width: 43%;
+  width: 35%;
+  font-size: 0.85rem;
 }
 
 .extracted-table th:nth-child(3),
 .extracted-table td:nth-child(3) {
-  width: 15%;
+  width: 28%;
   text-align: center;
 }
 
 .extracted-table th:nth-child(4),
 .extracted-table td:nth-child(4) {
+  width: 17%;
+  text-align: center;
+}
+
+.extracted-table tbody tr {
+  border-bottom: 1px solid var(--border-color, rgba(0,0,0,0.06));
+}
+
+.extracted-table tbody tr:last-child {
+  border-bottom: none;
+}
+
+.extracted-fields-table-wrap {
+  margin-top: 0.45rem;
+  overflow-x: auto;
+}
+
+.extracted-fields-table {
+  width: 100%;
+  min-width: 48rem;
+  table-layout: fixed;
+}
+
+.extracted-fields-table th,
+.extracted-fields-table td {
+  vertical-align: middle;
+  padding: 0.45rem 0.55rem;
+}
+
+.extracted-fields-table th:nth-child(1),
+.extracted-fields-table td:nth-child(1) {
+  width: 22%;
+  font-weight: 500;
+  color: var(--ink-soft, #555);
+}
+
+.extracted-fields-table th:nth-child(2),
+.extracted-fields-table td:nth-child(2) {
+  width: 33%;
+}
+
+.extracted-fields-table th:nth-child(3),
+.extracted-fields-table td:nth-child(3) {
+  width: 25%;
+  text-align: center;
+}
+
+.extracted-fields-table th:nth-child(4),
+.extracted-fields-table td:nth-child(4) {
   width: 20%;
+  text-align: center;
+}
+
+.extracted-fields-table tbody tr {
+  border-bottom: 1px solid var(--border-color, rgba(0,0,0,0.06));
+}
+
+.extracted-fields-table tbody tr:last-child {
+  border-bottom: none;
+}
+
+.table-cell-scroll {
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  white-space: nowrap;
+  scrollbar-width: thin;
+}
+
+.table-cell-scroll::-webkit-scrollbar {
+  height: 0.35rem;
+}
+
+.table-cell-scroll::-webkit-scrollbar-thumb {
+  background: rgba(120, 130, 150, 0.45);
+  border-radius: 999px;
+}
+
+.line-items-table-wrap {
+  margin-top: 0.45rem;
+  overflow-x: auto;
+}
+
+.line-items-table-meta {
+  margin-bottom: 0.4rem;
+}
+
+.line-items-table {
+  width: 100%;
+  min-width: 58rem;
+  table-layout: auto;
+}
+
+.line-items-table th,
+.line-items-table td {
+  vertical-align: top;
+  text-align: left;
+  white-space: normal;
+}
+
+.line-items-table th:nth-child(1),
+.line-items-table td:nth-child(1) {
+  width: 3rem;
+}
+
+.line-items-table th:nth-child(2),
+.line-items-table td:nth-child(2) {
+  width: 34%;
+}
+
+.line-items-table th:nth-child(3),
+.line-items-table td:nth-child(3),
+.line-items-table th:nth-child(4),
+.line-items-table td:nth-child(4) {
+  width: 7rem;
+  text-align: center;
+}
+
+.line-items-table th:nth-child(5),
+.line-items-table td:nth-child(5),
+.line-items-table th:nth-child(6),
+.line-items-table td:nth-child(6) {
+  width: 9rem;
+  text-align: right;
+}
+
+.line-items-table th:nth-child(7),
+.line-items-table td:nth-child(7) {
+  width: 16rem;
+}
+
+.line-items-description-cell {
+  min-width: 18rem;
+}
+
+.line-items-source-cell {
+  min-width: 14rem;
+}
+
+.line-items-source-stack {
+  display: grid;
+  gap: 0.2rem;
+  white-space: normal;
 }
 
 .extracted-value-cell {
@@ -2283,15 +2500,19 @@ pre {
 .field-crop-inline {
   display: flex;
   align-items: center;
+  justify-content: center;
+  max-height: 2rem;
+  overflow: hidden;
 }
 
 .field-crop-thumbnail {
-  max-width: 10rem;
-  max-height: 2.5rem;
-  border: 1px solid rgba(16, 32, 25, 0.14);
-  border-radius: 0.25rem;
-  background: #f7f5ef;
+  max-width: 100%;
+  max-height: 1.8rem;
+  border: 1px solid rgba(16, 32, 25, 0.12);
+  border-radius: 0.2rem;
+  background: #faf9f6;
   object-fit: contain;
+  display: block;
 }
 
 .learning-badge {
@@ -2302,9 +2523,11 @@ pre {
 .field-confidence-badge {
   display: inline-block;
   border-radius: 999px;
-  padding: 0.15rem 0.5rem;
-  font-size: 0.75rem;
-  font-weight: 700;
+  padding: 0.1rem 0.45rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
 }
 
 .field-confidence-green {

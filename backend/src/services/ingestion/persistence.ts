@@ -1,0 +1,171 @@
+import type { IngestedFile } from "../../core/interfaces/IngestionSource.js";
+import type { OcrBlock } from "../../core/interfaces/OcrProvider.js";
+import { InvoiceModel } from "../../models/Invoice.js";
+import type {
+  InvoiceExtractionData,
+  InvoiceStatus
+} from "../../types/invoice.js";
+import type { ArtifactResults } from "./artifacts.js";
+import { normalizeExtractionData, encodeExtractionFieldKey } from "./provenance.js";
+import { ExtractionPipelineError } from "../extraction/InvoiceExtractionPipeline.js";
+
+interface ExtractionResult {
+  provider: string;
+  text: string;
+  confidence?: number | undefined;
+  ocrBlocks: OcrBlock[];
+  ocrPageImages: Array<{ dataUrl: string; page: number; width?: number; height?: number }>;
+  ocrTokens?: number;
+  slmTokens?: number;
+  parseResult: { parsed: unknown; warnings: string[] };
+  confidenceAssessment: { score: number; tone: string; autoSelectForApproval: boolean; riskFlags: string[]; riskMessages: string[] };
+  processingIssues: string[];
+  attempts: unknown[];
+  source: string;
+  strategy: string;
+  metadata: Record<string, string>;
+  compliance?: import("../../types/invoice.js").InvoiceCompliance;
+  extraction?: InvoiceExtractionData;
+}
+
+export function buildSuccessData(
+  file: IngestedFile,
+  mimeType: string,
+  extraction: ExtractionResult,
+  ocrBlocks: OcrBlock[],
+  artifacts: ArtifactResults
+): Record<string, unknown> {
+  const processingIssues = [...extraction.processingIssues];
+  if (extraction.attempts.length > 1) {
+    processingIssues.push(
+      `Extraction agent selected ${extraction.source}/${extraction.strategy} from ${extraction.attempts.length} candidates.`
+    );
+  }
+
+  const parsedResult = extraction.parseResult;
+  const confidence = extraction.confidenceAssessment;
+  const status: InvoiceStatus =
+    parsedResult.warnings.length > 0 || confidence.riskFlags.length > 0 ? "NEEDS_REVIEW" : "PARSED";
+
+  const metadata: Record<string, string> = {
+    ...file.metadata,
+    extractionSource: extraction.source,
+    extractionStrategy: extraction.strategy,
+    extractionCandidates: String(extraction.attempts.length),
+    ocrBlocksCount: String(ocrBlocks.length),
+    ...extraction.metadata
+  };
+  const extractionData = normalizeExtractionData(extraction.extraction);
+
+  if (Object.keys(artifacts.previewImagePaths).length > 0) {
+    metadata.previewPageImages = JSON.stringify(artifacts.previewImagePaths);
+  }
+
+  let finalBlocks = ocrBlocks;
+  const textBlockCount = ocrBlocks.filter((block) => block.text.trim().length > 0).length;
+  if (artifacts.cropPathsByIndex.size > 0) {
+    metadata.ocrBlockCropCount = String(artifacts.cropPathsByIndex.size);
+    metadata.ocrBlockCropProvider = "";
+    metadata.ocrBlockCropPaths = JSON.stringify(Object.fromEntries(artifacts.cropPathsByIndex));
+    finalBlocks = ocrBlocks.map((block, index) => {
+      const cropPath = artifacts.cropPathsByIndex.get(index);
+      return cropPath ? { ...block, cropPath } : block;
+    });
+  }
+  if (textBlockCount > 0 && artifacts.cropPathsByIndex.size === 0) {
+    processingIssues.push(`Crop generation failed for all ${textBlockCount} OCR blocks.`);
+  } else if (textBlockCount > 0 && artifacts.cropPathsByIndex.size < textBlockCount) {
+    processingIssues.push(`Crop generation partial: ${artifacts.cropPathsByIndex.size}/${textBlockCount} blocks.`);
+  }
+  if (artifacts.fieldOverlayPaths.size > 0) {
+    const overlayPaths = Object.fromEntries(artifacts.fieldOverlayPaths);
+    metadata.fieldOverlayPaths = JSON.stringify(overlayPaths);
+    if (extractionData) {
+      extractionData.fieldOverlayPaths = Object.fromEntries(
+        Object.entries(overlayPaths).map(([field, path]) => [encodeExtractionFieldKey(field), path])
+      );
+    }
+  }
+
+  const gmailMessageId = file.sourceType === "email" && file.metadata?.messageId
+    ? String(file.metadata.messageId).trim()
+    : undefined;
+
+  return {
+    sourceType: file.sourceType, tenantId: file.tenantId, workloadTier: file.workloadTier,
+    sourceKey: file.sourceKey, sourceDocumentId: file.sourceDocumentId,
+    attachmentName: file.attachmentName, mimeType,
+    receivedAt: file.receivedAt,
+    ...(gmailMessageId ? { gmailMessageId } : {}),
+    ocrProvider: extraction.provider, ocrText: extraction.text,
+    ocrConfidence: extraction.confidence, ocrBlocks: finalBlocks,
+    ocrTokens: extraction.ocrTokens, slmTokens: extraction.slmTokens,
+    status, metadata,
+    parsed: parsedResult.parsed,
+    confidenceScore: confidence.score, confidenceTone: confidence.tone,
+    autoSelectForApproval: confidence.autoSelectForApproval,
+    riskFlags: confidence.riskFlags, riskMessages: confidence.riskMessages,
+    processingIssues: uniqueIssues([...processingIssues, ...parsedResult.warnings, ...confidence.riskMessages]),
+    ...(extractionData ? { extraction: extractionData } : {}),
+    ...(extraction.compliance ? { compliance: extraction.compliance } : {})
+  };
+}
+
+export function buildFailureData(
+  file: IngestedFile,
+  mimeType: string,
+  ocrState: { ocrProvider: string; ocrText: string; ocrConfidence: number | undefined; ocrBlocks: OcrBlock[] },
+  error: unknown
+): Record<string, unknown> {
+  const base = {
+    sourceType: file.sourceType, tenantId: file.tenantId, workloadTier: file.workloadTier,
+    sourceKey: file.sourceKey, sourceDocumentId: file.sourceDocumentId,
+    attachmentName: file.attachmentName, mimeType,
+    receivedAt: file.receivedAt, metadata: file.metadata,
+    ocrProvider: ocrState.ocrProvider, ocrText: ocrState.ocrText,
+    ocrConfidence: ocrState.ocrConfidence, ocrBlocks: ocrState.ocrBlocks,
+    confidenceScore: 0, confidenceTone: "red" as const,
+    autoSelectForApproval: false, riskFlags: [] as string[], riskMessages: [] as string[]
+  };
+
+  if (error instanceof ExtractionPipelineError && error.code === "FAILED_OCR") {
+    return { ...base, status: "FAILED_OCR", processingIssues: [error.message] };
+  }
+
+  return {
+    ...base, status: "FAILED_PARSE",
+    processingIssues: [error instanceof Error ? error.message : "Unknown processing error"]
+  };
+}
+
+export async function upsertFromPending(file: IngestedFile, data: Record<string, unknown>): Promise<void> {
+  const { attachmentName: _keep, ...updateData } = data;
+  const updated = await InvoiceModel.findOneAndUpdate(
+    { tenantId: file.tenantId, sourceDocumentId: file.sourceDocumentId, status: "PENDING" },
+    { $set: updateData }
+  );
+  if (updated) return;
+
+  const overwritten = await InvoiceModel.findOneAndUpdate(
+    { tenantId: file.tenantId, sourceDocumentId: file.sourceDocumentId },
+    { $set: updateData }
+  );
+  if (overwritten) return;
+
+  await InvoiceModel.create(data);
+}
+
+function uniqueIssues(values: string[]): string[] {
+  return Array.from(new Set(values.filter((value) => typeof value === "string" && value.trim().length > 0)));
+}
+
+function isDuplicateKeyError(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    (error as { code?: number }).code === 11000
+  );
+}
+
+export { isDuplicateKeyError };

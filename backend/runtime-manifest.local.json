@@ -8,7 +8,7 @@
   "ocr": {
     "provider": "deepseek",
     "deepseek": {
-      "model": "mlx-community/DeepSeek-OCR-4bit"
+      "model": "apple-vision-text-recognition"
     }
   },
   "verifier": {
@@ -18,16 +18,7 @@
   "extraction": {
     "ocrHighConfidenceThreshold": 0.92
   },
-  "sources": [
-    {
-      "type": "folder",
-      "key": "local-folder",
-      "tenantId": "local-demo",
-      "workloadTier": "standard",
-      "folderPath": "/app/sample-invoices/inbox",
-      "recursive": false
-    }
-  ],
+  "sources": [],
   "export": {
     "tallyEndpoint": "http://tally.example.local",
     "tallyCompany": "Demo Company",
