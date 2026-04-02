@@ -99,6 +99,85 @@ describe("HttpFieldVerifier", () => {
     expect(hints?.priorCorrections).toHaveLength(1);
   });
 
+  it("normalizes structured SLM provenance, confidence, and classification fields", async () => {
+    jest.spyOn(logger, "info").mockImplementation(() => undefined);
+    const post = jest.fn(async () => ({
+      data: {
+        parsed: {
+          invoiceNumber: "INV-3",
+          _fieldConfidence: { invoiceNumber: 0.95 },
+          _fieldProvenance: {
+            invoiceNumber: {
+              source: "slm",
+              page: 1,
+              bboxNormalized: [0.1, 0.2, 0.3, 0.25],
+              blockIndex: 4
+            }
+          },
+          _lineItemProvenance: [
+            {
+              index: 0,
+              fields: {
+                description: {
+                  source: "slm",
+                  page: 1,
+                  bboxNormalized: [0.08, 0.42, 0.42, 0.46]
+                },
+                amountMinor: {
+                  source: "slm",
+                  page: 1,
+                  bboxNormalized: [0.73, 0.42, 0.9, 0.46]
+                }
+              }
+            }
+          ],
+          _classification: {
+            invoiceType: "gst-tax-invoice",
+            category: "purchase",
+            tdsSection: "194C"
+          }
+        },
+        invoiceType: "gst-tax-invoice",
+        issues: [],
+        changedFields: ["invoiceNumber"]
+      }
+    }));
+
+    const verifier = new HttpFieldVerifier({
+      baseUrl: "http://localhost:8100",
+      timeoutMs: 5_000,
+      httpClient: { post } as never
+    });
+
+    const result = await verifier.verify({
+      parsed: {},
+      ocrText: "Invoice Number INV-3",
+      ocrBlocks: [],
+      mode: "relaxed",
+      hints: {
+        mimeType: "application/pdf",
+        vendorTemplateMatched: false,
+        fieldCandidates: {}
+      }
+    });
+
+    expect(result.fieldConfidence).toEqual({ invoiceNumber: 0.95 });
+    expect(result.fieldProvenance?.invoiceNumber).toEqual(
+      expect.objectContaining({
+        source: "slm",
+        page: 1,
+        bboxNormalized: [0.1, 0.2, 0.3, 0.25],
+        blockIndex: 4
+      })
+    );
+    expect(result.lineItemProvenance).toHaveLength(1);
+    expect(result.classification).toEqual({
+      invoiceType: "gst-tax-invoice",
+      category: "purchase",
+      tdsSection: "194C"
+    });
+  });
+
   it("throws when verifier request fails (SLM is mandatory)", async () => {
     const errorSpy = jest.spyOn(logger, "error").mockImplementation(() => undefined);
     const post = jest.fn(async () => {

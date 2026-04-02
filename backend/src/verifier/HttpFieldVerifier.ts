@@ -1,6 +1,19 @@
 import axios, { type AxiosInstance } from "axios";
 import type { FieldVerifier, FieldVerifierInput, FieldVerifierResult } from "../core/interfaces/FieldVerifier.js";
-import type { ParsedInvoiceData } from "../types/invoice.js";
+import {
+  normalizeClassification,
+  normalizeFieldConfidence,
+  normalizeFieldProvenance,
+  normalizeLineItemProvenance
+} from "../services/extraction/pipeline/provenance.js";
+import {
+  fieldProvenanceFromVerifierContract,
+  lineItemProvenanceFromVerifierContract,
+  normalizeParsedInvoiceData,
+  normalizeReasonCodes,
+  normalizeVerifierContract,
+  parsedFromVerifierContract
+} from "./httpFieldVerifierNormalizer.js";
 import { getCorrelationId, logger } from "../utils/logger.js";
 
 interface HttpFieldVerifierOptions {
@@ -11,11 +24,16 @@ interface HttpFieldVerifierOptions {
 }
 
 interface VerifyInvoiceResponse {
+  result?: unknown;
   parsed?: unknown;
   issues?: unknown;
   changedFields?: unknown;
   reasonCodes?: unknown;
   invoiceType?: unknown;
+  fieldConfidence?: unknown;
+  fieldProvenance?: unknown;
+  lineItemProvenance?: unknown;
+  classification?: unknown;
   usage?: unknown;
   tokenUsage?: unknown;
   promptTokens?: unknown;
@@ -76,7 +94,8 @@ export class HttpFieldVerifier implements FieldVerifier {
       }
       lastError = result.error;
 
-      const isConnectionError = lastError?.message?.includes("ECONNREFUSED") ||
+      const isConnectionError =
+        lastError?.message?.includes("ECONNREFUSED") ||
         lastError?.message?.includes("ECONNRESET") ||
         lastError?.message?.includes("socket hang up") ||
         lastError?.message?.includes("Network is unreachable") ||
@@ -89,7 +108,9 @@ export class HttpFieldVerifier implements FieldVerifier {
     throw new Error(`SLM verification failed after ${maxRetries} attempts: ${lastError?.message ?? "unknown"}`);
   }
 
-  private async tryVerify(input: FieldVerifierInput): Promise<{ success: boolean; value?: FieldVerifierResult; error?: Error }> {
+  private async tryVerify(
+    input: FieldVerifierInput
+  ): Promise<{ success: boolean; value?: FieldVerifierResult; error?: Error }> {
     const headers: Record<string, string> = {
       "Content-Type": "application/json"
     };
@@ -118,6 +139,7 @@ export class HttpFieldVerifier implements FieldVerifier {
           headers
         }
       );
+
       const usage =
         normalizeTokenUsage(response.data?.usage) ??
         normalizeTokenUsage(response.data?.tokenUsage) ??
@@ -127,6 +149,22 @@ export class HttpFieldVerifier implements FieldVerifier {
           totalTokens: response.data?.totalTokens ?? response.data?.total_tokens
         });
       const invoiceType = typeof response.data?.invoiceType === "string" ? response.data.invoiceType.trim() : undefined;
+      const contract = normalizeVerifierContract(response.data?.result);
+      const parsedPayload = isRecord(response.data?.parsed) ? (response.data?.parsed as Record<string, unknown>) : undefined;
+      const contractParsed = contract ? parsedFromVerifierContract(contract) : undefined;
+      const contractFieldProvenance = contract ? fieldProvenanceFromVerifierContract(contract) : undefined;
+      const contractLineItemProvenance = contract ? lineItemProvenanceFromVerifierContract(contract) : undefined;
+      const fieldConfidence = normalizeFieldConfidence(response.data?.fieldConfidence ?? parsedPayload?._fieldConfidence);
+      const fieldProvenance = normalizeFieldProvenance(
+        response.data?.fieldProvenance ?? parsedPayload?._fieldProvenance ?? contractFieldProvenance
+      );
+      const lineItemProvenance = normalizeLineItemProvenance(
+        response.data?.lineItemProvenance ?? parsedPayload?._lineItemProvenance ?? contractLineItemProvenance
+      );
+      const classification = normalizeClassification(
+        response.data?.classification ?? parsedPayload?._classification ?? (invoiceType ? { invoiceType } : undefined)
+      );
+
       logger.info("verifier.http.request.end", {
         latencyMs: Date.now() - startedAt,
         llmPromptTokens: usage?.promptTokens,
@@ -144,12 +182,17 @@ export class HttpFieldVerifier implements FieldVerifier {
       return {
         success: true,
         value: {
-          parsed: normalizeParsed(response.data?.parsed) ?? input.parsed,
+          parsed: contractParsed ?? normalizeParsedInvoiceData(response.data?.parsed) ?? input.parsed,
           issues: normalizeStringList(response.data?.issues),
           changedFields: normalizeStringList(response.data?.changedFields),
           reasonCodes: normalizeReasonCodes(response.data?.reasonCodes),
           invoiceType,
-          tokenUsage: usage
+          tokenUsage: usage,
+          ...(contract ? { contract } : {}),
+          ...(fieldConfidence ? { fieldConfidence } : {}),
+          ...(fieldProvenance ? { fieldProvenance } : {}),
+          ...(lineItemProvenance && lineItemProvenance.length > 0 ? { lineItemProvenance } : {}),
+          ...(classification ? { classification } : {})
         }
       };
     } catch (error) {
@@ -163,78 +206,11 @@ export class HttpFieldVerifier implements FieldVerifier {
   }
 }
 
-function normalizeParsed(value: unknown): ParsedInvoiceData | undefined {
-  if (!isRecord(value)) {
-    return undefined;
-  }
-
-  const source = value as Record<string, unknown>;
-  const parsed: ParsedInvoiceData = {};
-  if (typeof source.invoiceNumber === "string" && source.invoiceNumber.trim()) {
-    parsed.invoiceNumber = source.invoiceNumber.trim();
-  }
-  if (typeof source.vendorName === "string" && source.vendorName.trim()) {
-    parsed.vendorName = source.vendorName.trim();
-  }
-  if (typeof source.invoiceDate === "string" && source.invoiceDate.trim()) {
-    parsed.invoiceDate = source.invoiceDate.trim();
-  }
-  if (typeof source.dueDate === "string" && source.dueDate.trim()) {
-    parsed.dueDate = source.dueDate.trim();
-  }
-  if (typeof source.currency === "string" && source.currency.trim()) {
-    parsed.currency = source.currency.trim().toUpperCase();
-  }
-  if (Number.isInteger(source.totalAmountMinor)) {
-    parsed.totalAmountMinor = Number(source.totalAmountMinor);
-  }
-  if (Array.isArray(source.notes)) {
-    const notes = source.notes.filter(
-      (entry): entry is string => typeof entry === "string" && entry.trim().length > 0
-    );
-    if (notes.length > 0) {
-      parsed.notes = notes;
-    }
-  }
-
-  if (isRecord(source.gst)) {
-    const gstSource = source.gst as Record<string, unknown>;
-    const gst: Record<string, unknown> = {};
-    if (typeof gstSource.gstin === "string" && gstSource.gstin.trim()) {
-      gst.gstin = gstSource.gstin.trim();
-    }
-    for (const field of ["subtotalMinor", "cgstMinor", "sgstMinor", "igstMinor", "cessMinor", "totalTaxMinor"]) {
-      if (Number.isInteger(gstSource[field]) && Number(gstSource[field]) > 0) {
-        gst[field] = Number(gstSource[field]);
-      }
-    }
-    if (Object.keys(gst).length > 0) {
-      parsed.gst = gst as ParsedInvoiceData["gst"];
-    }
-  }
-
-  return Object.keys(parsed).length > 0 ? parsed : undefined;
-}
-
 function normalizeStringList(value: unknown): string[] {
   if (!Array.isArray(value)) {
     return [];
   }
   return value.filter((entry): entry is string => typeof entry === "string" && entry.trim().length > 0);
-}
-
-function normalizeReasonCodes(value: unknown): Record<string, string> {
-  if (!isRecord(value)) {
-    return {};
-  }
-
-  const output: Record<string, string> = {};
-  for (const [key, entry] of Object.entries(value)) {
-    if (typeof entry === "string" && entry.trim().length > 0) {
-      output[key] = entry.trim();
-    }
-  }
-  return output;
 }
 
 function normalizeTokenUsage(value: unknown): VerifierTokenUsage | undefined {

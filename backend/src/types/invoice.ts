@@ -21,6 +21,85 @@ export interface GstBreakdown {
   totalTaxMinor?: number;
 }
 
+export interface InvoiceLineItem {
+  description: string;
+  hsnSac?: string;
+  quantity?: number;
+  rate?: number;
+  amountMinor: number;
+  taxRate?: number;
+  cgstMinor?: number;
+  sgstMinor?: number;
+  igstMinor?: number;
+}
+
+export type BoundingBox = [number, number, number, number];
+
+export interface InvoiceFieldProvenance {
+  source?: string;
+  page?: number;
+  bbox?: BoundingBox;
+  bboxNormalized?: BoundingBox;
+  bboxModel?: BoundingBox;
+  blockIndex?: number;
+  blockIndices?: number[];
+  confidence?: number;
+}
+
+export interface InvoiceLineItemProvenance {
+  index: number;
+  row?: InvoiceFieldProvenance;
+  fields?: Record<string, InvoiceFieldProvenance>;
+}
+
+export interface InvoiceValueWithProvenance<T> {
+  value: T;
+  provenance?: InvoiceFieldProvenance;
+}
+
+export interface InvoiceLineItemContractEntry {
+  description?: string;
+  amountMinor: number;
+  provenance?: InvoiceFieldProvenance;
+}
+
+export interface InvoiceVerifierContract {
+  file?: string;
+  lineItemCount?: number;
+  invoiceNumber?: InvoiceValueWithProvenance<string>;
+  vendorNameContains?: InvoiceValueWithProvenance<string>;
+  invoiceDate?: InvoiceValueWithProvenance<string>;
+  dueDate?: InvoiceValueWithProvenance<string>;
+  currency?: InvoiceValueWithProvenance<string>;
+  totalAmountMinor?: InvoiceValueWithProvenance<number>;
+  lineItems?: InvoiceLineItemContractEntry[];
+  gst?: {
+    cgstMinor?: InvoiceValueWithProvenance<number>;
+    sgstMinor?: InvoiceValueWithProvenance<number>;
+    subtotalMinor?: InvoiceValueWithProvenance<number>;
+    totalTaxMinor?: InvoiceValueWithProvenance<number>;
+    igstMinor?: InvoiceValueWithProvenance<number>;
+    cessMinor?: InvoiceValueWithProvenance<number>;
+  };
+}
+
+export interface InvoiceExtractionClassification {
+  invoiceType?: string;
+  category?: string;
+  tdsSection?: string;
+}
+
+export interface InvoiceExtractionData {
+  source?: string;
+  strategy?: string;
+  invoiceType?: string;
+  classification?: InvoiceExtractionClassification;
+  fieldConfidence?: Record<string, number>;
+  fieldProvenance?: Record<string, InvoiceFieldProvenance>;
+  lineItemProvenance?: InvoiceLineItemProvenance[];
+  fieldOverlayPaths?: Record<string, string>;
+}
+
 export interface ParsedInvoiceData {
   invoiceNumber?: string;
   vendorName?: string;
@@ -30,4 +109,104 @@ export interface ParsedInvoiceData {
   currency?: string;
   notes?: string[];
   gst?: GstBreakdown;
+  pan?: string;
+  bankAccountNumber?: string;
+  bankIfsc?: string;
+  lineItems?: InvoiceLineItem[];
+}
+
+export interface CompliancePanResult {
+  value: string | null;
+  source: "extracted" | "vendor-master" | "manual";
+  validationLevel: "L1" | "L2" | "L3" | null;
+  validationResult: "valid" | "format-invalid" | "gstin-mismatch" | "struck-off" | null;
+  gstinCrossRef: boolean;
+}
+
+export interface ComplianceTdsResult {
+  section: string | null;
+  rate: number | null;
+  amountMinor: number | null;
+  netPayableMinor: number | null;
+  source: "auto" | "manual";
+  confidence: "high" | "medium" | "low";
+}
+
+export interface ComplianceGlCodeResult {
+  code: string | null;
+  name: string | null;
+  source: "vendor-default" | "description-match" | "category-default" | "manual";
+  confidence: number | null;
+  suggestedAlternatives?: Array<{ code: string; name: string; score: number }>;
+}
+
+export interface ComplianceCostCenterResult {
+  code: string | null;
+  name: string | null;
+  source: "vendor-default" | "gl-linked" | "manual";
+  confidence: number | null;
+}
+
+export interface ComplianceIrnResult {
+  value: string | null;
+  valid: boolean | null;
+}
+
+export interface ComplianceMsmeResult {
+  udyamNumber: string | null;
+  classification: "micro" | "small" | "medium" | null;
+  paymentDeadline: Date | null;
+}
+
+export interface ComplianceTcsResult {
+  rate: number | null;
+  amountMinor: number | null;
+  source: "extracted" | "configured" | "manual";
+}
+
+export interface ComplianceVendorBankResult {
+  accountHash: string | null;
+  ifsc: string | null;
+  bankName: string | null;
+  isChanged: boolean;
+  verifiedChange: boolean;
+}
+
+export type RiskSignalCategory = "financial" | "compliance" | "fraud" | "data-quality";
+export type RiskSignalSeverity = "info" | "warning" | "critical";
+export type RiskSignalStatus = "open" | "dismissed" | "acted-on";
+
+export interface ComplianceRiskSignal {
+  code: string;
+  category: RiskSignalCategory;
+  severity: RiskSignalSeverity;
+  message: string;
+  confidencePenalty: number;
+  status: RiskSignalStatus;
+  resolvedBy: string | null;
+  resolvedAt: Date | null;
+}
+
+export interface InvoiceCompliance {
+  pan?: CompliancePanResult;
+  tds?: ComplianceTdsResult;
+  tcs?: ComplianceTcsResult;
+  glCode?: ComplianceGlCodeResult;
+  costCenter?: ComplianceCostCenterResult;
+  irn?: ComplianceIrnResult;
+  msme?: ComplianceMsmeResult;
+  vendorBank?: ComplianceVendorBankResult;
+  riskSignals?: ComplianceRiskSignal[];
+  reconciliation?: {
+    bankTransactionId: string | null;
+    verifiedByStatement: boolean;
+    matchedAt: Date | null;
+  };
+}
+
+interface ComplianceSummary {
+  tdsSection: string | null;
+  glCode: string | null;
+  riskSignalCount: number;
+  riskSignalMaxSeverity: RiskSignalSeverity | null;
 }

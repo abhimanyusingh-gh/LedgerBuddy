@@ -40,91 +40,101 @@ export function ExtractedFieldsTable({ rows, cropUrlByField, editable, onSaveFie
   }
 
   return (
-    <table className="mapping-table extracted-table">
-      <thead>
-        <tr>
-          <th>Detected Label</th>
-          <th>Detected Value</th>
-          <th>Source</th>
-          <th>Confidence</th>
-        </tr>
-      </thead>
-      <tbody>
-        {rows.map((row) => {
-          const cropUrl = cropUrlByField?.[row.fieldKey];
-          const isEditing = editingField === row.fieldKey;
-          const canEdit = editable && row.fieldKey !== "notes" && !!onSaveField;
-          const cropFailed = failedCrops.has(row.fieldKey);
-          return (
-            <tr key={row.label}>
-              <td>{row.label}</td>
-              <td>
-                {isEditing ? (
-                  <div className="extracted-value-cell">
-                    <input
-                      className="extracted-value-input"
-                      value={editValue}
-                      onChange={(e) => setEditValue(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") void confirmEdit();
-                        if (e.key === "Escape") cancelEdit();
-                      }}
-                      disabled={saving}
-                      autoFocus
-                    />
-                    <button
-                      type="button"
-                      className="field-save-button"
-                      aria-label={`Save ${row.label}`}
-                      disabled={saving}
-                      onClick={() => void confirmEdit()}
-                    >
-                      <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-                        <path d="M5 13l4 4L19 7" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
-                      </svg>
-                    </button>
+    <div className="extracted-fields-table-wrap">
+      <table className="mapping-table extracted-fields-table">
+        <thead>
+          <tr>
+            <th scope="col">Detected Label</th>
+            <th scope="col">Detected Value</th>
+            <th scope="col">Source</th>
+            <th scope="col">Confidence</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row) => {
+            const cropUrl = cropUrlByField?.[row.fieldKey];
+            const isEditing = editingField === row.fieldKey;
+            const canEdit = editable && row.fieldKey !== "notes" && !!onSaveField;
+            const cropFailed = failedCrops.has(row.fieldKey);
+            return (
+              <tr key={row.label}>
+                <td>
+                  <div className="table-cell-scroll">{row.label}</div>
+                </td>
+                <td>
+                  {isEditing ? (
+                    <div className="extracted-value-cell">
+                      <input
+                        className="extracted-value-input"
+                        value={editValue}
+                        onChange={(e) => setEditValue(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") void confirmEdit();
+                          if (e.key === "Escape") cancelEdit();
+                        }}
+                        disabled={saving}
+                        autoFocus
+                      />
+                      <button
+                        type="button"
+                        className="field-save-button"
+                        aria-label={`Save ${row.label}`}
+                        disabled={saving}
+                        onClick={() => void confirmEdit()}
+                      >
+                        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                          <path d="M5 13l4 4L19 7" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="table-cell-scroll">
+                      <span
+                        className="extracted-value-display"
+                        data-editable={canEdit || undefined}
+                        onClick={canEdit ? () => startEditing(row) : undefined}
+                        role={canEdit ? "button" : undefined}
+                        tabIndex={canEdit ? 0 : undefined}
+                        onKeyDown={canEdit ? (e) => { if (e.key === "Enter") startEditing(row); } : undefined}
+                      >
+                        {row.value}
+                      </span>
+                    </div>
+                  )}
+                </td>
+                <td>
+                  {cropUrl && !cropFailed ? (
+                    <div className="field-crop-inline">
+                      <img
+                        src={cropUrl}
+                        alt={`Source crop for ${row.label}`}
+                        loading="lazy"
+                        className="field-crop-thumbnail"
+                        onError={() => setFailedCrops((prev) => new Set(prev).add(row.fieldKey))}
+                      />
+                    </div>
+                  ) : (
+                    <div className="table-cell-scroll">
+                      <span className="muted">{cropFailed ? "unavailable" : "-"}</span>
+                    </div>
+                  )}
+                </td>
+                <td>
+                  <div className="table-cell-scroll">
+                    {row.confidence !== undefined ? (
+                      <span className={`field-confidence-badge field-confidence-${getConfidenceTone(row.confidence > 1 ? row.confidence : row.confidence * 100)}`}>
+                        {formatOcrConfidenceLabel(row.confidence)}
+                      </span>
+                    ) : (
+                      <span className="muted">-</span>
+                    )}
                   </div>
-                ) : (
-                  <span
-                    className="extracted-value-display"
-                    data-editable={canEdit || undefined}
-                    onClick={canEdit ? () => startEditing(row) : undefined}
-                    role={canEdit ? "button" : undefined}
-                    tabIndex={canEdit ? 0 : undefined}
-                    onKeyDown={canEdit ? (e) => { if (e.key === "Enter") startEditing(row); } : undefined}
-                  >
-                    {row.value}
-                  </span>
-                )}
-              </td>
-              <td>
-                {cropUrl && !cropFailed ? (
-                  <div className="field-crop-inline">
-                    <img
-                      src={cropUrl}
-                      alt={`Source crop for ${row.label}`}
-                      loading="lazy"
-                      className="field-crop-thumbnail"
-                      onError={() => setFailedCrops((prev) => new Set(prev).add(row.fieldKey))}
-                    />
-                  </div>
-                ) : (
-                  <span className="muted">{cropFailed ? "unavailable" : "-"}</span>
-                )}
-              </td>
-              <td>
-                {row.confidence !== undefined ? (
-                  <span className={`field-confidence-badge field-confidence-${getConfidenceTone(row.confidence > 1 ? row.confidence : row.confidence * 100)}`}>
-                    {formatOcrConfidenceLabel(row.confidence)}
-                  </span>
-                ) : (
-                  <span className="muted">-</span>
-                )}
-              </td>
-            </tr>
-          );
-        })}
-      </tbody>
-    </table>
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
   );
 }

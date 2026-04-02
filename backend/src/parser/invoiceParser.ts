@@ -144,10 +144,10 @@ const dueDatePatterns = [
 ];
 
 const strongTotalPattern =
-  /(grand\s*total|amount\s*payable|amount\s*due|balance\s*due|total\s*due|invoice\s*total|net\s*payable|total\s*payable|amt\s*due|betrag)/i;
+  /(grand\s*total|amount\s*payable|amount\s*due|total\s*due|invoice\s*total|net\s*payable|total\s*payable|amt\s*due|betrag)/i;
 const weakTotalPattern = /\b(total|payable|balance|amount\s*due|amt\s*due|amount)\b/i;
 const negativeTotalPattern =
-  /(sub\s*total|subtotal|tax(?:able)?|vat|gst|cgst|sgst|igst|mwst|u\s*st|ust|discount|round(?:ing)?\s*off|shipping|freight|delivery|paid|payment\s*received|advance|credit\s*note)/i;
+  /(sub\s*total|subtotal|balance\s*due|tax(?:able)?|vat|gst|cgst|sgst|igst|mwst|u\s*st|ust|discount|round(?:ing)?\s*off|shipping|freight|delivery|paid|payment\s*received|advance|credit\s*note)/i;
 const amountTokenPattern = /[-+]?(?:\d{1,3}(?:[,\s.]\d{3})+|\d+)(?:[.,]\d{1,2})?/g;
 
 export function parseInvoiceText(text: string, options?: ParseInvoiceOptions): ParseResult {
@@ -164,20 +164,20 @@ export function parseInvoiceText(text: string, options?: ParseInvoiceOptions): P
   const explicitVendorLinePattern = buildExplicitVendorLinePattern(languageHint);
   const preferDayFirstDates = shouldPreferDayFirstDates(languageHint);
 
-  parsed.invoiceNumber = extractInvoiceNumber(compactText, resolvedInvoiceNumberPatterns);
-  if (!parsed.invoiceNumber) {
-    warnings.push("Could not confidently detect invoice number.");
-  }
-
-  parsed.vendorName = resolveVendorName(compactText, explicitVendorLinePattern);
-  if (!parsed.vendorName) {
-    warnings.push("Could not confidently detect vendor name.");
-  }
-
-  parsed.currency = extractCurrency(compactText);
-  if (!parsed.currency) {
-    parsed.currency = "INR";
-    warnings.push("Could not confidently detect currency; defaulting to INR.");
+  const headerFields = extractHeaderFields(compactText, {
+    invoiceNumberPatterns: resolvedInvoiceNumberPatterns,
+    invoiceDatePatterns: resolvedDatePatterns,
+    dueDatePatterns: resolvedDueDatePatterns,
+    explicitVendorLinePattern,
+    preferDayFirstDates
+  });
+  parsed.invoiceNumber = headerFields.invoiceNumber;
+  parsed.vendorName = headerFields.vendorName;
+  parsed.currency = headerFields.currency;
+  parsed.invoiceDate = headerFields.invoiceDate;
+  parsed.dueDate = headerFields.dueDate;
+  if (headerFields.warnings.length > 0) {
+    warnings.push(...headerFields.warnings);
   }
 
   const totalAmount = extractTotalAmount(compactText);
@@ -187,19 +187,9 @@ export function parseInvoiceText(text: string, options?: ParseInvoiceOptions): P
     parsed.totalAmountMinor = toMinorUnits(totalAmount, parsed.currency);
   }
 
-  const invoiceDateRaw = findFirstMatch(compactText, resolvedDatePatterns);
-  if (invoiceDateRaw) {
-    parsed.invoiceDate = normalizeDate(invoiceDateRaw, { preferDayFirst: preferDayFirstDates }) ?? invoiceDateRaw;
-  }
-
-  const dueDateRaw = findFirstMatch(compactText, resolvedDueDatePatterns);
-  if (dueDateRaw) {
-    parsed.dueDate = normalizeDate(dueDateRaw, { preferDayFirst: preferDayFirstDates }) ?? dueDateRaw;
-  }
-
   const hasNoFields = !parsed.invoiceNumber && !parsed.vendorName && parsed.totalAmountMinor === undefined && !parsed.invoiceDate;
   if (hasNoFields && compactText.trim().length > 20) {
-    lastResortExtraction(compactText, parsed, warnings, preferDayFirstDates);
+    applyLastResortExtraction(compactText, parsed, warnings, preferDayFirstDates);
   }
 
   return {
@@ -209,74 +199,17 @@ export function parseInvoiceText(text: string, options?: ParseInvoiceOptions): P
 }
 
 export function extractTotalAmount(text: string): number | undefined {
-  const lines = text
-    .replace(/\r/g, "\n")
-    .split(/\n+/)
-    .map((line) => line.trim())
-    .filter(Boolean);
-
+  const lines = splitParsedLines(text);
   if (lines.length === 0) {
     return undefined;
   }
 
-  const labeledCandidates: AmountCandidate[] = [];
-  for (const [index, line] of lines.entries()) {
-    if (!strongTotalPattern.test(line) && !weakTotalPattern.test(line)) {
-      continue;
-    }
-
-    let values = extractAmountValuesFromLine(line);
-    if (values.length === 0 && index + 1 < lines.length) {
-      values = extractAmountValuesFromLine(lines[index + 1]);
-    }
-    if (values.length === 0) {
-      continue;
-    }
-
-    const baseScore = scoreLineForLabeledAmount(line, index, lines.length);
-    if (baseScore <= 0) {
-      continue;
-    }
-
-    for (const value of values) {
-      labeledCandidates.push({
-        amount: value,
-        score: baseScore + scoreAmountMagnitude(value),
-        lineIndex: index
-      });
-    }
-  }
-
+  const labeledCandidates = collectLabeledAmountCandidates(lines);
   if (labeledCandidates.length > 0) {
     return pickBestAmountCandidate(labeledCandidates)?.amount;
   }
 
-  const fallbackCandidates: AmountCandidate[] = [];
-  for (const [index, line] of lines.entries()) {
-    if (negativeTotalPattern.test(line)) {
-      continue;
-    }
-
-    const values = extractAmountValuesFromLine(line);
-    if (values.length === 0) {
-      continue;
-    }
-
-    if (!weakTotalPattern.test(line) && !hasMonetaryContext(line, values)) {
-      continue;
-    }
-
-    const positionBonus = [0, 8][Number(index >= Math.floor(lines.length * 0.6))];
-    for (const value of values) {
-      fallbackCandidates.push({
-        amount: value,
-        score: positionBonus + scoreAmountMagnitude(value),
-        lineIndex: index
-      });
-    }
-  }
-
-  return pickBestAmountCandidate(fallbackCandidates)?.amount;
+  return pickBestFallbackAmount(lines);
 }
 
 function extractInvoiceNumber(text: string, patterns: RegExp[]): string | undefined {
@@ -285,10 +218,7 @@ function extractInvoiceNumber(text: string, patterns: RegExp[]): string | undefi
     return direct;
   }
 
-  const lines = text
-    .split(/\n+/)
-    .map((line) => line.trim())
-    .filter(Boolean);
+  const lines = splitParsedLines(text);
 
   for (let index = 0; index < lines.length; index += 1) {
     const line = lines[index];
@@ -297,7 +227,7 @@ function extractInvoiceNumber(text: string, patterns: RegExp[]): string | undefi
     }
 
     const inlineValue = line
-      .replace(/invoice|facture|factuur|bill|inv(?:oice)?|n[°o]\s*de\s*facture/gi, " ")
+      .replace(/invoice|facture|factuur|bill|n[°o]\s*de\s*facture/gi, " ")
       .match(invoiceNumberTokenPattern)?.[1];
     if (inlineValue && isLikelyInvoiceNumber(inlineValue)) {
       return inlineValue;
@@ -350,6 +280,148 @@ function extractInvoiceNumber(text: string, patterns: RegExp[]): string | undefi
   }
 
   return undefined;
+}
+
+function extractHeaderFields(
+  text: string,
+  options: {
+    invoiceNumberPatterns: RegExp[];
+    invoiceDatePatterns: RegExp[];
+    dueDatePatterns: RegExp[];
+    explicitVendorLinePattern: RegExp;
+    preferDayFirstDates: boolean;
+  }
+): {
+  invoiceNumber?: string;
+  vendorName?: string;
+  currency: string;
+  invoiceDate?: string;
+  dueDate?: string;
+  warnings: string[];
+} {
+  const warnings: string[] = [];
+  const invoiceNumber = extractInvoiceNumber(text, options.invoiceNumberPatterns);
+  if (!invoiceNumber) {
+    warnings.push("Could not confidently detect invoice number.");
+  }
+
+  const vendorName = resolveVendorName(text, options.explicitVendorLinePattern);
+  if (!vendorName) {
+    warnings.push("Could not confidently detect vendor name.");
+  }
+
+  const detectedCurrency = extractCurrency(text);
+  const currency = detectedCurrency ?? "INR";
+  if (!detectedCurrency) {
+    warnings.push("Could not confidently detect currency; defaulting to INR.");
+  }
+
+  const invoiceDateRaw = findFirstMatch(text, options.invoiceDatePatterns);
+  const invoiceDate = invoiceDateRaw
+    ? normalizeDate(invoiceDateRaw, { preferDayFirst: options.preferDayFirstDates }) ?? invoiceDateRaw
+    : undefined;
+
+  const dueDateRaw = findFirstMatch(text, options.dueDatePatterns);
+  const dueDate = dueDateRaw
+    ? normalizeDate(dueDateRaw, { preferDayFirst: options.preferDayFirstDates }) ?? dueDateRaw
+    : undefined;
+
+  return {
+    invoiceNumber,
+    vendorName,
+    currency,
+    invoiceDate,
+    dueDate,
+    warnings
+  };
+}
+
+function splitParsedLines(text: string): string[] {
+  return text
+    .replace(/\r/g, "\n")
+    .split(/\n+/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+}
+
+function collectLabeledAmountCandidates(lines: string[]): AmountCandidate[] {
+  const candidates: AmountCandidate[] = [];
+
+  for (const [index, line] of lines.entries()) {
+    if (!strongTotalPattern.test(line) && !weakTotalPattern.test(line)) {
+      continue;
+    }
+
+    const values = extractValuesNearLabeledTotal(lines, index);
+    if (values.length === 0) {
+      continue;
+    }
+
+    const baseScore = scoreLineForLabeledAmount(line, index, lines.length);
+    if (baseScore <= 0) {
+      continue;
+    }
+
+    for (const value of values) {
+      candidates.push({
+        amount: value,
+        score: baseScore + scoreAmountMagnitude(value),
+        lineIndex: index
+      });
+    }
+  }
+
+  return candidates;
+}
+
+function extractValuesNearLabeledTotal(lines: string[], lineIndex: number): number[] {
+  const directValues = extractAmountValuesFromLine(lines[lineIndex]);
+  if (directValues.length > 0) {
+    return directValues;
+  }
+
+  const collected: number[] = [];
+  for (let offset = 1; offset <= 3; offset += 1) {
+    const nextLine = lines[lineIndex + offset];
+    if (!nextLine) {
+      break;
+    }
+    if (offset > 1 && /[A-Za-z]/.test(nextLine) && extractAmountValuesFromLine(nextLine).length === 0) {
+      break;
+    }
+    collected.push(...extractAmountValuesFromLine(nextLine));
+  }
+  return collected;
+}
+
+function pickBestFallbackAmount(lines: string[]): number | undefined {
+  const candidates: AmountCandidate[] = [];
+
+  for (const [index, line] of lines.entries()) {
+    if (negativeTotalPattern.test(line)) {
+      continue;
+    }
+
+    const values = extractAmountValuesFromLine(line);
+    if (values.length === 0) {
+      continue;
+    }
+
+    if (!weakTotalPattern.test(line) && !hasMonetaryContext(line, values)) {
+      continue;
+    }
+
+    const positionBonus = index >= Math.floor(lines.length * 0.6) ? 8 : 0;
+    for (const value of values) {
+      candidates.push({
+        amount: value,
+        score: positionBonus + scoreAmountMagnitude(value),
+        lineIndex: index
+      });
+    }
+  }
+
+  return pickBestAmountCandidate(candidates)?.amount;
 }
 
 function normalizeForParsing(text: string): string {
@@ -620,6 +692,10 @@ function extractCurrency(text: string): string | undefined {
     return codeMatch[1].toUpperCase();
   }
 
+  if (/\b(gstin|cgst|sgst|igst)\b/i.test(text)) {
+    return "INR";
+  }
+
   if (/\bRs\.?\b/i.test(text)) {
     return "INR";
   }
@@ -634,6 +710,22 @@ function extractCurrency(text: string): string | undefined {
 
 function normalizeDate(input: string, options?: { preferDayFirst?: boolean }): string | undefined {
   const sanitized = input.replace(/,/g, "").trim();
+  const namedMonth = sanitized.match(/^([A-Za-z]{3,9})\s+(\d{1,2})\s+(\d{4})$/);
+  if (namedMonth) {
+    const month = monthNumber(namedMonth[1]);
+    if (month) {
+      return `${namedMonth[3]}-${month}-${namedMonth[2].padStart(2, "0")}`;
+    }
+  }
+
+  const dayMonthName = sanitized.match(/^(\d{1,2})\s+([A-Za-z]{3,9})\s+(\d{4})$/);
+  if (dayMonthName) {
+    const month = monthNumber(dayMonthName[2]);
+    if (month) {
+      return `${dayMonthName[3]}-${month}-${dayMonthName[1].padStart(2, "0")}`;
+    }
+  }
+
   const dayFirst = sanitized.match(/^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{4}|\d{2})$/);
   if (options?.preferDayFirst && dayFirst) {
     return formatDayFirstDate(dayFirst);
@@ -661,6 +753,36 @@ function formatDayFirstDate(dayFirst: RegExpMatchArray): string {
   const rawYear = dayFirst[3];
   const year = rawYear.length === 2 ? `20${rawYear}` : rawYear;
   return `${year}-${month}-${day}`;
+}
+
+function monthNumber(value: string): string | undefined {
+  const months: Record<string, string> = {
+    jan: "01",
+    january: "01",
+    feb: "02",
+    february: "02",
+    mar: "03",
+    march: "03",
+    apr: "04",
+    april: "04",
+    may: "05",
+    jun: "06",
+    june: "06",
+    jul: "07",
+    july: "07",
+    aug: "08",
+    august: "08",
+    sep: "09",
+    sept: "09",
+    september: "09",
+    oct: "10",
+    october: "10",
+    nov: "11",
+    november: "11",
+    dec: "12",
+    december: "12"
+  };
+  return months[value.trim().toLowerCase()];
 }
 
 interface AmountCandidate {
@@ -787,7 +909,7 @@ export function parseAmountToken(token: string): number | null {
     return null;
   }
 
-  return Number((Math.abs(sign * parsed)).toFixed(2));
+  return Number((sign * parsed).toFixed(2));
 }
 
 function scoreAmountMagnitude(amount: number): number {
@@ -847,14 +969,13 @@ function isLikelyInvoiceNumber(value: string): boolean {
   return normalized.length >= 6;
 }
 
-function lastResortExtraction(
+function applyLastResortExtraction(
   text: string,
   parsed: ParsedInvoiceData,
   warnings: string[],
   preferDayFirst: boolean
 ): void {
   const lines = text.split(/\n+/).map((l) => l.trim()).filter(Boolean);
-
 
   if (!parsed.invoiceDate) {
     const dateMatch = text.match(/\b(\d{1,2}[\/.\-]\d{1,2}[\/.\-]\d{2,4})\b/);
@@ -863,7 +984,6 @@ function lastResortExtraction(
       warnings.push("Invoice date found via last-resort extraction.");
     }
   }
-
 
   if (parsed.totalAmountMinor === undefined) {
     const moneyMatch = text.match(/[$€£₹]\s*([\d,.\s]+\.\d{2})\b/) ??
@@ -877,14 +997,12 @@ function lastResortExtraction(
     }
   }
 
-
   if (!parsed.currency) {
     const symbolMatch = text.match(/[$€£₹]/);
     if (symbolMatch) {
       parsed.currency = currencyBySymbol[symbolMatch[0]];
     }
   }
-
 
   if (!parsed.vendorName) {
     for (const line of lines.slice(0, 8)) {

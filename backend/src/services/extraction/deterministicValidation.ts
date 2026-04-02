@@ -3,6 +3,9 @@ import type { ParsedInvoiceData } from "../../types/invoice.js";
 const ADDRESS_SIGNAL_PATTERN =
   /\b(address|warehouse|village|road|street|avenue|taluk|district|state|country|postal|pin|zipcode)\b/i;
 
+const PAN_FORMAT_PATTERN = /^[A-Z]{5}[0-9]{4}[A-Z]$/;
+const GSTIN_FORMAT_PATTERN = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][0-9A-Z]Z[0-9A-Z]$/;
+
 interface DeterministicValidationInput {
   parsed: ParsedInvoiceData;
   ocrText?: string;
@@ -71,6 +74,43 @@ export function validateInvoiceFields(input: DeterministicValidationInput): Dete
     const driftDays = Math.abs(Math.ceil((referenceDate.getTime() - invoiceDate.getTime()) / 86_400_000));
     if (driftDays > 365 * 4) {
       issues.push("Invoice date is far outside expected operating window.");
+    }
+  }
+
+  const gst = parsed.gst;
+  if (gst && gst.subtotalMinor && gst.subtotalMinor > 0) {
+    const totalTax = (gst.cgstMinor ?? 0) + (gst.sgstMinor ?? 0) + (gst.igstMinor ?? 0);
+    if (totalTax > 0) {
+      const expectedTotal = gst.subtotalMinor + totalTax + (gst.cessMinor ?? 0);
+      const actualTotal = parsed.totalAmountMinor ?? 0;
+      if (actualTotal > 0 && Math.abs(expectedTotal - actualTotal) > 100) {
+        issues.push(`GST_TOTAL_MISMATCH: Subtotal (${gst.subtotalMinor}) + taxes (${totalTax}) = ${expectedTotal}, but total is ${actualTotal}.`);
+      }
+    }
+  }
+
+  if (parsed.lineItems && parsed.lineItems.length > 0) {
+    const lineItemTotal = parsed.lineItems.reduce((sum, item) => sum + item.amountMinor, 0);
+    const subtotal = parsed.gst?.subtotalMinor ?? parsed.totalAmountMinor;
+    if (subtotal && Math.abs(lineItemTotal - subtotal) > 100) {
+      issues.push(`LINE_ITEM_TOTAL_MISMATCH: Line item sum (${lineItemTotal}) differs from subtotal (${subtotal}) by more than ₹1.`);
+    }
+  }
+
+  const pan = parsed.pan;
+  if (pan && !PAN_FORMAT_PATTERN.test(pan)) {
+    issues.push("PAN_FORMAT_INVALID: Extracted PAN does not match expected format.");
+  }
+
+  const gstin = parsed.gst?.gstin;
+  if (gstin && !GSTIN_FORMAT_PATTERN.test(gstin)) {
+    issues.push("GSTIN_FORMAT_INVALID: Extracted GSTIN does not match expected 15-character format.");
+  }
+
+  if (pan && gstin && PAN_FORMAT_PATTERN.test(pan) && GSTIN_FORMAT_PATTERN.test(gstin)) {
+    const panFromGstin = gstin.substring(2, 12);
+    if (panFromGstin !== pan) {
+      issues.push("PAN_GSTIN_MISMATCH: PAN does not match characters 3-12 of GSTIN.");
     }
   }
 

@@ -1,5 +1,11 @@
 import type { OcrBlock } from "./OcrProvider.js";
-import type { ParsedInvoiceData } from "../../types/invoice.js";
+import type {
+  InvoiceExtractionClassification,
+  InvoiceVerifierContract,
+  InvoiceFieldProvenance,
+  InvoiceLineItemProvenance,
+  ParsedInvoiceData
+} from "../../types/invoice.js";
 
 export type FieldVerificationMode = "strict" | "relaxed";
 
@@ -34,6 +40,11 @@ export interface FieldVerifierResult {
   reasonCodes?: Record<string, string>;
   invoiceType?: string;
   tokenUsage?: { promptTokens?: number; completionTokens?: number; totalTokens?: number };
+  contract?: InvoiceVerifierContract;
+  fieldConfidence?: Record<string, number>;
+  fieldProvenance?: Record<string, InvoiceFieldProvenance>;
+  lineItemProvenance?: InvoiceLineItemProvenance[];
+  classification?: InvoiceExtractionClassification;
   slmUnavailable?: boolean;
 }
 
