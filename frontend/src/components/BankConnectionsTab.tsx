@@ -1,15 +1,17 @@
-import { useState } from "react";
-import type { BankAccount, TenantMailbox } from "../types";
+import { useRef, useState, type DragEvent } from "react";
+import type { BankAccount, BankStatementSummary, TenantMailbox, TenantRole } from "../types";
 import { EmptyState } from "./EmptyState";
 
 interface BankConnectionsTabProps {
   mailboxes: TenantMailbox[];
-  tenantUsers: Array<{ userId: string; email: string; role: "TENANT_ADMIN" | "MEMBER" | "VIEWER"; enabled: boolean }>;
+  tenantUsers: Array<{ userId: string; email: string; role: TenantRole; enabled: boolean }>;
   onAddGmailInbox: () => void;
   onAssignMailboxUser: (integrationId: string, userId: string) => void;
   onRemoveMailboxAssignment: (integrationId: string, userId: string) => void;
   onRemoveMailbox: (integrationId: string) => void;
   bankAccounts: BankAccount[];
+  bankStatements: BankStatementSummary[];
+  onUploadBankStatement: (file: File) => void;
   onAddBankAccount: (aaAddress: string, displayName: string) => void;
   onRefreshBankBalance: (id: string) => void;
   onRevokeBankAccount: (id: string) => void;
@@ -37,18 +39,34 @@ export function BankConnectionsTab({
   onRemoveMailboxAssignment,
   onRemoveMailbox,
   bankAccounts,
+  bankStatements,
+  onUploadBankStatement,
   onAddBankAccount,
   onRefreshBankBalance,
   onRevokeBankAccount
 }: BankConnectionsTabProps) {
   const [aaAddress, setAaAddress] = useState("");
   const [displayName, setDisplayName] = useState("");
+  const [statementDragActive, setStatementDragActive] = useState(false);
+  const statementInputRef = useRef<HTMLInputElement>(null);
 
   function handleAddBank() {
     if (!aaAddress.trim()) return;
     onAddBankAccount(aaAddress.trim(), displayName.trim());
     setAaAddress("");
     setDisplayName("");
+  }
+
+  function handleStatementFiles(files: FileList | null) {
+    if (!files || files.length === 0) return;
+    const [file] = Array.from(files);
+    if (file) onUploadBankStatement(file);
+  }
+
+  function handleStatementDrop(event: DragEvent<HTMLDivElement>) {
+    event.preventDefault();
+    setStatementDragActive(false);
+    handleStatementFiles(event.dataTransfer.files);
   }
 
   return (
@@ -222,6 +240,92 @@ export function BankConnectionsTab({
                 </div>
               </div>
             ))}
+          </div>
+        )}
+      </div>
+
+      <div className="editor-card">
+        <div className="editor-header">
+          <h3>Bank Statements</h3>
+        </div>
+        <div
+          className={statementDragActive ? "file-dropzone file-dropzone-active" : "file-dropzone"}
+          role="button"
+          tabIndex={0}
+          onClick={() => statementInputRef.current?.click()}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              statementInputRef.current?.click();
+            }
+          }}
+          onDragEnter={(event) => {
+            event.preventDefault();
+            setStatementDragActive(true);
+          }}
+          onDragOver={(event) => {
+            event.preventDefault();
+            setStatementDragActive(true);
+          }}
+          onDragLeave={(event) => {
+            event.preventDefault();
+            if (event.currentTarget === event.target) setStatementDragActive(false);
+          }}
+          onDrop={handleStatementDrop}
+        >
+          <span className="material-symbols-outlined" aria-hidden="true">upload_file</span>
+          <div>
+            <strong>Drop bank statements here</strong>
+            <p>CSV uploads supported. Click to browse.</p>
+          </div>
+          <input
+            ref={statementInputRef}
+            type="file"
+            accept=".csv,text/csv"
+            style={{ display: "none" }}
+            onChange={(event) => {
+              handleStatementFiles(event.target.files);
+              event.currentTarget.value = "";
+            }}
+          />
+        </div>
+
+        {bankStatements.length === 0 ? (
+          <EmptyState icon="receipt_long" heading="No bank statements uploaded" description="Upload bank statements here to reconcile them against ingested invoices." />
+        ) : (
+          <div className="table-card" style={{ marginTop: "0.75rem" }}>
+            <table className="line-items-table">
+              <thead>
+                <tr>
+                  <th>File</th>
+                  <th>Bank</th>
+                  <th>Account</th>
+                  <th>Period</th>
+                  <th>Transactions</th>
+                  <th>Matched</th>
+                  <th>Unmatched</th>
+                  <th>Source</th>
+                </tr>
+              </thead>
+              <tbody>
+                {bankStatements.map((statement) => (
+                  <tr key={statement._id}>
+                    <td><div className="table-cell-scroll">{statement.fileName}</div></td>
+                    <td><div className="table-cell-scroll">{statement.bankName ?? "-"}</div></td>
+                    <td><div className="table-cell-scroll">{statement.accountNumberMasked ?? "-"}</div></td>
+                    <td>
+                      <div className="table-cell-scroll">
+                        {statement.periodFrom && statement.periodTo ? `${statement.periodFrom} to ${statement.periodTo}` : "-"}
+                      </div>
+                    </td>
+                    <td>{statement.transactionCount}</td>
+                    <td>{statement.matchedCount}</td>
+                    <td>{statement.unmatchedCount}</td>
+                    <td>{statement.source}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
       </div>

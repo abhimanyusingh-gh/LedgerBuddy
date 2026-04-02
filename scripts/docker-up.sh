@@ -14,6 +14,7 @@ else
 fi
 
 ENV_MODE="${ENV:-local}"
+PINNED_SLM_MODEL_ID="mlx-community/DeepSeek-R1-Distill-Qwen-14B-4bit"
 BACKEND_HEALTH_URL="${BACKEND_HEALTH_URL:-http://127.0.0.1:4100/health}"
 FRONTEND_URL="${FRONTEND_URL:-http://127.0.0.1:5177}"
 OCR_HEALTH_URL="${OCR_HEALTH_URL:-http://127.0.0.1:8200/health}"
@@ -220,6 +221,7 @@ start_local_service_if_needed() {
 }
 
 if [[ "$ENV_MODE" == "local" || "$ENV_MODE" == "dev" ]]; then
+  export SLM_MODEL_ID="$PINNED_SLM_MODEL_ID"
   local_demo_mode="false"
   if [[ "$INVOICE_INBOX_PATH" == "$DEFAULT_DEMO_INBOX_PATH" ]]; then
     local_demo_mode="true"

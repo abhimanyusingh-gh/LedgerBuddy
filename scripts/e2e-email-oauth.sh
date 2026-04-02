@@ -14,6 +14,7 @@ else
 fi
 
 E2E_API_BASE_URL="${E2E_API_BASE_URL:-http://127.0.0.1:4100}"
+PINNED_SLM_MODEL_ID="mlx-community/DeepSeek-R1-Distill-Qwen-14B-4bit"
 E2E_OCR_HEALTH_URL="${E2E_OCR_HEALTH_URL:-http://127.0.0.1:8200/health}"
 E2E_SLM_HEALTH_URL="${E2E_SLM_HEALTH_URL:-http://127.0.0.1:8300/health}"
 E2E_MAILHOG_WRAPPER_URL="${E2E_MAILHOG_WRAPPER_URL:-http://127.0.0.1:8126}"
@@ -174,6 +175,7 @@ start_local_service_if_needed() {
 
 PYTHON_BIN="$(resolve_python_bin)"
 assert_python_version "$PYTHON_BIN"
+export SLM_MODEL_ID="$PINNED_SLM_MODEL_ID"
 
 start_local_service_if_needed \
   "OCR" \

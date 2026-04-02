@@ -15,6 +15,7 @@ fi
 
 E2E_INBOX_DIR="${E2E_INBOX_DIR:-}"
 SOURCE_INBOX_DIR="${SOURCE_INBOX_DIR:-$ROOT_DIR/sample-invoices/inbox}"
+PINNED_SLM_MODEL_ID="mlx-community/DeepSeek-R1-Distill-Qwen-14B-4bit"
 E2E_API_BASE_URL="${E2E_API_BASE_URL:-http://127.0.0.1:4100}"
 E2E_FRONTEND_BASE_URL="${E2E_FRONTEND_BASE_URL:-http://127.0.0.1:5177}"
 E2E_OCR_HEALTH_URL="${E2E_OCR_HEALTH_URL:-http://127.0.0.1:8200/health}"
@@ -205,6 +206,7 @@ prepare_e2e_inbox
 
 PYTHON_BIN="$(resolve_python_bin)"
 assert_python_version "$PYTHON_BIN"
+export SLM_MODEL_ID="$PINNED_SLM_MODEL_ID"
 
 start_local_service_if_needed \
   "OCR" \
