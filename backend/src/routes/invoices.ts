@@ -1,3 +1,4 @@
+import { getAuth } from "../types/auth.js";
 import { Router, type Request, type Response, type NextFunction } from "express";
 import { constants as fsConstants } from "node:fs";
 import { access } from "node:fs/promises";
@@ -11,7 +12,6 @@ import {
 } from "../services/invoiceService.js";
 import { env } from "../config/env.js";
 import { loadRuntimeManifest, type FolderSourceManifest } from "../core/runtimeManifest.js";
-import type { WorkloadTier } from "../types/tenant.js";
 import type { FileStore } from "../core/interfaces/FileStore.js";
 import { requireCap, resolveCapabilities } from "../auth/requireCapability.js";
 import { ViewerScopeModel } from "../models/ViewerScope.js";
@@ -73,11 +73,10 @@ export function createInvoiceRouter(invoiceService: InvoiceService, fileStore?: 
   }
 
   router.get("/invoices", wrap(async (req, res) => {
-    const authContext = req.authContext!;
+    const authContext = getAuth(req);
     const page = Math.max(Number(req.query.page ?? 1), 1);
     const limit = Math.min(Math.max(Number(req.query.limit ?? 20), 1), 100);
     const status = typeof req.query.status === "string" ? req.query.status : undefined;
-    const workloadTier = (req.query.workloadTier === "standard" || req.query.workloadTier === "heavy") ? req.query.workloadTier as WorkloadTier : undefined;
     const fromDate = parseIsoDate(req.query.from);
     const toDate = parseIsoDate(req.query.to);
     if (toDate) toDate.setHours(23, 59, 59, 999);
@@ -97,13 +96,13 @@ export function createInvoiceRouter(invoiceService: InvoiceService, fileStore?: 
     const sortDir: "asc" | "desc" | undefined = rawSortDir === "asc" || rawSortDir === "desc" ? rawSortDir : undefined;
 
     res.json(await invoiceService.listInvoices({
-      page, limit, status, tenantId: authContext.tenantId, workloadTier,
+      page, limit, status, tenantId: authContext.tenantId,
       from: fromDate ?? undefined, to: toDate ?? undefined, approvedBy, sortBy, sortDir
     }));
   }));
 
   router.get("/invoices/:id", wrap(async (req, res) => {
-    const invoice = await invoiceService.getInvoiceById(req.params.id, req.authContext!.tenantId);
+    const invoice = await invoiceService.getInvoiceById(req.params.id, getAuth(req).tenantId);
     if (!invoice) { res.status(404).json({ message: "Invoice not found" }); return; }
     res.json(invoice);
   }));
@@ -112,24 +111,25 @@ export function createInvoiceRouter(invoiceService: InvoiceService, fileStore?: 
     const ids = requireStringIds(req.body);
     if (!ids) { res.status(400).json({ message: "Body 'ids' must include at least one invoice id." }); return; }
     const approvedBy = typeof req.body?.approvedBy === "string" ? req.body.approvedBy : undefined;
-    res.json({ modifiedCount: await invoiceService.approveInvoices(ids, approvedBy, req.authContext!) });
+    const result = await invoiceService.approveInvoices(ids, approvedBy, getAuth(req));
+    res.json(result);
   }));
 
   router.post("/invoices/retry", requireCap("canRetryInvoices"), wrap(async (req, res) => {
     const ids = requireStringIds(req.body);
     if (!ids) { res.status(400).json({ message: "Body 'ids' must include at least one invoice id." }); return; }
-    res.json({ modifiedCount: await invoiceService.retryInvoices(ids, req.authContext!) });
+    res.json({ modifiedCount: await invoiceService.retryInvoices(ids, getAuth(req)) });
   }));
 
   router.post("/invoices/delete", requireCap("canDeleteInvoices"), wrap(async (req, res) => {
     const ids = requireStringIds(req.body);
     if (!ids) { res.status(400).json({ message: "Body 'ids' must include at least one invoice id." }); return; }
-    res.json({ deletedCount: await invoiceService.deleteInvoices(ids, req.authContext!) });
+    res.json({ deletedCount: await invoiceService.deleteInvoices(ids, getAuth(req)) });
   }));
 
   router.patch("/invoices/:id", requireCap("canEditInvoiceFields"), wrap(async (req, res, next) => {
     try {
-      const authContext = req.authContext!;
+      const authContext = getAuth(req);
       if (typeof req.body?.attachmentName === "string") {
         res.json(await invoiceService.renameAttachmentName(req.params.id, req.body.attachmentName, authContext.tenantId));
         return;
@@ -202,7 +202,7 @@ export function createInvoiceRouter(invoiceService: InvoiceService, fileStore?: 
   }));
 
   router.get("/invoices/:id/document", wrap(async (req, res, next) => {
-    const invoice = await invoiceService.getInvoiceById(req.params.id, req.authContext!.tenantId);
+    const invoice = await invoiceService.getInvoiceById(req.params.id, getAuth(req).tenantId);
     if (!invoice) { res.status(404).json({ message: "Invoice not found" }); return; }
     if (invoice.sourceType !== "folder") { res.status(404).json({ message: "Original document is unavailable for this ingestion source." }); return; }
 
@@ -220,7 +220,7 @@ export function createInvoiceRouter(invoiceService: InvoiceService, fileStore?: 
   }));
 
   router.get("/invoices/:id/preview", wrap(async (req, res, next) => {
-    const invoice = await invoiceService.getInvoiceById(req.params.id, req.authContext!.tenantId);
+    const invoice = await invoiceService.getInvoiceById(req.params.id, getAuth(req).tenantId);
     if (!invoice) { res.status(404).json({ message: "Invoice not found" }); return; }
     const page = Math.max(1, Number(req.query.page ?? 1));
     const previewPath = parseMetadataJsonField(invoice.metadata, "previewPageImages", String(page), "1");
@@ -264,7 +264,7 @@ export function createInvoiceRouter(invoiceService: InvoiceService, fileStore?: 
     const blockIndex = Number.parseInt(req.params.index, 10);
     if (!Number.isFinite(blockIndex) || blockIndex < 0) { res.status(400).json({ message: "OCR block index must be a positive integer." }); return; }
 
-    const invoice = await invoiceService.getInvoiceById(req.params.id, req.authContext!.tenantId);
+    const invoice = await invoiceService.getInvoiceById(req.params.id, getAuth(req).tenantId);
     if (!invoice) { res.status(404).json({ message: "Invoice not found" }); return; }
 
     const blocks = invoice.ocrBlocks;
@@ -281,7 +281,7 @@ export function createInvoiceRouter(invoiceService: InvoiceService, fileStore?: 
       return;
     }
 
-    const invoice = await invoiceService.getInvoiceById(req.params.id, req.authContext!.tenantId);
+    const invoice = await invoiceService.getInvoiceById(req.params.id, getAuth(req).tenantId);
     if (!invoice) { res.status(404).json({ message: "Invoice not found" }); return; }
 
     const overlayPath = parseMetadataJsonField(invoice.metadata, "fieldOverlayPaths", field);

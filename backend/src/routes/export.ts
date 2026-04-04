@@ -1,3 +1,4 @@
+import { getAuth } from "../types/auth.js";
 import { Router } from "express";
 import type { ExportService } from "../services/exportService.js";
 import { requireAuth } from "../auth/requireAuth.js";
@@ -21,8 +22,8 @@ export function createExportRouter(exportService: ExportService | null) {
 
       const result = await exportService.exportApprovedInvoices({
         ids,
-        requestedBy: req.authContext!.email,
-        tenantId: req.authContext!.tenantId
+        requestedBy: getAuth(req).email,
+        tenantId: getAuth(req).tenantId
       });
       res.json(result);
     } catch (error) {
@@ -47,8 +48,8 @@ export function createExportRouter(exportService: ExportService | null) {
 
       const result = await exportService.generateExportFile({
         ids,
-        requestedBy: req.authContext!.email,
-        tenantId: req.authContext!.tenantId
+        requestedBy: getAuth(req).email,
+        tenantId: getAuth(req).tenantId
       });
 
       if (result.includedCount === 0) {
@@ -76,7 +77,7 @@ export function createExportRouter(exportService: ExportService | null) {
       const limit = Math.min(Math.max(Number(req.query.limit ?? 20), 1), 100);
 
       const result = await exportService.listExportHistory({
-        tenantId: req.authContext!.tenantId,
+        tenantId: getAuth(req).tenantId,
         page,
         limit
       });
@@ -97,7 +98,7 @@ export function createExportRouter(exportService: ExportService | null) {
         return;
       }
 
-      const file = await exportService.downloadExportFile(req.params.batchId, req.authContext!.tenantId);
+      const file = await exportService.downloadExportFile(req.params.batchId, getAuth(req).tenantId);
       if (!file) {
         res.status(404).json({ message: "Export file not found." });
         return;

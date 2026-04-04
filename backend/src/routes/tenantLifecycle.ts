@@ -1,3 +1,4 @@
+import { getAuth } from "../types/auth.js";
 import { Router } from "express";
 import { requireCap } from "../auth/requireCapability.js";
 import type { TenantAdminService } from "../services/tenantAdminService.js";
@@ -8,7 +9,7 @@ export function createTenantLifecycleRouter(tenantAdminService: TenantAdminServi
 
   router.post("/tenant/onboarding/complete", requireCap("canManageUsers"), async (request, response, next) => {
     try {
-      const context = request.authContext!;
+      const context = getAuth(request);
       const tenantName = typeof request.body?.tenantName === "string" ? request.body.tenantName : "";
       const adminEmail = typeof request.body?.adminEmail === "string" ? request.body.adminEmail : context.email;
 

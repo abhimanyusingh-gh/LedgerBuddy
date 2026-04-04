@@ -1,3 +1,4 @@
+import { getAuth } from "../types/auth.js";
 import { Router } from "express";
 import multer from "multer";
 import { BankStatementModel } from "../models/BankStatement.js";
@@ -17,17 +18,17 @@ export function createBankStatementsRouter(fileStore?: FileStore) {
   const router = Router();
   router.use(requireAuth);
 
-  router.get("/bank-statements", async (req, res, next) => {
+  router.get("/bank-statements", requireCap("canManageConnections"), async (req, res, next) => {
     try {
-      const tenantId = req.authContext!.tenantId;
+      const tenantId = getAuth(req).tenantId;
       const items = await BankStatementModel.find({ tenantId }).sort({ createdAt: -1 }).lean();
       res.json({ items });
     } catch (error) { next(error); }
   });
 
-  router.get("/bank-statements/:id/transactions", async (req, res, next) => {
+  router.get("/bank-statements/:id/transactions", requireCap("canManageConnections"), async (req, res, next) => {
     try {
-      const tenantId = req.authContext!.tenantId;
+      const tenantId = getAuth(req).tenantId;
       const page = Math.max(Number(req.query.page ?? 1), 1);
       const limit = Math.min(Math.max(Number(req.query.limit ?? 50), 1), 200);
       const skip = (page - 1) * limit;
@@ -46,7 +47,7 @@ export function createBankStatementsRouter(fileStore?: FileStore) {
 
   router.post("/bank-statements/upload-csv", requireNotViewer, requireCap("canManageConnections"), upload.single("file") as unknown as import("express").RequestHandler, async (req, res, next) => {
     try {
-      const tenantId = req.authContext!.tenantId;
+      const tenantId = getAuth(req).tenantId;
       const file = req.file;
       if (!file) { res.status(400).json({ message: "CSV file is required." }); return; }
 
@@ -58,7 +59,7 @@ export function createBankStatementsRouter(fileStore?: FileStore) {
         file.originalname,
         csvContent,
         mapping,
-        req.authContext!.email
+        getAuth(req).email
       );
 
       if (fileStore) {
@@ -80,7 +81,7 @@ export function createBankStatementsRouter(fileStore?: FileStore) {
 
   router.post("/bank-statements/:id/reconcile", requireNotViewer, requireCap("canManageConnections"), async (req, res, next) => {
     try {
-      const tenantId = req.authContext!.tenantId;
+      const tenantId = getAuth(req).tenantId;
       const result = await reconciler.reconcileStatement(tenantId, req.params.id);
       res.json(result);
     } catch (error) { next(error); }
@@ -88,7 +89,7 @@ export function createBankStatementsRouter(fileStore?: FileStore) {
 
   router.post("/bank-statements/transactions/:txnId/match", requireNotViewer, requireCap("canApproveInvoices"), async (req, res, next) => {
     try {
-      const tenantId = req.authContext!.tenantId;
+      const tenantId = getAuth(req).tenantId;
       const invoiceId = req.body.invoiceId;
       if (!invoiceId) { res.status(400).json({ message: "invoiceId is required." }); return; }
 
@@ -99,7 +100,7 @@ export function createBankStatementsRouter(fileStore?: FileStore) {
 
   router.delete("/bank-statements/transactions/:txnId/match", requireNotViewer, requireCap("canApproveInvoices"), async (req, res, next) => {
     try {
-      const tenantId = req.authContext!.tenantId;
+      const tenantId = getAuth(req).tenantId;
       await reconciler.unmatch(tenantId, req.params.txnId);
       res.json({ unmatched: true });
     } catch (error) { next(error); }

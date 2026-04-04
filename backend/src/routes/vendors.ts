@@ -1,3 +1,4 @@
+import { getAuth } from "../types/auth.js";
 import { Router } from "express";
 import { VendorMasterModel } from "../models/VendorMaster.js";
 import { requireAuth } from "../auth/requireAuth.js";
@@ -7,9 +8,9 @@ export function createVendorsRouter() {
   const router = Router();
   router.use(requireAuth);
 
-  router.get("/vendors", async (req, res, next) => {
+  router.get("/vendors", requireCap("canViewAllInvoices"), async (req, res, next) => {
     try {
-      const tenantId = req.authContext!.tenantId;
+      const tenantId = getAuth(req).tenantId;
       const query: Record<string, unknown> = { tenantId };
 
       if (typeof req.query.search === "string" && req.query.search.trim()) {
@@ -50,7 +51,7 @@ export function createVendorsRouter() {
 
   router.get("/vendors/:id", requireCap("canViewAllInvoices"), async (req, res, next) => {
     try {
-      const tenantId = req.authContext!.tenantId;
+      const tenantId = getAuth(req).tenantId;
       const vendor = await VendorMasterModel.findOne({ _id: req.params.id, tenantId }).lean();
       if (!vendor) { res.status(404).json({ message: "Vendor not found." }); return; }
       res.json(vendor);

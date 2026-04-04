@@ -1,3 +1,4 @@
+import { getAuth } from "../types/auth.js";
 import { Router } from "express";
 import { TenantAssignableRoles, type TenantAssignableRole } from "../models/TenantUserRole.js";
 import type { TenantAdminService } from "../services/tenantAdminService.js";
@@ -10,7 +11,7 @@ export function createTenantAdminRouter(tenantAdminService: TenantAdminService, 
 
   router.get("/admin/users", requireCap("canManageUsers"), async (request, response, next) => {
     try {
-      const users = await tenantAdminService.listTenantUsers(request.authContext!.tenantId);
+      const users = await tenantAdminService.listTenantUsers(getAuth(request).tenantId);
       response.json({ items: users });
     } catch (error) {
       next(error);
@@ -19,7 +20,7 @@ export function createTenantAdminRouter(tenantAdminService: TenantAdminService, 
 
   router.post("/admin/users/invite", requireCap("canManageUsers"), async (request, response, next) => {
     try {
-      const context = request.authContext!;
+      const context = getAuth(request);
       const email = typeof request.body?.email === "string" ? request.body.email : "";
       const invite = await inviteService.createInvite({
         tenantId: context.tenantId,
@@ -44,10 +45,10 @@ export function createTenantAdminRouter(tenantAdminService: TenantAdminService, 
         return;
       }
       await tenantAdminService.assignRole({
-        tenantId: request.authContext!.tenantId,
+        tenantId: getAuth(request).tenantId,
         userId: request.params.userId,
         role: role as TenantAssignableRole,
-        actingUserId: request.authContext!.userId
+        actingUserId: getAuth(request).userId
       });
       response.status(204).send();
     } catch (error) {
@@ -63,10 +64,10 @@ export function createTenantAdminRouter(tenantAdminService: TenantAdminService, 
         return;
       }
       await tenantAdminService.setUserEnabled({
-        tenantId: request.authContext!.tenantId,
+        tenantId: getAuth(request).tenantId,
         userId: request.params.userId,
         enabled,
-        actingUserId: request.authContext!.userId
+        actingUserId: getAuth(request).userId
       });
       response.json({ userId: request.params.userId, enabled });
     } catch (error) {
@@ -77,7 +78,7 @@ export function createTenantAdminRouter(tenantAdminService: TenantAdminService, 
   router.delete("/admin/users/:userId", requireCap("canManageUsers"), async (request, response, next) => {
     try {
       await tenantAdminService.removeUser({
-        tenantId: request.authContext!.tenantId,
+        tenantId: getAuth(request).tenantId,
         userId: request.params.userId
       });
       response.status(204).send();
@@ -88,7 +89,7 @@ export function createTenantAdminRouter(tenantAdminService: TenantAdminService, 
 
   router.get("/admin/mailboxes", requireCap("canManageUsers"), async (request, response, next) => {
     try {
-      const items = await tenantAdminService.listMailboxes(request.authContext!.tenantId);
+      const items = await tenantAdminService.listMailboxes(getAuth(request).tenantId);
       response.json({ items });
     } catch (error) {
       next(error);
@@ -102,7 +103,7 @@ export function createTenantAdminRouter(tenantAdminService: TenantAdminService, 
         response.status(400).json({ message: "userId is required." });
         return;
       }
-      await tenantAdminService.assignMailbox(request.authContext!.tenantId, request.params.id, userId);
+      await tenantAdminService.assignMailbox(getAuth(request).tenantId, request.params.id, userId);
       response.status(204).send();
     } catch (error) {
       next(error);
@@ -111,7 +112,7 @@ export function createTenantAdminRouter(tenantAdminService: TenantAdminService, 
 
   router.delete("/admin/mailboxes/:id/assign/:userId", requireCap("canManageUsers"), async (request, response, next) => {
     try {
-      await tenantAdminService.removeMailboxAssignment(request.authContext!.tenantId, request.params.id, request.params.userId);
+      await tenantAdminService.removeMailboxAssignment(getAuth(request).tenantId, request.params.id, request.params.userId);
       response.status(204).send();
     } catch (error) {
       next(error);
@@ -120,7 +121,7 @@ export function createTenantAdminRouter(tenantAdminService: TenantAdminService, 
 
   router.delete("/admin/mailboxes/:id", requireCap("canManageUsers"), async (request, response, next) => {
     try {
-      await tenantAdminService.deleteMailbox(request.authContext!.tenantId, request.params.id);
+      await tenantAdminService.deleteMailbox(getAuth(request).tenantId, request.params.id);
       response.status(204).send();
     } catch (error) {
       next(error);
@@ -129,7 +130,7 @@ export function createTenantAdminRouter(tenantAdminService: TenantAdminService, 
 
   router.get("/admin/users/:userId/viewer-scope", requireCap("canManageUsers"), async (request, response, next) => {
     try {
-      const result = await tenantAdminService.getViewerScope(request.authContext!.tenantId, request.params.userId);
+      const result = await tenantAdminService.getViewerScope(getAuth(request).tenantId, request.params.userId);
       response.json(result);
     } catch (error) {
       next(error);
@@ -145,7 +146,7 @@ export function createTenantAdminRouter(tenantAdminService: TenantAdminService, 
       const visibleUserIds = Array.isArray(request.body?.visibleUserIds)
         ? request.body.visibleUserIds.filter((id: unknown) => typeof id === "string" && toValidObjectId(id))
         : [];
-      const result = await tenantAdminService.setViewerScope(request.authContext!.tenantId, request.params.userId, visibleUserIds);
+      const result = await tenantAdminService.setViewerScope(getAuth(request).tenantId, request.params.userId, visibleUserIds);
       response.json(result);
     } catch (error) {
       next(error);

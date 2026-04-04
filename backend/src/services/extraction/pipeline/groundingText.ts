@@ -4,6 +4,94 @@ import { currencyBySymbol, parseAmountToken } from "../../../parser/invoiceParse
 import { looksLikeAddress } from "./textHeuristics.js";
 import { FIELD_LABEL_PATTERNS } from "./groundingLabels.js";
 
+type FieldAlignmentProfile = {
+  minLeftGap: number;
+  maxLeftGap: number;
+  rowGap: number;
+  maxCandidatesChecked: number;
+};
+
+type GroundingAlignmentField =
+  | keyof ParsedInvoiceData
+  | "gst.gstin"
+  | "gst.subtotalMinor"
+  | "gst.cgstMinor"
+  | "gst.sgstMinor"
+  | "gst.igstMinor"
+  | "gst.cessMinor"
+  | "gst.totalTaxMinor";
+
+const FIELD_ALIGNMENT: Partial<Record<GroundingAlignmentField, FieldAlignmentProfile>> = {
+  invoiceNumber: { minLeftGap: -0.12, maxLeftGap: 0.18, rowGap: 0.022, maxCandidatesChecked: 220 },
+  vendorName: { minLeftGap: -0.03, maxLeftGap: 0.5, rowGap: 0.02, maxCandidatesChecked: 80 },
+  invoiceDate: { minLeftGap: -0.12, maxLeftGap: 0.18, rowGap: 0.018, maxCandidatesChecked: 220 },
+  dueDate: { minLeftGap: -0.12, maxLeftGap: 0.18, rowGap: 0.018, maxCandidatesChecked: 220 },
+  totalAmountMinor: { minLeftGap: -0.03, maxLeftGap: 0.5, rowGap: 0.02, maxCandidatesChecked: 120 },
+  currency: { minLeftGap: -0.03, maxLeftGap: 0.5, rowGap: 0.02, maxCandidatesChecked: 80 },
+  "gst.gstin": { minLeftGap: -0.03, maxLeftGap: 0.5, rowGap: 0.02, maxCandidatesChecked: 120 },
+  "gst.subtotalMinor": { minLeftGap: -0.03, maxLeftGap: 0.5, rowGap: 0.02, maxCandidatesChecked: 120 },
+  "gst.cgstMinor": { minLeftGap: -0.03, maxLeftGap: 0.5, rowGap: 0.02, maxCandidatesChecked: 120 },
+  "gst.sgstMinor": { minLeftGap: -0.03, maxLeftGap: 0.5, rowGap: 0.02, maxCandidatesChecked: 120 },
+  "gst.igstMinor": { minLeftGap: -0.03, maxLeftGap: 0.5, rowGap: 0.02, maxCandidatesChecked: 120 },
+  "gst.cessMinor": { minLeftGap: -0.03, maxLeftGap: 0.5, rowGap: 0.02, maxCandidatesChecked: 120 },
+  "gst.totalTaxMinor": { minLeftGap: -0.03, maxLeftGap: 0.5, rowGap: 0.02, maxCandidatesChecked: 120 }
+};
+
+function getAlignmentProfile(field: keyof ParsedInvoiceData): FieldAlignmentProfile {
+  return FIELD_ALIGNMENT[field] ?? { minLeftGap: -0.5, maxLeftGap: 0.5, rowGap: 0.02, maxCandidatesChecked: 120 };
+}
+
+function extractLabelCandidateValue(field: keyof ParsedInvoiceData, text: string): string | undefined {
+  const candidate = text.trim();
+  if (!candidate) {
+    return undefined;
+  }
+  if (field === "invoiceNumber") {
+    const normalizedCandidate = candidate
+      .replace(/^\s*[:#\-.]+\s*|\s*[:#\-.]+\s*$/g, "")
+      .replace(/\s+/g, " ");
+    if (!normalizedCandidate) {
+      return undefined;
+    }
+    if (!/[A-Za-z0-9]/.test(normalizedCandidate)) {
+      return undefined;
+    }
+    if (!/[0-9]/.test(normalizedCandidate)) {
+      return undefined;
+    }
+    if (normalizedCandidate.length < 4) {
+      return undefined;
+    }
+    if (
+      /\b(date|net|due|booking|invoice|no\.?|number|hsn|gstin|pan|sac|irn|cin|vat|gst|tax|place|state|supply)\b/i.test(normalizedCandidate)
+    ) {
+      return undefined;
+    }
+    if (looksLikeDateCandidate(normalizedCandidate)) {
+      return undefined;
+    }
+    return normalizedCandidate;
+  }
+  if (field === "invoiceDate" || field === "dueDate") {
+    return normalizeDateToken(candidate) ? candidate : undefined;
+  }
+  return candidate;
+}
+
+function verticalGapBetween(a: [number, number, number, number], b: [number, number, number, number]): number {
+  const aTop = a[1];
+  const aBottom = a[3];
+  const bTop = b[1];
+  const bBottom = b[3];
+  if (aBottom >= bTop && aTop <= bBottom) {
+    return 0;
+  }
+  if (aBottom < bTop) {
+    return bTop - aBottom;
+  }
+  return aTop - bBottom;
+}
+
 export function findBlockByLabelProximity(
   field: keyof ParsedInvoiceData,
   blocks: OcrBlock[]
@@ -24,41 +112,83 @@ export function findBlockByLabelProximity(
     return undefined;
   }
 
+  const alignment = getAlignmentProfile(field);
+  const isDateField = field === "invoiceDate" || field === "dueDate";
+  const isInvoiceNumberField = field === "invoiceNumber";
+
+  const resolveBox = (block: OcrBlock): [number, number, number, number] | undefined => {
+    const bbox = block.bboxNormalized ?? block.bbox;
+    return bbox?.length === 4 ? bbox as [number, number, number, number] : undefined;
+  };
+
   for (let i = 0; i < blocks.length; i++) {
+    if (i >= alignment.maxCandidatesChecked) {
+      break;
+    }
     const block = blocks[i];
     if (!labelPattern.test(block.text.trim())) {
       continue;
     }
 
-    const labelBbox = block.bbox;
-    if (!labelBbox || labelBbox.length < 4) {
+    const labelBbox = resolveBox(block);
+    if (!labelBbox) {
       continue;
     }
 
-    const labelTop = labelBbox[1];
-    const labelBottom = labelBbox[3];
-    const labelRight = labelBbox[2];
-    const yOverlapThreshold = (labelBottom - labelTop) * 0.5;
+  const labelRight = labelBbox[2];
+  const rowGapThreshold = alignment.rowGap;
+  const minLeftGap = alignment.minLeftGap;
+  const maxLeftGap = alignment.maxLeftGap;
 
     let bestValue: { block: OcrBlock; index: number; distance: number } | undefined;
+    const dateCandidates: Array<{ block: OcrBlock; index: number; resolvedDate: string; distance: number }> = [];
     for (let j = 0; j < blocks.length; j++) {
+      if (j >= alignment.maxCandidatesChecked) {
+        break;
+      }
       if (j === i) continue;
+      if (isInvoiceNumberField && j < i) {
+        continue;
+      }
       const candidate = blocks[j];
-      const cBbox = candidate.bbox;
-      if (!cBbox || cBbox.length < 4) continue;
+      const cBbox = resolveBox(candidate);
+      if (!cBbox) continue;
+      const candidateText = extractLabelCandidateValue(field, candidate.text);
+      if (!candidateText) {
+        continue;
+      }
 
-      const cTop = cBbox[1];
-      const cBottom = cBbox[3];
       const cLeft = cBbox[0];
-      const yOverlap = Math.min(labelBottom, cBottom) - Math.max(labelTop, cTop);
-      if (yOverlap < yOverlapThreshold) continue;
+      if (verticalGapBetween(labelBbox, cBbox) > rowGapThreshold) {
+        continue;
+      }
 
-      if (cLeft <= labelRight) continue;
+      const leftGap = cLeft - labelRight;
+      if (leftGap < minLeftGap || leftGap > maxLeftGap) continue;
 
-      const distance = cLeft - labelRight;
+      const distance = leftGap < 0 ? Math.abs(leftGap) + 0.04 : leftGap;
+      if (isDateField) {
+        const resolvedDate = normalizeDateToken(candidateText);
+        if (resolvedDate) {
+          dateCandidates.push({ block: candidate, index: j, distance, resolvedDate });
+        }
+        continue;
+      }
       if (!bestValue || distance < bestValue.distance) {
         bestValue = { block: candidate, index: j, distance };
       }
+    }
+
+    if (isDateField && dateCandidates.length > 0) {
+      dateCandidates.sort((left, right) => {
+        if (left.resolvedDate === right.resolvedDate) {
+          return left.distance - right.distance;
+        }
+        return field === "dueDate"
+          ? right.resolvedDate.localeCompare(left.resolvedDate)
+          : left.resolvedDate.localeCompare(right.resolvedDate);
+      });
+      return { block: dateCandidates[0].block, index: dateCandidates[0].index };
     }
 
     if (bestValue) {
@@ -67,6 +197,15 @@ export function findBlockByLabelProximity(
   }
 
   return undefined;
+}
+
+function looksLikeDateCandidate(value: string): boolean {
+  return (
+    /\b\d{1,2}\s+[A-Za-z]{3,9}\s+\d{4}\b/i.test(value) ||
+    /\b[A-Za-z]{3,9}\s+\d{1,2},?\s+\d{4}\b/i.test(value) ||
+    /\b\d{4}-\d{1,2}-\d{1,2}\b/.test(value) ||
+    /\b\d{1,2}-\d{1,2}-\d{4}\b/.test(value)
+  );
 }
 
 export function findVendorBlock(blocks: OcrBlock[]): { block: OcrBlock; index: number } | undefined {

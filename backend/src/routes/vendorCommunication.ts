@@ -1,3 +1,4 @@
+import { getAuth } from "../types/auth.js";
 import { Router } from "express";
 import { InvoiceModel } from "../models/Invoice.js";
 import { TenantModel } from "../models/Tenant.js";
@@ -13,7 +14,7 @@ export function createVendorCommunicationRouter() {
 
   router.post("/invoices/:id/vendor-email", requireCap("canSendVendorEmails"), async (req, res, next) => {
     try {
-      const tenantId = req.authContext!.tenantId;
+      const tenantId = getAuth(req).tenantId;
       const invoice = await InvoiceModel.findOne({ _id: req.params.id, tenantId });
       if (!invoice) { res.status(404).json({ message: "Invoice not found." }); return; }
 

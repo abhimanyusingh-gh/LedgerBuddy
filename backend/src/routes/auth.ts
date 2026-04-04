@@ -1,8 +1,7 @@
-import { createHash } from "node:crypto";
+import { getAuth } from "../types/auth.js";
 import { Router } from "express";
 import type { AuthService } from "../auth/AuthService.js";
 import { env } from "../config/env.js";
-import { UserModel } from "../models/User.js";
 import { requireAuth } from "../auth/requireAuth.js";
 import { createAuthenticationMiddleware } from "../auth/middleware.js";
 
@@ -56,7 +55,7 @@ export function createAuthRouter(authService: AuthService) {
 
   router.post("/auth/change-password", authenticate, requireAuth, async (request, response, next) => {
     try {
-      const context = request.authContext!;
+      const context = getAuth(request);
       const currentPassword = typeof request.body?.currentPassword === "string" ? request.body.currentPassword : "";
       const newPassword = typeof request.body?.newPassword === "string" ? request.body.newPassword : "";
       if (!currentPassword || !newPassword) {
@@ -66,32 +65,6 @@ export function createAuthRouter(authService: AuthService) {
 
       await authService.changePassword(context, currentPassword, newPassword);
       response.json({ success: true });
-    } catch (error) {
-      next(error);
-    }
-  });
-
-  router.get("/auth/verify-email", async (request, response, next) => {
-    try {
-      const token = typeof request.query.token === "string" ? request.query.token : "";
-      if (!token) {
-        response.status(400).json({ error: "Missing token" });
-        return;
-      }
-
-      const tokenHash = createHash("sha256").update(token).digest("base64url");
-      const user = await UserModel.findOneAndUpdate(
-        { verificationTokenHash: tokenHash, emailVerified: { $exists: false } },
-        { emailVerified: new Date(), $unset: { verificationTokenHash: "" } },
-        { new: true }
-      );
-
-      if (!user) {
-        response.status(400).json({ error: "Invalid or expired token" });
-        return;
-      }
-
-      response.redirect(`${env.INVITE_BASE_URL}/?verified=true`);
     } catch (error) {
       next(error);
     }

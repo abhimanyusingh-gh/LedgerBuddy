@@ -1,4 +1,4 @@
-import { randomBytes } from "node:crypto";
+import { randomBytes, scryptSync } from "node:crypto";
 import { InvoiceModel } from "../models/Invoice.js";
 import { TenantIntegrationModel } from "../models/TenantIntegration.js";
 import { TenantModel } from "../models/Tenant.js";
@@ -21,7 +21,6 @@ interface TenantUsageOverview {
   needsReviewDocuments: number;
   failedDocuments: number;
   gmailConnectionState: "CONNECTED" | "NEEDS_REAUTH" | "DISCONNECTED";
-  adminTempPassword?: string;
   adminEmail?: string;
   ocrTokensTotal: number;
   slmTokensTotal: number;
@@ -62,6 +61,8 @@ export class PlatformAdminService {
     }
 
     const tempPassword = randomBytes(6).toString("base64url");
+    const salt = randomBytes(16).toString("hex");
+    const hashedTempPassword = salt + ":" + scryptSync(tempPassword, salt, 64).toString("hex");
 
     const tenant = await TenantModel.create({
       name: tenantName,
@@ -78,7 +79,7 @@ export class PlatformAdminService {
         displayName,
         encryptedRefreshToken: "",
         lastLoginAt: new Date(0),
-        tempPassword,
+        tempPassword: hashedTempPassword,
         mustChangePassword: true
       });
       await TenantUserRoleModel.create({
@@ -176,7 +177,7 @@ export class PlatformAdminService {
         }
       ]),
       TenantIntegrationModel.find({ provider: "gmail" }).lean(),
-      TenantUserRoleModel.aggregate<{ _id: string; email: string; tempPassword?: string }>([
+      TenantUserRoleModel.aggregate<{ _id: string; email: string }>([
         { $match: { role: "TENANT_ADMIN" } },
         {
           $lookup: {
@@ -187,7 +188,7 @@ export class PlatformAdminService {
           }
         },
         { $unwind: "$user" },
-        { $group: { _id: "$tenantId", email: { $first: "$user.email" }, tempPassword: { $first: "$user.tempPassword" } } }
+        { $group: { _id: "$tenantId", email: { $first: "$user.email" } } }
       ])
     ]);
 
@@ -223,7 +224,6 @@ export class PlatformAdminService {
           gmailStatus === "connected" ? "CONNECTED" : gmailStatus === "requires_reauth" ? "NEEDS_REAUTH" : "DISCONNECTED",
         lastIngestedAt: invoice?.lastIngestedAt ? new Date(invoice.lastIngestedAt).toISOString() : null,
         createdAt: new Date(tenant.createdAt).toISOString(),
-        adminTempPassword: adminInfoMap.get(tenantId)?.tempPassword,
         adminEmail: adminInfoMap.get(tenantId)?.email
       };
     });

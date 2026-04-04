@@ -1,3 +1,4 @@
+import { getAuth } from "../types/auth.js";
 import { Router } from "express";
 import { requireCap } from "../auth/requireCapability.js";
 import { BankAccountModel } from "../models/BankAccount.js";
@@ -8,7 +9,7 @@ export function createBankAccountsRouter(bankService: IBankConnectionService) {
 
   router.get("/bank/accounts", requireCap("canManageConnections"), async (req, res, next) => {
     try {
-      const { tenantId } = req.authContext!;
+      const { tenantId } = getAuth(req);
       const accounts = await BankAccountModel.find({ tenantId }).sort({ createdAt: -1 }).lean();
       res.json({
         items: accounts.map((a) => ({
@@ -33,7 +34,7 @@ export function createBankAccountsRouter(bankService: IBankConnectionService) {
 
   router.post("/bank/accounts", requireCap("canManageConnections"), async (req, res, next) => {
     try {
-      const { tenantId, userId } = req.authContext!;
+      const { tenantId, userId } = getAuth(req);
       const aaAddress = typeof req.body?.aaAddress === "string" ? req.body.aaAddress.trim() : "";
       const displayName = typeof req.body?.displayName === "string" ? req.body.displayName.trim() : "";
 
@@ -66,7 +67,7 @@ export function createBankAccountsRouter(bankService: IBankConnectionService) {
 
   router.delete("/bank/accounts/:id", requireCap("canManageConnections"), async (req, res, next) => {
     try {
-      const { tenantId } = req.authContext!;
+      const { tenantId } = getAuth(req);
       const account = await BankAccountModel.findOne({ _id: req.params.id, tenantId });
       if (!account) {
         res.status(404).json({ message: "Bank account not found." });
@@ -82,7 +83,7 @@ export function createBankAccountsRouter(bankService: IBankConnectionService) {
 
   router.post("/bank/accounts/:id/refresh", requireCap("canManageConnections"), async (req, res, next) => {
     try {
-      const { tenantId } = req.authContext!;
+      const { tenantId } = getAuth(req);
       const account = await BankAccountModel.findOne({ _id: req.params.id, tenantId });
       if (!account) {
         res.status(404).json({ message: "Bank account not found." });

@@ -1,3 +1,4 @@
+import { getAuth } from "../types/auth.js";
 import { Router } from "express";
 import { GlCodeMasterModel } from "../models/GlCodeMaster.js";
 import { requireAuth } from "../auth/requireAuth.js";
@@ -9,7 +10,7 @@ export function createGlCodesRouter() {
 
   router.get("/admin/gl-codes", async (req, res, next) => {
     try {
-      const tenantId = req.authContext!.tenantId;
+      const tenantId = getAuth(req).tenantId;
       const query: Record<string, unknown> = { tenantId };
 
       if (typeof req.query.category === "string") query.category = req.query.category;
@@ -39,7 +40,7 @@ export function createGlCodesRouter() {
 
   router.post("/admin/gl-codes", requireCap("canConfigureGlCodes"), async (req, res, next) => {
     try {
-      const tenantId = req.authContext!.tenantId;
+      const tenantId = getAuth(req).tenantId;
       const { code, name, category, linkedTdsSection, parentCode } = req.body ?? {};
 
       if (!code?.trim() || !name?.trim()) {
@@ -68,7 +69,7 @@ export function createGlCodesRouter() {
 
   router.put("/admin/gl-codes/:code", requireCap("canConfigureGlCodes"), async (req, res, next) => {
     try {
-      const tenantId = req.authContext!.tenantId;
+      const tenantId = getAuth(req).tenantId;
       const update: Record<string, unknown> = {};
       if (typeof req.body.name === "string") update.name = req.body.name.trim();
       if (typeof req.body.category === "string") update.category = req.body.category.trim();
@@ -89,7 +90,7 @@ export function createGlCodesRouter() {
 
   router.delete("/admin/gl-codes/:code", requireCap("canConfigureGlCodes"), async (req, res, next) => {
     try {
-      const tenantId = req.authContext!.tenantId;
+      const tenantId = getAuth(req).tenantId;
       const doc = await GlCodeMasterModel.findOneAndUpdate(
         { tenantId, code: req.params.code },
         { $set: { isActive: false } },

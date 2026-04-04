@@ -1,6 +1,6 @@
 import type { OcrBlock } from "../../../core/interfaces/OcrProvider.js";
 import type { ParsedInvoiceData } from "../../../types/invoice.js";
-import { parseAmountToken } from "../../../parser/invoiceParser.js";
+import { parseAmountTokenWithOcrRepair } from "../../../parser/invoiceParser.js";
 import { extractAmountValueNearColumn, extractNumericValueNearColumn, findBlockIndexByExactText } from "./grounding.js";
 import { findSummaryAmountByLabel } from "./totalsRecovery.js";
 
@@ -16,7 +16,7 @@ export function classifyOcrRecoveryStrategy(ocrBlocks: OcrBlock[], ocrText: stri
   }
 
   const hasDescription = findBlockIndexByExactText(ocrBlocks, /description/i) >= 0;
-  const hasAmountHeader = findBlockIndexByExactText(ocrBlocks, /^amount$/i) >= 0;
+  const hasAmountHeader = findBlockIndexByExactText(ocrBlocks, /\b(amount|unit\s*price|rate|amt)\b/i) >= 0;
   if (hasDescription && hasAmountHeader) {
     return "invoice_table";
   }
@@ -43,10 +43,7 @@ export function recoverLineItemsFromOcr(
   }
 
   const descriptionHeaderIndex = findBlockIndexByExactText(ocrBlocks, /description/i);
-  const amountHeaderIndex =
-    findBlockIndexByExactText(ocrBlocks, /^amount$/i) >= 0
-      ? findBlockIndexByExactText(ocrBlocks, /^amount$/i)
-      : findBlockIndexByExactText(ocrBlocks, /\bamount\b/i);
+  const amountHeaderIndex = findAmountHeaderIndex(ocrBlocks, descriptionHeaderIndex);
   if (descriptionHeaderIndex < 0 || amountHeaderIndex < 0) {
     return normalizedExisting ?? recoverReceiptLineItemsFromOcr(normalizedExisting, ocrBlocks, fallbackTotalAmountMinor);
   }
@@ -75,8 +72,9 @@ export function recoverLineItemsFromOcr(
     .filter((entry) => !/^(description|qty|unit\s*price|amount)$/i.test(entry.block.text.trim()))
     .sort((left, right) => left.box![1] - right.box![1]);
   const amountBlocks = rowBlocks
-    .filter((entry) => entry.box![0] >= amountHeaderBox[0] - 0.03)
-    .filter((entry) => parseAmountToken(entry.block.text) !== null)
+    .filter((entry) => entry.box![0] >= amountHeaderBox[0] - 0.05)
+    .filter((entry) => !/%/.test(entry.block.text))
+    .filter((entry) => parseAmountTokenWithOcrRepair(entry.block.text) !== null)
     .sort((left, right) => left.box![1] - right.box![1]);
   if (descriptionBlocks.length === 0 || amountBlocks.length === 0) {
     return normalizedExisting;
@@ -91,7 +89,7 @@ export function recoverLineItemsFromOcr(
     }
     const prevMid = (lastRow[lastRow.length - 1].box![1] + lastRow[lastRow.length - 1].box![3]) / 2;
     const nextMid = (block.box![1] + block.box![3]) / 2;
-    if (Math.abs(nextMid - prevMid) <= 0.035) {
+    if (Math.abs(nextMid - prevMid) <= 0.012) {
       lastRow.push(block);
     } else {
       descriptionRows.push([block]);
@@ -107,7 +105,7 @@ export function recoverLineItemsFromOcr(
     qtyHeaderIndex,
     unitPriceHeaderIndex
   );
-  if (recoveredItems.length <= 1 && amountBlocks.length >= 2) {
+  if (recoveredItems.length === 0 && amountBlocks.length >= 2) {
     recoveredItems = recoverInvoiceTableLineItemsFromAmountAnchors(
       ocrBlocks,
       amountBlocks,
@@ -124,6 +122,38 @@ export function recoverLineItemsFromOcr(
   return recoveredItems;
 }
 
+function findAmountHeaderIndex(ocrBlocks: OcrBlock[], descriptionHeaderIndex: number): number {
+  const exactAmountIndex = findBlockIndexByExactText(ocrBlocks, /\b(amount|unit\s*price|amt)\b/i);
+  if (descriptionHeaderIndex < 0) {
+    return exactAmountIndex >= 0 ? exactAmountIndex : findBlockIndexByExactText(ocrBlocks, /\bamount\b/i);
+  }
+
+  const descriptionBox = ocrBlocks[descriptionHeaderIndex]?.bboxNormalized;
+  if (!descriptionBox) {
+    return exactAmountIndex >= 0 ? exactAmountIndex : findBlockIndexByExactText(ocrBlocks, /\bamount\b/i);
+  }
+
+  const headerCandidates = ocrBlocks
+    .map((block, index) => ({ block, index, box: block.bboxNormalized }))
+    .filter((entry): entry is BoxedBlock => Boolean(entry.box))
+      .filter((entry) => /\b(amount|rate|amt)\b/i.test(entry.block.text))
+      .filter((entry) => entry.box[0] >= 0.5)
+      .filter((entry) => Math.abs(((entry.box[1] + entry.box[3]) / 2) - ((descriptionBox[1] + descriptionBox[3]) / 2)) <= 0.03)
+      .sort((left, right) => {
+        const leftIsAmount = /(\bamount\b|\bamt\b)/i.test(left.block.text) ? 1 : 0;
+        const rightIsAmount = /(\bamount\b|\bamt\b)/i.test(right.block.text) ? 1 : 0;
+        if (leftIsAmount !== rightIsAmount) {
+          return rightIsAmount - leftIsAmount;
+        }
+        return right.box[0] - left.box[0];
+      });
+  if (headerCandidates.length > 0) {
+    return headerCandidates[0].index;
+  }
+
+  return exactAmountIndex >= 0 ? exactAmountIndex : findBlockIndexByExactText(ocrBlocks, /\bamount\b/i);
+}
+
 function recoverInvoiceTableLineItemsFromRows(
   ocrBlocks: OcrBlock[],
   descriptionRows: Array<Array<{ block: OcrBlock; index: number; box: [number, number, number, number] | undefined }>>,
@@ -136,12 +166,16 @@ function recoverInvoiceTableLineItemsFromRows(
     const description = row.map((entry) => entry.block.text.trim()).filter(Boolean).join(" ").trim();
     const rowTop = Math.min(...row.map((entry) => entry.box![1]));
     const rowBottom = Math.max(...row.map((entry) => entry.box![3]));
-    const amountBlock = amountBlocks.find((entry) => {
+    const amountBlockCandidates = amountBlocks.filter((entry) => {
       const mid = (entry.box![1] + entry.box![3]) / 2;
       return mid >= rowTop - 0.01 && mid <= rowBottom + 0.01;
     });
-    const amountMajor = amountBlock ? parseAmountToken(amountBlock.block.text) : null;
-    if (!description || amountMajor === null) {
+    const amountBlock = amountBlockCandidates
+      .filter((entry) => !/%/.test(entry.block.text))
+      .sort((left, right) => right.box![0] - left.box![0])[0];
+    const amountMajor = amountBlock ? parseAmountTokenWithOcrRepair(amountBlock.block.text) : null;
+    const normalizedDescription = description.replace(/\s+/g, " ");
+    if (!description || amountMajor === null || /^(sub\s*total|subtotal|total|amount due|balance due|grand total|tax|cgst|sgst|igst|hsn|\/sac)$/i.test(normalizedDescription)) {
       continue;
     }
 
@@ -186,8 +220,9 @@ function recoverInvoiceTableLineItemsFromAmountAnchors(
       .filter((text) => !/^(description|qty|unit\s*price|amount|tax|sub\s*total|subtotal|total|amount due|rate|cgst|sgst|amt|hsn|\/sac)$/i.test(text))
       .join(" ")
       .trim();
-    const amountMajor = parseAmountToken(amountBlock.block.text);
-    if (!description || amountMajor === null) {
+    const amountMajor = parseAmountTokenWithOcrRepair(amountBlock.block.text);
+    const normalizedDescription = description.replace(/\s+/g, " ");
+    if (!description || amountMajor === null || /^(sub\s*total|subtotal|total|amount due|balance due|grand total|tax|cgst|sgst|igst)$/i.test(normalizedDescription)) {
       continue;
     }
     const quantity = qtyHeaderIndex >= 0 ? extractNumericValueNearColumn(ocrBlocks, qtyHeaderIndex, rowTop, rowBottom) : undefined;
@@ -256,13 +291,9 @@ function normalizeLineItemsAgainstTotal(
   if (!Array.isArray(items) || items.length === 0) {
     return items;
   }
-  const normalized = items.map((item) => ({ ...item }));
-  if (normalized.length === 1 && typeof totalAmountMinor === "number" && totalAmountMinor > 0) {
-    const ratio = normalized[0].amountMinor / totalAmountMinor;
-    if (!Number.isFinite(ratio) || ratio > 2 || ratio < 0.5) {
-      normalized[0].amountMinor = totalAmountMinor;
-    }
-  }
+  const normalized = items
+    .map((item) => ({ ...item }))
+    .filter((item) => !(totalAmountMinor && item.amountMinor > 0 && item.amountMinor > totalAmountMinor * 20));
   if (normalized.some((item) => item.amountMinor < 0) && normalized.some((item) => item.amountMinor > 0)) {
     normalized.sort((left, right) => left.amountMinor - right.amountMinor);
   }

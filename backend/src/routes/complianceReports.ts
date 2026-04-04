@@ -1,3 +1,4 @@
+import { getAuth } from "../types/auth.js";
 import { Router } from "express";
 import { InvoiceModel } from "../models/Invoice.js";
 import { VendorMasterModel } from "../models/VendorMaster.js";
@@ -10,7 +11,7 @@ export function createComplianceReportsRouter() {
 
   router.get("/reports/tds-summary", requireCap("canDownloadComplianceReports"), async (req, res, next) => {
     try {
-      const tenantId = req.authContext!.tenantId;
+      const tenantId = getAuth(req).tenantId;
       const from = req.query.from ? new Date(String(req.query.from)) : undefined;
       const to = req.query.to ? new Date(String(req.query.to)) : undefined;
 
@@ -53,7 +54,7 @@ export function createComplianceReportsRouter() {
 
   router.get("/reports/vendor-health", requireCap("canDownloadComplianceReports"), async (req, res, next) => {
     try {
-      const tenantId = req.authContext!.tenantId;
+      const tenantId = getAuth(req).tenantId;
 
       const [missingPan, recentBankChanges, msmeVendors, totalVendors] = await Promise.all([
         VendorMasterModel.countDocuments({ tenantId, pan: null }),

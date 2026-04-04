@@ -1,3 +1,4 @@
+import { getAuth } from "../types/auth.js";
 import { Router } from "express";
 import { TenantTcsConfigModel } from "../models/TenantTcsConfig.js";
 import { requireAuth } from "../auth/requireAuth.js";
@@ -7,9 +8,9 @@ import type { Request, Response, NextFunction } from "express";
 
 const VALID_ROLES = new Set<string>(ActiveTenantRoles);
 
-function requireTcsModifyAccess(req: Request, res: Response, next: NextFunction): void {
-  const tenantId = req.authContext!.tenantId;
-  const role = req.authContext!.role;
+export function requireTcsModifyAccess(req: Request, res: Response, next: NextFunction): void {
+  const tenantId = getAuth(req).tenantId;
+  const role = getAuth(req).role;
 
   TenantTcsConfigModel.findOne({ tenantId }).lean().then((config) => {
     const allowed = config?.tcsModifyRoles ?? ActiveTenantRoles;
@@ -28,10 +29,10 @@ export function createTcsConfigRouter() {
 
   router.get("/admin/tcs-config", async (req, res, next) => {
     try {
-      const tenantId = req.authContext!.tenantId;
+      const tenantId = getAuth(req).tenantId;
       let config = await TenantTcsConfigModel.findOne({ tenantId }).lean();
       if (!config) {
-        const created = await TenantTcsConfigModel.create({ tenantId, updatedBy: req.authContext!.userId });
+        const created = await TenantTcsConfigModel.create({ tenantId, updatedBy: getAuth(req).userId });
         res.json(created.toObject());
         return;
       }
@@ -41,7 +42,7 @@ export function createTcsConfigRouter() {
 
   router.put("/admin/tcs-config", requireTcsModifyAccess, async (req, res, next) => {
     try {
-      const tenantId = req.authContext!.tenantId;
+      const tenantId = getAuth(req).tenantId;
       const { ratePercent, effectiveFrom, reason, enabled } = req.body;
 
       if (typeof ratePercent !== "number" || ratePercent < 0 || ratePercent > 100) {
@@ -66,8 +67,8 @@ export function createTcsConfigRouter() {
       const historyEntry = {
         previousRate,
         newRate: ratePercent,
-        changedBy: req.authContext!.userId,
-        changedByName: req.authContext!.email ?? req.authContext!.userId,
+        changedBy: getAuth(req).userId,
+        changedByName: getAuth(req).email ?? getAuth(req).userId,
         changedAt: new Date(),
         reason: typeof reason === "string" && reason.trim() ? reason.trim() : null,
         effectiveFrom: previousEffectiveFrom
@@ -76,8 +77,8 @@ export function createTcsConfigRouter() {
       const updated = await TenantTcsConfigModel.findOneAndUpdate(
         { tenantId },
         {
-          $set: { ratePercent, effectiveFrom, enabled, updatedBy: req.authContext!.userId },
-          $push: { history: { $each: [historyEntry], $position: 0 } }
+          $set: { ratePercent, effectiveFrom, enabled, updatedBy: getAuth(req).userId },
+          $push: { history: { $each: [historyEntry], $position: 0, $slice: 1000 } }
         },
         { new: true, upsert: true, setDefaultsOnInsert: true }
       );
@@ -88,7 +89,7 @@ export function createTcsConfigRouter() {
 
   router.put("/admin/tcs-config/roles", requireCap("canConfigureCompliance"), async (req, res, next) => {
     try {
-      const tenantId = req.authContext!.tenantId;
+      const tenantId = getAuth(req).tenantId;
       const { tcsModifyRoles } = req.body;
 
       if (!Array.isArray(tcsModifyRoles)) {
@@ -114,7 +115,7 @@ export function createTcsConfigRouter() {
 
   router.get("/admin/tcs-config/history", async (req, res, next) => {
     try {
-      const tenantId = req.authContext!.tenantId;
+      const tenantId = getAuth(req).tenantId;
       const page = Math.max(1, parseInt(String(req.query.page ?? "1"), 10) || 1);
       const limit = 20;
       const skip = (page - 1) * limit;

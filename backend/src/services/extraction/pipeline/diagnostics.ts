@@ -148,22 +148,35 @@ export function addFieldDiagnosticsToMetadata(params: {
                 params.fieldRegions[field as keyof ParsedInvoiceData] ?? []
               );
       }
+      const shouldUseCorrectedMatch =
+        !!correctedMatch &&
+        (
+          !provenanceBlock ||
+          field === "invoiceDate" ||
+          field === "dueDate" ||
+          !blockMatchesFieldValue(field, value, provenanceBlock)
+        );
+      const selectedMatch = shouldUseCorrectedMatch ? correctedMatch : undefined;
       fieldProvenance[field] = {
         source: slmProvenance.source ?? provenanceSource,
-        page: correctedMatch?.block.page ?? slmProvenance.page ?? 1,
-        ...(correctedMatch?.block.bbox ? { bbox: correctedMatch.block.bbox } : slmProvenance.bbox ? { bbox: slmProvenance.bbox } : {}),
-        ...(correctedMatch?.block.bboxNormalized
-          ? { bboxNormalized: correctedMatch.block.bboxNormalized }
+        page: selectedMatch ? selectedMatch.block.page : slmProvenance.page ?? 1,
+        ...(selectedMatch?.block.bbox
+          ? { bbox: selectedMatch.block.bbox }
+          : slmProvenance.bbox
+            ? { bbox: slmProvenance.bbox }
+            : {}),
+        ...(selectedMatch?.block.bboxNormalized
+          ? { bboxNormalized: selectedMatch.block.bboxNormalized }
           : slmProvenance.bboxNormalized
             ? { bboxNormalized: slmProvenance.bboxNormalized }
             : {}),
-        ...(correctedMatch?.block.bboxModel
-          ? { bboxModel: correctedMatch.block.bboxModel }
+        ...(selectedMatch?.block.bboxModel
+          ? { bboxModel: selectedMatch.block.bboxModel }
           : slmProvenance.bboxModel
             ? { bboxModel: slmProvenance.bboxModel }
             : {}),
-        ...(typeof correctedMatch?.index === "number"
-          ? { blockIndex: correctedMatch.index }
+        ...(typeof selectedMatch?.index === "number"
+          ? { blockIndex: selectedMatch.index }
           : typeof slmProvenance.blockIndex === "number"
             ? { blockIndex: slmProvenance.blockIndex }
             : {}),

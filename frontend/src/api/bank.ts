@@ -40,6 +40,7 @@ export async function fetchBankStatements(): Promise<BankStatementSummary[]> {
 export async function uploadBankStatementCsv(file: File, columnMapping?: Record<string, number>): Promise<{
   statementId: string;
   transactionCount: number;
+  duplicatesSkipped: number;
   matched: number;
   suggested: number;
   unmatched: number;

@@ -1,3 +1,4 @@
+import type { Request } from "express";
 import type { TenantRole } from "../models/TenantUserRole.js";
 
 export interface AuthenticatedRequestContext {
@@ -8,6 +9,15 @@ export interface AuthenticatedRequestContext {
   onboardingStatus: "pending" | "completed";
   role: TenantRole;
   isPlatformAdmin: boolean;
+}
+
+interface AuthenticatedRequest extends Request {
+  authContext: AuthenticatedRequestContext;
+}
+
+export function getAuth(req: Request): AuthenticatedRequestContext {
+  if (!req.authContext) throw new Error("Missing auth context");
+  return req.authContext;
 }
 
 export interface SessionFlagsPayload {

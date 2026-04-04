@@ -4,6 +4,7 @@ import type { FileStore } from "../core/interfaces/FileStore.js";
 import { ExportBatchModel } from "../models/ExportBatch.js";
 import { InvoiceModel } from "../models/Invoice.js";
 import { logger } from "../utils/logger.js";
+import { EXPORT_SAVE_CONCURRENCY } from "../constants.js";
 
 interface ExportRequest {
   ids?: string[];
@@ -296,8 +297,6 @@ export class ExportService {
     return { ...file, filename };
   }
 }
-
-import { EXPORT_SAVE_CONCURRENCY } from "../constants.js";
 
 async function saveBatch<T>(
   items: T[],

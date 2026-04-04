@@ -1,3 +1,4 @@
+import { getAuth } from "../types/auth.js";
 import { createHash, randomBytes } from "node:crypto";
 import { Router } from "express";
 import multer from "multer";
@@ -27,16 +28,16 @@ export function createJobsRouter(
   router.use(requireAuth);
 
   router.get("/jobs/ingest/status", (req, res) => {
-    res.json(orchestrator.getCurrentStatus(req.authContext!.tenantId));
+    res.json(orchestrator.getCurrentStatus(getAuth(req).tenantId));
   });
 
   router.get("/jobs/ingest/sse", (req, res) => {
-    orchestrator.addSubscriber(req.authContext!.tenantId, res, req);
+    orchestrator.addSubscriber(getAuth(req).tenantId, res, req);
   });
 
   router.post("/jobs/ingest", requireCap("canStartIngestion"), async (req, res, next) => {
     try {
-      res.status(202).json(orchestrator.startJob(ingestionService, req.authContext!.tenantId));
+      res.status(202).json(orchestrator.startJob(ingestionService, getAuth(req).tenantId));
     } catch (error) {
       next(error);
     }
@@ -44,7 +45,7 @@ export function createJobsRouter(
 
   router.post("/jobs/ingest/email-simulate", requireCap("canStartIngestion"), async (req, res, next) => {
     try {
-      const context = req.authContext!;
+      const context = getAuth(req);
       const current = orchestrator.getCurrentStatus(context.tenantId);
       if (current.running) {
         res.status(202).json(current);
@@ -87,7 +88,7 @@ export function createJobsRouter(
     });
   }, async (req, res, next) => {
     try {
-      const context = req.authContext!;
+      const context = getAuth(req);
       if (!fileStore) {
         res.status(400).json({ message: "File storage is not configured." });
         return;
@@ -164,7 +165,7 @@ export function createJobsRouter(
   });
 
   router.post("/jobs/ingest/pause", requireCap("canStartIngestion"), (req, res) => {
-    res.json(orchestrator.pauseJob(ingestionService, req.authContext!.tenantId));
+    res.json(orchestrator.pauseJob(ingestionService, getAuth(req).tenantId));
   });
 
   return router;

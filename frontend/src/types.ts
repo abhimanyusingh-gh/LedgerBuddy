@@ -216,7 +216,7 @@ export interface TdsRate {
   rateNoPanBps: number;
 }
 
-export interface TenantComplianceConfig {
+interface TenantComplianceConfig {
   complianceEnabled: boolean;
   autoSuggestGlCodes: boolean;
   autoDetectTds: boolean;

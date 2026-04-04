@@ -1,4 +1,4 @@
-import { normalizeTenantRole, type ActiveTenantRole, type PersonaRole } from "../models/TenantUserRole.js";
+import { normalizeTenantRole, type ActiveTenantRole } from "../models/TenantUserRole.js";
 
 export interface UserCapabilities {
   approvalLimitMinor: number | null;
@@ -163,8 +163,4 @@ export function mergeCapabilitiesWithDefaults(
     Object.entries(storedCaps).filter(([, value]) => value !== undefined && value !== null)
   );
   return { ...defaults, ...filtered } as UserCapabilities;
-}
-
-function getPersonaRoleDefaults(role: PersonaRole): UserCapabilities {
-  return { ...ROLE_DEFAULTS[role] };
 }

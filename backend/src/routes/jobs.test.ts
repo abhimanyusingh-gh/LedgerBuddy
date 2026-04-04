@@ -358,7 +358,7 @@ describe("jobs routes", () => {
         }
       }
 
-      expect(runOnceFn.mock.calls.length).toBeLessThanOrEqual(7);
+      expect(runOnceFn.mock.calls.length).toBeLessThanOrEqual(6);
     });
   });
 });

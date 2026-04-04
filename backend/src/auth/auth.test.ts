@@ -150,6 +150,7 @@ describe("auth middleware", () => {
   it("prefers authToken query when authorization header token is invalid", () => {
     const request = {
       header: (name: string) => (name.toLowerCase() === "authorization" ? "Bearer undefined" : undefined),
+      path: "/jobs/ingest/sse",
       query: { authToken: "query-token-1" }
     } as unknown as Request;
     expect(resolveBearerToken(request)).toBe("query-token-1");
@@ -158,9 +159,37 @@ describe("auth middleware", () => {
   it("uses query token when authorization header is missing", () => {
     const request = {
       header: () => undefined,
+      path: "/invoices/abc123/preview",
       query: { authToken: "query-token-2" }
     } as unknown as Request;
     expect(resolveBearerToken(request)).toBe("query-token-2");
+  });
+
+  it("ignores query token on non-allowlisted paths", () => {
+    const request = {
+      header: () => undefined,
+      path: "/invoices",
+      query: { authToken: "sneaky-token" }
+    } as unknown as Request;
+    expect(resolveBearerToken(request)).toBe("");
+  });
+
+  it("allows query token on ocr-block crop paths", () => {
+    const request = {
+      header: () => undefined,
+      path: "/invoices/abc123/ocr-blocks/5/crop",
+      query: { authToken: "crop-token" }
+    } as unknown as Request;
+    expect(resolveBearerToken(request)).toBe("crop-token");
+  });
+
+  it("allows query token on source-overlay paths", () => {
+    const request = {
+      header: () => undefined,
+      path: "/invoices/abc123/source-overlays/vendorName",
+      query: { authToken: "overlay-token" }
+    } as unknown as Request;
+    expect(resolveBearerToken(request)).toBe("overlay-token");
   });
 
   it("authenticates request using query token", async () => {
@@ -174,6 +203,7 @@ describe("auth middleware", () => {
     const middleware = createAuthenticationMiddleware(authService as never);
     const request = {
       header: () => undefined,
+      path: "/invoices/abc123/preview",
       query: { authToken: "image-token" }
     } as unknown as Request;
     const response = { status: jest.fn().mockReturnThis(), json: jest.fn() } as unknown as Response;

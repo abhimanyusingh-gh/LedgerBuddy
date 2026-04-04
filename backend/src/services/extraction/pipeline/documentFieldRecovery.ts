@@ -36,10 +36,23 @@ export function recoverHeaderFieldsFromOcr(
       next.invoiceNumber = recoveredInvoiceNumber;
     }
   }
+  if (!next.invoiceNumber || looksLikeWeakInvoiceNumber(next.invoiceNumber)) {
+    const receiptInvoiceNumber = findReceiptStyleInvoiceNumber(ocrBlocks);
+    if (receiptInvoiceNumber) {
+      next.invoiceNumber = receiptInvoiceNumber;
+    }
+  }
 
   if (!next.invoiceDate) {
     const invoiceDateBlock = findBlockByLabelProximity("invoiceDate", ocrBlocks);
     const recoveredInvoiceDate = invoiceDateBlock ? normalizeDateToken(invoiceDateBlock.block.text) : undefined;
+    if (recoveredInvoiceDate) {
+      next.invoiceDate = recoveredInvoiceDate;
+    }
+  }
+  if (!next.invoiceDate) {
+    const explicitInvoiceDateBlock = findExplicitInvoiceDateBlock(ocrBlocks);
+    const recoveredInvoiceDate = explicitInvoiceDateBlock ? normalizeDateToken(explicitInvoiceDateBlock.block.text) : undefined;
     if (recoveredInvoiceDate) {
       next.invoiceDate = recoveredInvoiceDate;
     }
@@ -115,27 +128,42 @@ export function findPreferredVendorBlockForStrategy(
 }
 
 function detectExplicitCurrency(text: string, ocrBlocks: OcrBlock[] = []): string | undefined {
-  if (/\bUSD\b/i.test(text) || /\$\d/.test(text)) {
+  const hasIndiaTaxContext = /\b(place of supply|gstin|cgst|sgst|igst|gst|tax invoice)\b/i.test(text) ||
+    /\b\d{2}[A-Z]{5}\d{4}[A-Z][A-Z0-9]Z[A-Z0-9]\b/i.test(text) ||
+    ocrBlocks.some((block) => /\b(gstin|cgst|sgst|igst|gst|place of supply)\b/i.test(block.text));
+  const hasUsdContext = /\bUSD\b/i.test(text) || ocrBlocks.some((block) => /\bUSD\b/i.test(block.text));
+  if (hasUsdContext) {
+    return "USD";
+  }
+  if (/\$/.test(text) && !hasIndiaTaxContext) {
     return "USD";
   }
   if (/\bINR\b/i.test(text) || /₹/.test(text)) {
     return "INR";
   }
+  if (hasIndiaTaxContext) {
+    return "INR";
+  }
+  if (ocrBlocks.some((block) => /\$/.test(block.text) && !hasIndiaTaxContext)) {
+    return "USD";
+  }
   const symbolMatch = text.match(/([$€£₹])/);
   if (symbolMatch) {
     return currencyBySymbol[symbolMatch[1]];
-  }
-  if (
-    /\b(gstin|cgst|sgst|igst|gst|tax invoice)\b/i.test(text) ||
-    ocrBlocks.some((block) => /\b(gstin|cgst|sgst|igst|gst)\b/i.test(block.text))
-  ) {
-    return "INR";
   }
   return undefined;
 }
 
 function extractInvoiceNumber(text: string): string | undefined {
   const normalizedText = text.replace(/[|]/g, "I").replace(/\bO(?=\d)/g, "0");
+  const receiptMatch = normalizedText.match(/\b(?:receipt|invoice)\s+([A-Z]{1,4}\d{6,})\b/i);
+  if (receiptMatch?.[1]) {
+    return normalizeInvoiceNumberValue(receiptMatch[1].trim());
+  }
+  const orderMatch = normalizedText.match(/\border#?\s*([A-Z0-9-]{6,})\b/i);
+  if (orderMatch?.[1]) {
+    return normalizeInvoiceNumberValue(orderMatch[1].trim());
+  }
   const match = normalizedText.match(/\b([A-Z0-9][A-Z0-9_\-/]{2,})\b/gi);
   if (!match || match.length === 0) {
     return undefined;
@@ -220,7 +248,7 @@ function findBrandVendorBlock(ocrBlocks: OcrBlock[]): { block: OcrBlock; index: 
     .map((block, index) => ({ block, index, box: block.bboxNormalized }))
     .filter((entry): entry is BoxedBlock => Boolean(entry.box))
     .filter((entry) => entry.box[1] <= 0.2)
-    .filter((entry) => /\b(makemytrip|make my trip|openai|openal|anthropic|cursor|sprinto)\b/i.test(entry.block.text));
+    .filter((entry) => /\b(makemytrip|make my trip|openai|openal|anthropic|cursor|sprinto|cloudflare|cloudflare,\s*inc)\b/i.test(entry.block.text));
   candidates.sort((left, right) => scoreBrandVendorCandidate(right) - scoreBrandVendorCandidate(left));
   return candidates[0] ? { block: candidates[0].block, index: candidates[0].index } : undefined;
 }
@@ -229,10 +257,29 @@ function findCorporateBrandVendorBlock(ocrBlocks: OcrBlock[]): { block: OcrBlock
   const candidates = ocrBlocks
     .map((block, index) => ({ block, index, box: block.bboxNormalized }))
     .filter((entry): entry is BoxedBlock => Boolean(entry.box))
-    .filter((entry) => /\b(makemytrip|make my trip|openai|openal|anthropic|cursor|sprinto)\b/i.test(entry.block.text))
+    .filter((entry) => /\b(makemytrip|make my trip|openai|openal|anthropic|cursor|sprinto|cloudflare|cloudflare,\s*inc)\b/i.test(entry.block.text))
     .filter((entry) => /\b(llc|inc|limited|private|pbc|ltd)\b/i.test(entry.block.text));
   candidates.sort((left, right) => scoreBrandVendorCandidate(right) - scoreBrandVendorCandidate(left));
   return candidates[0] ? { block: candidates[0].block, index: candidates[0].index } : undefined;
+}
+
+function findReceiptStyleInvoiceNumber(ocrBlocks: OcrBlock[]): string | undefined {
+  for (const block of ocrBlocks) {
+    if (!/\b(receipt|invoice|order#?)\b/i.test(block.text)) {
+      continue;
+    }
+    const recovered = extractInvoiceNumber(block.text);
+    if (recovered && /\d{4,}/.test(recovered) && !looksLikeWeakInvoiceNumber(recovered)) {
+      return recovered;
+    }
+  }
+  return undefined;
+}
+
+function findExplicitInvoiceDateBlock(ocrBlocks: OcrBlock[]): { block: OcrBlock; index: number } | undefined {
+  return ocrBlocks
+    .map((block, index) => ({ block, index }))
+    .find((entry) => /\b(date paid|date of issue|invoice date|paid on)\b/i.test(entry.block.text));
 }
 
 function scoreBrandVendorCandidate(entry: BoxedBlock): number {
@@ -241,7 +288,7 @@ function scoreBrandVendorCandidate(entry: BoxedBlock): number {
   const width = entry.box[2] - entry.box[0];
   score += width * 10;
 
-  if (/\b(openai|openal|anthropic|cursor|sprinto)\b/i.test(text)) {
+  if (/\b(openai|openal|anthropic|cursor|sprinto|cloudflare|cloudflare,\s*inc)\b/i.test(text)) {
     score += 4;
   }
   if (/\b(llc|inc|limited|private|pbc|ltd)\b/i.test(text)) {

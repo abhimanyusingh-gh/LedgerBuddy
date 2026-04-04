@@ -1,6 +1,6 @@
 import { Schema, model, type InferSchemaType } from "mongoose";
 
-export const PersonaRoles = [
+const PersonaRoles = [
   "ap_clerk",
   "senior_accountant",
   "ca",
@@ -9,8 +9,6 @@ export const PersonaRoles = [
   "ops_admin",
   "audit_clerk"
 ] as const;
-export type PersonaRole = (typeof PersonaRoles)[number];
-
 export const TenantAssignableRoles = ["TENANT_ADMIN", ...PersonaRoles] as const;
 export type TenantAssignableRole = (typeof TenantAssignableRoles)[number];
 
@@ -24,7 +22,7 @@ export function normalizeTenantRole(role: string): ActiveTenantRole {
   if ((ActiveTenantRoles as readonly string[]).includes(role)) {
     return role as ActiveTenantRole;
   }
-  return "ap_clerk";
+  throw new Error(`Unknown tenant role: ${role}`);
 }
 
 const userCapabilitiesSchema = new Schema(

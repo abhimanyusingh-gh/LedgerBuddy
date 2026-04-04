@@ -265,6 +265,12 @@ if ((values.ENV === "stg" || values.ENV === "prod") && values.REFRESH_TOKEN_ENCR
   process.exit(1);
 }
 
+if ((values.ENV === "stg" || values.ENV === "prod") && values.OIDC_CLIENT_SECRET === "billforge-local-secret") {
+  // eslint-disable-next-line no-console
+  console.error("Invalid env vars: set OIDC_CLIENT_SECRET for stg/prod. Do not use the default development secret.");
+  process.exit(1);
+}
+
 const apiBaseUrl = normalizeUrl(values.API_BASE_URL);
 
 export const env = {

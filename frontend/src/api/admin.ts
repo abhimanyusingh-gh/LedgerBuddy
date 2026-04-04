@@ -1,12 +1,10 @@
-import { apiClient, safeNum, stripNulls } from "./client";
+import { apiClient, stripNulls } from "./client";
 import type {
   AnalyticsOverview,
   ApprovalWorkflowConfig,
   GlCode,
   GmailConnectionStatus,
-  TallyFileExportResponse,
-  TdsRate,
-  TenantComplianceConfig
+  TdsRate
 } from "../types";
 
 export interface PlatformTenantUsageSummary {
@@ -24,7 +22,6 @@ export interface PlatformTenantUsageSummary {
   gmailConnectionState: "CONNECTED" | "NEEDS_REAUTH" | "DISCONNECTED";
   lastIngestedAt: string | null;
   createdAt: string;
-  adminTempPassword?: string;
   adminEmail?: string;
   ocrTokensTotal: number;
   slmTokensTotal: number;
@@ -76,24 +73,12 @@ export async function createGlCode(payload: { code: string; name: string; catego
   return (await apiClient.post<GlCode>("/admin/gl-codes", payload)).data;
 }
 
-async function updateGlCode(code: string, payload: Partial<{ name: string; category: string; linkedTdsSection: string | null; isActive: boolean }>): Promise<GlCode> {
-  return (await apiClient.put<GlCode>(`/admin/gl-codes/${encodeURIComponent(code)}`, payload)).data;
-}
-
 export async function deleteGlCode(code: string): Promise<GlCode> {
   return (await apiClient.delete<GlCode>(`/admin/gl-codes/${encodeURIComponent(code)}`)).data;
 }
 
 export async function fetchTdsRates(): Promise<TdsRate[]> {
   return (await apiClient.get<{ items: TdsRate[] }>("/compliance/tds-rates")).data.items;
-}
-
-async function fetchComplianceConfig(): Promise<TenantComplianceConfig> {
-  return (await apiClient.get<TenantComplianceConfig>("/admin/compliance-config")).data;
-}
-
-async function saveComplianceConfig(config: Partial<TenantComplianceConfig>): Promise<TenantComplianceConfig> {
-  return (await apiClient.put<TenantComplianceConfig>("/admin/compliance-config", config)).data;
 }
 
 export async function fetchGmailConnectionStatus() {

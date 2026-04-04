@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import random
 import subprocess
 import time
@@ -15,19 +16,36 @@ from .local_mlx import parse_json_object, recover_payload_from_candidates, recov
 
 
 class LocalClaudeCliLLMProvider(LLMProvider):
+  FATAL_PATTERNS = ["credit balance", "billing", "payment required", "subscription"]
+
   def __init__(self) -> None:
     self.generation_lock = Lock()
     self.last_error = ""
     self.root_dir = Path(__file__).resolve().parents[3]
+    self._preflight_passed = False
 
   def startup(self) -> None:
-    return
+    log_info("slm.claude_cli.startup", action="preflight_check")
+    try:
+      result = self._exec_claude_subprocess("Respond with exactly: OK")
+      if result and len(result) < 200:
+        self._preflight_passed = True
+        log_info("slm.claude_cli.startup.ok", response=result[:50])
+      else:
+        self.last_error = f"Unexpected preflight response length: {len(result)}"
+        log_error("slm.claude_cli.startup.unexpected", error=self.last_error)
+    except RuntimeError as e:
+      self.last_error = str(e)
+      if self._is_fatal_error(str(e)):
+        log_error("slm.claude_cli.startup.fatal", error=str(e))
+        raise RuntimeError(f"Claude CLI preflight failed (fatal): {e}") from e
+      log_error("slm.claude_cli.startup.warn", error=str(e))
 
   def health(self) -> dict[str, Any]:
     payload: dict[str, Any] = {
       "status": "ok",
       "modelId": self._effective_model_id(),
-      "modelLoaded": True,
+      "modelLoaded": self._preflight_passed,
       "modelLoading": False,
       "lastError": self.last_error,
       "provider": "local_claude_cli"
@@ -45,6 +63,10 @@ class LocalClaudeCliLLMProvider(LLMProvider):
       payload["status"] = "error"
       payload["lastError"] = str(error)
       self.last_error = str(error)
+    if not self._preflight_passed:
+      payload["status"] = "degraded"
+      if not payload["lastError"]:
+        payload["lastError"] = "Preflight check did not pass"
     return payload
 
   def select_fields(self, payload: dict[str, Any]) -> dict[str, Any]:
@@ -59,6 +81,8 @@ class LocalClaudeCliLLMProvider(LLMProvider):
         except Exception as error:
           self.last_error = str(error)
           log_error("slm.claude_cli.exec.failed", error=str(error))
+          if self._is_fatal_error(str(error)):
+            raise
           break
 
         usage = {"promptTokens": None, "completionTokens": None}
@@ -105,6 +129,8 @@ class LocalClaudeCliLLMProvider(LLMProvider):
         time.sleep(delay / 1000)
       except RuntimeError as e:
         error_msg = str(e)
+        if self._is_fatal_error(error_msg):
+          raise
         if self._is_retryable_error(error_msg):
           last_error = e
           if attempt >= max_retries:
@@ -128,10 +154,15 @@ class LocalClaudeCliLLMProvider(LLMProvider):
       cmd.extend(["--max-budget-usd", str(settings.claude_max_budget_usd)])
     cmd.extend(["-p", prompt])
 
+    env = os.environ.copy()
+    env.pop("ANTHROPIC_API_KEY", None)
+
     completed = subprocess.run(
       cmd,
+      stdin=subprocess.DEVNULL,
       text=True,
       capture_output=True,
+      env=env,
       cwd=self._resolve_workdir(),
       timeout=max(60, settings.claude_timeout_ms // 1000),
       check=False
@@ -145,6 +176,11 @@ class LocalClaudeCliLLMProvider(LLMProvider):
     delay = base_delay_ms * (2 ** attempt)
     jitter = int(delay * random.random() * 0.25)
     return min(delay + jitter, 30_000)
+
+  @classmethod
+  def _is_fatal_error(cls, error_msg: str) -> bool:
+    lower = error_msg.lower()
+    return any(p in lower for p in cls.FATAL_PATTERNS)
 
   @staticmethod
   def _is_retryable_error(error_msg: str) -> bool:

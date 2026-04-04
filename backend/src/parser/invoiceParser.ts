@@ -867,6 +867,9 @@ function splitConcatenatedAmountToken(token: string): string[] {
 export function parseAmountToken(token: string): number | null {
   const raw = token.replace(/[^0-9,.\-+]/g, "");
   const sign = raw.startsWith("-") ? -1 : 1;
+  if (raw === "" || raw === "-" || raw === "+") {
+    return null;
+  }
   let working = raw.replace(/^[-+]/, "");
 
   const commaCount = (working.match(/,/g) ?? []).length;
@@ -910,6 +913,64 @@ export function parseAmountToken(token: string): number | null {
   }
 
   return Number((sign * parsed).toFixed(2));
+}
+
+export function parseAmountTokenWithOcrRepair(token: string): number | null {
+  const parsed = parseAmountToken(token);
+  if (parsed === null) {
+    return null;
+  }
+  const repaired = recoverOCRLeadingDigitAmount(token, Math.abs(parsed));
+  if (repaired === null) {
+    return parsed;
+  }
+  return parsed >= 0 ? repaired : -repaired;
+}
+
+function recoverOCRLeadingDigitAmount(token: string, parsedMajor: number): number | null {
+  if (!Number.isFinite(parsedMajor) || parsedMajor <= 0 || parsedMajor >= 1_000_000) {
+    return null;
+  }
+  const raw = token.replace(/[^0-9,.\-+]/g, "");
+  const fractionPartLength = raw.includes(".") ? raw.split(".").pop()?.length ?? 0 : 0;
+  if (fractionPartLength === 0) {
+    return null;
+  }
+
+  const normalized = Math.abs(parsedMajor).toFixed(2);
+  const match = normalized.match(/^(\d+)\.(\d{2})$/);
+  if (!match) {
+    return null;
+  }
+  const [, integerPart, fractionPart] = match;
+  if (integerPart.length < 5 || integerPart.length > 6 || fractionPart === "00") {
+    return null;
+  }
+
+  const leadingDigit = integerPart[0];
+  if (leadingDigit < "5" || leadingDigit > "9") {
+    return null;
+  }
+
+  const repairedIntegerPart = integerPart.slice(1);
+  if (repairedIntegerPart.length < 3) {
+    return null;
+  }
+
+  const repairedMajor = Number(`${repairedIntegerPart}.${fractionPart}`);
+  if (!Number.isFinite(repairedMajor) || repairedMajor <= 0) {
+    return null;
+  }
+
+  const ratio = parsedMajor / repairedMajor;
+  if (ratio < 5 || ratio > 120) {
+    return null;
+  }
+  if (repairedMajor >= 10000) {
+    return null;
+  }
+
+  return Number(repairedMajor.toFixed(2));
 }
 
 function scoreAmountMagnitude(amount: number): number {

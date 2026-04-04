@@ -1,3 +1,4 @@
+import { getAuth } from "../types/auth.js";
 import { Router } from "express";
 import type { AuthService } from "../auth/AuthService.js";
 import { requireCap } from "../auth/requireCapability.js";
@@ -108,38 +109,9 @@ export function createGmailConnectionRouter(gmailIntegrationService: TenantGmail
     }
   });
 
-  router.get("/mailbox/gmail/connection", async (request, response, next) => {
-    try {
-      const context = request.authContext;
-      if (!context) {
-        response.status(401).json({ message: "Authentication required." });
-        return;
-      }
-      if (context.isPlatformAdmin) {
-        response.status(403).json({ message: "Platform admins cannot access tenant mailbox connections." });
-        return;
-      }
-      const status = await gmailIntegrationService.getConnectionStatus(context.tenantId);
-      response.json({
-        provider: "gmail",
-        connectionState:
-          status.status === "connected"
-            ? "CONNECTED"
-            : status.status === "requires_reauth"
-              ? "NEEDS_REAUTH"
-              : "DISCONNECTED",
-        emailAddress: status.emailAddress || undefined,
-        lastErrorReason: status.lastErrorReason || undefined,
-        lastSyncedAt: status.lastSyncedAt || undefined
-      });
-    } catch (error) {
-      next(error);
-    }
-  });
-
   router.get("/integrations/gmail/connect-url", requireCap("canManageConnections"), async (request, response, next) => {
     try {
-      const context = request.authContext!;
+      const context = getAuth(request);
       const sessionToken = request.header("authorization")?.replace(/^Bearer\s+/i, "").trim() ?? "";
       if (!sessionToken) {
         response.status(401).json({ message: "Missing bearer token." });
@@ -155,7 +127,7 @@ export function createGmailConnectionRouter(gmailIntegrationService: TenantGmail
 
   router.put("/integrations/gmail/:id/polling", requireCap("canManageConnections"), async (request, response, next) => {
     try {
-      const context = request.authContext!;
+      const context = getAuth(request);
       const enabled = typeof request.body?.enabled === "boolean" ? request.body.enabled : false;
       const intervalHours = typeof request.body?.intervalHours === "number" ? request.body.intervalHours : 4;
       await gmailIntegrationService.updatePollingConfig(request.params.id, context.tenantId, { enabled, intervalHours });

@@ -1,3 +1,4 @@
+import { getAuth } from "../types/auth.js";
 import { Router } from "express";
 import { CostCenterMasterModel } from "../models/CostCenterMaster.js";
 import { requireAuth } from "../auth/requireAuth.js";
@@ -9,7 +10,7 @@ export function createCostCentersRouter() {
 
   router.get("/admin/cost-centers", async (req, res, next) => {
     try {
-      const tenantId = req.authContext!.tenantId;
+      const tenantId = getAuth(req).tenantId;
       const query: Record<string, unknown> = { tenantId };
       if (req.query.active === "true") query.isActive = true;
 
@@ -20,7 +21,7 @@ export function createCostCentersRouter() {
 
   router.post("/admin/cost-centers", requireCap("canManageCostCenters"), async (req, res, next) => {
     try {
-      const tenantId = req.authContext!.tenantId;
+      const tenantId = getAuth(req).tenantId;
       const { code, name, department, linkedGlCodes } = req.body ?? {};
       if (!code?.trim() || !name?.trim()) {
         res.status(400).json({ message: "Code and name are required." });
@@ -47,7 +48,7 @@ export function createCostCentersRouter() {
 
   router.put("/admin/cost-centers/:code", requireCap("canManageCostCenters"), async (req, res, next) => {
     try {
-      const tenantId = req.authContext!.tenantId;
+      const tenantId = getAuth(req).tenantId;
       const update: Record<string, unknown> = {};
       if (typeof req.body.name === "string") update.name = req.body.name.trim();
       if (typeof req.body.department === "string") update.department = req.body.department.trim() || null;
@@ -66,7 +67,7 @@ export function createCostCentersRouter() {
 
   router.delete("/admin/cost-centers/:code", requireCap("canManageCostCenters"), async (req, res, next) => {
     try {
-      const tenantId = req.authContext!.tenantId;
+      const tenantId = getAuth(req).tenantId;
       const doc = await CostCenterMasterModel.findOneAndUpdate(
         { tenantId, code: req.params.code },
         { $set: { isActive: false } },

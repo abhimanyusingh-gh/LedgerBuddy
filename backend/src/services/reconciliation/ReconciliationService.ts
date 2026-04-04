@@ -67,11 +67,15 @@ export class ReconciliationService {
   ): Promise<MatchCandidate[]> {
     if (!txn.debitMinor || txn.debitMinor <= 0) return [];
 
-    const tolerance = 100;
+    const tolerance = Math.max(Math.round(txn.debitMinor * 0.1), 1000);
     const invoices = await InvoiceModel.find({
       tenantId,
-      status: { $in: ["APPROVED", "EXPORTED"] }
-    }).lean();
+      status: { $in: ["APPROVED", "EXPORTED"] },
+      "parsed.totalAmountMinor": {
+        $gte: txn.debitMinor - tolerance,
+        $lte: txn.debitMinor + tolerance
+      }
+    }).limit(100).lean();
 
     const candidates: MatchCandidate[] = [];
     const descLower = txn.description.toLowerCase();

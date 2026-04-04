@@ -20,60 +20,68 @@ import {
 export {
   classifyOcrRecoveryStrategy,
   findPreferredTotalAmountBlockForStrategy,
-  findPreferredVendorBlockForStrategy
+  findPreferredVendorBlockForStrategy,
+  recoverParsedFromOcr
 };
 
 function recoverParsedFromOcr(parsed: ParsedInvoiceData, ocrBlocks: OcrBlock[], ocrText: string): ParsedInvoiceData {
+  const strategy = classifyOcrRecoveryStrategy(ocrBlocks, ocrText);
   const next = recoverHeaderFieldsFromOcr(parsed, ocrBlocks, ocrText);
+  const normalized = normalizeParsedAgainstOcrText(next, ocrText, ocrBlocks);
   const recoveredGst = recoverGstSummaryFromOcr(ocrBlocks);
   if (recoveredGst) {
-    next.gst = {
-      ...(next.gst ?? {}),
-      ...(recoveredGst.subtotalMinor !== undefined && (next.gst?.subtotalMinor === undefined || next.gst?.subtotalMinor === 0)
+    normalized.gst = {
+      ...(normalized.gst ?? {}),
+      ...(recoveredGst.subtotalMinor !== undefined && (normalized.gst?.subtotalMinor === undefined || normalized.gst?.subtotalMinor === 0)
         ? { subtotalMinor: recoveredGst.subtotalMinor }
         : {}),
-      ...(recoveredGst.cgstMinor !== undefined && (next.gst?.cgstMinor === undefined || next.gst?.cgstMinor === 0)
+      ...(recoveredGst.cgstMinor !== undefined && (normalized.gst?.cgstMinor === undefined || normalized.gst?.cgstMinor === 0)
         ? { cgstMinor: recoveredGst.cgstMinor }
         : {}),
-      ...(recoveredGst.sgstMinor !== undefined && (next.gst?.sgstMinor === undefined || next.gst?.sgstMinor === 0)
+      ...(recoveredGst.sgstMinor !== undefined && (normalized.gst?.sgstMinor === undefined || normalized.gst?.sgstMinor === 0)
         ? { sgstMinor: recoveredGst.sgstMinor }
         : {}),
-      ...(recoveredGst.igstMinor !== undefined && (next.gst?.igstMinor === undefined || next.gst?.igstMinor === 0)
+      ...(recoveredGst.igstMinor !== undefined && (normalized.gst?.igstMinor === undefined || normalized.gst?.igstMinor === 0)
         ? { igstMinor: recoveredGst.igstMinor }
         : {}),
-      ...(recoveredGst.totalTaxMinor !== undefined && (next.gst?.totalTaxMinor === undefined || next.gst?.totalTaxMinor === 0)
+      ...(recoveredGst.totalTaxMinor !== undefined && (normalized.gst?.totalTaxMinor === undefined || normalized.gst?.totalTaxMinor === 0)
         ? { totalTaxMinor: recoveredGst.totalTaxMinor }
         : {})
     };
   }
 
-  const computedSummaryTotalMinor = computeSummaryTotalMinor(next.gst);
+  const computedSummaryTotalMinor = computeSummaryTotalMinor(normalized.gst);
   if (
     computedSummaryTotalMinor !== undefined &&
     (
-      next.totalAmountMinor === undefined ||
-      next.totalAmountMinor <= 0 ||
-      (next.gst?.subtotalMinor !== undefined && next.totalAmountMinor <= next.gst.subtotalMinor)
+      normalized.totalAmountMinor === undefined ||
+      normalized.totalAmountMinor <= 0 ||
+      (normalized.gst?.subtotalMinor !== undefined && normalized.totalAmountMinor <= normalized.gst.subtotalMinor)
     )
   ) {
-    next.totalAmountMinor = computedSummaryTotalMinor;
+    normalized.totalAmountMinor = computedSummaryTotalMinor;
   }
 
   const recoveredTotalMinor = recoverPreferredTotalAmountMinor(ocrBlocks);
   const hasConsistentSummaryTotal =
-    typeof next.totalAmountMinor === "number" &&
+    typeof normalized.totalAmountMinor === "number" &&
     computedSummaryTotalMinor !== undefined &&
-    next.totalAmountMinor === computedSummaryTotalMinor;
+    normalized.totalAmountMinor === computedSummaryTotalMinor;
   if (recoveredTotalMinor !== undefined) {
     if (
-      next.totalAmountMinor === undefined ||
-      next.totalAmountMinor <= 0 ||
-      next.totalAmountMinor === recoveredTotalMinor ||
+      normalized.totalAmountMinor === undefined ||
+      normalized.totalAmountMinor <= 0 ||
+      normalized.totalAmountMinor === recoveredTotalMinor ||
       (!hasConsistentSummaryTotal && recoveredTotalMinor !== undefined)
     ) {
-      next.totalAmountMinor = recoveredTotalMinor;
+      normalized.totalAmountMinor = recoveredTotalMinor;
     }
   }
 
-  return next;
+  const recoveredLineItems = recoverLineItemsFromOcr(normalized.lineItems, ocrBlocks, strategy, normalized.totalAmountMinor);
+  if (recoveredLineItems && recoveredLineItems.length > 0) {
+    normalized.lineItems = recoveredLineItems;
+  }
+
+  return normalized;
 }

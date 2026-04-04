@@ -1,9 +1,13 @@
 import type { OcrBlock } from "../../../core/interfaces/OcrProvider.js";
 import type { ParsedInvoiceData } from "../../../types/invoice.js";
-import { currencyBySymbol, parseAmountToken } from "../../../parser/invoiceParser.js";
+import { currencyBySymbol, parseAmountTokenWithOcrRepair } from "../../../parser/invoiceParser.js";
 import { normalizeInvoiceNumberValue, normalizeVendorText } from "./documentFieldRecovery.js";
 
-export function normalizeParsedAgainstOcrText(parsed: ParsedInvoiceData, ocrText: string): ParsedInvoiceData {
+export function normalizeParsedAgainstOcrText(
+  parsed: ParsedInvoiceData,
+  ocrText: string,
+  ocrBlocks: OcrBlock[] = []
+): ParsedInvoiceData {
   type LineItem = NonNullable<ParsedInvoiceData["lineItems"]>[number];
   const next: ParsedInvoiceData = {
     ...parsed,
@@ -34,7 +38,7 @@ export function normalizeParsedAgainstOcrText(parsed: ParsedInvoiceData, ocrText
     const correctedTotal = chooseBestTotalMinorCandidate(originalTotal, totalCandidates);
     if (correctedTotal !== originalTotal) {
       next.totalAmountMinor = correctedTotal;
-      if (originalTotal > 0) {
+      if (originalTotal > 0 && isScaleReasonable(correctedTotal, originalTotal)) {
         const ratio = correctedTotal / originalTotal;
         scaleMonetaryFields(next, ratio);
       }
@@ -43,7 +47,7 @@ export function normalizeParsedAgainstOcrText(parsed: ParsedInvoiceData, ocrText
     next.totalAmountMinor = totalCandidates[0];
   }
 
-  const explicitCurrency = detectExplicitCurrency(ocrText);
+  const explicitCurrency = detectExplicitCurrency(ocrText, ocrBlocks);
   if (explicitCurrency) {
     next.currency = explicitCurrency;
   } else if (/₹/.test(ocrText) && !next.currency) {
@@ -54,21 +58,28 @@ export function normalizeParsedAgainstOcrText(parsed: ParsedInvoiceData, ocrText
 }
 
 function detectExplicitCurrency(text: string, ocrBlocks: OcrBlock[] = []): string | undefined {
-  if (/\bUSD\b/i.test(text) || /\$\d/.test(text)) {
+  const hasIndiaTaxContext = /\b(place of supply|gstin|cgst|sgst|igst|gst|tax invoice)\b/i.test(text) ||
+    /\b\d{2}[A-Z]{5}\d{4}[A-Z][A-Z0-9]Z[A-Z0-9]\b/i.test(text) ||
+    ocrBlocks.some((block) => /\b(gstin|cgst|sgst|igst|gst|place of supply)\b/i.test(block.text));
+  const hasUsdContext = /\bUSD\b/i.test(text) || ocrBlocks.some((block) => /\bUSD\b/i.test(block.text));
+  if (hasUsdContext) {
+    return "USD";
+  }
+  if (/\$/.test(text) && !hasIndiaTaxContext) {
     return "USD";
   }
   if (/\bINR\b/i.test(text) || /₹/.test(text)) {
     return "INR";
   }
+  if (hasIndiaTaxContext) {
+    return "INR";
+  }
+  if (ocrBlocks.some((block) => /\$/.test(block.text) && !hasIndiaTaxContext)) {
+    return "USD";
+  }
   const symbolMatch = text.match(/([$€£₹])/);
   if (symbolMatch) {
     return currencyBySymbol[symbolMatch[1]];
-  }
-  if (
-    /\b(gstin|cgst|sgst|igst|gst|tax invoice)\b/i.test(text) ||
-    ocrBlocks.some((block) => /\b(gstin|cgst|sgst|igst|gst)\b/i.test(block.text))
-  ) {
-    return "INR";
   }
   return undefined;
 }
@@ -77,9 +88,9 @@ export function recoverGstSummaryFromOcr(
   ocrBlocks: OcrBlock[]
 ): { subtotalMinor?: number; cgstMinor?: number; sgstMinor?: number; igstMinor?: number; totalTaxMinor?: number } | undefined {
   const subtotalMinor = findSummaryAmountByLabel(ocrBlocks, /^(sub\s*total|subtotal|total excluding tax|taxable amount|taxable value)$/i);
-  const cgstMinor = findSummaryAmountByLabel(ocrBlocks, /\bcgst\b/i, "last");
-  const sgstMinor = findSummaryAmountByLabel(ocrBlocks, /\bsgst\b/i, "last");
-  const igstMinor = findSummaryAmountByLabel(ocrBlocks, /\bigst\b/i, "last");
+  const cgstMinor = findSummaryAmountByLabel(ocrBlocks, /\bcgst(?:\d+)?\b/i, "last");
+  const sgstMinor = findSummaryAmountByLabel(ocrBlocks, /\bsgst(?:\d+)?\b/i, "last");
+  const igstMinor = findSummaryAmountByLabel(ocrBlocks, /\bigst(?:\d+)?\b/i, "last");
   const taxLineMinor = findSummaryAmountByLabel(ocrBlocks, /^(tax\b|gst\b|gst\s*-|tax \()/i, "last");
   const totalTaxMinor =
     sumDefined(cgstMinor, sgstMinor, igstMinor) ??
@@ -112,12 +123,6 @@ export function findPreferredTotalAmountBlockForStrategy(
       findAmountBlockByLabel(ocrBlocks, /taxable amount/i, "last")
     );
   }
-
-  const lastPlainNumericMatch = findLastPlainNumericMatchingAmountBlock(totalAmountMinor, ocrBlocks);
-  if (lastPlainNumericMatch) {
-    return lastPlainNumericMatch;
-  }
-
   return (
     findMatchingAmountBlockForLabels(totalAmountMinor, ocrBlocks, [/^grand total$/i, /^total$/i, /^amount due$/i, /^balance due$/i]) ??
     findSummaryTotalAmountBlock(totalAmountMinor, ocrBlocks) ??
@@ -125,6 +130,7 @@ export function findPreferredTotalAmountBlockForStrategy(
       /\b(grand total|invoice total|amount payable|total)\b/i,
       /\b(subtotal)\b/i
     ]) ??
+    findLastPlainNumericMatchingAmountBlock(totalAmountMinor, ocrBlocks) ??
     findAmountBlockByLabel(ocrBlocks, /^total$/i) ??
     findAmountBlockByLabel(ocrBlocks, /^(subtotal|amount due)$/i)
   );
@@ -138,9 +144,9 @@ export function recoverPreferredTotalAmountMinor(ocrBlocks: OcrBlock[]): number 
     }
   }
   const subtotalMinor = findSummaryAmountByLabel(ocrBlocks, /^(sub\s*total|subtotal|taxable amount|taxable value)$/i);
-  const cgstMinor = findSummaryAmountByLabel(ocrBlocks, /\bcgst\b/i, "last");
-  const sgstMinor = findSummaryAmountByLabel(ocrBlocks, /\bsgst\b/i, "last");
-  const igstMinor = findSummaryAmountByLabel(ocrBlocks, /\bigst\b/i, "last");
+  const cgstMinor = findSummaryAmountByLabel(ocrBlocks, /\bcgst(?:\d+)?\b/i, "last");
+  const sgstMinor = findSummaryAmountByLabel(ocrBlocks, /\bsgst(?:\d+)?\b/i, "last");
+  const igstMinor = findSummaryAmountByLabel(ocrBlocks, /\bigst(?:\d+)?\b/i, "last");
   const computed = computeSummaryTotalMinor({
     ...(subtotalMinor !== undefined ? { subtotalMinor } : {}),
     ...(cgstMinor !== undefined ? { cgstMinor } : {}),
@@ -181,7 +187,7 @@ function findBestMatchingAmountBlock(
     .map((block, index) => ({ block, index, box: block.bboxNormalized }))
     .filter((entry) => entry.box)
     .filter((entry) => {
-      const amount = parseAmountToken(entry.block.text);
+      const amount = parseAmountTokenWithOcrRepair(entry.block.text);
       return amount !== null && Math.round(amount * 100) === totalAmountMinor;
     });
   if (matches.length === 0) {
@@ -234,7 +240,7 @@ function findBottomMostMatchingAmountBlock(
     .map((block, index) => ({ block, index, box: block.bboxNormalized }))
     .filter((entry) => entry.box)
     .filter((entry) => {
-      const amount = parseAmountToken(entry.block.text);
+      const amount = parseAmountTokenWithOcrRepair(entry.block.text);
       return amount !== null && Math.round(amount * 100) === totalAmountMinor;
     })
     .sort((left, right) => {
@@ -260,7 +266,7 @@ function findLastPlainNumericMatchingAmountBlock(
     .map((block, index) => ({ block, index, box: block.bboxNormalized }))
     .filter((entry) => entry.box)
     .filter((entry) => {
-      const amount = parseAmountToken(entry.block.text);
+      const amount = parseAmountTokenWithOcrRepair(entry.block.text);
       return amount !== null && Math.round(amount * 100) === totalAmountMinor;
     })
     .filter((entry) => !/[A-Za-z]{3}/.test(entry.block.text))
@@ -274,7 +280,7 @@ function findLastPlainNumericMatchingAmountBlock(
   }
 
   const hasNegativeAdjustment = ocrBlocks.some((block) => {
-    const amount = parseAmountToken(block.text);
+    const amount = parseAmountTokenWithOcrRepair(block.text);
     return amount !== null && amount < 0;
   });
   if (!hasNegativeAdjustment) {
@@ -338,7 +344,7 @@ function findAmountBlockByLabel(
             return false;
           }
           const sameRow = Math.abs(((box[1] + box[3]) / 2) - ((labelBox[1] + labelBox[3]) / 2)) <= 0.014;
-          return sameRow && box[0] > labelBox[2] && parseAmountToken(entry.block.text) !== null;
+          return sameRow && box[0] > labelBox[2] && parseAmountTokenWithOcrRepair(entry.block.text) !== null;
         })
         .sort((left, right) => {
           const leftBox = left.block.bboxNormalized ?? [0, 0, 0, 0];
@@ -378,7 +384,7 @@ export function findSummaryAmountByLabel(
     return undefined;
   }
 
-  const amount = parseAmountToken(amountEntry.block.text);
+      const amount = parseAmountTokenWithOcrRepair(amountEntry.block.text);
   return amount === null ? undefined : Math.round(amount * 100);
 }
 
@@ -396,7 +402,7 @@ function findSummaryTotalAmountBlock(
   const matchingEntries: Array<{ block: OcrBlock; index: number; labelText: string }> = [];
   for (const label of summaryLabels) {
     const amountEntry = findAmountBlockByLabel(ocrBlocks, new RegExp(`^${escapeRegex(label.block.text.trim())}$`, "i"));
-    const amount = amountEntry ? parseAmountToken(amountEntry.block.text) : null;
+    const amount = amountEntry ? parseAmountTokenWithOcrRepair(amountEntry.block.text) : null;
     if (amountEntry && amount !== null && Math.round(amount * 100) === totalAmountMinor) {
       matchingEntries.push({
         block: amountEntry.block,
@@ -415,7 +421,7 @@ function findSummaryTotalAmountBlock(
     if (!box || box[1] < summaryTop - 0.05) {
       return false;
     }
-    const amount = parseAmountToken(block.text);
+    const amount = parseAmountTokenWithOcrRepair(block.text);
     return amount !== null && amount < 0;
   });
   if (hasNegativeAdjustment) {
@@ -447,7 +453,7 @@ function findMatchingAmountBlockForLabels(
   }
   for (const pattern of labelPatterns) {
     const amountEntry = findAmountBlockByLabel(ocrBlocks, pattern);
-    const amount = amountEntry ? parseAmountToken(amountEntry.block.text) : null;
+    const amount = amountEntry ? parseAmountTokenWithOcrRepair(amountEntry.block.text) : null;
     if (amountEntry && amount !== null && Math.round(amount * 100) === totalAmountMinor) {
       return amountEntry;
     }
@@ -470,7 +476,7 @@ function extractTotalMinorCandidates(text: string): number[] {
   );
   const values = [...matches]
     .map((match) => match[1])
-    .map((value) => parseAmountToken(value))
+    .map((value) => parseAmountTokenWithOcrRepair(value))
     .filter((value): value is number => value !== null && value > 0)
     .map((value) => Math.round(value * 100));
   return uniqueIntegers(values);
@@ -485,24 +491,69 @@ function chooseBestTotalMinorCandidate(current: number, candidates: number[]): n
     if (candidate <= 0) {
       return false;
     }
-    const ratio = current / candidate;
-    const roundedRatio = Math.round(ratio);
-    return [10, 100, 1000].includes(roundedRatio) && Math.abs(ratio - roundedRatio) < 0.02;
+    const ratio = candidate / current;
+    return isScaleMatch(ratio, 0.1) || isScaleMatch(ratio, 0.01) || isScaleMatch(ratio, 1) || isScaleMatch(ratio, 10) || isScaleMatch(ratio, 100);
   });
   if (scaledMatch !== undefined) {
     return scaledMatch;
   }
 
-  let closest = candidates[0] ?? current;
+  const plausible = candidates.filter((candidate) => isMagnitudeCompatible(current, candidate));
+  if (unlikelySmallDiff(current, plausible)) {
+    return current;
+  }
+  if (plausible.length === 0) {
+    return current;
+  }
+
+  let closest = plausible[0] ?? current;
   let closestDelta = Math.abs(closest - current);
-  for (const candidate of candidates) {
+  for (const candidate of plausible) {
     const delta = Math.abs(candidate - current);
     if (delta < closestDelta) {
       closestDelta = delta;
       closest = candidate;
     }
   }
+  const maxDelta = Math.max(10000, Math.round(current * 0.4));
+  if (closestDelta > maxDelta) {
+    return current;
+  }
   return closest;
+}
+
+function isScaleMatch(candidateToCurrentRatio: number, targetScale: number): boolean {
+  if (!Number.isFinite(candidateToCurrentRatio) || candidateToCurrentRatio <= 0) {
+    return false;
+  }
+  return Math.abs(candidateToCurrentRatio - targetScale) <= 0.02 * targetScale;
+}
+
+function isMagnitudeCompatible(current: number, candidate: number): boolean {
+  if (!Number.isFinite(current) || current <= 0 || candidate <= 0) {
+    return false;
+  }
+  const ratio = Math.max(current, candidate) / Math.min(current, candidate);
+  return ratio <= 20;
+}
+
+function isScaleReasonable(corrected: number, original: number): boolean {
+  if (original <= 0) {
+    return false;
+  }
+  return isMagnitudeCompatible(original, corrected) && Math.abs(corrected - original) / original <= 0.7;
+}
+
+function unlikelySmallDiff(current: number, candidates: number[]): boolean {
+  if (candidates.length === 0) {
+    return true;
+  }
+  const minCandidate = Math.min(...candidates);
+  const maxCandidate = Math.max(...candidates);
+  if (current <= 0) {
+    return true;
+  }
+  return (maxCandidate - minCandidate) / Math.max(1, current) > 2;
 }
 
 function scaleMonetaryFields(parsed: ParsedInvoiceData, ratio: number): void {

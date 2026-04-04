@@ -1,3 +1,4 @@
+import { getAuth } from "../types/auth.js";
 import { Router } from "express";
 import { requireAuth } from "../auth/requireAuth.js";
 import { getOverview } from "../services/analyticsService.js";
@@ -8,7 +9,7 @@ export function createAnalyticsRouter() {
 
   router.get("/analytics/overview", async (req, res, next) => {
     try {
-      const authContext = req.authContext!;
+      const authContext = getAuth(req);
 
       const now = new Date();
       const defaultFrom = new Date(now.getFullYear(), now.getMonth(), 1);

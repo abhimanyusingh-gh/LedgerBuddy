@@ -1,15 +1,17 @@
+import { getAuth } from "../types/auth.js";
 import { Router } from "express";
 import { InvoiceModel } from "../models/Invoice.js";
 import { VendorMasterModel } from "../models/VendorMaster.js";
 import { requireAuth } from "../auth/requireAuth.js";
+import { requireCap } from "../auth/requireCapability.js";
 
 export function createComplianceAnalyticsRouter() {
   const router = Router();
   router.use(requireAuth);
 
-  router.get("/analytics/compliance", async (req, res, next) => {
+  router.get("/analytics/compliance", requireCap("canDownloadComplianceReports"), async (req, res, next) => {
     try {
-      const tenantId = req.authContext!.tenantId;
+      const tenantId = getAuth(req).tenantId;
       const from = req.query.from ? new Date(String(req.query.from)) : undefined;
       const to = req.query.to ? new Date(String(req.query.to)) : undefined;
 

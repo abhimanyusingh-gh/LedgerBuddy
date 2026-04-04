@@ -7,9 +7,9 @@ export const FIELD_LABEL_PATTERNS: Record<string, RegExp> = {
   currency: /^(currency)$/i,
   "gst.gstin": /^(gstin|gst\s*(?:no\.?|number|id|in))$/i,
   "gst.subtotalMinor": /^(sub\s*total|subtotal|taxable\s*(?:value|amount))$/i,
-  "gst.cgstMinor": /\bcgst\b/i,
-  "gst.sgstMinor": /\bsgst\b/i,
-  "gst.igstMinor": /\bigst\b/i,
+  "gst.cgstMinor": /\bcgst(?:\d+)?\b/i,
+  "gst.sgstMinor": /\bsgst(?:\d+)?\b/i,
+  "gst.igstMinor": /\bigst(?:\d+)?\b/i,
   "gst.cessMinor": /\bcess\b/i,
   "gst.totalTaxMinor": /\b(total\s*tax|tax\s*total|total\s*gst)\b/i
 };

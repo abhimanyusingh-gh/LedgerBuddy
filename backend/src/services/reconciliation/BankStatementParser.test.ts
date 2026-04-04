@@ -50,10 +50,15 @@ describe("BankStatementParser", () => {
     makeTransactionInsert();
     makeTransactionFind();
 
-    const csv = `Date,Description,Debit,Credit\n2026-01-10,Vendor,1,08,000.00,`;
+    const csv = `Date,Description,Debit,Credit\n2026-01-10,"Vendor","1,08,000.00",`;
     const result = await parser.parseCsv("t1", "bank.csv", csv, { date: 0, description: 1, debit: 2, credit: 3 }, "user@test.com");
 
-    expect(result.transactionCount).toBeGreaterThanOrEqual(0);
+    expect(result.transactionCount).toBe(1);
+    expect(BankTransactionModel.insertMany).toHaveBeenCalledWith(
+      expect.arrayContaining([
+        expect.objectContaining({ debitMinor: 10800000 })
+      ])
+    );
   });
 
   it("normalizes DD/MM/YYYY dates to ISO", async () => {

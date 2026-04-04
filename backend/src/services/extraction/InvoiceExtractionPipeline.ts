@@ -13,7 +13,7 @@ import type { ExtractionLearningStore } from "./extractionLearningStore.js";
 import type { PipelineExtractionResult } from "./types.js";
 import { logger } from "../../utils/logger.js";
 import { detectInvoiceLanguage, detectInvoiceLanguageBeforeOcr } from "./languageDetection.js";
-import { parseInvoiceText } from "../../parser/invoiceParser.js";
+import { parseAmountToken, parseInvoiceText } from "../../parser/invoiceParser.js";
 import type { ComplianceEnricher } from "../compliance/ComplianceEnricher.js";
 import { RiskSignalEvaluator } from "../compliance/RiskSignalEvaluator.js";
 import {
@@ -24,6 +24,7 @@ import {
   classifyOcrRecoveryStrategy,
   findPreferredTotalAmountBlockForStrategy,
   findPreferredVendorBlockForStrategy,
+  recoverParsedFromOcr,
 } from "./pipeline/ocrRecovery.js";
 import { extractNativePdfText } from "./pipeline/nativePdfText.js";
 import {
@@ -53,6 +54,7 @@ import {
   isNearDuplicateText,
   uniqueIssues
 } from "./invoiceExtractionPipelineHelpers.js";
+import { blockMatchesFieldValue } from "./pipeline/grounding.js";
 
 interface ExtractionTextCandidate {
   text: string;
@@ -334,7 +336,8 @@ export class InvoiceExtractionPipeline {
         }
         return value !== undefined && value !== null && value !== "";
       });
-      const recoveredParsed = slmParsedHasFields ? { ...slmParsed } : { ...deterministicFallback.parsed };
+      const baseParsed = slmParsedHasFields ? { ...slmParsed } : { ...deterministicFallback.parsed };
+      const recoveredParsed = recoverParsedFromOcr(baseParsed, ocrBlocks, bestText);
       if (priorCorrections.length > 0) {
         metadata.learningHintsApplied = String(priorCorrections.length);
       }
@@ -430,7 +433,15 @@ export class InvoiceExtractionPipeline {
           blockIndex: invoiceNumberBlock.index
         };
       }
-      if (preferredVendorBlock && recoveredParsed.vendorName) {
+      const currentVendorBlock =
+        diagnostics.fieldProvenance.vendorName?.blockIndex !== undefined
+          ? ocrBlocks[diagnostics.fieldProvenance.vendorName.blockIndex]
+          : undefined;
+      if (
+        preferredVendorBlock &&
+        recoveredParsed.vendorName &&
+        shouldPreferVendorProvenanceBlock(currentVendorBlock, preferredVendorBlock.block, recoveredParsed.vendorName)
+      ) {
         diagnostics.fieldProvenance.vendorName = {
           ...diagnostics.fieldProvenance.vendorName,
           page: preferredVendorBlock.block.page,
@@ -445,14 +456,27 @@ export class InvoiceExtractionPipeline {
         recoveryStrategy,
         recoveredParsed.totalAmountMinor
       );
-      if (preferredTotalAmountBlock && diagnostics.fieldProvenance.totalAmountMinor) {
+      const currentTotalAmountBlock =
+        diagnostics.fieldProvenance.totalAmountMinor?.blockIndex !== undefined
+          ? ocrBlocks[diagnostics.fieldProvenance.totalAmountMinor.blockIndex]
+          : undefined;
+      const bestTotalAmountProvenanceBlock = selectBestTotalAmountProvenanceBlock(
+        recoveredParsed.totalAmountMinor,
+        ocrBlocks
+      );
+      const totalAmountProvenanceBlock = bestTotalAmountProvenanceBlock ?? preferredTotalAmountBlock;
+      if (
+        totalAmountProvenanceBlock &&
+        diagnostics.fieldProvenance.totalAmountMinor &&
+        shouldPreferTotalAmountProvenanceBlock(currentTotalAmountBlock, totalAmountProvenanceBlock.block, recoveredParsed.totalAmountMinor, ocrBlocks)
+      ) {
         diagnostics.fieldProvenance.totalAmountMinor = {
           ...diagnostics.fieldProvenance.totalAmountMinor,
-          page: preferredTotalAmountBlock.block.page,
-          bbox: preferredTotalAmountBlock.block.bbox,
-          ...(preferredTotalAmountBlock.block.bboxNormalized ? { bboxNormalized: preferredTotalAmountBlock.block.bboxNormalized } : {}),
-          ...(preferredTotalAmountBlock.block.bboxModel ? { bboxModel: preferredTotalAmountBlock.block.bboxModel } : {}),
-          blockIndex: preferredTotalAmountBlock.index
+          page: totalAmountProvenanceBlock.block.page,
+          bbox: totalAmountProvenanceBlock.block.bbox,
+          ...(totalAmountProvenanceBlock.block.bboxNormalized ? { bboxNormalized: totalAmountProvenanceBlock.block.bboxNormalized } : {}),
+          ...(totalAmountProvenanceBlock.block.bboxModel ? { bboxModel: totalAmountProvenanceBlock.block.bboxModel } : {}),
+          blockIndex: totalAmountProvenanceBlock.index
         };
       }
       metadata.fieldProvenance = JSON.stringify(diagnostics.fieldProvenance);
@@ -607,4 +631,242 @@ export class InvoiceExtractionPipeline {
       confidenceScore: confidence.score
     });
   }
+}
+
+function shouldPreferVendorProvenanceBlock(
+  currentBlock: OcrBlock | undefined,
+  preferredBlock: OcrBlock,
+  vendorName: string
+): boolean {
+  if (!currentBlock) {
+    return true;
+  }
+  if (!blockMatchesFieldValue("vendorName", vendorName, currentBlock)) {
+    return true;
+  }
+  const currentText = currentBlock.text.trim();
+  const preferredText = preferredBlock.text.trim();
+  const currentHasCorporateSuffix = /\b(llc|inc|limited|private|pbc|ltd)\b/i.test(currentText);
+  const preferredHasCorporateSuffix = /\b(llc|inc|limited|private|pbc|ltd)\b/i.test(preferredText);
+  if (!currentHasCorporateSuffix && preferredHasCorporateSuffix) {
+    return true;
+  }
+  return false;
+}
+
+function shouldPreferTotalAmountProvenanceBlock(
+  currentBlock: OcrBlock | undefined,
+  preferredBlock: OcrBlock,
+  totalAmountMinor: number | undefined,
+  ocrBlocks: OcrBlock[]
+): boolean {
+  if (typeof totalAmountMinor !== "number" || totalAmountMinor <= 0) {
+    return false;
+  }
+  if (!currentBlock) {
+    return true;
+  }
+  if (!blockMatchesFieldValue("totalAmountMinor", totalAmountMinor, currentBlock)) {
+    return true;
+  }
+  const currentAmount = parseAmountToken(currentBlock.text);
+  const preferredAmount = parseAmountToken(preferredBlock.text);
+  const currentIsPlainNumeric = !/[A-Za-z]{3}/.test(currentBlock.text);
+  const preferredIsPlainNumeric = !/[A-Za-z]{3}/.test(preferredBlock.text);
+  const currentY = currentBlock.bboxNormalized?.[1] ?? Number.POSITIVE_INFINITY;
+  const preferredY = preferredBlock.bboxNormalized?.[1] ?? Number.POSITIVE_INFINITY;
+  if (
+    currentAmount !== null &&
+    preferredAmount !== null &&
+    Math.round(currentAmount * 100) === totalAmountMinor &&
+    Math.round(preferredAmount * 100) === totalAmountMinor &&
+    !preferredIsPlainNumeric &&
+    currentIsPlainNumeric
+  ) {
+    return false;
+  }
+  if (
+    currentAmount !== null &&
+    preferredAmount !== null &&
+    Math.round(currentAmount * 100) === totalAmountMinor &&
+    Math.round(preferredAmount * 100) === totalAmountMinor &&
+    preferredIsPlainNumeric &&
+    !currentIsPlainNumeric
+  ) {
+    return true;
+  }
+  if (
+    currentAmount !== null &&
+    preferredAmount !== null &&
+    Math.round(currentAmount * 100) === totalAmountMinor &&
+    Math.round(preferredAmount * 100) === totalAmountMinor &&
+    currentIsPlainNumeric &&
+    preferredIsPlainNumeric &&
+    preferredY < currentY
+  ) {
+    return true;
+  }
+
+  const currentScore = scoreTotalAmountProvenanceBlock(currentBlock, totalAmountMinor, ocrBlocks);
+  const preferredScore = scoreTotalAmountProvenanceBlock(preferredBlock, totalAmountMinor, ocrBlocks);
+  return preferredScore > currentScore;
+}
+
+function selectBestTotalAmountProvenanceBlock(
+  totalAmountMinor: number | undefined,
+  ocrBlocks: OcrBlock[]
+): { block: OcrBlock; index: number } | undefined {
+  if (typeof totalAmountMinor !== "number" || totalAmountMinor <= 0) {
+    return undefined;
+  }
+
+  const matches = ocrBlocks
+    .map((block, index) => ({ block, index }))
+    .filter((entry) => {
+      const amount = parseAmountToken(entry.block.text);
+      return amount !== null && Math.round(amount * 100) === totalAmountMinor;
+    });
+  if (matches.length === 0) {
+    return undefined;
+  }
+  const paymentContextMatches = matches
+    .filter((entry) => hasPaymentContextBelow(entry.block, ocrBlocks))
+    .sort((left, right) => {
+      const leftY = left.block.bboxNormalized?.[1] ?? Number.POSITIVE_INFINITY;
+      const rightY = right.block.bboxNormalized?.[1] ?? Number.POSITIVE_INFINITY;
+      return leftY - rightY;
+    });
+  if (paymentContextMatches.length > 0) {
+    return paymentContextMatches[0];
+  }
+  const summaryLabelPattern = /\b(subtotal|total|grand total|invoice total|amount due|balance due|total due|amount payable)\b/i;
+  const summaryMatches = matches
+    .map((entry) => ({ entry, labelText: findNearestSameRowLabelText(entry.block, ocrBlocks) }))
+    .filter(({ labelText }) => summaryLabelPattern.test(labelText))
+    .sort((left, right) => {
+      const leftPriority = summaryLabelPriority(left.entry.block.text, left.labelText);
+      const rightPriority = summaryLabelPriority(right.entry.block.text, right.labelText);
+      if (leftPriority !== rightPriority) {
+        return leftPriority - rightPriority;
+      }
+      const leftHasCurrencyCode = /[A-Za-z]{3}/.test(left.entry.block.text);
+      const rightHasCurrencyCode = /[A-Za-z]{3}/.test(right.entry.block.text);
+      if (leftHasCurrencyCode !== rightHasCurrencyCode) {
+        return Number(leftHasCurrencyCode) - Number(rightHasCurrencyCode);
+      }
+      const leftY = left.entry.block.bboxNormalized?.[1] ?? Number.POSITIVE_INFINITY;
+      const rightY = right.entry.block.bboxNormalized?.[1] ?? Number.POSITIVE_INFINITY;
+      return leftY - rightY;
+    });
+  if (summaryMatches.length > 0) {
+    return summaryMatches[0].entry;
+  }
+  const plainNumericMatches = matches
+    .filter((entry) => !/[A-Za-z]{3}/.test(entry.block.text))
+    .sort((left, right) => {
+      const leftY = left.block.bboxNormalized?.[1] ?? Number.POSITIVE_INFINITY;
+      const rightY = right.block.bboxNormalized?.[1] ?? Number.POSITIVE_INFINITY;
+      return leftY - rightY;
+    });
+  if (plainNumericMatches.length > 1) {
+    return plainNumericMatches[0];
+  }
+
+  matches.sort((left, right) => (
+    scoreTotalAmountProvenanceBlock(right.block, totalAmountMinor, ocrBlocks) -
+    scoreTotalAmountProvenanceBlock(left.block, totalAmountMinor, ocrBlocks)
+  ));
+  return matches[0];
+}
+
+function scoreTotalAmountProvenanceBlock(
+  block: OcrBlock,
+  totalAmountMinor: number | undefined,
+  ocrBlocks: OcrBlock[]
+): number {
+  if (typeof totalAmountMinor !== "number" || totalAmountMinor <= 0) {
+    return Number.NEGATIVE_INFINITY;
+  }
+  const amount = parseAmountToken(block.text);
+  if (amount === null || Math.round(amount * 100) !== totalAmountMinor) {
+    return Number.NEGATIVE_INFINITY;
+  }
+
+  let score = 0;
+  const box = block.bboxNormalized;
+  if (box) {
+    score += box[1] * 4;
+  }
+  const labelText = findNearestSameRowLabelText(block, ocrBlocks);
+  if (/^total$/i.test(labelText)) {
+    score += 20;
+  } else if (/\b(grand total|invoice total|total amount)\b/i.test(labelText)) {
+    score += 18;
+  } else if (/\b(amount due|balance due|total due|amount payable)\b/i.test(labelText)) {
+    score += 10;
+  }
+  if (/[A-Za-z]{3}/.test(block.text)) {
+    score -= 6;
+  }
+  if (hasPaymentContextBelow(block, ocrBlocks)) {
+    score += 14;
+  }
+  return score;
+}
+
+function findNearestSameRowLabelText(block: OcrBlock, ocrBlocks: OcrBlock[]): string {
+  const amountBox = block.bboxNormalized;
+  if (!amountBox) {
+    return "";
+  }
+
+  return (
+    ocrBlocks
+      .filter((candidate) => candidate !== block && Boolean(candidate.bboxNormalized))
+      .filter((candidate) => (candidate.bboxNormalized?.[2] ?? 1) <= amountBox[0] + 0.01)
+      .filter((candidate) => {
+        const box = candidate.bboxNormalized!;
+        return Math.abs(((box[1] + box[3]) / 2) - ((amountBox[1] + amountBox[3]) / 2)) <= 0.016;
+      })
+      .sort((left, right) => (right.bboxNormalized?.[2] ?? 0) - (left.bboxNormalized?.[2] ?? 0))[0]
+      ?.text.trim() ?? ""
+  );
+}
+
+function hasPaymentContextBelow(block: OcrBlock, ocrBlocks: OcrBlock[]): boolean {
+  const box = block.bboxNormalized;
+  if (!box) {
+    return false;
+  }
+  const blockMidY = (box[1] + box[3]) / 2;
+  return ocrBlocks.some((candidate) => {
+    const candidateBox = candidate.bboxNormalized;
+    if (!candidateBox) {
+      return false;
+    }
+    const candidateMidY = (candidateBox[1] + candidateBox[3]) / 2;
+    if (candidateMidY < blockMidY - 0.004 || candidateBox[1] > box[3] + 0.035) {
+      return false;
+    }
+    return /\b(paid via|paid on|payment method)\b/i.test(candidate.text);
+  });
+}
+
+function summaryLabelPriority(blockText: string, labelText: string): number {
+  if (/^total$/i.test(labelText) && /\bUS\$/i.test(blockText)) {
+    return 0;
+  }
+  if (/^subtotal$/i.test(labelText)) {
+    return 1;
+  }
+  if (/^total$/i.test(labelText)) {
+    return 2;
+  }
+  if (/\b(grand total|invoice total)\b/i.test(labelText)) {
+    return 3;
+  }
+  if (/\b(amount due|balance due|total due|amount payable)\b/i.test(labelText)) {
+    return 4;
+  }
+  return 5;
 }

@@ -4,7 +4,6 @@ import { env } from "../config/env.js";
 import type { GstBreakdown, ParsedInvoiceData } from "../types/invoice.js";
 import { assessInvoiceConfidence } from "./confidenceAssessment.js";
 import { toMinorUnits } from "../utils/currency.js";
-import type { WorkloadTier } from "../types/tenant.js";
 import type { AuthenticatedRequestContext } from "../types/auth.js";
 import type { FileStore } from "../core/interfaces/FileStore.js";
 import { logger } from "../utils/logger.js";
@@ -14,7 +13,6 @@ import { buildCorrectionHint, type ExtractionLearningStore } from "./extraction/
 interface ListInvoicesParams {
   status?: string;
   tenantId: string;
-  workloadTier?: WorkloadTier;
   page: number;
   limit: number;
   from?: Date;
@@ -83,7 +81,6 @@ export class InvoiceService {
 
   async listInvoices(params: ListInvoicesParams) {
     const baseQuery: Record<string, unknown> = { tenantId: params.tenantId };
-    if (params.workloadTier) baseQuery.workloadTier = params.workloadTier;
 
     const query: Record<string, unknown> = { ...baseQuery };
     if (params.status) query.status = params.status;
@@ -180,7 +177,7 @@ export class InvoiceService {
 
   async approveInvoices(ids: string[], approvedBy = env.DEFAULT_APPROVER, authContext: AuthenticatedRequestContext) {
     const validIds = ids.filter((id) => Types.ObjectId.isValid(id)).map((id) => new Types.ObjectId(id));
-    if (validIds.length === 0) return 0;
+    if (validIds.length === 0) return { modifiedCount: 0, failedCount: 0 };
 
     if (this.workflowService) {
       const workflowEnabled = await this.workflowService.isWorkflowEnabled(authContext.tenantId);
@@ -198,11 +195,12 @@ export class InvoiceService {
         $push: { processingIssues: { $each: [`Approved: ${now.toISOString()} by ${authContext.email} (${authContext.userId})`] } }
       }
     );
-    return result.modifiedCount;
+    return { modifiedCount: result.modifiedCount, failedCount: 0 };
   }
 
-  private async approveWithWorkflow(validIds: Types.ObjectId[], authContext: AuthenticatedRequestContext): Promise<number> {
+  private async approveWithWorkflow(validIds: Types.ObjectId[], authContext: AuthenticatedRequestContext): Promise<{ modifiedCount: number; failedCount: number }> {
     let advanced = 0;
+    let failed = 0;
     for (const id of validIds) {
       const invoiceId = String(id);
       const invoice = await InvoiceModel.findOne({ _id: id, tenantId: authContext.tenantId }).lean();
@@ -225,8 +223,9 @@ export class InvoiceService {
         try {
           const result = await this.workflowService!.approveStep(invoiceId, authContext);
           if (result.advanced) advanced++;
+          else failed++;
         } catch {
-          advanced++;
+          failed++;
         }
         continue;
       }
@@ -235,12 +234,13 @@ export class InvoiceService {
         try {
           const result = await this.workflowService!.approveStep(invoiceId, authContext);
           if (result.advanced) advanced++;
+          else failed++;
         } catch {
-          continue;
+          failed++;
         }
       }
     }
-    return advanced;
+    return { modifiedCount: advanced, failedCount: failed };
   }
 
   async retryInvoices(ids: string[], authContext: AuthenticatedRequestContext) {

@@ -1,3 +1,4 @@
+import { getAuth } from "../types/auth.js";
 import { Router } from "express";
 import { TenantComplianceConfigModel } from "../models/TenantComplianceConfig.js";
 import { requireAuth } from "../auth/requireAuth.js";
@@ -9,7 +10,7 @@ export function createTenantComplianceConfigRouter() {
 
   router.get("/admin/compliance-config", requireCap("canConfigureCompliance"), async (req, res, next) => {
     try {
-      const tenantId = req.authContext!.tenantId;
+      const tenantId = getAuth(req).tenantId;
       let config = await TenantComplianceConfigModel.findOne({ tenantId }).lean();
 
       if (!config) {
@@ -24,7 +25,7 @@ export function createTenantComplianceConfigRouter() {
 
   router.put("/admin/compliance-config", requireCap("canConfigureCompliance"), async (req, res, next) => {
     try {
-      const tenantId = req.authContext!.tenantId;
+      const tenantId = getAuth(req).tenantId;
       const update: Record<string, unknown> = {};
 
       if (typeof req.body.complianceEnabled === "boolean") update.complianceEnabled = req.body.complianceEnabled;

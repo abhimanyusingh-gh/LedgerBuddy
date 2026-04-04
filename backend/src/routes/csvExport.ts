@@ -1,3 +1,4 @@
+import { getAuth } from "../types/auth.js";
 import { Router } from "express";
 import { InvoiceModel } from "../models/Invoice.js";
 import { generateCsvExport } from "../services/csvExporter.js";
@@ -10,7 +11,7 @@ export function createCsvExportRouter() {
 
   router.post("/exports/csv", requireCap("canExportToCsv"), async (req, res, next) => {
     try {
-      const tenantId = req.authContext!.tenantId;
+      const tenantId = getAuth(req).tenantId;
       const ids = Array.isArray(req.body?.ids) ? req.body.ids : undefined;
       const columns = Array.isArray(req.body?.columns) ? req.body.columns : undefined;
 

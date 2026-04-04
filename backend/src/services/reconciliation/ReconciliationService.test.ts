@@ -58,7 +58,7 @@ describe("ReconciliationService", () => {
 
   it("auto-matches when amount exactly equals netPayable", async () => {
     const invoice = makeInvoice();
-    (InvoiceModel.find as jest.Mock).mockReturnValue({ lean: jest.fn().mockResolvedValue([invoice]) });
+    (InvoiceModel.find as jest.Mock).mockReturnValue({ limit: jest.fn().mockReturnValue({ lean: jest.fn().mockResolvedValue([invoice]) }) });
     (BankTransactionModel.updateOne as jest.Mock).mockResolvedValue({});
     (InvoiceModel.updateOne as jest.Mock).mockResolvedValue({});
 
@@ -70,7 +70,7 @@ describe("ReconciliationService", () => {
 
   it("scores higher when invoice number appears in description", async () => {
     const invoice = makeInvoice({ parsed: { invoiceNumber: "INV-999", vendorName: "Acme", totalAmountMinor: 100000 } });
-    (InvoiceModel.find as jest.Mock).mockReturnValue({ lean: jest.fn().mockResolvedValue([invoice]) });
+    (InvoiceModel.find as jest.Mock).mockReturnValue({ limit: jest.fn().mockReturnValue({ lean: jest.fn().mockResolvedValue([invoice]) }) });
 
     const candidates = await service.findMatchCandidates("t1", { debitMinor: 100000, description: "Ref INV-999 payment", date: "2026-01-15" });
 
@@ -79,16 +79,17 @@ describe("ReconciliationService", () => {
 
   it("marks as suggested when score is between thresholds", async () => {
     const invoice = makeInvoice({ parsed: { invoiceNumber: "INV-ZZZ", vendorName: "Unknown Vendor XYZ", totalAmountMinor: 100000 } });
-    (InvoiceModel.find as jest.Mock).mockReturnValue({ lean: jest.fn().mockResolvedValue([invoice]) });
+    (InvoiceModel.find as jest.Mock).mockReturnValue({ limit: jest.fn().mockReturnValue({ lean: jest.fn().mockResolvedValue([invoice]) }) });
 
-    const candidates = await service.findMatchCandidates("t1", { debitMinor: 100000, description: "Wire transfer", date: "2026-01-20" });
+    const candidates = await service.findMatchCandidates("t1", { debitMinor: 100000, description: "Wire transfer", date: "2026-02-28" });
 
     expect(candidates.length).toBeGreaterThan(0);
     expect(candidates[0].score).toBeGreaterThanOrEqual(30);
+    expect(candidates[0].score).toBeLessThanOrEqual(50);
   });
 
   it("leaves unmatched when no candidates found", async () => {
-    (InvoiceModel.find as jest.Mock).mockReturnValue({ lean: jest.fn().mockResolvedValue([]) });
+    (InvoiceModel.find as jest.Mock).mockReturnValue({ limit: jest.fn().mockReturnValue({ lean: jest.fn().mockResolvedValue([]) }) });
 
     const candidates = await service.findMatchCandidates("t1", { debitMinor: 100000, description: "Unknown", date: "2026-01-15" });
 
@@ -101,12 +102,12 @@ describe("ReconciliationService", () => {
         tds: { netPayableMinor: 90909 }
       }
     });
-    (InvoiceModel.find as jest.Mock).mockReturnValue({ lean: jest.fn().mockResolvedValue([invoice]) });
+    (InvoiceModel.find as jest.Mock).mockReturnValue({ limit: jest.fn().mockReturnValue({ lean: jest.fn().mockResolvedValue([invoice]) }) });
 
     const candidates = await service.findMatchCandidates("t1", { debitMinor: 91818, description: "Payment", date: "2026-01-15" }, 1);
 
     expect(candidates.length).toBeGreaterThan(0);
-    expect(candidates[0].netPayableMinor).toBeGreaterThan(90909);
+    expect(candidates[0].netPayableMinor).toBe(91818);
   });
 
   it("manual match sets confidence 100 and status manual", async () => {
@@ -115,14 +116,19 @@ describe("ReconciliationService", () => {
 
     await service.manualMatch("t1", "txn-1", "inv-1");
 
-    expect(BankTransactionModel.updateOne).toHaveBeenCalledWith(
-      { _id: "txn-1" },
-      expect.objectContaining({ $set: expect.objectContaining({ matchConfidence: 100 }) })
+    const txnUpdateCalls = (BankTransactionModel.updateOne as jest.Mock).mock.calls;
+    const confidenceCall = txnUpdateCalls.find(
+      (c: unknown[]) => (c[1] as Record<string, Record<string, unknown>>).$set?.matchConfidence === 100
     );
-    expect(BankTransactionModel.updateOne).toHaveBeenCalledWith(
-      { _id: "txn-1" },
-      { $set: { matchStatus: "manual" } }
+    const statusCall = txnUpdateCalls.find(
+      (c: unknown[]) => (c[1] as Record<string, Record<string, unknown>>).$set?.matchStatus === "manual"
     );
+
+    expect(confidenceCall).toBeDefined();
+    expect(confidenceCall[0]).toEqual({ _id: "txn-1" });
+
+    expect(statusCall).toBeDefined();
+    expect(statusCall[0]).toEqual({ _id: "txn-1" });
   });
 
   it("unmatch clears both transaction and invoice", async () => {
