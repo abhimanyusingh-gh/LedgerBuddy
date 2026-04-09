@@ -85,7 +85,7 @@ describe("useDebouncedValue", () => {
 
     unmount();
 
-    expect(clearTimeoutSpy).toHaveBeenCalled();
+    expect(clearTimeoutSpy).toHaveBeenCalledWith(expect.any(Number));
     clearTimeoutSpy.mockRestore();
   });
 });

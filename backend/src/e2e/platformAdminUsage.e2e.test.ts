@@ -159,7 +159,7 @@ describe("platform admin tenant usage e2e", () => {
     const tenantAUsage = items.find((entry) => entry.tenantId === tenantASession.tenant.id);
     const tenantBUsage = items.find((entry) => entry.tenantId === tenantBSession.tenant.id);
 
-    expect(tenantAUsage).toBeTruthy();
+    expect(tenantAUsage).toBeDefined();
     if (!tenantAUsage) {
       throw new Error("Missing tenant A usage row.");
     }
@@ -171,7 +171,7 @@ describe("platform admin tenant usage e2e", () => {
     expect(tenantAUsage).not.toHaveProperty("invoices");
     expect(tenantAUsage).not.toHaveProperty("ocrText");
 
-    expect(tenantBUsage).toBeTruthy();
+    expect(tenantBUsage).toBeDefined();
     if (!tenantBUsage) {
       throw new Error("Missing tenant B usage row.");
     }

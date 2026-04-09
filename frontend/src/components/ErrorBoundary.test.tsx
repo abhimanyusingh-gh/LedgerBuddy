@@ -2,6 +2,7 @@
  * @jest-environment jsdom
  */
 import { render, screen, fireEvent } from "@testing-library/react";
+import "@testing-library/jest-dom";
 import { ErrorBoundary } from "./ErrorBoundary";
 
 function Bomb(): JSX.Element {
@@ -23,7 +24,7 @@ describe("ErrorBoundary", () => {
         <p>Hello</p>
       </ErrorBoundary>
     );
-    expect(screen.getByText("Hello")).toBeTruthy();
+    expect(screen.getByText("Hello")).toBeInTheDocument();
   });
 
   it("renders fallback UI on render error", () => {
@@ -32,8 +33,8 @@ describe("ErrorBoundary", () => {
         <Bomb />
       </ErrorBoundary>
     );
-    expect(screen.getByText("Something went wrong. Please reload the page to continue.")).toBeTruthy();
-    expect(screen.getByRole("button", { name: /reload/i })).toBeTruthy();
+    expect(screen.getByText("Something went wrong. Please reload the page to continue.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /reload/i })).toBeInTheDocument();
   });
 
   it("reload button is present and clickable", () => {
@@ -44,7 +45,7 @@ describe("ErrorBoundary", () => {
     );
 
     const button = screen.getByRole("button", { name: /reload/i });
-    expect(button).toBeTruthy();
+    expect(button).toBeInTheDocument();
     fireEvent.click(button);
   });
 });

@@ -179,12 +179,16 @@ describeIf("LocalStack deployment smoke test", () => {
     });
 
     const testContent = Buffer.from("PDF test content for e2e");
-    await store.putObject({
+    const ref = await store.putObject({
       key: "e2e-test/invoice-001.pdf",
       body: testContent,
       contentType: "application/pdf",
       metadata: { tenantId: "e2e-tenant" }
     });
+
+    expect(ref.key).toBe("e2e-test/invoice-001.pdf");
+    expect(ref.path).toBe(`s3://${TEST_BUCKET}/e2e-test/invoice-001.pdf`);
+    expect(ref.contentType).toBe("application/pdf");
 
     const retrieved = await store.getObject("e2e-test/invoice-001.pdf");
     expect(Buffer.from(retrieved.body).toString()).toBe("PDF test content for e2e");
@@ -192,6 +196,28 @@ describeIf("LocalStack deployment smoke test", () => {
 
     const listed = await store.listObjects("e2e-test");
     expect(listed.some((item) => item.key === "e2e-test/invoice-001.pdf")).toBe(true);
+  });
+
+  it("S3FileStore deleteObject removes object", async () => {
+    const store = new S3FileStore({
+      bucket: TEST_BUCKET,
+      region: TEST_REGION,
+      endpoint: LOCALSTACK_ENDPOINT,
+      forcePathStyle: true
+    });
+
+    await store.putObject({
+      key: "e2e-delete/to-remove.pdf",
+      body: Buffer.from("to be deleted"),
+      contentType: "application/pdf"
+    });
+
+    await store.deleteObject("e2e-delete/to-remove.pdf");
+
+    await expect(store.getObject("e2e-delete/to-remove.pdf")).rejects.toThrow();
+
+    const listed = await store.listObjects("e2e-delete");
+    expect(listed.some((item) => item.key === "e2e-delete/to-remove.pdf")).toBe(false);
   });
 
   it("S3FileStore export output round-trip", async () => {
@@ -203,12 +229,15 @@ describeIf("LocalStack deployment smoke test", () => {
     });
 
     const xmlContent = Buffer.from("<ENVELOPE><HEADER><TALLYREQUEST>Import Data</TALLYREQUEST></HEADER></ENVELOPE>");
-    await store.putObject({
+    const ref = await store.putObject({
       key: "exports/e2e-tenant/batch-001.xml",
       body: xmlContent,
       contentType: "application/xml",
       metadata: { tenantId: "e2e-tenant", batchId: "batch-001" }
     });
+
+    expect(ref.key).toBe("exports/e2e-tenant/batch-001.xml");
+    expect(ref.contentType).toBe("application/xml");
 
     const retrieved = await store.getObject("exports/e2e-tenant/batch-001.xml");
     expect(Buffer.from(retrieved.body).toString()).toContain("<TALLYREQUEST>Import Data</TALLYREQUEST>");
@@ -240,12 +269,12 @@ describe("OCR/SLM config wiring validation", () => {
     }
   });
 
-  it("loadRuntimeManifest maps DEEPSEEK_BASE_URL to manifest ocr config", async () => {
+  it("loadRuntimeManifest maps OCR_PROVIDER_BASE_URL to manifest ocr config", async () => {
     const { loadRuntimeManifest } = await import("../core/runtimeManifest.js");
     const manifest = loadRuntimeManifest();
 
-    expect(manifest.ocr.deepseek.baseUrl).toBe(env.DEEPSEEK_BASE_URL);
+    expect(manifest.ocr.deepseek.baseUrl).toBe(env.OCR_PROVIDER_BASE_URL);
     expect(manifest.verifier.http.baseUrl).toBe(env.FIELD_VERIFIER_BASE_URL);
-    expect(manifest.ocr.deepseek.model).toBe(env.DEEPSEEK_OCR_MODEL);
+    expect(manifest.ocr.deepseek.model).toBe(env.OCR_MODEL);
   });
 });

@@ -44,7 +44,8 @@ describe("tenant lifecycle e2e", () => {
       { headers: { Authorization: `Bearer ${platformAdminToken}` } }
     );
     expect(onboardResponse.status).toBe(201);
-    expect(onboardResponse.data.tempPassword).toBeTruthy();
+    expect(typeof onboardResponse.data.tempPassword).toBe("string");
+    expect(onboardResponse.data.tempPassword.length).toBeGreaterThan(0);
     const tempPassword = onboardResponse.data.tempPassword;
     const tenantId = onboardResponse.data.tenantId;
 
@@ -56,7 +57,7 @@ describe("tenant lifecycle e2e", () => {
     const tenantUsage = usageResponse.data.items.find(
       (item: { tenantId: string }) => item.tenantId === tenantId
     );
-    expect(tenantUsage).toBeTruthy();
+    expect(tenantUsage).toBeDefined();
     expect(tenantUsage.adminTempPassword).toBe(tempPassword);
 
     // 3. Login with temp password
@@ -138,7 +139,7 @@ describe("tenant lifecycle e2e", () => {
       (item: { status: string; attachmentName: string }) =>
         item.status === "PENDING" && item.attachmentName === "e2e-upload-test.pdf"
     );
-    expect(pendingInvoice).toBeTruthy();
+    expect(pendingInvoice).toBeDefined();
     expect(pendingInvoice.sourceType).toBe("s3-upload");
 
     // 10c. Upload same file again — should succeed (unique fileId)
@@ -243,7 +244,9 @@ describe("tenant lifecycle e2e", () => {
       if (inv.parsed?.currency) {
         expect(RECOGNIZED_CURRENCIES.has(inv.parsed.currency)).toBe(true);
       }
-      expect(inv.parsed?.invoiceNumber || inv.parsed?.invoiceDate).toBeTruthy();
+      const hasInvoiceNumber = typeof inv.parsed?.invoiceNumber === "string" && inv.parsed.invoiceNumber.length > 0;
+      const hasInvoiceDate = typeof inv.parsed?.invoiceDate === "string" && inv.parsed.invoiceDate.length > 0;
+      expect(hasInvoiceNumber || hasInvoiceDate).toBe(true);
     }
 
     for (const inv of nonFailed) {

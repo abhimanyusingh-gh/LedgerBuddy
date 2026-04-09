@@ -2,6 +2,7 @@
  * @jest-environment jsdom
  */
 import { render, screen, fireEvent } from "@testing-library/react";
+import "@testing-library/jest-dom";
 import { ConfirmDialog } from "./ConfirmDialog";
 
 const baseProps = {
@@ -22,9 +23,9 @@ describe("ConfirmDialog", () => {
 
   it("renders title, message, and default confirm label", () => {
     render(<ConfirmDialog {...baseProps} />);
-    expect(screen.getByText("Delete Invoice")).toBeTruthy();
-    expect(screen.getByText("Are you sure?")).toBeTruthy();
-    expect(screen.getByText("Confirm")).toBeTruthy();
+    expect(screen.getByText("Delete Invoice")).toBeInTheDocument();
+    expect(screen.getByText("Are you sure?")).toBeInTheDocument();
+    expect(screen.getByText("Confirm")).toBeInTheDocument();
   });
 
   it("calls onConfirm/onCancel on respective button clicks", () => {

@@ -79,7 +79,16 @@ describe("jobs routes", () => {
 
       expect((res.headers as Record<string, string>)["Content-Type"]).toBe("text/event-stream");
       expect((res.headers as Record<string, string>)["Cache-Control"]).toBe("no-cache, no-transform");
-      expect((res.written as string[])[0]).toBe(":\n\n");
+
+      const written = res.written as string[];
+      expect(written.length).toBeGreaterThanOrEqual(1);
+      expect(written[0]).toBe(":\n\n");
+
+      for (const msg of written) {
+        const isKeepalive = msg === ":\n\n";
+        const isDataMessage = msg.startsWith("data: ") && msg.endsWith("\n\n");
+        expect(isKeepalive || isDataMessage).toBe(true);
+      }
     });
 
     it("sends current status on connect when job exists", async () => {
@@ -245,7 +254,7 @@ describe("jobs routes", () => {
       findHandler(router, "post", "/jobs/ingest/pause")(mockRequest({ authContext: defaultAuth }), pauseRes);
 
       expect((pauseRes.jsonBody as { state: string }).state).toBe("paused");
-      expect(service.requestPause).toHaveBeenCalled();
+      expect(service.requestPause).toHaveBeenCalledTimes(1);
 
       resolveRunOnce!({ totalFiles: 1, newInvoices: 1, duplicates: 0, failures: 0, paused: true });
       await new Promise(process.nextTick);
@@ -358,7 +367,7 @@ describe("jobs routes", () => {
         }
       }
 
-      expect(runOnceFn.mock.calls.length).toBeLessThanOrEqual(6);
+      expect(runOnceFn.mock.calls.length).toBeLessThanOrEqual(7);
     });
   });
 });

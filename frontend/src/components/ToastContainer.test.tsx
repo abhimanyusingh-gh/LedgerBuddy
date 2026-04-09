@@ -2,6 +2,7 @@
  * @jest-environment jsdom
  */
 import { render, screen, fireEvent } from "@testing-library/react";
+import "@testing-library/jest-dom";
 import { ToastContainer } from "./ToastContainer";
 import type { Toast } from "../hooks/useToast";
 
@@ -25,13 +26,13 @@ describe("ToastContainer", () => {
     ["info", "info"]
   ] as const)("renders %s toast with correct class and icon", (type, expectedIcon) => {
     render(<ToastContainer toasts={[makeToast({ type })]} onRemove={jest.fn()} />);
-    expect(document.querySelector(`.toast-${type}`)).toBeTruthy();
+    expect(document.querySelector(`.toast-${type}`)).toBeInTheDocument();
     expect(document.querySelector(".toast-icon")?.textContent).toBe(expectedIcon);
   });
 
   it("shows toast message text", () => {
     render(<ToastContainer toasts={[makeToast({ message: "File uploaded" })]} onRemove={jest.fn()} />);
-    expect(screen.getByText("File uploaded")).toBeTruthy();
+    expect(screen.getByText("File uploaded")).toBeInTheDocument();
   });
 
   it("calls onRemove when dismiss button is clicked after exit animation", () => {
@@ -51,7 +52,7 @@ describe("ToastContainer", () => {
       makeToast({ id: "t1", message: "First" }),
       makeToast({ id: "t2", message: "Second" })
     ]} onRemove={jest.fn()} />);
-    expect(screen.getByText("First")).toBeTruthy();
-    expect(screen.getByText("Second")).toBeTruthy();
+    expect(screen.getByText("First")).toBeInTheDocument();
+    expect(screen.getByText("Second")).toBeInTheDocument();
   });
 });

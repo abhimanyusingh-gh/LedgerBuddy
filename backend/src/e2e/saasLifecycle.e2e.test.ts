@@ -47,8 +47,10 @@ describe("saas lifecycle e2e", () => {
     const tokenA = await loginAs(email);
     const tokenB = await loginAs(email);
 
-    expect(tokenA).toBeTruthy();
-    expect(tokenB).toBeTruthy();
+    expect(typeof tokenA).toBe("string");
+    expect(tokenA.length).toBeGreaterThan(0);
+    expect(typeof tokenB).toBe("string");
+    expect(tokenB.length).toBeGreaterThan(0);
 
     const session = await api.get("/api/session", {
       headers: authHeaders(tokenA)

@@ -1,4 +1,4 @@
-import { CreateBucketCommand, S3Client } from "@aws-sdk/client-s3";
+import { CreateBucketCommand, DeleteObjectsCommand, ListObjectsV2Command, S3Client } from "@aws-sdk/client-s3";
 import { S3FileStore } from "./S3FileStore.js";
 
 const LOCALSTACK_ENDPOINT = process.env.LOCALSTACK_ENDPOINT;
@@ -8,10 +8,11 @@ const TEST_REGION = "us-east-1";
 const describeIf = LOCALSTACK_ENDPOINT ? describe : describe.skip;
 
 describeIf("S3FileStore (LocalStack integration)", () => {
+  let s3Client: S3Client;
   let store: S3FileStore;
 
   beforeAll(async () => {
-    const client = new S3Client({
+    s3Client = new S3Client({
       region: TEST_REGION,
       endpoint: LOCALSTACK_ENDPOINT,
       forcePathStyle: true,
@@ -19,7 +20,7 @@ describeIf("S3FileStore (LocalStack integration)", () => {
     });
 
     try {
-      await client.send(new CreateBucketCommand({ Bucket: TEST_BUCKET }));
+      await s3Client.send(new CreateBucketCommand({ Bucket: TEST_BUCKET }));
     } catch {
     }
 
@@ -29,6 +30,37 @@ describeIf("S3FileStore (LocalStack integration)", () => {
       endpoint: LOCALSTACK_ENDPOINT,
       forcePathStyle: true
     });
+  });
+
+  afterAll(async () => {
+    try {
+      let continuationToken: string | undefined;
+      do {
+        const listed = await s3Client.send(
+          new ListObjectsV2Command({ Bucket: TEST_BUCKET, ContinuationToken: continuationToken })
+        );
+        if (listed.Contents && listed.Contents.length > 0) {
+          await s3Client.send(new DeleteObjectsCommand({
+            Bucket: TEST_BUCKET,
+            Delete: { Objects: listed.Contents.map((obj) => ({ Key: obj.Key! })) }
+          }));
+        }
+        continuationToken = listed.IsTruncated ? listed.NextContinuationToken : undefined;
+      } while (continuationToken);
+    } catch {
+    }
+  });
+
+  it("putObject returns a FileStoreObjectRef with correct key and path", async () => {
+    const ref = await store.putObject({
+      key: "ref-test/invoice.pdf",
+      body: Buffer.from("pdf-bytes"),
+      contentType: "application/pdf"
+    });
+
+    expect(ref.key).toBe("ref-test/invoice.pdf");
+    expect(ref.path).toBe(`s3://${TEST_BUCKET}/ref-test/invoice.pdf`);
+    expect(ref.contentType).toBe("application/pdf");
   });
 
   it("putObject + getObject round-trip", async () => {
@@ -45,6 +77,10 @@ describeIf("S3FileStore (LocalStack integration)", () => {
     expect(result.contentType).toBe("application/pdf");
   });
 
+  it("getObject throws on missing key", async () => {
+    await expect(store.getObject("does-not-exist/missing.pdf")).rejects.toThrow();
+  });
+
   it("listObjects returns correct keys under a prefix", async () => {
     await store.putObject({ key: "list-test/a.pdf", body: Buffer.from("a"), contentType: "application/pdf" });
     await store.putObject({ key: "list-test/b.pdf", body: Buffer.from("b"), contentType: "application/pdf" });
@@ -57,19 +93,50 @@ describeIf("S3FileStore (LocalStack integration)", () => {
     expect(keys).not.toContain("other/c.pdf");
   });
 
-  it("listObjects with empty prefix returns empty array", async () => {
-    const tempStore = new S3FileStore({
-      bucket: TEST_BUCKET,
-      region: TEST_REGION,
-      prefix: "empty-prefix-test",
-      endpoint: LOCALSTACK_ENDPOINT,
-      forcePathStyle: true
-    });
-    const results = await tempStore.listObjects("nonexistent");
+  it("listObjects returns empty array for a prefix with no objects", async () => {
+    const results = await store.listObjects("absolutely-not-here");
     expect(results).toEqual([]);
   });
 
-  it("deleteObject removes object", async () => {
+  it("listObjects with constructor prefix strips prefix from returned keys", async () => {
+    const tenantPrefix = "tenant-prefix-test";
+    const prefixedStore = new S3FileStore({
+      bucket: TEST_BUCKET,
+      region: TEST_REGION,
+      prefix: tenantPrefix,
+      endpoint: LOCALSTACK_ENDPOINT,
+      forcePathStyle: true
+    });
+
+    await prefixedStore.putObject({ key: "folder/doc.pdf", body: Buffer.from("doc"), contentType: "application/pdf" });
+
+    const results = await prefixedStore.listObjects("folder");
+    const keys = results.map((r) => r.key);
+    expect(keys).toContain("folder/doc.pdf");
+    expect(keys.every((k) => !k.startsWith(tenantPrefix))).toBe(true);
+  });
+
+  it("putObject with constructor prefix encodes prefix into stored path", async () => {
+    const tenantPrefix = "tenant-ref-prefix";
+    const prefixedStore = new S3FileStore({
+      bucket: TEST_BUCKET,
+      region: TEST_REGION,
+      prefix: tenantPrefix,
+      endpoint: LOCALSTACK_ENDPOINT,
+      forcePathStyle: true
+    });
+
+    const ref = await prefixedStore.putObject({
+      key: "invoices/inv-999.pdf",
+      body: Buffer.from("data"),
+      contentType: "application/pdf"
+    });
+
+    expect(ref.key).toBe(`${tenantPrefix}/invoices/inv-999.pdf`);
+    expect(ref.path).toBe(`s3://${TEST_BUCKET}/${tenantPrefix}/invoices/inv-999.pdf`);
+  });
+
+  it("deleteObject removes object and subsequent getObject throws", async () => {
     await store.putObject({ key: "delete-test/file.pdf", body: Buffer.from("data"), contentType: "application/pdf" });
 
     await store.deleteObject("delete-test/file.pdf");
@@ -81,7 +148,7 @@ describeIf("S3FileStore (LocalStack integration)", () => {
     await expect(store.deleteObject("nonexistent/key.pdf")).resolves.toBeUndefined();
   });
 
-  it("full upload → list → retrieve pipeline", async () => {
+  it("full upload → list → retrieve pipeline across content types", async () => {
     const tenantId = "integration-tenant";
     const files = [
       { key: `uploads/${tenantId}/inv-001.pdf`, body: Buffer.from("pdf-001"), contentType: "application/pdf" },
@@ -94,9 +161,15 @@ describeIf("S3FileStore (LocalStack integration)", () => {
 
     const listed = await store.listObjects(`uploads/${tenantId}`);
     expect(listed.length).toBe(2);
+    expect(listed.map((r) => r.key)).toContain(`uploads/${tenantId}/inv-001.pdf`);
+    expect(listed.map((r) => r.key)).toContain(`uploads/${tenantId}/inv-002.png`);
 
     const retrieved = await store.getObject(`uploads/${tenantId}/inv-001.pdf`);
     expect(Buffer.from(retrieved.body).toString()).toBe("pdf-001");
     expect(retrieved.contentType).toBe("application/pdf");
+
+    const retrievedPng = await store.getObject(`uploads/${tenantId}/inv-002.png`);
+    expect(Buffer.from(retrievedPng.body).toString()).toBe("png-002");
+    expect(retrievedPng.contentType).toBe("image/png");
   });
 });
