@@ -53,13 +53,13 @@ export function createSessionToken(input: CreateSessionTokenInput): string {
 }
 
 export function verifySessionToken(token: string, secret: string): VerifiedSessionToken {
-  const [headerPart, payloadPart, signaturePart] = token.split(".");
-  if (!headerPart || !payloadPart || !signaturePart) {
+  const [encodedHeader, encodedPayload, encodedSignature] = token.split(".");
+  if (!encodedHeader || !encodedPayload || !encodedSignature) {
     throw new Error("Session token format is invalid.");
   }
 
-  const expectedSignature = sign(`${headerPart}.${payloadPart}`, secret);
-  const actual = Buffer.from(signaturePart, "base64url");
+  const expectedSignature = sign(`${encodedHeader}.${encodedPayload}`, secret);
+  const actual = Buffer.from(encodedSignature, "base64url");
   const expected = Buffer.from(expectedSignature, "base64url");
   if (actual.length !== expected.length || !timingSafeEqual(actual, expected)) {
     throw new Error("Session token signature is invalid.");
@@ -67,7 +67,7 @@ export function verifySessionToken(token: string, secret: string): VerifiedSessi
 
   let header: { alg?: unknown; typ?: unknown };
   try {
-    header = JSON.parse(fromBase64Url(headerPart)) as { alg?: unknown; typ?: unknown };
+    header = JSON.parse(fromBase64Url(encodedHeader)) as { alg?: unknown; typ?: unknown };
   } catch {
     throw new Error("Session token header is invalid JSON.");
   }
@@ -77,7 +77,7 @@ export function verifySessionToken(token: string, secret: string): VerifiedSessi
 
   let payload: SessionTokenPayload;
   try {
-    payload = JSON.parse(fromBase64Url(payloadPart)) as SessionTokenPayload;
+    payload = JSON.parse(fromBase64Url(encodedPayload)) as SessionTokenPayload;
   } catch {
     throw new Error("Session token payload is invalid JSON.");
   }

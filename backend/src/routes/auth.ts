@@ -53,6 +53,21 @@ export function createAuthRouter(authService: AuthService) {
     }
   });
 
+  router.post("/auth/refresh", async (request, response, next) => {
+    try {
+      const authHeader = typeof request.headers.authorization === "string" ? request.headers.authorization : "";
+      const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7).trim() : "";
+      if (!token) {
+        response.status(401).json({ message: "Authorization header with Bearer token is required." });
+        return;
+      }
+      const result = await authService.refreshSession(token);
+      response.json({ token: result.sessionToken });
+    } catch (error) {
+      next(error);
+    }
+  });
+
   router.post("/auth/change-password", authenticate, requireAuth, async (request, response, next) => {
     try {
       const context = getAuth(request);

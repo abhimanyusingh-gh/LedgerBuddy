@@ -9,6 +9,7 @@ import { TenantModel } from "../models/Tenant.js";
 import { TenantUserRoleModel } from "../models/TenantUserRole.js";
 import type { OidcProvider } from "../sts/OidcProvider.js";
 import type { KeycloakAdminClient } from "../keycloak/KeycloakAdminClient.js";
+import { encryptSecret } from "../utils/secretCrypto.js";
 
 const TENANT_ID = "65f0000000000000000000a1";
 const USER_ID = "65f0000000000000000000c3";
@@ -52,6 +53,7 @@ function makeMockOidc(overrides: Partial<OidcProvider> = {}): OidcProvider {
       subject: "kc-subject-1", email: "tenant-admin-1@local.test", name: "Tenant Admin 1"
     }),
     exchangePasswordGrant: jest.fn().mockResolvedValue({ accessToken: "mock-access-token", ok: true }),
+    refreshAccessToken: jest.fn().mockResolvedValue({ accessToken: "refreshed-access-token", refreshToken: "refreshed-kc-token" }),
     ...overrides
   };
 }
@@ -113,7 +115,10 @@ describe("loginWithPassword", () => {
     expect(oidc.exchangePasswordGrant).toHaveBeenCalledWith("tenant-admin-1@local.test", "DemoPass!1");
     expect(result.context.role).toBe("TENANT_ADMIN");
     expect(result.context.tenantId).toBe(TENANT_ID);
-    expect(updateOneSpy).toHaveBeenCalled();
+    expect(updateOneSpy).toHaveBeenCalledWith(
+      { email: "tenant-admin-1@local.test" },
+      { $set: { lastLoginAt: expect.any(Date) } }
+    );
 
     const verified = verifySessionToken(result.sessionToken, env.APP_SESSION_SIGNING_SECRET);
     expect(verified.role).toBe("TENANT_ADMIN");
@@ -213,7 +218,7 @@ describe("auth middleware", () => {
 
     expect(authService.resolveRequestContext).toHaveBeenCalledWith("image-token");
     expect(next).toHaveBeenCalledTimes(1);
-    expect((request as { authContext?: unknown }).authContext).toBeTruthy();
+    expect((request as { authContext?: unknown }).authContext).toBeDefined();
   });
 });
 
@@ -279,5 +284,165 @@ describe("sessionToken", () => {
     const signature = createHmac("sha256", secret).update(`${header}.${tamperedPayload}`).digest("base64url");
     const tampered = `${header}.${tamperedPayload}.${signature}`;
     expect(() => verifySessionToken(tampered, secret)).toThrow(/payload is incomplete/i);
+  });
+});
+
+describe("refreshSession", () => {
+  beforeEach(() => { jest.restoreAllMocks(); });
+
+  function makeValidSessionToken() {
+    return createSessionToken({
+      userId: USER_ID, email: "user@test.com",
+      tenantId: TENANT_ID, role: "TENANT_ADMIN",
+      isPlatformAdmin: false,
+      ttlSeconds: 3600, secret: env.APP_SESSION_SIGNING_SECRET
+    });
+  }
+
+  function makeEncryptedRefreshToken() {
+    return encryptSecret("kc-refresh-token-value", env.REFRESH_TOKEN_ENCRYPTION_SECRET);
+  }
+
+  function mockUserFindById(overrides: Partial<{ encryptedRefreshToken: string | null }> = {}) {
+    const user = {
+      _id: USER_ID,
+      email: "user@test.com",
+      tenantId: TENANT_ID,
+      encryptedRefreshToken: overrides.encryptedRefreshToken !== undefined
+        ? overrides.encryptedRefreshToken
+        : makeEncryptedRefreshToken(),
+      save: jest.fn().mockResolvedValue(undefined)
+    };
+    jest.spyOn(UserModel, "findById").mockResolvedValue(user as never);
+    return user;
+  }
+
+  it("returns a new session token when refresh succeeds", async () => {
+    mockUserFindById();
+    jest.spyOn(TenantModel, "findById").mockReturnValue({
+      lean: jest.fn().mockResolvedValue({ _id: TENANT_ID, name: "Tenant Alpha", onboardingStatus: "completed" })
+    } as never);
+    jest.spyOn(TenantUserRoleModel, "findOne").mockReturnValue({
+      lean: jest.fn().mockResolvedValue({ role: "TENANT_ADMIN" })
+    } as never);
+
+    const oidc = makeMockOidc({
+      refreshAccessToken: jest.fn().mockResolvedValue({
+        accessToken: "new-access-token",
+        refreshToken: "new-kc-refresh-token"
+      })
+    } as unknown as Partial<OidcProvider>);
+    const authService = new AuthService(oidc, makeMockKcAdmin());
+
+    const result = await authService.refreshSession(makeValidSessionToken());
+
+    expect(result).toHaveProperty("sessionToken");
+    const verified = verifySessionToken(result.sessionToken, env.APP_SESSION_SIGNING_SECRET);
+    expect(verified.userId).toBe(USER_ID);
+    expect(verified.role).toBe("TENANT_ADMIN");
+  });
+
+  it("throws auth_session_invalid when session token is malformed", async () => {
+    const authService = new AuthService(makeMockOidc(), makeMockKcAdmin());
+    await expect(authService.refreshSession("not.a.valid.token")).rejects.toEqual(
+      expect.objectContaining({ statusCode: 401, code: "auth_session_invalid" })
+    );
+  });
+
+  it("throws auth_user_missing when user is not found", async () => {
+    jest.spyOn(UserModel, "findById").mockResolvedValue(null as never);
+    const authService = new AuthService(makeMockOidc(), makeMockKcAdmin());
+    await expect(authService.refreshSession(makeValidSessionToken())).rejects.toEqual(
+      expect.objectContaining({ statusCode: 401, code: "auth_user_missing" })
+    );
+  });
+
+  it("throws auth_user_missing when user has no refresh token", async () => {
+    mockUserFindById({ encryptedRefreshToken: null });
+    const authService = new AuthService(makeMockOidc(), makeMockKcAdmin());
+    await expect(authService.refreshSession(makeValidSessionToken())).rejects.toEqual(
+      expect.objectContaining({ statusCode: 401, code: "auth_user_missing" })
+    );
+  });
+
+  it("throws auth_refresh_decrypt_failed when refresh token cannot be decrypted", async () => {
+    mockUserFindById({ encryptedRefreshToken: "invalid-payload" });
+    const authService = new AuthService(makeMockOidc(), makeMockKcAdmin());
+    await expect(authService.refreshSession(makeValidSessionToken())).rejects.toEqual(
+      expect.objectContaining({ statusCode: 401, code: "auth_refresh_decrypt_failed" })
+    );
+  });
+
+  it("throws auth_refresh_failed when Keycloak refresh call fails", async () => {
+    mockUserFindById();
+    const oidc = makeMockOidc({
+      refreshAccessToken: jest.fn().mockRejectedValue(new Error("Keycloak token expired"))
+    } as unknown as Partial<OidcProvider>);
+    const authService = new AuthService(oidc, makeMockKcAdmin());
+    await expect(authService.refreshSession(makeValidSessionToken())).rejects.toEqual(
+      expect.objectContaining({ statusCode: 401, code: "auth_refresh_failed" })
+    );
+  });
+
+  it("throws auth_tenant_missing when tenant is not found after refresh", async () => {
+    mockUserFindById();
+    jest.spyOn(TenantModel, "findById").mockReturnValue({
+      lean: jest.fn().mockResolvedValue(null)
+    } as never);
+    jest.spyOn(TenantUserRoleModel, "findOne").mockReturnValue({
+      lean: jest.fn().mockResolvedValue({ role: "TENANT_ADMIN" })
+    } as never);
+    const oidc = makeMockOidc({
+      refreshAccessToken: jest.fn().mockResolvedValue({
+        accessToken: "new-access-token",
+        refreshToken: "new-kc-refresh-token"
+      })
+    } as unknown as Partial<OidcProvider>);
+    const authService = new AuthService(oidc, makeMockKcAdmin());
+    await expect(authService.refreshSession(makeValidSessionToken())).rejects.toEqual(
+      expect.objectContaining({ statusCode: 401, code: "auth_tenant_missing" })
+    );
+  });
+
+  it("throws auth_role_missing when role record is not found after refresh", async () => {
+    mockUserFindById();
+    jest.spyOn(TenantModel, "findById").mockReturnValue({
+      lean: jest.fn().mockResolvedValue({ _id: TENANT_ID, name: "Tenant Alpha", onboardingStatus: "completed" })
+    } as never);
+    jest.spyOn(TenantUserRoleModel, "findOne").mockReturnValue({
+      lean: jest.fn().mockResolvedValue(null)
+    } as never);
+    const oidc = makeMockOidc({
+      refreshAccessToken: jest.fn().mockResolvedValue({
+        accessToken: "new-access-token",
+        refreshToken: "new-kc-refresh-token"
+      })
+    } as unknown as Partial<OidcProvider>);
+    const authService = new AuthService(oidc, makeMockKcAdmin());
+    await expect(authService.refreshSession(makeValidSessionToken())).rejects.toEqual(
+      expect.objectContaining({ statusCode: 401, code: "auth_role_missing" })
+    );
+  });
+
+  it("saves re-encrypted refresh token to user document", async () => {
+    const user = mockUserFindById();
+    jest.spyOn(TenantModel, "findById").mockReturnValue({
+      lean: jest.fn().mockResolvedValue({ _id: TENANT_ID, name: "Tenant Alpha", onboardingStatus: "completed" })
+    } as never);
+    jest.spyOn(TenantUserRoleModel, "findOne").mockReturnValue({
+      lean: jest.fn().mockResolvedValue({ role: "TENANT_ADMIN" })
+    } as never);
+    const oidc = makeMockOidc({
+      refreshAccessToken: jest.fn().mockResolvedValue({
+        accessToken: "new-access-token",
+        refreshToken: "new-kc-refresh-token"
+      })
+    } as unknown as Partial<OidcProvider>);
+    const authService = new AuthService(oidc, makeMockKcAdmin());
+
+    await authService.refreshSession(makeValidSessionToken());
+
+    expect(user.save).toHaveBeenCalledTimes(1);
+    expect(user.encryptedRefreshToken).not.toBe(makeEncryptedRefreshToken());
   });
 });

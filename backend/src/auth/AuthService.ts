@@ -6,7 +6,7 @@ import { UserModel } from "../models/User.js";
 import { env } from "../config/env.js";
 import type { OidcProvider } from "../sts/OidcProvider.js";
 import { createSessionToken, verifySessionToken } from "./sessionToken.js";
-import { encryptSecret } from "../utils/secretCrypto.js";
+import { encryptSecret, decryptSecret } from "../utils/secretCrypto.js";
 import type { AuthenticatedRequestContext, SessionFlagsPayload } from "../types/auth.js";
 import { TenantIntegrationModel } from "../models/TenantIntegration.js";
 import { HttpError } from "../errors/HttpError.js";
@@ -97,13 +97,11 @@ export class AuthService {
       throw new HttpError("Email and password are required.", 400, "auth_credentials_missing");
     }
 
-    // Authenticate via Keycloak ROPC
     const grant = await this.oidc.exchangePasswordGrant(normalizedEmail, password);
     if (!grant.ok) {
       throw new HttpError("Invalid email or password.", 401, "auth_credentials_invalid");
     }
 
-    // Introspect to get claims
     const validated = await this.oidc.validateAccessToken({ accessToken: grant.accessToken });
     const claims = this.oidc.normalizeClaims(validated);
 
@@ -111,7 +109,6 @@ export class AuthService {
       ? encryptSecret(grant.refreshToken, env.REFRESH_TOKEN_ENCRYPTION_SECRET)
       : "";
 
-    // Resolve MongoDB context (handles auto-provisioning)
     const context = await this.upsertPrincipal({
       subject: claims.subject,
       email: normalizedEmail,
@@ -131,26 +128,68 @@ export class AuthService {
   }
 
   async changePassword(context: AuthenticatedRequestContext, currentPassword: string, newPassword: string): Promise<void> {
-    // 1. Verify current password via ROPC
     const verify = await this.oidc.exchangePasswordGrant(context.email, currentPassword);
     if (!verify.ok) {
       throw new HttpError("Current password is incorrect.", 401, "auth_invalid_current_password");
     }
 
-    // 2. Find KC user
     const kcUser = await this.keycloakAdmin.findUserByEmail(context.email);
     if (!kcUser) {
       throw new HttpError("User not found in identity provider.", 500, "auth_kc_user_missing");
     }
 
-    // 3. Set new password (permanent)
     await this.keycloakAdmin.setPassword(kcUser.id, newPassword, false);
 
-    // 4. Clear temp password and mustChangePassword in MongoDB
     await UserModel.updateOne(
       { email: context.email },
       { $set: { mustChangePassword: false }, $unset: { tempPassword: "" } }
     );
+  }
+
+  async refreshSession(sessionToken: string): Promise<{ sessionToken: string }> {
+    let verified: ReturnType<typeof verifySessionToken>;
+    try {
+      verified = verifySessionToken(sessionToken, env.APP_SESSION_SIGNING_SECRET);
+    } catch {
+      throw new HttpError("Session token is invalid or expired.", 401, "auth_session_invalid");
+    }
+
+    const user = await UserModel.findById(verified.userId);
+    if (!user || !user.encryptedRefreshToken) {
+      throw new HttpError("Authenticated user not found or missing refresh token.", 401, "auth_user_missing");
+    }
+
+    let decryptedRefreshToken: string;
+    try {
+      decryptedRefreshToken = decryptSecret(user.encryptedRefreshToken, env.REFRESH_TOKEN_ENCRYPTION_SECRET);
+    } catch {
+      throw new HttpError("Refresh token could not be decrypted.", 401, "auth_refresh_decrypt_failed");
+    }
+
+    let kcTokens: { accessToken: string; refreshToken: string };
+    try {
+      kcTokens = await this.oidc.refreshAccessToken(decryptedRefreshToken);
+    } catch {
+      throw new HttpError("Keycloak refresh token is invalid or expired.", 401, "auth_refresh_failed");
+    }
+
+    const newEncryptedRefreshToken = encryptSecret(kcTokens.refreshToken, env.REFRESH_TOKEN_ENCRYPTION_SECRET);
+    user.encryptedRefreshToken = newEncryptedRefreshToken;
+    await user.save();
+
+    const [tenant, roleRecord] = await Promise.all([
+      TenantModel.findById(user.tenantId).lean(),
+      TenantUserRoleModel.findOne({ tenantId: user.tenantId, userId: String(user._id) }).lean()
+    ]);
+    if (!tenant) {
+      throw new HttpError("Tenant not found.", 401, "auth_tenant_missing");
+    }
+    if (!roleRecord) {
+      throw new HttpError("User role not found.", 401, "auth_role_missing");
+    }
+
+    const context = buildContext(user, tenant, roleRecord.role);
+    return { sessionToken: this.createSessionTokenForContext(context) };
   }
 
   async resolveRequestContext(sessionToken: string): Promise<AuthenticatedRequestContext> {

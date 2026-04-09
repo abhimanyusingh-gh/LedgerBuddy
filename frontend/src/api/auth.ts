@@ -1,5 +1,19 @@
+import axios from "axios";
 import { apiClient } from "./client";
 import type { SessionRole, TenantRole, UserCapabilities } from "../types";
+
+const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:4100/api";
+
+export async function refreshSessionToken(currentToken: string): Promise<string> {
+  const response = await axios.post<{ token: string }>(
+    `${apiBaseUrl}/auth/refresh`,
+    {},
+    { headers: { Authorization: `Bearer ${currentToken}` } }
+  );
+  const token = typeof response.data?.token === "string" ? response.data.token.trim() : "";
+  if (!token) throw new Error("Refresh did not return a session token.");
+  return token;
+}
 
 interface SessionContextResponse {
   user: {

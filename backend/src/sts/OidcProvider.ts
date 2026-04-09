@@ -41,4 +41,5 @@ export interface OidcProvider {
   validateAccessToken(input: OidcAccessTokenValidationInput): Promise<Record<string, unknown>>;
   normalizeClaims(rawClaims: Record<string, unknown>): OidcNormalizedClaims;
   exchangePasswordGrant(username: string, password: string): Promise<OidcPasswordGrantResult>;
+  refreshAccessToken(refreshToken: string): Promise<{ accessToken: string; refreshToken: string }>;
 }

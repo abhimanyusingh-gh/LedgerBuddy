@@ -15,9 +15,124 @@ apiClient.interceptors.request.use((config) => {
   return config;
 });
 
+let isRefreshing = false;
+let refreshQueue: Array<(token: string) => void> = [];
+let proactiveRefreshTimer: ReturnType<typeof setTimeout> | null = null;
+
+function flushRefreshQueue(token: string) {
+  for (const resolve of refreshQueue) resolve(token);
+  refreshQueue = [];
+}
+
+function drainRefreshQueue() {
+  for (const resolve of refreshQueue) resolve("");
+  refreshQueue = [];
+}
+
+function decodeJwtExp(token: string): number | null {
+  try {
+    const parts = token.split(".");
+    if (parts.length !== 3) return null;
+    const payload = JSON.parse(atob(parts[1].replace(/-/g, "+").replace(/_/g, "/"))) as unknown;
+    if (typeof payload !== "object" || payload === null) return null;
+    const exp = (payload as Record<string, unknown>).exp;
+    return typeof exp === "number" ? exp : null;
+  } catch {
+    return null;
+  }
+}
+
+export function scheduleProactiveRefresh(token: string) {
+  if (proactiveRefreshTimer !== null) {
+    clearTimeout(proactiveRefreshTimer);
+    proactiveRefreshTimer = null;
+  }
+  if (!token) return;
+  const exp = decodeJwtExp(token);
+  if (exp === null) return;
+  const nowSeconds = Math.floor(Date.now() / 1000);
+  const msUntilRefresh = (exp - nowSeconds - 60) * 1000;
+  if (msUntilRefresh <= 0) return;
+  proactiveRefreshTimer = setTimeout(() => {
+    proactiveRefreshTimer = null;
+    const currentToken = getStoredSessionToken();
+    if (!currentToken) return;
+    void import("./auth").then(({ refreshSessionToken }) =>
+      refreshSessionToken(currentToken)
+        .then((newToken) => {
+          setStoredSessionToken(newToken);
+          apiClient.defaults.headers.common["Authorization"] = `Bearer ${newToken}`;
+          scheduleProactiveRefresh(newToken);
+        })
+        .catch(() => {
+          clearStoredSessionToken();
+          window.location.href = "/";
+        })
+    );
+  }, msUntilRefresh);
+}
+
+export function cancelProactiveRefresh() {
+  if (proactiveRefreshTimer !== null) {
+    clearTimeout(proactiveRefreshTimer);
+    proactiveRefreshTimer = null;
+  }
+}
+
 apiClient.interceptors.response.use(
   (response) => response,
-  (error) => Promise.reject(normalizeApiError(error))
+  async (error) => {
+    const status = axios.isAxiosError(error) ? error.response?.status : undefined;
+    const requestUrl = axios.isAxiosError(error) ? (error.config?.url ?? "") : "";
+    const isRefreshEndpoint = /\/auth\/refresh(?:\?|$)/.test(requestUrl);
+    const isLoginEndpoint = /\/auth\/token(?:\?|$)/.test(requestUrl);
+
+    if (status === 401 && !isRefreshEndpoint && !isLoginEndpoint) {
+      const currentToken = getStoredSessionToken();
+      if (!currentToken) {
+        return Promise.reject(normalizeApiError(error));
+      }
+
+      if (isRefreshing) {
+        return new Promise<string>((resolve) => {
+          refreshQueue.push(resolve);
+        }).then((newToken) => {
+          if (!newToken) return Promise.reject(normalizeApiError(error));
+          const retryConfig = { ...error.config };
+          retryConfig.headers = { ...(retryConfig.headers ?? {}) };
+          retryConfig.headers["Authorization"] = `Bearer ${newToken}`;
+          return axios(retryConfig);
+        });
+      }
+
+      isRefreshing = true;
+
+      return import("./auth")
+        .then(({ refreshSessionToken }) => refreshSessionToken(currentToken))
+        .then((newToken) => {
+          setStoredSessionToken(newToken);
+          apiClient.defaults.headers.common["Authorization"] = `Bearer ${newToken}`;
+          scheduleProactiveRefresh(newToken);
+          flushRefreshQueue(newToken);
+          const retryConfig = { ...error.config };
+          retryConfig.headers = { ...(retryConfig.headers ?? {}) };
+          retryConfig.headers["Authorization"] = `Bearer ${newToken}`;
+          return axios(retryConfig);
+        })
+        .catch((refreshError) => {
+          drainRefreshQueue();
+          clearStoredSessionToken();
+          cancelProactiveRefresh();
+          window.location.href = "/";
+          return Promise.reject(normalizeApiError(refreshError));
+        })
+        .finally(() => {
+          isRefreshing = false;
+        });
+    }
+
+    return Promise.reject(normalizeApiError(error));
+  }
 );
 
 export function getStoredSessionToken(): string {

@@ -171,6 +171,35 @@ export class HttpOidcProvider implements OidcProvider {
     return { accessToken, refreshToken, ok: true };
   }
 
+  async refreshAccessToken(refreshToken: string): Promise<{ accessToken: string; refreshToken: string }> {
+    const body = new URLSearchParams({
+      grant_type: "refresh_token",
+      refresh_token: refreshToken,
+      client_id: this.config.clientId,
+      client_secret: this.config.clientSecret
+    });
+
+    const response = await this.http.post(this.config.tokenUrl, body.toString(), {
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded"
+      }
+    });
+
+    if (response.status < 200 || response.status >= 300) {
+      throw new Error(`OIDC refresh token exchange failed with HTTP ${response.status}.`);
+    }
+
+    const payload = response.data as TokenResponsePayload;
+    const accessToken = typeof payload.access_token === "string" ? payload.access_token.trim() : "";
+    const newRefreshToken = typeof payload.refresh_token === "string" ? payload.refresh_token.trim() : "";
+
+    if (!accessToken || !newRefreshToken) {
+      throw new Error("OIDC provider returned incomplete token payload on refresh.");
+    }
+
+    return { accessToken, refreshToken: newRefreshToken };
+  }
+
   async fetchUserInfo(accessToken: string): Promise<Record<string, unknown>> {
     const response = await this.http.get(this.config.userInfoUrl, {
       headers: {
