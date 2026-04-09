@@ -90,6 +90,26 @@ class LocalCodexCliLLMProvider(LLMProvider):
       "issues": ["slm_output_invalid_json"]
     }
 
+  def call_prompt(self, prompt_text: str) -> dict[str, Any]:
+    with self.generation_lock:
+      try:
+        output_text = self._run_codex(prompt_text)
+      except Exception as error:
+        self.last_error = str(error)
+        log_error("slm.codex_cli.call_prompt.failed", error=str(error))
+        raise
+
+    log_info(
+      "slm.call_prompt.raw_output",
+      output_length=len(output_text),
+      first_200=output_text[:200],
+      last_200=output_text[-200:] if len(output_text) > 200 else ""
+    )
+    parsed = parse_json_object(output_text)
+    if parsed is not None:
+      return parsed
+    raise RuntimeError(f"Codex CLI call_prompt returned non-JSON output: {output_text[:200]}")
+
   def _select_bank_statement(self, payload: dict[str, Any]) -> dict[str, Any]:
     prompt = payload.get("bankStatementPrompt", "")
     if not prompt:

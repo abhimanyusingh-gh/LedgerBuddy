@@ -1,3 +1,4 @@
+import concurrent.futures
 import time
 import uuid
 from typing import Any
@@ -7,8 +8,10 @@ from fastapi import FastAPI, Request
 from .engine import select_with_fallback, extract_invoice_type
 from .payload_normalization import normalize_blocks, normalize_candidate_map, normalize_field_regions
 from .providers import create_llm_provider
+from .providers.shared import build_extractor_prompt, build_comparator_prompt, build_verifier_prompt
 from .logging import log_error, log_info, reset_correlation_id, set_correlation_id
 from .schemas import VerifyInvoiceRequest, VerifyInvoiceResponse
+from .settings import settings
 
 app = FastAPI(title="Invoice SLM Service", version="2.0.0")
 provider = create_llm_provider()
@@ -55,6 +58,68 @@ def ping() -> dict[str, Any]:
   return {"pong": True}
 
 
+def multi_step_inference(provider: Any, inference_payload: dict[str, Any]) -> dict[str, Any]:
+  extractor_prompt = build_extractor_prompt(inference_payload, strict=True)
+
+  extraction_a: dict[str, Any] | None = None
+  extraction_b: dict[str, Any] | None = None
+  error_a: Exception | None = None
+  error_b: Exception | None = None
+
+  def run_extractor() -> dict[str, Any]:
+    return provider.call_prompt(extractor_prompt)
+
+  with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
+    future_a = executor.submit(run_extractor)
+    future_b = executor.submit(run_extractor)
+    try:
+      extraction_a = future_a.result()
+    except Exception as e:
+      error_a = e
+      log_error("slm.multi_step.extractor_a.failed", error=str(e))
+    try:
+      extraction_b = future_b.result()
+    except Exception as e:
+      error_b = e
+      log_error("slm.multi_step.extractor_b.failed", error=str(e))
+
+  if extraction_a is None and extraction_b is None:
+    raise RuntimeError(f"Both extractors failed. A={error_a} B={error_b}")
+
+  if extraction_a is None:
+    extraction_a = extraction_b
+  if extraction_b is None:
+    extraction_b = extraction_a
+
+  merged: dict[str, Any] | None = None
+  try:
+    comparator_prompt = build_comparator_prompt(inference_payload, extraction_a, extraction_b, strict=True)
+    merged = provider.call_prompt(comparator_prompt)
+  except Exception as e:
+    log_error("slm.multi_step.comparator.failed", error=str(e))
+    merged = extraction_a if extraction_a is not None else extraction_b
+
+  final: dict[str, Any] | None = None
+  try:
+    verifier_prompt = build_verifier_prompt(inference_payload, merged, strict=True)
+    final = provider.call_prompt(verifier_prompt)
+  except Exception as e:
+    log_error("slm.multi_step.verifier.failed", error=str(e))
+    final = merged
+
+  invoice_type = None
+  classification = final.get("classification") if isinstance(final, dict) else None
+  if isinstance(classification, dict):
+    invoice_type = classification.get("invoiceType")
+
+  return {
+    "selected": final,
+    "reasonCodes": {"multi_step": "extractor_comparator_verifier"},
+    "issues": [],
+    "invoiceType": invoice_type
+  }
+
+
 @app.post("/v1/verify/invoice", response_model=VerifyInvoiceResponse)
 def verify_invoice(request: VerifyInvoiceRequest) -> VerifyInvoiceResponse:
   current = {key: value for key, value in request.parsed.items() if value not in ("", None)}
@@ -84,7 +149,13 @@ def verify_invoice(request: VerifyInvoiceRequest) -> VerifyInvoiceResponse:
   }
 
   try:
-    slm_payload = provider.select_fields(inference_payload)
+    if settings.multi_step_extraction:
+      try:
+        slm_payload = multi_step_inference(provider, inference_payload)
+      except NotImplementedError:
+        slm_payload = provider.select_fields(inference_payload)
+    else:
+      slm_payload = provider.select_fields(inference_payload)
   except Exception as error:
     slm_error = str(error)
     log_error("slm.infer.failed", error=slm_error)

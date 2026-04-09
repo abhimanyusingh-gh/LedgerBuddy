@@ -67,6 +67,9 @@ function extractLabelCandidateValue(field: keyof ParsedInvoiceData, text: string
     ) {
       return undefined;
     }
+    if (/^[0-9a-f]{64}$/i.test(normalizedCandidate) || /^\d{15,}$/.test(normalizedCandidate)) {
+      return undefined;
+    }
     if (looksLikeDateCandidate(normalizedCandidate)) {
       return undefined;
     }

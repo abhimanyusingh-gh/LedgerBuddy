@@ -99,6 +99,18 @@ class ProdHttpLLMProvider(LLMProvider):
 
     raise RuntimeError("Remote SLM payload does not contain selected/parsed output.")
 
+  def call_prompt(self, prompt_text: str) -> dict[str, Any]:
+    response = self._request_json(
+      self.select_path,
+      {"prompt": prompt_text, "mode": "raw"}
+    )
+    if not isinstance(response, dict):
+      raise RuntimeError("Remote SLM returned invalid payload for call_prompt.")
+    parsed = response.get("selected") or response.get("parsed") or response
+    if not isinstance(parsed, dict):
+      raise RuntimeError("Remote SLM call_prompt response missing parseable dict.")
+    return parsed
+
   def _request_json(self, path: str, body: dict[str, Any] | None = None, probe: bool = False) -> Any:
     url = f"{self.base_url}{ensure_path(path)}"
     headers = {"Content-Type": "application/json"}

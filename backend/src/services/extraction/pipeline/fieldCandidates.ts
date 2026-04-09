@@ -11,6 +11,7 @@ export function buildFieldCandidates(
 ): Record<string, string[]> {
   const invoiceNumberMatches = uniqueStrings([
     parsed.invoiceNumber,
+    ...collectMatches(text, /\b(?:pro(?:forma|perma)?|performa)\s+invoice\s*(?:number|no\.?|#)?\s*[:\-]?\s*#?\s*([A-Z0-9][A-Z0-9_\-/]{2,})/gi),
     ...collectMatches(text, /\b(?:invoice|bill|inv)\s*(?:number|no\.?|#)\s*[:\-]?\s*#?\s*([A-Z0-9][A-Z0-9_\-/]{2,})/gi)
   ]);
   const vendorMatches = uniqueStrings([
@@ -35,7 +36,7 @@ export function buildFieldCandidates(
     parsed.totalAmountMinor !== undefined ? String(parsed.totalAmountMinor) : undefined,
     ...collectMatches(
       text,
-      /(?:grand\s*total|invoice\s*total|amount\s*due|balance\s*due|total\s*due|amount\s*payable)\s*[:\-]?\s*([-+]?(?:\d{1,3}(?:[,\s.]\d{3})+|\d+)(?:[.,]\d{1,2})?)/gi
+      /(?:grand\s*total|invoice\s*total|invoice\s*value|total\s*amount|net\s*payable|net\s*amount\s*payable|amount\s*due|balance\s*due|total\s*due|amount\s*payable)\s*[:\-]?\s*(?:INR|₹|Rs\.?)?\s*([-+]?(?:\d{1,3}(?:[,\s.]\d{2,3})+|\d+)(?:[.,]\d{1,2})?)/gi
     ).map((value) => {
       const major = parseAmountToken(value);
       if (major === null || major <= 0) return "";

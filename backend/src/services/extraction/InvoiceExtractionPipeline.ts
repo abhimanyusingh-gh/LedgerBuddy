@@ -1,5 +1,7 @@
 import type { FieldVerifier } from "../../core/interfaces/FieldVerifier.js";
 import type { OcrBlock, OcrPageImage, OcrProvider } from "../../core/interfaces/OcrProvider.js";
+import { postProcessOcrResult, buildLayoutText } from "../../ocr/ocrPostProcessor.js";
+import type { MergedBlock, NormalizedAmount, NormalizedCurrency, NormalizedDate, OcrLine, OcrTable } from "../../ocr/ocrPostProcessor.js";
 import type {
   InvoiceExtractionData,
   ParsedInvoiceData
@@ -16,6 +18,7 @@ import { GlCodeMasterModel } from "../../models/GlCodeMaster.js";
 import { detectInvoiceLanguage, detectInvoiceLanguageBeforeOcr } from "./languageDetection.js";
 import { parseAmountToken, parseInvoiceText } from "../../parser/invoiceParser.js";
 import type { ComplianceEnricher } from "../compliance/ComplianceEnricher.js";
+import type { ExtractionMappingService } from "./extractionMappingService.js";
 import { RiskSignalEvaluator } from "../compliance/RiskSignalEvaluator.js";
 import {
   addFieldDiagnosticsToMetadata,
@@ -27,7 +30,6 @@ import {
   findPreferredVendorBlockForStrategy,
   recoverParsedFromOcr,
 } from "./pipeline/ocrRecovery.js";
-import { extractNativePdfText } from "./pipeline/nativePdfText.js";
 import {
   buildFieldCandidates,
   buildFieldRegions
@@ -108,7 +110,8 @@ export class InvoiceExtractionPipeline {
     private readonly templateStore: VendorTemplateStore,
     private readonly learningStore: ExtractionLearningStore | undefined,
     options?: ExtractionPipelineOptions,
-    private readonly complianceEnricher?: ComplianceEnricher
+    private readonly complianceEnricher?: ComplianceEnricher,
+    private readonly mappingService?: ExtractionMappingService
   ) {
     this.ocrHighConfidenceThreshold = clampProbability(options?.ocrHighConfidenceThreshold ?? 0.88);
     this.enableOcrKeyValueGrounding = options?.enableOcrKeyValueGrounding ?? true;
@@ -144,7 +147,12 @@ export class InvoiceExtractionPipeline {
     let ocrBlocks: OcrBlock[] = [];
     let ocrPageImages: OcrPageImage[] = [];
     let rawTextForNormalization = "";
-    const nativePdfText = extractNativePdfText(input.fileBuffer, input.mimeType);
+    let enhancedMergedBlocks: MergedBlock[] = [];
+    let enhancedLines: OcrLine[] = [];
+    let enhancedTables: OcrTable[] = [];
+    let enhancedNormalizedAmounts: NormalizedAmount[] = [];
+    let enhancedNormalizedDates: NormalizedDate[] = [];
+    let enhancedNormalizedCurrencies: NormalizedCurrency[] = [];
     let ocrTokensUsed = 0;
     let slmTokensUsed = 0;
     const preOcrLanguage = detectInvoiceLanguageBeforeOcr({
@@ -174,27 +182,36 @@ export class InvoiceExtractionPipeline {
       ocrProvider = ocrResult.provider || this.ocrProvider.name;
       ocrBlocks = ocrResult.blocks ?? [];
       ocrPageImages = ocrResult.pageImages ?? [];
+      const enhanced = postProcessOcrResult(ocrResult);
+      enhancedMergedBlocks = enhanced.mergedBlocks;
+      enhancedLines = enhanced.lines;
+      enhancedTables = enhanced.tables;
+      enhancedNormalizedAmounts = enhanced.normalized.amounts;
+      enhancedNormalizedDates = enhanced.normalized.dates;
+      enhancedNormalizedCurrencies = enhanced.normalized.currencies;
       if (ocrResult.tokenUsage?.totalTokens) ocrTokensUsed += ocrResult.tokenUsage.totalTokens;
       const rawText = ocrResult.text.trim();
-      rawTextForNormalization = nativePdfText.length > 0 ? nativePdfText : rawText;
+      rawTextForNormalization = rawText;
       const blockText = buildBlocksText(ocrBlocks);
+      const layoutText = buildLayoutText(enhancedLines);
+      const primaryText = layoutText.length > 0 ? layoutText : blockText;
       const calibrated = calibrateDocumentConfidence(ocrResult.confidence, rawText, blockText);
       ocrConfidence = calibrated.score;
       metadata.docOcrConfidence = formatConfidence(calibrated.score);
       metadata.docLowTokenRatio = formatConfidence(calibrated.lowTokenRatio);
       metadata.docPrintableRatio = formatConfidence(calibrated.printableRatio);
 
-      if (blockText.length > 0) {
+      if (primaryText.length > 0) {
         extractionCandidates.push({
-          text: blockText,
+          text: primaryText,
           provider: ocrProvider,
           confidence: ocrConfidence,
-          source: "ocr-blocks"
+          source: "ocr-layout"
         });
       }
 
       const keyValueText = this.enableOcrKeyValueGrounding ? buildKeyValueGroundingText(ocrBlocks) : "";
-      if (keyValueText.length > 0 && !isNearDuplicateText(keyValueText, blockText)) {
+      if (keyValueText.length > 0 && !isNearDuplicateText(keyValueText, primaryText)) {
         extractionCandidates.push({
           text: keyValueText,
           provider: ocrProvider,
@@ -206,7 +223,7 @@ export class InvoiceExtractionPipeline {
         keyValueText.length > 0 ? buildAugmentedGroundingText(keyValueText, blockText, rawText) : "";
       if (
         augmentedKeyValueText.length > 0 &&
-        !isNearDuplicateText(augmentedKeyValueText, blockText) &&
+        !isNearDuplicateText(augmentedKeyValueText, primaryText) &&
         !isNearDuplicateText(augmentedKeyValueText, keyValueText)
       ) {
         extractionCandidates.push({
@@ -221,14 +238,6 @@ export class InvoiceExtractionPipeline {
         processingIssues.push("OCR provider returned empty text.");
       }
 
-      if (nativePdfText.length > 0) {
-        extractionCandidates.push({
-          text: nativePdfText,
-          provider: "native-pdf-text",
-          confidence: ocrConfidence,
-          source: "pdf-native-text"
-        });
-      }
     } catch (error) {
       if (extractionCandidates.length === 0) {
         throw new ExtractionPipelineError(
@@ -314,7 +323,13 @@ export class InvoiceExtractionPipeline {
           pageImages: ocrPageImages.slice(0, 3),
           llmAssist: true,
           priorCorrections: this.learningMode === "active" && priorCorrections.length > 0 ? priorCorrections : undefined,
-          glCategories
+          glCategories,
+          mergedBlocks: enhancedMergedBlocks.length > 0 ? enhancedMergedBlocks : undefined,
+          structuredLines: enhancedLines.length > 0 ? enhancedLines : undefined,
+          structuredTables: enhancedTables.length > 0 ? enhancedTables : undefined,
+          normalizedAmounts: enhancedNormalizedAmounts.length > 0 ? enhancedNormalizedAmounts : undefined,
+          normalizedDates: enhancedNormalizedDates.length > 0 ? enhancedNormalizedDates : undefined,
+          normalizedCurrencies: enhancedNormalizedCurrencies.length > 0 ? enhancedNormalizedCurrencies : undefined
         }
       });
 
@@ -367,6 +382,14 @@ export class InvoiceExtractionPipeline {
           fields: hintedFieldResults
         });
       }
+      if (this.mappingService) {
+        const mappingResult = await this.mappingService.applyMappings(input.tenantId, recoveredParsed);
+        if (mappingResult.mappingApplied) {
+          metadata.extractionMappingApplied = "true";
+          if (mappingResult.mappingId) metadata.extractionMappingId = mappingResult.mappingId;
+        }
+      }
+
       const slmWarnings = uniqueIssues([
         ...processingIssues,
         ...(slmParsedHasFields ? [] : deterministicFallback.warnings),

@@ -65,6 +65,7 @@ const envSchema = z.object({
   LOCAL_DEMO_CONFIG_PATH: z.string().default("config/local-demo-users.json"),
 
   INGESTION_SOURCES: z.string().default("email"),
+  INGESTION_CONCURRENCY: z.coerce.number().int().min(1).max(100).default(20),
   DEFAULT_USER_ID: z.string().default("local-user"),
   DEFAULT_TENANT_ID: z.string().default("default"),
   DEFAULT_WORKLOAD_TIER: z.enum(["standard", "heavy"]).default("standard"),

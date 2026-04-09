@@ -10,6 +10,7 @@ import { IngestionService } from "../services/ingestionService.js";
 import { InvoiceExtractionPipeline } from "../services/extraction/InvoiceExtractionPipeline.js";
 import { MongoVendorTemplateStore } from "../services/extraction/vendorTemplateStore.js";
 import { MongoExtractionLearningStore } from "../services/extraction/extractionLearningStore.js";
+import { ExtractionMappingService } from "../services/extraction/extractionMappingService.js";
 import { InvoiceService } from "../services/invoiceService.js";
 import { ExportService } from "../services/exportService.js";
 import { TallyExporter } from "../services/tallyExporter.js";
@@ -89,7 +90,7 @@ function buildAuthServices(manifest: RuntimeManifest) {
   return { authService, keycloakAdmin, tenantAdminService, tenantInviteService, platformAdminService };
 }
 
-async function buildExtractionPipeline(manifest: RuntimeManifest, learningStore: MongoExtractionLearningStore) {
+async function buildExtractionPipeline(manifest: RuntimeManifest, learningStore: MongoExtractionLearningStore, mappingService: ExtractionMappingService) {
   const ocrProvider = await resolveOcrProvider(manifest);
   const fieldVerifier = await resolveFieldVerifier(manifest);
   const complianceEnricher = new ComplianceEnrichmentService({
@@ -113,7 +114,8 @@ async function buildExtractionPipeline(manifest: RuntimeManifest, learningStore:
       llmAssistConfidenceThreshold: manifest.extraction.llmAssistConfidenceThreshold,
       learningMode: env.LEARNING_MODE
     },
-    complianceEnricher
+    complianceEnricher,
+    mappingService
   );
   return { ocrProvider, fieldVerifier, pipeline };
 }
@@ -129,7 +131,8 @@ export async function buildDependencies(): Promise<Dependencies> {
   const manifest = loadRuntimeManifest();
   const auth = buildAuthServices(manifest);
   const learningStore = new MongoExtractionLearningStore();
-  const extraction = await buildExtractionPipeline(manifest, learningStore);
+  const mappingService = new ExtractionMappingService();
+  const extraction = await buildExtractionPipeline(manifest, learningStore, mappingService);
   const storage = buildStorageAndExport(manifest);
 
   const gmailIntegrationService = new TenantGmailIntegrationService();
@@ -145,7 +148,7 @@ export async function buildDependencies(): Promise<Dependencies> {
 
   return {
     ingestionService,
-    invoiceService: new InvoiceService({ fileStore: storage.fileStore, workflowService: approvalWorkflowService, learningStore }),
+    invoiceService: new InvoiceService({ fileStore: storage.fileStore, workflowService: approvalWorkflowService, learningStore, mappingService }),
     exportService: storage.exportService,
     emailSimulationService: new EmailSimulationService(),
     ...auth,

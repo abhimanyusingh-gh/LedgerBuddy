@@ -9,6 +9,7 @@ import type { FileStore } from "../core/interfaces/FileStore.js";
 import { logger } from "../utils/logger.js";
 import type { ApprovalWorkflowService } from "./approvalWorkflowService.js";
 import { buildCorrectionHint, type ExtractionLearningStore } from "./extraction/extractionLearningStore.js";
+import type { ExtractionMappingService } from "./extraction/extractionMappingService.js";
 import { TdsCalculationService } from "./compliance/TdsCalculationService.js";
 import { GlCodeMasterModel } from "../models/GlCodeMaster.js";
 import { TenantTcsConfigModel } from "../models/TenantTcsConfig.js";
@@ -75,11 +76,13 @@ export class InvoiceService {
   private readonly fileStore?: FileStore;
   private readonly workflowService?: ApprovalWorkflowService;
   private readonly learningStore?: ExtractionLearningStore;
+  private readonly mappingService?: ExtractionMappingService;
 
-  constructor(options?: { fileStore?: FileStore; workflowService?: ApprovalWorkflowService; learningStore?: ExtractionLearningStore }) {
+  constructor(options?: { fileStore?: FileStore; workflowService?: ApprovalWorkflowService; learningStore?: ExtractionLearningStore; mappingService?: ExtractionMappingService }) {
     this.fileStore = options?.fileStore;
     this.workflowService = options?.workflowService;
     this.learningStore = options?.learningStore;
+    this.mappingService = options?.mappingService;
   }
 
   async listInvoices(params: ListInvoicesParams) {
@@ -363,6 +366,15 @@ export class InvoiceService {
             logger.warn("learning.record.type.failed", { tenantId, error: err instanceof Error ? err.message : String(err) })
           );
         }
+      }
+    }
+
+    if (this.mappingService) {
+      const gstin = (nextParsed as any)?.gst?.gstin as string | undefined;
+      const vendorNameChanged = String((nextParsed as Record<string, unknown>).vendorName ?? "") !== String((currentParsed as Record<string, unknown>).vendorName ?? "");
+      if (gstin && vendorNameChanged && nextParsed.vendorName) {
+        this.mappingService.maybeSeedMappingFromCorrection(tenantId, id, currentParsed, nextParsed, updatedBy)
+          .catch(err => logger.warn("extraction.mapping.seed.failed", { tenantId, invoiceId: id, err }));
       }
     }
 

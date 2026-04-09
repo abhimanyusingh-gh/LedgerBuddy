@@ -96,6 +96,30 @@ class LocalMlxLLMProvider(LLMProvider):
       "issues": ["slm_output_invalid_json"]
     }
 
+  def call_prompt(self, prompt_text: str) -> dict[str, Any]:
+    self._ensure_loaded()
+    if self.model is None or self.tokenizer is None:
+      raise RuntimeError("SLM model is not initialized.")
+
+    with self.generation_lock:
+      prompt_tokens = len(self.tokenizer.encode(prompt_text))
+      output = generate(
+        self.model,
+        self.tokenizer,
+        prompt=prompt_text,
+        verbose=False,
+        max_tokens=settings.max_new_tokens
+      )
+      output_text = extract_generation_text(output)
+      completion_tokens = len(self.tokenizer.encode(output_text))
+      usage = {"promptTokens": prompt_tokens, "completionTokens": completion_tokens}
+      log_info("slm.raw_output", output_length=len(output_text), completion_tokens=completion_tokens, first_200=output_text[:200], last_200=output_text[-200:] if len(output_text) > 200 else "")
+      parsed = parse_json_object(output_text)
+      if parsed is not None:
+        parsed["_usage"] = usage
+        return parsed
+      raise RuntimeError(f"MLX model returned non-JSON output: {output_text[:200]}")
+
   def _preload(self) -> None:
     try:
       self._ensure_loaded()
@@ -160,14 +184,18 @@ def build_prompt(tokenizer: Any, payload: dict[str, Any], strict: bool) -> str:
     "No preamble. No markdown. No explanation. No <think>.\n"
     "Use only values present in INPUT_JSON. Use null or [] when missing.\n"
     "Rules:\n"
-    "- Dates: YYYY-MM-DD\n"
+    "- Dates: YYYY-MM-DD; invoiceDate must be labeled Invoice Date, Bill Date, or Date; never use Ack Date, Acknowledgment Date, or IRN Date\n"
     "- Currency: ISO code from explicit symbols/codes in value blocks\n"
     "- Do not switch USD invoices to INR only because GST identifiers appear in addresses or tax ids\n"
     "- Amounts like 300/- or 300/= mean 30000 minor units\n"
-    "- All *Minor fields must be integers\n"
+    "- All *Minor fields must be integers in minor units (paise for INR): multiply rupee amount by 100\n"
     "- blockIndex must point to INPUT_JSON.ocrBlocks[index] that contains the value\n"
-    "- vendorName must be the seller/company, not bill-to, bank, beneficiary, or email\n"
-    "- Prefer amount due / grand total / balance due rows for totalAmountMinor\n"
+    "- vendorName is the issuing seller whose name appears at the top of the invoice; never use the Bill To, Ship To, Billed To, or To: section which contains the buyer\n"
+    "- invoiceNumber is the human-readable invoice or bill number assigned by the issuer; reject IRN (64-character hex), Ack No (15+ digit number), PO numbers, Ref numbers, and Order numbers; reject any date-format string (DD-Mon-YY, DD/MM/YYYY, YYYY-MM-DD) — invoice numbers are alphanumeric with hyphens/slashes, never pure dates; for proforma invoices extract the proforma invoice number\n"
+    "- Prefer grand total / total / amount payable rows for totalAmountMinor; reject subtotal, taxable value, and individual tax amounts; totalAmountMinor MUST be greater than cgstMinor + sgstMinor — if the candidate is ≤ any single tax component it is a tax line, not the total\n"
+    "- OCR may render ₹ as $; treat $ as ₹ when currency is INR\n"
+    "- Indian lakh-format amounts like 12,63,318 or 9,55,900 are rupees — multiply by 100 to get paise; never output the rupee value directly as a minor-unit integer\n"
+    "- If IGST is shown as NA, blank, or 0, do not extract igstMinor\n"
     "- Prefer tax summary rows for gst totals, not per-line tax sums\n"
     "Extract:\n"
     "- invoiceNumber, vendorName, currency, totalAmountMinor, invoiceDate, dueDate\n"

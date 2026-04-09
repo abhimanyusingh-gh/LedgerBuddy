@@ -265,21 +265,30 @@ async function run(): Promise<void> {
 
   const fileFilters = new Set(argValues("--file"));
   const files = readdirSync(samplesDir)
-    .filter((name) => extname(name).toLowerCase() === ".pdf")
+    .filter((name) => [".pdf", ".png", ".jpg", ".jpeg", ".webp"].includes(extname(name).toLowerCase()))
     .filter((name) => fileFilters.size === 0 || fileFilters.has(name))
     .sort((left, right) => left.localeCompare(right));
+
+  const mimeTypeMap: Record<string, string> = {
+    ".pdf": "application/pdf",
+    ".png": "image/png",
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".webp": "image/webp"
+  };
 
   const results: BenchmarkResult[] = [];
   for (const file of files) {
     const fullPath = join(samplesDir, file);
     try {
       const fileBuffer = readFileSync(fullPath);
+      const mimeType = mimeTypeMap[extname(file).toLowerCase()] ?? "application/octet-stream";
       const extraction = await pipeline.extract({
         tenantId: "benchmark",
         sourceKey: file,
         attachmentName: file,
         fileBuffer,
-        mimeType: "application/pdf",
+        mimeType,
         expectedMaxTotal: 1_000_000_000,
         expectedMaxDueDays: 180,
         autoSelectMin: 0.5,

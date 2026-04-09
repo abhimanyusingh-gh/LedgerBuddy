@@ -371,7 +371,7 @@
     {
       "file": "26-Invoice-LP6XQHGY-0011.pdf",
       "invoiceNumber": "LP6XQHGY-0011",
-      "vendorNameContains": "Cursor",
+      "vendorNameContains": "Anysphere",
       "invoiceDate": "2026-03-20",
       "dueDate": "2026-03-20",
       "currency": "USD",
@@ -1005,6 +1005,41 @@
             0.536625
           ]
         }
+      }
+    },
+    {
+      "file": "invoiceNumber.png",
+      "invoiceNumber": "MEC/PI/2025-26/14",
+      "vendorNameContains": "MI Events",
+      "invoiceDate": "2026-01-25",
+      "currency": "INR",
+      "totalAmountMinor": 126331800,
+      "lineItemAmountsMinor": [
+        95590000,
+        11470800
+      ],
+      "gst": {
+        "subtotalMinor": 107060800,
+        "cgstMinor": 9635500,
+        "sgstMinor": 9635500,
+        "totalTaxMinor": 19271000
+      }
+    },
+    {
+      "file": "vendorName-2.png",
+      "invoiceNumber": "RS-25-26-1148",
+      "vendorNameContains": "Raasta Studios",
+      "invoiceDate": "2026-02-26",
+      "currency": "INR",
+      "totalAmountMinor": 70800000,
+      "lineItemAmountsMinor": [
+        60000000
+      ],
+      "gst": {
+        "subtotalMinor": 60000000,
+        "cgstMinor": 5400000,
+        "sgstMinor": 5400000,
+        "totalTaxMinor": 10800000
       }
     }
   ]

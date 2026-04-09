@@ -158,7 +158,10 @@ function extractInvoiceNumber(text: string): string | undefined {
   const normalizedText = text.replace(/[|]/g, "I").replace(/\bO(?=\d)/g, "0");
   const receiptMatch = normalizedText.match(/\b(?:receipt|invoice)\s+([A-Z]{1,4}\d{6,})\b/i);
   if (receiptMatch?.[1]) {
-    return normalizeInvoiceNumberValue(receiptMatch[1].trim());
+    const candidate = receiptMatch[1].trim();
+    if (!/^[0-9a-f]{64}$/i.test(candidate) && !/^\d{15,}$/.test(candidate)) {
+      return normalizeInvoiceNumberValue(candidate);
+    }
   }
   const orderMatch = normalizedText.match(/\border#?\s*([A-Z0-9-]{6,})\b/i);
   if (orderMatch?.[1]) {
@@ -168,7 +171,11 @@ function extractInvoiceNumber(text: string): string | undefined {
   if (!match || match.length === 0) {
     return undefined;
   }
-  return normalizeInvoiceNumberValue(match[match.length - 1]?.trim());
+  const filtered = match.filter((entry) => !/^[0-9a-f]{64}$/i.test(entry) && !/^\d{15,}$/.test(entry));
+  if (filtered.length === 0) {
+    return undefined;
+  }
+  return normalizeInvoiceNumberValue(filtered[filtered.length - 1]?.trim());
 }
 
 function normalizeDateToken(text: string): string | undefined {
@@ -210,7 +217,14 @@ function looksLikeMalformedInvoiceNumber(value: string): boolean {
 }
 
 function looksLikeWeakInvoiceNumber(value: string): boolean {
-  return /^(invoice no\.?|invoice|booking id|hsn\/sac|gstin|pan)$/i.test(value.trim());
+  const trimmed = value.trim();
+  if (/^(invoice no\.?|invoice|booking id|hsn\/sac|gstin|pan)$/i.test(trimmed)) {
+    return true;
+  }
+  if (/^[0-9a-f]{64}$/i.test(trimmed) || /^\d{15,}$/.test(trimmed)) {
+    return true;
+  }
+  return false;
 }
 
 export function normalizeVendorText(value: string): string {

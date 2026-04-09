@@ -64,6 +64,7 @@ class Settings:
   load_on_startup: bool
   max_new_tokens: int
   max_blocks: int
+  multi_step_extraction: bool
 
 
 env_mode = read_env_mode()
@@ -91,5 +92,6 @@ settings = Settings(
   validate_remote_on_startup=read_bool("SLM_VALIDATE_REMOTE_ON_STARTUP", True),
   load_on_startup=read_bool("SLM_LOAD_ON_STARTUP", True),
   max_new_tokens=read_int("SLM_MAX_NEW_TOKENS", 2048, 64),
-  max_blocks=read_int("SLM_MAX_BLOCKS", 220, 1)
+  max_blocks=read_int("SLM_MAX_BLOCKS", 220, 1),
+  multi_step_extraction=read_bool("SLM_MULTI_STEP_EXTRACTION", True)
 )

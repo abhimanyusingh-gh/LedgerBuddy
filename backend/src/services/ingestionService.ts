@@ -14,7 +14,7 @@ import { NoopFieldVerifier } from "../verifier/NoopFieldVerifier.js";
 import { MongoVendorTemplateStore } from "./extraction/vendorTemplateStore.js";
 import { buildFailureData, buildSuccessData, isDuplicateKeyError, upsertFromPending } from "./ingestion/persistence.js";
 import { persistFieldArtifacts } from "./ingestion/artifacts.js";
-const MAX_FILE_PROCESSING_CONCURRENCY = 2;
+const MAX_FILE_PROCESSING_CONCURRENCY = env.INGESTION_CONCURRENCY;
 
 interface IngestionRunSummary {
   totalFiles: number;

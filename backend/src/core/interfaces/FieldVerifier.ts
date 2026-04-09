@@ -6,6 +6,7 @@ import type {
   InvoiceLineItemProvenance,
   ParsedInvoiceData
 } from "../../types/invoice.js";
+import type { MergedBlock, NormalizedAmount, NormalizedCurrency, NormalizedDate, OcrLine, OcrTable } from "../../ocr/ocrPostProcessor.js";
 
 export type FieldVerificationMode = "strict" | "relaxed";
 
@@ -33,6 +34,12 @@ export interface FieldVerifierInput {
     extractionMode?: string;
     bankStatementPrompt?: string;
     glCategories?: string[];
+    mergedBlocks?: MergedBlock[];
+    structuredLines?: OcrLine[];
+    structuredTables?: OcrTable[];
+    normalizedAmounts?: NormalizedAmount[];
+    normalizedDates?: NormalizedDate[];
+    normalizedCurrencies?: NormalizedCurrency[];
   };
 }
 

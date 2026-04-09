@@ -472,7 +472,7 @@ function sumDefined(...values: Array<number | undefined>): number | undefined {
 function extractTotalMinorCandidates(text: string): number[] {
   const sanitizedText = text.replace(/[*`_]/g, " ");
   const matches = sanitizedText.matchAll(
-    /(?:grand\s*total|invoice\s*total|invoice\s*amount|amount\s*due|balance\s*(?:due|as\s*of)?|total\s*due|amount\s*payable|amount\s*paid|billing\s*statement|taxable\s*amount|total)\s*[:\-]?\s*(?:INR|USD|EUR|GBP|₹|\$|€|£|¥)?\s*([-+]?(?:\d{1,3}(?:[,\s.]\d{3})+|\d+)(?:[.,]\d{1,2})?)/gi
+    /(?:grand\s*total|invoice\s*total|invoice\s*amount|invoice\s*value|total\s*amount|net\s*payable|net\s*amount\s*payable|amount\s*due|balance\s*(?:due|as\s*of)?|total\s*due|amount\s*payable|total)\s*[:\-]?\s*(?:INR|USD|EUR|GBP|₹|\$|€|£|¥)?\s*([-+]?(?:\d{1,3}(?:[,\s.]\d{2,3})+|\d+)(?:[.,]\d{1,2})?)/gi
   );
   const values = [...matches]
     .map((match) => match[1])

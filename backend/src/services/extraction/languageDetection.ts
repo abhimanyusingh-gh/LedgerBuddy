@@ -284,6 +284,15 @@ function extractUtf8Probe(fileBuffer: Buffer, mimeType: string): string {
     return "";
   }
 
+  if (mimeType === "application/pdf") {
+    const asciiOnly = normalized.replace(/[^\x20-\x7E]/g, "");
+    const asciiRatio = asciiOnly.length / Math.max(1, normalized.length);
+    if (asciiRatio < 0.5) {
+      return "";
+    }
+    return asciiOnly.slice(0, 3000);
+  }
+
   return normalized.slice(0, 3000);
 }
 

@@ -93,6 +93,7 @@ const LANGUAGE_PATTERN_OVERRIDES: Record<string, {
 };
 
 const invoiceNumberPatterns = [
+  /(?:pro(?:forma|perma)?|performa)\s+invoice\s*(?:number|no\.?|#)?\s*[:\-]?\s*#?\s*([A-Z0-9][A-Z0-9_\-/]{2,})/i,
   /invoice\s*(?:number|no\.?|#)\s*[:\-]?\s*#?\s*([A-Z0-9][A-Z0-9_\-/]{2,})/i,
   /invoice\s*(?:n[o°]\.?|nr)\s*[:\-]?\s*#?\s*([A-Z0-9][A-Z0-9_\-/]{2,})/i,
   /bill\s*(?:number|no\.?|#)\s*[:\-]?\s*#?\s*([A-Z0-9][A-Z0-9_\-/]{2,})/i,
@@ -107,6 +108,8 @@ const invoiceNumberHintPattern =
   /\b(invoice|facture|factuur|bill|receipt|challan|inv(?:oice)?|n[°o]\s*de\s*facture)\b.*\b(no\.?|number|#|n[°o]|nummer)?\b/i;
 const invoiceNumberTokenPattern = /([A-Z0-9][A-Z0-9_\-/]{2,})/;
 const invoiceNumberBlockedValuePattern = /^(invoice|number|page|aws)$/i;
+const invoiceNumberIrnPattern = /^[0-9a-f]{64}$/i;
+const invoiceNumberAckNoPattern = /^\d{15,}$/;
 
 const baseVendorPrefixes = ["vendor", "supplier", "sold\\s*by", "bill\\s*from", "from", "company", "merchant", "hotel\\s*details"];
 const vendorRefinementPattern = /^(?:vendor|supplier|sold\s*by|bill\s*from|from|company|merchant|fournisseur|vendeur|soci[ée]t[ée]|lieferant|anbieter|firma|leverancier|verkoper|bedrijf|proveedor|empresa|vendedor|fornitore|azienda|venditore)\s*[:\-]?\s*/i;
@@ -133,9 +136,11 @@ export const currencyBySymbol: Record<string, string> = {
 };
 
 const datePatterns = [
-  /(?:invoice\s*date|bill\s*date|bill\s*dt\.?|date|dt\.?|do[.•]?)\s*[:\-]?\s*([0-3]?\d[\/.-][01]?\d[\/.-](?:\d{4}|\d{2}))/i,
-  /(?:invoice\s*date|bill\s*date|bill\s*dt\.?|date|dt\.?|do[.•]?)\s*[:\-]?\s*([A-Za-z]{3,9}\s+[0-3]?\d,?\s+\d{4})/i,
-  /(?:invoice\s*date|bill\s*date|bill\s*dt\.?|date|dt\.?|do[.•]?)\s*[:\-]?\s*(\d{4}[\/.-]\d{2})/i
+  /(?:invoice\s*date|bill\s*date|bill\s*dt\.?|date\s*of\s*issue|issue\s*date)\s*[:\-]?\s*([0-3]?\d[\/.-][01]?\d[\/.-](?:\d{4}|\d{2}))/i,
+  /(?:invoice\s*date|bill\s*date|bill\s*dt\.?|date\s*of\s*issue|issue\s*date)\s*[:\-]?\s*([A-Za-z]{3,9}\s+[0-3]?\d,?\s+\d{4})/i,
+  /(?:invoice\s*date|bill\s*date|bill\s*dt\.?|date\s*of\s*issue|issue\s*date)\s*[:\-]?\s*(\d{4}[\/.-]\d{2})/i,
+  /(?<!ack[.\s]*)(?<!acknowledgment[.\s]*)(?<!irn[.\s]*)(?<!e-?invoice[.\s]*)(?:date|dt\.?|do[.•]?)\s*[:\-]?\s*([0-3]?\d[\/.-][01]?\d[\/.-](?:\d{4}|\d{2}))/i,
+  /(?<!ack[.\s]*)(?<!acknowledgment[.\s]*)(?<!irn[.\s]*)(?<!e-?invoice[.\s]*)(?:date|dt\.?|do[.•]?)\s*[:\-]?\s*([A-Za-z]{3,9}\s+[0-3]?\d,?\s+\d{4})/i
 ];
 
 const dueDatePatterns = [
@@ -144,11 +149,11 @@ const dueDatePatterns = [
 ];
 
 const strongTotalPattern =
-  /(grand\s*total|amount\s*payable|amount\s*due|total\s*due|invoice\s*total|net\s*payable|total\s*payable|amt\s*due|betrag)/i;
+  /(grand\s*total|amount\s*payable|amount\s*due|total\s*due|invoice\s*total|invoice\s*value|total\s*amount|net\s*payable|net\s*amount\s*payable|total\s*payable|amt\s*due|betrag)/i;
 const weakTotalPattern = /\b(total|payable|balance|amount\s*due|amt\s*due|amount)\b/i;
 const negativeTotalPattern =
   /(sub\s*total|subtotal|balance\s*due|tax(?:able)?|vat|gst|cgst|sgst|igst|mwst|u\s*st|ust|discount|round(?:ing)?\s*off|shipping|freight|delivery|paid|payment\s*received|advance|credit\s*note)/i;
-const amountTokenPattern = /[-+]?(?:\d{1,3}(?:[,\s.]\d{3})+|\d+)(?:[.,]\d{1,2})?/g;
+const amountTokenPattern = /[-+]?(?:\d{1,3}(?:[,\s.]\d{2,3})+|\d+)(?:[.,]\d{1,2})?/g;
 
 export function parseInvoiceText(text: string, options?: ParseInvoiceOptions): ParseResult {
   const warnings: string[] = [];
@@ -984,10 +989,6 @@ function scoreAmountMagnitude(amount: number): number {
     score -= 18;
   }
 
-  if (Number.isInteger(amount) && amount >= 100_000) {
-    score -= 25;
-  }
-
   if (amount >= 1_000_000) {
     score -= 8;
   }
@@ -1020,6 +1021,10 @@ function hasMonetaryContext(line: string, values: number[]): boolean {
 function isLikelyInvoiceNumber(value: string): boolean {
   const normalized = value.trim();
   if (normalized.length < 3 || invoiceNumberBlockedValuePattern.test(normalized)) {
+    return false;
+  }
+
+  if (invoiceNumberIrnPattern.test(normalized) || invoiceNumberAckNoPattern.test(normalized)) {
     return false;
   }
 
