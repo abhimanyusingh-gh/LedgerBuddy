@@ -1127,6 +1127,106 @@ describe("TallyExporter with GST config", () => {
   });
 });
 
+describe("TCS voucher XML generation", () => {
+  it("adds TCS ledger entry with ISDEEMEDPOSITIVE=No and no negative sign on amount", () => {
+    const xml = buildTallyPurchaseVoucherPayload({
+      companyName: "Demo Company",
+      purchaseLedgerName: "Purchase",
+      voucherNumber: "INV-TCS-1",
+      partyLedgerName: "TCS Vendor",
+      amountMinor: 100000,
+      currency: "INR",
+      date: "20260401",
+      tcs: {
+        amountMinor: 1000,
+        ledgerName: "TCS Receivable"
+      }
+    });
+
+    expect(xml).toContain("<LEDGERNAME>TCS Receivable</LEDGERNAME>");
+    expect(xml).toContain("<ISDEEMEDPOSITIVE>No</ISDEEMEDPOSITIVE>");
+    expect(xml).toMatch(/<LEDGERNAME>TCS Receivable<\/LEDGERNAME>[\s\S]*?<ISDEEMEDPOSITIVE>No<\/ISDEEMEDPOSITIVE>[\s\S]*?<AMOUNT>10\.00<\/AMOUNT>/);
+    expect(xml).not.toMatch(/<LEDGERNAME>TCS Receivable<\/LEDGERNAME>[\s\S]*?<AMOUNT>-10\.00<\/AMOUNT>/);
+  });
+
+  it("adds TCS amount to party total", () => {
+    const xml = buildTallyPurchaseVoucherPayload({
+      companyName: "Demo Company",
+      purchaseLedgerName: "Purchase",
+      voucherNumber: "INV-TCS-2",
+      partyLedgerName: "TCS Vendor",
+      amountMinor: 100000,
+      currency: "INR",
+      date: "20260401",
+      tcs: {
+        amountMinor: 1000,
+        ledgerName: "TCS Receivable"
+      }
+    });
+
+    expect(xml).toContain("<AMOUNT>-1010.00</AMOUNT>");
+  });
+
+  it("omits TCS ledger entry when tcs.amountMinor is zero", () => {
+    const xml = buildTallyPurchaseVoucherPayload({
+      companyName: "Demo Company",
+      purchaseLedgerName: "Purchase",
+      voucherNumber: "INV-TCS-3",
+      partyLedgerName: "TCS Vendor",
+      amountMinor: 100000,
+      currency: "INR",
+      date: "20260401",
+      tcs: {
+        amountMinor: 0,
+        ledgerName: "TCS Receivable"
+      }
+    });
+
+    expect(xml).not.toContain("<LEDGERNAME>TCS Receivable</LEDGERNAME>");
+    expect(xml).toContain("<AMOUNT>-1000.00</AMOUNT>");
+  });
+
+  it("omits TCS ledger entry when tcs is not provided", () => {
+    const xml = buildTallyPurchaseVoucherPayload({
+      companyName: "Demo Company",
+      purchaseLedgerName: "Purchase",
+      voucherNumber: "INV-TCS-4",
+      partyLedgerName: "Vendor No TCS",
+      amountMinor: 100000,
+      currency: "INR",
+      date: "20260401"
+    });
+
+    expect(xml).not.toContain("TCS Receivable");
+    expect(xml).toContain("<AMOUNT>-1000.00</AMOUNT>");
+  });
+
+  it("TCS and TDS can appear together in the same voucher", () => {
+    const xml = buildTallyPurchaseVoucherPayload({
+      companyName: "Demo Company",
+      purchaseLedgerName: "Purchase",
+      voucherNumber: "INV-TCS-TDS",
+      partyLedgerName: "Combo Vendor",
+      amountMinor: 100000,
+      currency: "INR",
+      date: "20260401",
+      tds: {
+        section: "194C",
+        amountMinor: 2000,
+        ledgerName: "TDS Payable 194C"
+      },
+      tcs: {
+        amountMinor: 1000,
+        ledgerName: "TCS Receivable"
+      }
+    });
+
+    expect(xml).toContain("<LEDGERNAME>TDS Payable 194C</LEDGERNAME>");
+    expect(xml).toContain("<LEDGERNAME>TCS Receivable</LEDGERNAME>");
+    expect(xml).toContain("<AMOUNT>-1010.00</AMOUNT>");
+  });
+});
+
 interface InvoiceStubInput {
   _id: string;
   sourceType?: string;
@@ -1136,6 +1236,7 @@ interface InvoiceStubInput {
   parsed?: Record<string, unknown>;
   ocrText?: string;
   processingIssues?: string[];
+  compliance?: Record<string, unknown>;
 }
 
 function createInvoiceStub(input: InvoiceStubInput) {
@@ -1152,6 +1253,7 @@ function createInvoiceStub(input: InvoiceStubInput) {
     receivedAt: input.receivedAt ?? new Date("2026-02-19T00:00:00.000Z"),
     parsed: state.parsed,
     ocrText: input.ocrText,
+    compliance: input.compliance,
     set: jest.fn((key: string, value: unknown) => {
       if (key === "parsed") {
         state.parsed = value as Record<string, unknown>;
@@ -1170,3 +1272,106 @@ function createInvoiceStub(input: InvoiceStubInput) {
     })
   } as unknown as import("../models/Invoice.js").InvoiceDocument;
 }
+
+describe("TallyExporter with compliance data", () => {
+  beforeEach(() => {
+    axiosPostMock.mockReset();
+  });
+
+  it("overrides purchaseLedgerName with GL code name from compliance", async () => {
+    mockAxiosPostResolved(makeImportResponse({ status: 1, created: 1, errors: 0, lastVchId: "200" }));
+
+    const exporter = createExporter();
+    const invoice = createInvoiceStub({
+      _id: "comp-gl",
+      parsed: {
+        invoiceNumber: "COMP-GL-1",
+        vendorName: "Vendor GL",
+        currency: "INR",
+        totalAmountMinor: 10000
+      },
+      compliance: {
+        glCode: { code: "4002", name: "Professional Fees" }
+      }
+    });
+
+    await exporter.exportInvoices([invoice]);
+
+    const payload = String(axiosPostMock.mock.calls[0]?.[1] ?? "");
+    expect(payload).toContain("<LEDGERNAME>Professional Fees</LEDGERNAME>");
+    expect(payload).not.toContain("<LEDGERNAME>Purchase</LEDGERNAME>");
+  });
+
+  it("maps TDS compliance to TDS ledger entry and adjusts party amount to netPayable", async () => {
+    mockAxiosPostResolved(makeImportResponse({ status: 1, created: 1, errors: 0, lastVchId: "201" }));
+
+    const exporter = createExporter({ tdsLedgerPrefix: "TDS Payable" });
+    const invoice = createInvoiceStub({
+      _id: "comp-tds",
+      parsed: {
+        invoiceNumber: "COMP-TDS-1",
+        vendorName: "Vendor TDS",
+        currency: "INR",
+        totalAmountMinor: 100000
+      },
+      compliance: {
+        tds: { section: "194C", amountMinor: 2000, netPayableMinor: 98000 }
+      }
+    });
+
+    await exporter.exportInvoices([invoice]);
+
+    const payload = String(axiosPostMock.mock.calls[0]?.[1] ?? "");
+    expect(payload).toContain("<LEDGERNAME>TDS Payable - 194C</LEDGERNAME>");
+    expect(payload).toContain("<AMOUNT>-980.00</AMOUNT>");
+    expect(payload).toContain("<AMOUNT>-20.00</AMOUNT>");
+  });
+
+  it("maps TCS compliance to TCS Receivable ledger entry and adds TCS to party total", async () => {
+    mockAxiosPostResolved(makeImportResponse({ status: 1, created: 1, errors: 0, lastVchId: "202" }));
+
+    const exporter = createExporter({ tcsLedgerName: "TCS Receivable" });
+    const invoice = createInvoiceStub({
+      _id: "comp-tcs",
+      parsed: {
+        invoiceNumber: "COMP-TCS-1",
+        vendorName: "Vendor TCS",
+        currency: "INR",
+        totalAmountMinor: 100000
+      },
+      compliance: {
+        tcs: { amountMinor: 1500 }
+      }
+    });
+
+    await exporter.exportInvoices([invoice]);
+
+    const payload = String(axiosPostMock.mock.calls[0]?.[1] ?? "");
+    expect(payload).toContain("<LEDGERNAME>TCS Receivable</LEDGERNAME>");
+    expect(payload).toContain("<AMOUNT>-1015.00</AMOUNT>");
+    expect(payload).toContain("<AMOUNT>15.00</AMOUNT>");
+  });
+
+  it("uses default TCS ledger name when tcsLedgerName is not configured", async () => {
+    mockAxiosPostResolved(makeImportResponse({ status: 1, created: 1, errors: 0, lastVchId: "203" }));
+
+    const exporter = createExporter();
+    const invoice = createInvoiceStub({
+      _id: "comp-tcs-default",
+      parsed: {
+        invoiceNumber: "COMP-TCS-DEF",
+        vendorName: "Vendor TCS Def",
+        currency: "INR",
+        totalAmountMinor: 50000
+      },
+      compliance: {
+        tcs: { amountMinor: 500 }
+      }
+    });
+
+    await exporter.exportInvoices([invoice]);
+
+    const payload = String(axiosPostMock.mock.calls[0]?.[1] ?? "");
+    expect(payload).toContain("<LEDGERNAME>TCS Receivable</LEDGERNAME>");
+  });
+})

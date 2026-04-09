@@ -215,7 +215,7 @@ function buildVoucherInput(
   };
 
   const compliance = (invoice as unknown as Record<string, unknown>).compliance as
-    { tds?: { section?: string; amountMinor?: number; netPayableMinor?: number }; glCode?: { code?: string; name?: string } } | undefined;
+    { tds?: { section?: string; amountMinor?: number; netPayableMinor?: number }; tcs?: { amountMinor?: number }; glCode?: { code?: string; name?: string } } | undefined;
 
   if (compliance?.glCode?.name) {
     input.purchaseLedgerName = compliance.glCode.name;
@@ -231,6 +231,14 @@ function buildVoucherInput(
     if (compliance.tds.netPayableMinor !== undefined && compliance.tds.netPayableMinor !== null) {
       input.amountMinor = compliance.tds.netPayableMinor;
     }
+  }
+
+  if (compliance?.tcs?.amountMinor && compliance.tcs.amountMinor > 0) {
+    const tcsLedgerName = config.tcsLedgerName ?? "TCS Receivable";
+    input.tcs = {
+      amountMinor: compliance.tcs.amountMinor,
+      ledgerName: tcsLedgerName
+    };
   }
 
   const gst = invoice.parsed?.gst;
