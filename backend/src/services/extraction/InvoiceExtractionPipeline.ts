@@ -208,6 +208,13 @@ export class InvoiceExtractionPipeline {
           confidence: ocrConfidence,
           source: "ocr-layout"
         });
+      } else if (rawText.length > 0) {
+        extractionCandidates.push({
+          text: rawText,
+          provider: ocrProvider,
+          confidence: ocrConfidence,
+          source: "ocr-raw-text"
+        });
       }
 
       const keyValueText = this.enableOcrKeyValueGrounding ? buildKeyValueGroundingText(ocrBlocks) : "";
