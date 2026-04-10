@@ -1,0 +1,25 @@
+{
+  "defaultTenantId": "local-demo",
+  "defaultWorkloadTier": "standard",
+  "database": {
+    "provider": "mongo",
+    "uri": "mongodb://billforge_app:billforge_local_pass@mongo:27017/billforge?authSource=billforge"
+  },
+  "ocr": {
+    "provider": "llamaparse",
+    "llamaparse": { "tier": "agentic" }
+  },
+  "verifier": {
+    "provider": "http",
+    "http": {}
+  },
+  "extraction": {
+    "ocrHighConfidenceThreshold": 0.92
+  },
+  "sources": [],
+  "export": {
+    "tallyEndpoint": "http://tally.example.local",
+    "tallyCompany": "Demo Company",
+    "tallyPurchaseLedger": "Purchase"
+  }
+}

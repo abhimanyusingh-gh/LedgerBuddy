@@ -135,13 +135,15 @@ const envSchema = z.object({
     .default("false")
     .transform((value) => value === "true"),
 
-  OCR_PROVIDER: z.enum(["auto", "deepseek", "mock"]).default("auto"),
+  OCR_PROVIDER: z.enum(["auto", "deepseek", "mock", "llamaparse"]).default("auto"),
   OCR_PROVIDER_API_KEY: z.string().optional(),
   OCR_PROVIDER_BASE_URL: z.string().optional(),
   OCR_MODEL: z.string().default("mlx-community/DeepSeek-OCR-4bit"),
   OCR_TIMEOUT_MS: z.coerce.number().default(3600000),
   MOCK_OCR_TEXT: z.string().optional(),
   MOCK_OCR_CONFIDENCE: z.coerce.number().optional(),
+  LLAMA_CLOUD_API_KEY: z.string().optional(),
+  LLAMA_PARSE_TIER: z.enum(["fast", "cost_effective", "agentic", "agentic_plus"]).default("cost_effective"),
   OCR_HIGH_CONFIDENCE_THRESHOLD: z.coerce.number().default(0.88),
 
   FIELD_VERIFIER_PROVIDER: z.enum(["none", "http"]).default("http"),
@@ -225,7 +227,7 @@ const resolvedSlmBaseUrl = normalizeUrl(
   values.FIELD_VERIFIER_BASE_URL ?? (localMlEnv ? "http://localhost:8300/v1" : "")
 );
 
-if (!localMlEnv) {
+if (!localMlEnv && values.OCR_PROVIDER !== "llamaparse") {
   if (resolvedOcrBaseUrl.length === 0) {
     // eslint-disable-next-line no-console
     console.error("Invalid env vars: OCR_PROVIDER_BASE_URL is required when ENV is 'stg' or 'prod'.");
@@ -270,6 +272,12 @@ if ((values.ENV === "stg" || values.ENV === "prod") && values.REFRESH_TOKEN_ENCR
 if ((values.ENV === "stg" || values.ENV === "prod") && values.OIDC_CLIENT_SECRET === "billforge-local-secret") {
   // eslint-disable-next-line no-console
   console.error("Invalid env vars: set OIDC_CLIENT_SECRET for stg/prod. Do not use the default development secret.");
+  process.exit(1);
+}
+
+if (values.OCR_PROVIDER === "llamaparse" && !values.LLAMA_CLOUD_API_KEY?.trim()) {
+  // eslint-disable-next-line no-console
+  console.error("Invalid env vars: LLAMA_CLOUD_API_KEY is required when OCR_PROVIDER=llamaparse.");
   process.exit(1);
 }
 

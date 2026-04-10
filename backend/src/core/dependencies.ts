@@ -5,6 +5,7 @@ import type { FieldVerifier } from "./interfaces/FieldVerifier.js";
 import type { OcrProvider } from "./interfaces/OcrProvider.js";
 import { MockOcrProvider } from "../ocr/MockOcrProvider.js";
 import { DeepSeekOcrProvider } from "../ocr/DeepSeekOcrProvider.js";
+import { LlamaParseOcrProvider } from "../ocr/LlamaParseOcrProvider.js";
 import { buildIngestionSources } from "./sourceRegistry.js";
 import { IngestionService } from "../services/ingestionService.js";
 import { InvoiceExtractionPipeline } from "../services/extraction/InvoiceExtractionPipeline.js";
@@ -201,6 +202,13 @@ export async function resolveOcrProvider(runtimeManifest = loadRuntimeManifest()
       text: runtimeManifest.ocr.mock.text,
       confidence: runtimeManifest.ocr.mock.confidence
     });
+  }
+
+  if (runtimeManifest.ocr.provider === "llamaparse") {
+    const cfg = runtimeManifest.ocr.llamaparse;
+    if (!cfg.apiKey) throw new Error("LLAMA_CLOUD_API_KEY is not configured.");
+    logger.info("Using OCR provider", { provider: "llamaparse", tier: cfg.tier });
+    return new LlamaParseOcrProvider({ apiKey: cfg.apiKey, tier: cfg.tier as "fast" | "cost_effective" | "agentic" | "agentic_plus" });
   }
 
   if (runtimeManifest.ocr.provider === "deepseek" || runtimeManifest.ocr.provider === "auto") {

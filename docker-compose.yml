@@ -93,6 +93,8 @@ services:
       GMAIL_OAUTH_FAILURE_REDIRECT_URL: ${GMAIL_OAUTH_FAILURE_REDIRECT_URL:-http://localhost:5177}
       OCR_PROVIDER_BASE_URL: http://invoice-ocr:8000/v1
       OCR_MODEL: ${OCR_MODEL:-mlx-community/DeepSeek-OCR-4bit}
+      LLAMA_CLOUD_API_KEY: ${LLAMA_CLOUD_API_KEY:-}
+      LLAMA_PARSE_TIER: ${LLAMA_PARSE_TIER:-cost_effective}
       OCR_MAX_TOKENS: "768"
       OCR_TIMEOUT_MS: "3600000"
       OCR_HIGH_CONFIDENCE_THRESHOLD: "0.92"
@@ -341,6 +343,8 @@ services:
       SLM_VALIDATE_REMOTE_ON_STARTUP: "false"
       SLM_EXTRACTION_PIPELINE: ${SLM_EXTRACTION_PIPELINE:-single_verify}
       SLM_MULTI_STEP_EXTRACTION: ${SLM_MULTI_STEP_EXTRACTION:-false}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      ANTHROPIC_MODEL: ${ANTHROPIC_MODEL:-claude-sonnet-4-6}
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8100/ping"]
       interval: 10s

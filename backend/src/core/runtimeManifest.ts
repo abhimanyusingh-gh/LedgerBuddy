@@ -5,7 +5,7 @@ import type { WorkloadTier } from "../types/tenant.js";
 import { createDefaultManifest, deepMerge, resolveRuntimeManifestPath, resolveSource } from "./runtimeManifestConfig.js";
 import { runtimeManifestSchema, type RuntimeManifestInput, type RuntimeSourceInput } from "./runtimeManifestSchema.js";
 
-type OcrProviderType = "auto" | "deepseek" | "mock";
+type OcrProviderType = "auto" | "deepseek" | "mock" | "llamaparse";
 type VerifierProviderType = "none" | "http";
 type FileStoreProviderType = "s3";
 type SourceType = "email" | "folder";
@@ -71,6 +71,10 @@ export interface RuntimeManifest {
       text: string;
       confidence: number | undefined;
     };
+    llamaparse: {
+      apiKey: string;
+      tier: string;
+    };
   };
   verifier: {
     provider: VerifierProviderType;
@@ -126,7 +130,8 @@ export function loadRuntimeManifest(): RuntimeManifest {
     ocr: {
       provider: parsed.ocr?.provider,
       configuration: parsed.ocr?.deepseek,
-      mock: parsed.ocr?.mock
+      mock: parsed.ocr?.mock,
+      llamaparse: parsed.ocr?.llamaparse
     },
     verifier: {
       provider: parsed.verifier?.provider,

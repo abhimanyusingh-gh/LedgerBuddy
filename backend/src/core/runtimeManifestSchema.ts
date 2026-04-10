@@ -5,7 +5,7 @@ export const runtimeManifestSchema = z.object({
   defaultWorkloadTier: z.enum(["standard", "heavy"]).optional(),
   ocr: z
     .object({
-      provider: z.enum(["auto", "deepseek", "mock"]).optional(),
+      provider: z.enum(["auto", "deepseek", "mock", "llamaparse"]).optional(),
       deepseek: z
         .object({
           baseUrl: z.string().min(1).optional(),
@@ -18,6 +18,12 @@ export const runtimeManifestSchema = z.object({
         .object({
           text: z.string().optional(),
           confidence: z.coerce.number().min(0).max(1).optional()
+        })
+        .optional(),
+      llamaparse: z
+        .object({
+          apiKey: z.string().optional(),
+          tier: z.enum(["fast", "cost_effective", "agentic", "agentic_plus"]).optional()
         })
         .optional()
     })

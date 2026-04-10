@@ -35,7 +35,11 @@ export function createDefaultManifest(defaultTenantId: string, defaultWorkloadTi
         model: env.OCR_MODEL,
         timeoutMs: env.OCR_TIMEOUT_MS
       },
-      mock: { text: env.MOCK_OCR_TEXT ?? "", confidence: env.MOCK_OCR_CONFIDENCE }
+      mock: { text: env.MOCK_OCR_TEXT ?? "", confidence: env.MOCK_OCR_CONFIDENCE },
+      llamaparse: {
+        apiKey: env.LLAMA_CLOUD_API_KEY?.trim() ?? "",
+        tier: env.LLAMA_PARSE_TIER,
+      }
     },
     verifier: {
       provider: env.FIELD_VERIFIER_PROVIDER,
