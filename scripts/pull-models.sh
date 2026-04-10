@@ -7,7 +7,7 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 OCR_MODEL_ID="${OCR_MODEL_ID:-mlx-community/DeepSeek-OCR-4bit}"
-SLM_MODEL_ID="${SLM_MODEL_ID:-mlx-community/DeepSeek-R1-Distill-Qwen-14B-4bit}"
+SLM_MODEL_ID="${SLM_MODEL_ID:-mlx-community/Qwen2.5-14B-Instruct-4bit}"
 
 resolve_python_bin() {
   if [[ -x "$ROOT_DIR/.venv-ml/bin/python" ]]; then

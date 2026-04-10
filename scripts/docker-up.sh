@@ -14,7 +14,7 @@ else
 fi
 
 ENV_MODE="${ENV:-local}"
-PINNED_SLM_MODEL_ID="mlx-community/DeepSeek-R1-Distill-Qwen-14B-4bit"
+PINNED_SLM_MODEL_ID="mlx-community/Qwen2.5-14B-Instruct-4bit"
 BACKEND_HEALTH_URL="${BACKEND_HEALTH_URL:-http://127.0.0.1:4100/health}"
 FRONTEND_URL="${FRONTEND_URL:-http://127.0.0.1:5177}"
 OCR_HEALTH_URL="${OCR_HEALTH_URL:-http://127.0.0.1:8200/health}"
@@ -189,6 +189,23 @@ wait_for_http_contains() {
   return 1
 }
 
+kill_local_service() {
+  local name="$1"
+  local pid_file="$2"
+
+  if [[ -f "$pid_file" ]]; then
+    local pid
+    pid="$(cat "$pid_file" 2>/dev/null || true)"
+    if [[ -n "$pid" ]] && kill -0 "$pid" >/dev/null 2>&1; then
+      echo "Stopping $name (PID $pid)..."
+      kill "$pid" 2>/dev/null || true
+      sleep 1
+      kill -0 "$pid" >/dev/null 2>&1 && kill -9 "$pid" 2>/dev/null || true
+    fi
+    rm -f "$pid_file"
+  fi
+}
+
 kill_stale_slm_if_engine_mismatch() {
   local health_url="$1"
   local pid_file="$2"
@@ -215,18 +232,7 @@ kill_stale_slm_if_engine_mismatch() {
   fi
 
   echo "SLM engine mismatch: running=$running_provider, requested=$requested_engine. Killing stale process."
-  if [[ -f "$pid_file" ]]; then
-    local stale_pid
-    stale_pid="$(cat "$pid_file" 2>/dev/null || true)"
-    if [[ -n "$stale_pid" ]] && kill -0 "$stale_pid" >/dev/null 2>&1; then
-      kill "$stale_pid" 2>/dev/null || true
-      sleep 1
-      if kill -0 "$stale_pid" >/dev/null 2>&1; then
-        kill -9 "$stale_pid" 2>/dev/null || true
-      fi
-    fi
-    rm -f "$pid_file"
-  fi
+  kill_local_service "SLM" "$pid_file"
 }
 
 start_local_service_if_needed() {
@@ -289,6 +295,10 @@ if [[ "$ENV_MODE" == "local" || "$ENV_MODE" == "dev" ]]; then
 
   PYTHON_BIN="$(ensure_venv_ml)"
 
+  if [[ "${RESTART_LOCAL_ML:-false}" == "true" ]]; then
+    kill_local_service "OCR" "$OCR_PID_FILE"
+  fi
+
   start_local_service_if_needed \
     "OCR" \
     "$OCR_HEALTH_URL" \
@@ -303,7 +313,11 @@ if [[ "$ENV_MODE" == "local" || "$ENV_MODE" == "dev" ]]; then
     echo "OCR model detected: $OCR_MODEL"
   fi
 
-  kill_stale_slm_if_engine_mismatch "$SLM_HEALTH_URL" "$SLM_PID_FILE"
+  if [[ -n "${SLM_ENGINE:-}" && "${SLM_ENGINE:-}" != "prod_http" ]]; then
+    kill_local_service "SLM" "$SLM_PID_FILE"
+  else
+    kill_stale_slm_if_engine_mismatch "$SLM_HEALTH_URL" "$SLM_PID_FILE"
+  fi
 
   start_local_service_if_needed \
     "SLM" \

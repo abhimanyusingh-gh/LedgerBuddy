@@ -102,11 +102,12 @@ class LocalMlxLLMProvider(LLMProvider):
       raise RuntimeError("SLM model is not initialized.")
 
     with self.generation_lock:
-      prompt_tokens = len(self.tokenizer.encode(prompt_text))
+      formatted = apply_chat_template(self.tokenizer, prompt_text)
+      prompt_tokens = len(self.tokenizer.encode(formatted))
       output = generate(
         self.model,
         self.tokenizer,
-        prompt=prompt_text,
+        prompt=formatted,
         verbose=False,
         max_tokens=settings.max_new_tokens
       )
@@ -159,6 +160,20 @@ def resolve_model_reference() -> str:
   return settings.model_path if settings.model_path else settings.model_id
 
 
+def apply_chat_template(tokenizer: Any, user_content: str) -> str:
+  try:
+    formatted = str(
+      tokenizer.apply_chat_template(
+        [{"role": "user", "content": user_content}],
+        tokenize=False,
+        add_generation_prompt=True
+      )
+    )
+    return formatted + "{"
+  except Exception:
+    return user_content + "\n{"
+
+
 _DEFAULT_GL_CATEGORIES_MLX = [
   "Office Expenses", "Professional Services", "Rent", "Utilities", "Travel",
   "Contractor Services", "Raw Materials", "Commission", "Insurance",
@@ -198,17 +213,9 @@ def build_prompt(tokenizer: Any, payload: dict[str, Any], strict: bool) -> str:
 
   prompt_payload = sanitize_payload_for_prompt(payload)
   user_message = (
-    f"{instruction}\nINPUT_JSON:{json.dumps(prompt_payload, ensure_ascii=True, separators=(',', ':'))}\nOUTPUT_JSON:\n{{"
+    f"{instruction}\nINPUT_JSON:{json.dumps(prompt_payload, ensure_ascii=True, separators=(',', ':'))}\nOUTPUT_JSON:"
   )
-  return str(
-    tokenizer.apply_chat_template(
-      [
-        {"role": "user", "content": user_message}
-      ],
-      tokenize=False,
-      add_generation_prompt=False
-    )
-  )
+  return apply_chat_template(tokenizer, user_message)
 
 
 def extract_generation_text(output: Any) -> str:

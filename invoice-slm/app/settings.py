@@ -73,7 +73,7 @@ env_mode = read_env_mode()
 
 settings = Settings(
   provider=read_choice("SLM_ENGINE", default_slm_engine(env_mode), SLM_ENGINES),
-  model_id=os.getenv("SLM_MODEL_ID", "mlx-community/DeepSeek-R1-Distill-Qwen-14B-4bit").strip(),
+  model_id=os.getenv("SLM_MODEL_ID", "mlx-community/Qwen2.5-14B-Instruct-4bit").strip(),
   model_path=os.getenv("SLM_MODEL_PATH", "").strip(),
   codex_command=os.getenv("SLM_CODEX_COMMAND", "codex").strip() or "codex",
   codex_model=os.getenv("SLM_CODEX_MODEL", "").strip(),

@@ -310,7 +310,7 @@ async function run(): Promise<void> {
     };
   }
 
-  const CONCURRENCY = 5;
+  const CONCURRENCY = process.env.BENCHMARK_CONCURRENCY ? Math.max(1, parseInt(process.env.BENCHMARK_CONCURRENCY, 10)) : 5;
   const results: BenchmarkResult[] = [];
   for (let i = 0; i < files.length; i += CONCURRENCY) {
     const batch = files.slice(i, i + CONCURRENCY);
