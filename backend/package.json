@@ -15,7 +15,11 @@
     "test:e2e:saas": "jest --config jest.config.cjs --runInBand src/e2e/saasLifecycle.e2e.test.ts",
     "test:e2e:email-oauth": "jest --config jest.config.cjs --runInBand src/e2e/emailOAuthIngestion.e2e.test.ts",
     "test:integration": "LOCALSTACK_ENDPOINT=http://localhost:4566 jest --config jest.config.cjs --runInBand --testPathPattern=\\.integration\\.test\\.ts$",
-    "test:e2e:localstack": "LOCALSTACK_ENDPOINT=http://localhost:4566 jest --config jest.config.cjs --runInBand src/e2e/localstackDeploy.e2e.test.ts"
+    "test:e2e:localstack": "LOCALSTACK_ENDPOINT=http://localhost:4566 jest --config jest.config.cjs --runInBand src/e2e/localstackDeploy.e2e.test.ts",
+    "benchmark:deepseek": "tsx src/scripts/runSampleInvoiceBenchmark.ts --ocr deepseek",
+    "benchmark:llamaparse": "tsx src/scripts/runSampleInvoiceBenchmark.ts --ocr llamaparse",
+    "benchmark:llamaparse:dump": "tsx src/scripts/runSampleInvoiceBenchmark.ts --ocr llamaparse --dump-only",
+    "benchmark:llamaparse:generate-spec": "tsx src/scripts/runSampleInvoiceBenchmark.ts --ocr llamaparse --dump-only --generate-spec"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.893.0",

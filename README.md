@@ -38,6 +38,50 @@ Every external dependency â€” OCR, ML model, storage, email, accounting export â
 
 > Full architecture diagram: [`docs/architecture.drawio`](docs/architecture.drawio)
 
+## Local Development Scripts
+
+### Bringing Up the Stack
+
+| Script | OCR | SLM |
+|--------|-----|-----|
+| `yarn docker:up` | Apple Vision (default) | default |
+| `yarn docker:up:claude` | Apple Vision | claude multi-step |
+| `yarn docker:up:claude:single` | Apple Vision | claude single-step |
+| `yarn docker:up:mlx` | Apple Vision | MLX single-step |
+| `yarn docker:up:mlx:multi` | Apple Vision | MLX multi-step |
+| `yarn docker:up:codex` | Apple Vision | Codex CLI |
+| `yarn docker:up:api` | Apple Vision | Anthropic API |
+| `yarn docker:up:apple_vision:claude` | **explicit** Apple Vision | claude multi-step |
+| `yarn docker:up:apple_vision:claude:single` | **explicit** Apple Vision | claude single-step |
+| `yarn docker:up:apple_vision:api` | **explicit** Apple Vision | Anthropic API |
+| `yarn docker:up:llamaparse` | LlamaParse | claude multi-step |
+| `yarn docker:up:llamaparse:claude` | LlamaParse | claude multi-step |
+| `yarn docker:up:llamaparse:claude:single` | LlamaParse | claude single-step |
+| `yarn docker:up:llamaparse:api` | LlamaParse | Anthropic API |
+
+### Restarting Just the SLM
+
+Use these when you want to swap SLM engine without rebuilding the full stack:
+
+| Script | SLM Engine |
+|--------|-----------|
+| `yarn slm:claude` | claude multi-step |
+| `yarn slm:claude:single` | claude single-step |
+| `yarn slm:mlx` | MLX single-step |
+| `yarn slm:mlx:multi` | MLX multi-step |
+| `yarn slm:codex` | Codex CLI |
+
+### Benchmarking
+
+| Script | Description |
+|--------|-------------|
+| `yarn benchmark:deepseek` | Run accuracy benchmark with local DeepSeek OCR |
+| `yarn benchmark:llamaparse` | Run accuracy benchmark with LlamaParse OCR (requires `LLAMA_CLOUD_API_KEY`) |
+| `yarn benchmark:llamaparse:dump` | Dump raw extraction results without comparing to ground truth |
+| `yarn benchmark:llamaparse:generate-spec` | Generate a `ground-truth.json` template from LlamaParse extraction results |
+
+Benchmark results are written to `.local-run/benchmark/latest-results.json`. Generated specs go to `.local-run/benchmark/generated-spec.json`.
+
 ## Quick Start
 
 **Prerequisites:** Node.js 20+, Yarn 4+, Docker, Python 3.11+ (Apple Silicon for local MLX)

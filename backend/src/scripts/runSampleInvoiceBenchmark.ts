@@ -4,6 +4,7 @@ import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { DeepSeekOcrProvider } from "../ocr/DeepSeekOcrProvider.js";
+import { LlamaParseOcrProvider } from "../ocr/LlamaParseOcrProvider.js";
 import { HttpFieldVerifier } from "../verifier/HttpFieldVerifier.js";
 import { InvoiceExtractionPipeline } from "../services/extraction/InvoiceExtractionPipeline.js";
 import { InMemoryVendorTemplateStore } from "../services/extraction/vendorTemplateStore.js";
@@ -14,7 +15,7 @@ import type {
   InvoiceLineItemProvenance,
   ParsedInvoiceData
 } from "../types/invoice.js";
-import type { OcrBlock } from "../core/interfaces/OcrProvider.js";
+import type { OcrBlock, OcrProvider } from "../core/interfaces/OcrProvider.js";
 
 type ExpectedFieldProvenance = {
   page?: number;
@@ -233,6 +234,78 @@ function compareFieldProvenance(
   }
 }
 
+function buildSpecFromResults(results: BenchmarkResult[]): BenchmarkSpec {
+  const files: BenchmarkExpected[] = [];
+  for (const result of results) {
+    if (result.error) {
+      continue;
+    }
+    const parsed = result.parsed;
+    const entry: BenchmarkExpected = { file: result.file };
+
+    if (parsed.invoiceNumber) {
+      entry.invoiceNumber = parsed.invoiceNumber;
+    }
+    if (parsed.vendorName) {
+      entry.vendorNameContains = parsed.vendorName;
+    }
+    const invoiceDate = normalizeDate(parsed.invoiceDate);
+    if (invoiceDate) {
+      entry.invoiceDate = invoiceDate;
+    }
+    const dueDate = normalizeDate(parsed.dueDate);
+    if (dueDate) {
+      entry.dueDate = dueDate;
+    }
+    if (parsed.currency) {
+      entry.currency = parsed.currency;
+    }
+    if (Number.isInteger(parsed.totalAmountMinor)) {
+      entry.totalAmountMinor = parsed.totalAmountMinor as number;
+    }
+
+    if (parsed.gst && typeof parsed.gst === "object") {
+      const gst: NonNullable<BenchmarkExpected["gst"]> = {};
+      if (Number.isInteger(parsed.gst.subtotalMinor)) { gst.subtotalMinor = parsed.gst.subtotalMinor; }
+      if (Number.isInteger(parsed.gst.cgstMinor)) { gst.cgstMinor = parsed.gst.cgstMinor; }
+      if (Number.isInteger(parsed.gst.sgstMinor)) { gst.sgstMinor = parsed.gst.sgstMinor; }
+      if (Number.isInteger(parsed.gst.igstMinor)) { gst.igstMinor = parsed.gst.igstMinor; }
+      if (Number.isInteger(parsed.gst.totalTaxMinor)) { gst.totalTaxMinor = parsed.gst.totalTaxMinor; }
+      if (Object.keys(gst).length > 0) {
+        entry.gst = gst;
+      }
+    }
+
+    const lineItems = normalizeLineItemAmounts(parsed);
+    if (lineItems.length > 0) {
+      entry.lineItemAmountsMinor = lineItems;
+    }
+
+    if (result.fieldProvenance) {
+      const fp: NonNullable<BenchmarkExpected["fieldProvenance"]> = {};
+      for (const field of ["invoiceNumber", "vendorName", "invoiceDate", "dueDate", "totalAmountMinor"]) {
+        const prov = result.fieldProvenance[field];
+        if (!prov) {
+          continue;
+        }
+        const p: ExpectedFieldProvenance = {};
+        if (typeof prov.page === "number") { p.page = prov.page; }
+        if (typeof prov.blockIndex === "number") { p.blockIndex = prov.blockIndex; }
+        if (prov.bboxNormalized) { p.bboxNormalized = prov.bboxNormalized; }
+        if (Object.keys(p).length > 0) {
+          fp[field] = p;
+        }
+      }
+      if (Object.keys(fp).length > 0) {
+        entry.fieldProvenance = fp;
+      }
+    }
+
+    files.push(entry);
+  }
+  return { files };
+}
+
 async function run(): Promise<void> {
   const scriptDir = dirname(fileURLToPath(import.meta.url));
   const backendRoot = resolve(scriptDir, "../..");
@@ -241,13 +314,16 @@ async function run(): Promise<void> {
   const specPath = argValue("--spec", join(projectRoot, "sample-invoices/ground-truth.json"));
   const outputPath = argValue("--output", join(projectRoot, ".local-run/benchmark/latest-results.json"));
 
+  const ocrChoice = argValue("--ocr", "deepseek");
   const ocrBaseUrl = process.env.BENCHMARK_OCR_BASE_URL ?? "http://127.0.0.1:8200/v1";
   const slmBaseUrl = process.env.BENCHMARK_SLM_BASE_URL ?? "http://127.0.0.1:8300/v1";
 
-  const ocrProvider = new DeepSeekOcrProvider({
-    baseUrl: ocrBaseUrl,
-    timeoutMs: 240_000
-  });
+  let ocrProvider: OcrProvider;
+  if (ocrChoice === "llamaparse") {
+    ocrProvider = new LlamaParseOcrProvider({ tier: (process.env.LLAMA_PARSE_TIER ?? "agentic") as "agentic" | "agentic_plus" | "cost_effective" | "fast" });
+  } else {
+    ocrProvider = new DeepSeekOcrProvider({ baseUrl: ocrBaseUrl, timeoutMs: 240_000 });
+  }
   const fieldVerifier = new HttpFieldVerifier({
     baseUrl: slmBaseUrl,
     timeoutMs: 240_000
@@ -330,6 +406,12 @@ async function run(): Promise<void> {
 
   writeFileSync(outputPath, JSON.stringify({ generatedAt: new Date().toISOString(), results }, null, 2));
   process.stdout.write(`Wrote raw results to ${outputPath}\n`);
+
+  if (hasArg("--generate-spec")) {
+    const specOutputPath = argValue("--output-spec", join(projectRoot, ".local-run/benchmark/generated-spec.json"));
+    writeFileSync(specOutputPath, JSON.stringify(buildSpecFromResults(results), null, 2));
+    process.stdout.write(`Wrote generated spec to ${specOutputPath}\n`);
+  }
 
   if (hasArg("--dump-only")) {
     return;
