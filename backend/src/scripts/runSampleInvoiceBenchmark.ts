@@ -320,7 +320,7 @@ async function run(): Promise<void> {
 
   let ocrProvider: OcrProvider;
   if (ocrChoice === "llamaparse") {
-    ocrProvider = new LlamaParseOcrProvider({ tier: (process.env.LLAMA_PARSE_TIER ?? "agentic") as "agentic" | "agentic_plus" | "cost_effective" | "fast" });
+    ocrProvider = new LlamaParseOcrProvider({ tier: (process.env.LLAMA_PARSE_TIER ?? "agentic") as "agentic" | "cost_effective" | "fast" });
   } else {
     ocrProvider = new DeepSeekOcrProvider({ baseUrl: ocrBaseUrl, timeoutMs: 240_000 });
   }
@@ -329,10 +329,12 @@ async function run(): Promise<void> {
     timeoutMs: 240_000
   });
   const pipeline = new InvoiceExtractionPipeline(
-    ocrProvider,
-    fieldVerifier,
-    new InMemoryVendorTemplateStore(),
-    new InMemoryExtractionLearningStore(),
+    {
+      ocrProvider,
+      fieldVerifier,
+      templateStore: new InMemoryVendorTemplateStore(),
+      learningStore: new InMemoryExtractionLearningStore()
+    },
     {
       ocrHighConfidenceThreshold: 0.88,
       llmAssistConfidenceThreshold: 85

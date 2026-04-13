@@ -1,6 +1,6 @@
 import type { OcrBlock } from "../../../core/interfaces/OcrProvider.js";
 import type { ParsedInvoiceData } from "../../../types/invoice.js";
-export { FIELD_LABEL_PATTERNS } from "./groundingLabels.js";
+export { DEFAULT_FIELD_LABEL_PATTERNS } from "./groundingLabels.js";
 export { findBlockByAmountValue, extractNumericValueNearColumn, extractAmountValueNearColumn } from "./groundingAmounts.js";
 export {
   blockMatchesFieldValue,

@@ -106,17 +106,19 @@ async function buildExtractionPipeline(manifest: RuntimeManifest, learningStore:
   });
 
   const pipeline = new InvoiceExtractionPipeline(
-    ocrProvider,
-    fieldVerifier,
-    new MongoVendorTemplateStore(),
-    learningStore,
+    {
+      ocrProvider,
+      fieldVerifier,
+      templateStore: new MongoVendorTemplateStore(),
+      learningStore,
+      complianceEnricher,
+      mappingService
+    },
     {
       ocrHighConfidenceThreshold: manifest.extraction.ocrHighConfidenceThreshold,
       llmAssistConfidenceThreshold: manifest.extraction.llmAssistConfidenceThreshold,
       learningMode: env.LEARNING_MODE
-    },
-    complianceEnricher,
-    mappingService
+    }
   );
   return { ocrProvider, fieldVerifier, pipeline };
 }
@@ -208,7 +210,7 @@ export async function resolveOcrProvider(runtimeManifest = loadRuntimeManifest()
     const cfg = runtimeManifest.ocr.llamaparse;
     if (!cfg.apiKey) throw new Error("LLAMA_CLOUD_API_KEY is not configured.");
     logger.info("Using OCR provider", { provider: "llamaparse", tier: cfg.tier });
-    return new LlamaParseOcrProvider({ apiKey: cfg.apiKey, tier: cfg.tier as "fast" | "cost_effective" | "agentic" | "agentic_plus" });
+    return new LlamaParseOcrProvider({ apiKey: cfg.apiKey, tier: cfg.tier as "fast" | "cost_effective" | "agentic" });
   }
 
   if (runtimeManifest.ocr.provider === "deepseek" || runtimeManifest.ocr.provider === "auto") {

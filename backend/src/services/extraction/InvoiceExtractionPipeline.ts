@@ -1,70 +1,50 @@
 import type { FieldVerifier } from "../../core/interfaces/FieldVerifier.js";
-import type { OcrBlock, OcrPageImage, OcrProvider } from "../../core/interfaces/OcrProvider.js";
-import { postProcessOcrResult, buildLayoutText } from "../../ocr/ocrPostProcessor.js";
-import type { MergedBlock, NormalizedAmount, NormalizedCurrency, NormalizedDate, OcrLine, OcrTable } from "../../ocr/ocrPostProcessor.js";
+import type { OcrBlock, OcrPageImage, OcrProvider, OcrResult } from "../../core/interfaces/OcrProvider.js";
+import { postProcessOcrResult, type EnhancedOcrResult } from "../../ocr/ocrPostProcessor.js";
+import { parseInvoiceText } from "../../parser/invoiceParser.js";
 import type {
   InvoiceExtractionData,
+  InvoiceFieldProvenance,
+  InvoiceLineItemProvenance,
   ParsedInvoiceData
 } from "../../types/invoice.js";
-import { assessInvoiceConfidence, type ConfidenceAssessment } from "../confidenceAssessment.js";
-import { buildLayoutGraph } from "./layoutGraph.js";
-import { validateInvoiceFields } from "./deterministicValidation.js";
-import { computeVendorFingerprint } from "./vendorFingerprint.js";
-import { templateFromParsed, type VendorTemplateStore } from "./vendorTemplateStore.js";
-import type { ExtractionLearningStore } from "./extractionLearningStore.js";
-import type { PipelineExtractionResult } from "./types.js";
 import { logger } from "../../utils/logger.js";
-import { GlCodeMasterModel } from "../../models/GlCodeMaster.js";
-import { detectInvoiceLanguage, detectInvoiceLanguageBeforeOcr } from "./languageDetection.js";
-import { parseAmountToken, parseInvoiceText } from "../../parser/invoiceParser.js";
+import { assessInvoiceConfidence } from "../confidenceAssessment.js";
 import type { ComplianceEnricher } from "../compliance/ComplianceEnricher.js";
-import type { ExtractionMappingService } from "./extractionMappingService.js";
 import { RiskSignalEvaluator } from "../compliance/RiskSignalEvaluator.js";
+import type { ExtractionLearningStore } from "./extractionLearningStore.js";
+import type { ExtractionMappingService } from "./extractionMappingService.js";
+import type { DetectedInvoiceLanguage } from "./languageDetection.js";
+import { detectInvoiceLanguage, detectInvoiceLanguageBeforeOcr } from "./languageDetection.js";
+import type { PipelineExtractionResult } from "./types.js";
+import type { VendorTemplateSnapshot, VendorTemplateStore } from "./vendorTemplateStore.js";
+import { validateInvoiceFields } from "./deterministicValidation.js";
 import {
-  addFieldDiagnosticsToMetadata,
-  calibrateDocumentConfidence,
-} from "./pipeline/diagnostics.js";
-import {
-  classifyOcrRecoveryStrategy,
-  findPreferredTotalAmountBlockForStrategy,
-  findPreferredVendorBlockForStrategy,
-  recoverParsedFromOcr,
-} from "./pipeline/ocrRecovery.js";
-import {
-  buildFieldCandidates,
-  buildFieldRegions
-} from "./pipeline/fieldCandidates.js";
-import {
-  mergeClassification,
-  normalizeBlockIndices,
-  normalizeClassification,
-  normalizeFieldConfidence,
-  normalizeFieldProvenance,
-  normalizeLineItemProvenance,
-  collectLineItemConfidence,
-  resolveLineItemProvenance
-} from "./pipeline/provenance.js";
-import {
-  buildAugmentedGroundingText,
-  buildBlocksText,
-  buildKeyValueGroundingText,
   clampProbability,
   formatConfidence,
   resolveDetectedLanguage,
   resolvePreOcrLanguageHint,
-  selectDateProvenanceBlock,
-  selectInvoiceNumberProvenanceBlock,
-  isNearDuplicateText,
   uniqueIssues
 } from "./invoiceExtractionPipelineHelpers.js";
-import { blockMatchesFieldValue } from "./pipeline/grounding.js";
-
-interface ExtractionTextCandidate {
-  text: string;
-  provider: string;
-  confidence?: number;
-  source: string;
-}
+import { addFieldDiagnosticsToMetadata, calibrateDocumentConfidence } from "./pipeline/diagnostics.js";
+import { buildFieldCandidates, buildFieldRegions } from "./pipeline/fieldCandidates.js";
+import {
+  buildRankedOcrTextCandidates,
+  type RankedOcrTextCandidate
+} from "./pipeline/ocrTextCandidates.js";
+import { classifyOcrRecoveryStrategy, recoverParsedFromOcr } from "./pipeline/ocrRecovery.js";
+import {
+  collectLineItemConfidence,
+  mergeClassification,
+  normalizeClassification,
+  normalizeFieldConfidence,
+  normalizeFieldProvenance,
+  normalizeLineItemProvenance,
+  resolveLineItemProvenance
+} from "./pipeline/provenance.js";
+import { computeVendorFingerprint } from "./vendorFingerprint.js";
+import * as fs from "fs/promises";
+import * as path from "path";
 
 type PipelineErrorCode = "FAILED_OCR" | "FAILED_PARSE";
 
@@ -85,45 +65,84 @@ interface ExtractionPipelineOptions {
   enableOcrKeyValueGrounding?: boolean;
   llmAssistConfidenceThreshold?: number;
   learningMode?: "active" | "assistive";
+  ocrDumpEnabled?: boolean;
+}
+
+interface OcrStageResult {
+  enhanced: EnhancedOcrResult;
+  primaryCandidate: RankedOcrTextCandidate;
+  rankedCandidates: RankedOcrTextCandidate[];
+  augmentedText: string;
+  ocrBlocks: OcrBlock[];
+  ocrPageImages: OcrPageImage[];
+  ocrConfidence: number;
+  ocrTokens: number;
+  preOcrLanguage: DetectedInvoiceLanguage;
+}
+
+interface LanguageResolution {
+  preOcr: DetectedInvoiceLanguage;
+  postOcr: DetectedInvoiceLanguage;
+  resolved: DetectedInvoiceLanguage;
+}
+
+interface SlmStageResult {
+  parsed: ParsedInvoiceData;
+  tokens: number;
+  issues: string[];
+  changedFields: string[];
+  fieldConfidence?: Record<string, number>;
+  fieldProvenance?: Record<string, InvoiceFieldProvenance>;
+  lineItemProvenance: InvoiceLineItemProvenance[];
+  classification?: InvoiceExtractionData["classification"];
 }
 
 export class ExtractionPipelineError extends Error {
-  constructor(
-    readonly code: PipelineErrorCode,
-    message: string
-  ) {
+  constructor(readonly code: PipelineErrorCode, message: string) {
     super(message);
     this.name = "ExtractionPipelineError";
   }
 }
 
+interface ExtractionPipelineDeps {
+  ocrProvider: OcrProvider;
+  fieldVerifier: FieldVerifier;
+  templateStore: VendorTemplateStore;
+  learningStore?: ExtractionLearningStore;
+  complianceEnricher?: ComplianceEnricher;
+  mappingService?: ExtractionMappingService;
+}
+
 export class InvoiceExtractionPipeline {
+  private readonly ocrProvider: OcrProvider;
+  private readonly fieldVerifier: FieldVerifier;
+  private readonly templateStore: VendorTemplateStore;
+  private readonly learningStore?: ExtractionLearningStore;
+  private readonly complianceEnricher?: ComplianceEnricher;
+  private readonly mappingService?: ExtractionMappingService;
   private readonly ocrHighConfidenceThreshold: number;
   private readonly enableOcrKeyValueGrounding: boolean;
   private readonly llmAssistConfidenceThreshold: number;
-  private readonly verifierTimeoutMs: number;
   private readonly learningMode: "active" | "assistive";
+  private readonly ocrDumpEnabled: boolean;
 
-  constructor(
-    private readonly ocrProvider: OcrProvider,
-    private readonly fieldVerifier: FieldVerifier,
-    private readonly templateStore: VendorTemplateStore,
-    private readonly learningStore: ExtractionLearningStore | undefined,
-    options?: ExtractionPipelineOptions,
-    private readonly complianceEnricher?: ComplianceEnricher,
-    private readonly mappingService?: ExtractionMappingService
-  ) {
+  constructor(deps: ExtractionPipelineDeps, options?: ExtractionPipelineOptions) {
+    this.ocrProvider = deps.ocrProvider;
+    this.fieldVerifier = deps.fieldVerifier;
+    this.templateStore = deps.templateStore;
+    this.learningStore = deps.learningStore;
+    this.complianceEnricher = deps.complianceEnricher;
+    this.mappingService = deps.mappingService;
     this.ocrHighConfidenceThreshold = clampProbability(options?.ocrHighConfidenceThreshold ?? 0.88);
     this.enableOcrKeyValueGrounding = options?.enableOcrKeyValueGrounding ?? true;
     this.llmAssistConfidenceThreshold = options?.llmAssistConfidenceThreshold ?? 85;
-    this.verifierTimeoutMs = 120_000;
     this.learningMode = options?.learningMode ?? "assistive";
+    this.ocrDumpEnabled = options?.ocrDumpEnabled ?? process.env.OCR_DUMP_ENABLED === "true";
   }
 
   async extract(input: ExtractionPipelineInput): Promise<PipelineExtractionResult> {
     const metadata: Record<string, string> = {};
     const processingIssues: string[] = [];
-    const templateAppliedFields = new Set<string>();
 
     const fingerprint = computeVendorFingerprint({
       buffer: input.fileBuffer,
@@ -131,493 +150,301 @@ export class InvoiceExtractionPipeline {
       sourceKey: input.sourceKey,
       attachmentName: input.attachmentName
     });
+
     metadata.vendorFingerprint = fingerprint.key;
     metadata.layoutSignature = fingerprint.layoutSignature;
 
     const template = await this.templateStore.findByFingerprint(input.tenantId, fingerprint.key);
     metadata.vendorTemplateMatched = template ? "true" : "false";
-    if (template) {
-      metadata.vendorTemplateVendor = template.vendorName;
-    }
 
-    const extractionCandidates: ExtractionTextCandidate[] = [];
+    const ocr = await this.runOcrStage(input, metadata);
+    const language = this.resolveLanguage(ocr, metadata);
+    const baseline = parseInvoiceText(ocr.primaryCandidate.text, { languageHint: language.resolved.code });
+    const fieldCandidates = buildFieldCandidates(ocr.primaryCandidate.text, baseline.parsed, template);
+    const fieldRegions = buildFieldRegions(ocr.ocrBlocks, fieldCandidates);
 
-    let ocrProvider = this.ocrProvider.name;
-    let ocrConfidence: number | undefined;
-    let ocrBlocks: OcrBlock[] = [];
-    let ocrPageImages: OcrPageImage[] = [];
-    let rawTextForNormalization = "";
-    let enhancedMergedBlocks: MergedBlock[] = [];
-    let enhancedLines: OcrLine[] = [];
-    let enhancedTables: OcrTable[] = [];
-    let enhancedNormalizedAmounts: NormalizedAmount[] = [];
-    let enhancedNormalizedDates: NormalizedDate[] = [];
-    let enhancedNormalizedCurrencies: NormalizedCurrency[] = [];
-    let ocrTokensUsed = 0;
-    let slmTokensUsed = 0;
-    const preOcrLanguage = detectInvoiceLanguageBeforeOcr({
-      attachmentName: input.attachmentName,
-      sourceKey: input.sourceKey,
-      mimeType: input.mimeType,
-      fileBuffer: input.fileBuffer
+    metadata.baselineFieldCount = String(Object.keys(baseline.parsed).length);
+    metadata.baselineWarningCount = String(baseline.warnings.length);
+    metadata.fieldCandidateCount = String(Object.keys(fieldCandidates).length);
+    metadata.fieldRegionCount = String(Object.keys(fieldRegions).length);
+
+    const slm = await this.runSlmStage({
+      input,
+      template,
+      language,
+      ocr,
+      baselineParsed: baseline.parsed,
+      fieldCandidates,
+      fieldRegions
     });
-    const preOcrLanguageHintDecision = resolvePreOcrLanguageHint(preOcrLanguage, input.mimeType);
-    const preOcrLanguageHint = preOcrLanguageHintDecision.hint;
-    if (preOcrLanguageHintDecision.reason !== "detected" && preOcrLanguageHintDecision.reason !== "none" && preOcrLanguageHint) {
-      metadata.preOcrLanguageHint = preOcrLanguageHint;
-      metadata.preOcrLanguageHintReason = preOcrLanguageHintDecision.reason;
-    }
-    if (preOcrLanguage.code !== "und") {
-      metadata.preOcrLanguage = preOcrLanguage.code;
-      metadata.preOcrLanguageConfidence = formatConfidence(preOcrLanguage.confidence);
-      if (preOcrLanguage.signals.length > 0) {
-        metadata.preOcrLanguageSignals = preOcrLanguage.signals.join(",");
-      }
+    processingIssues.push(...slm.issues);
+
+    if (Object.keys(slm.parsed).length === 0 && baseline.warnings.length > 0) {
+      processingIssues.push(...baseline.warnings);
     }
 
-    try {
-      const ocrResult = await this.ocrProvider.extractText(input.fileBuffer, input.mimeType, {
-        languageHint: preOcrLanguageHint
-      });
-      ocrProvider = ocrResult.provider || this.ocrProvider.name;
-      ocrBlocks = ocrResult.blocks ?? [];
-      ocrPageImages = ocrResult.pageImages ?? [];
-      const enhanced = postProcessOcrResult(ocrResult);
-      enhancedMergedBlocks = enhanced.mergedBlocks;
-      enhancedLines = enhanced.lines;
-      enhancedTables = enhanced.tables;
-      enhancedNormalizedAmounts = enhanced.normalized.amounts;
-      enhancedNormalizedDates = enhanced.normalized.dates;
-      enhancedNormalizedCurrencies = enhanced.normalized.currencies;
-      if (ocrResult.tokenUsage?.totalTokens) ocrTokensUsed += ocrResult.tokenUsage.totalTokens;
-      const rawText = ocrResult.text.trim();
-      rawTextForNormalization = rawText;
-      const blockText = buildBlocksText(ocrBlocks);
-      const layoutText = buildLayoutText(enhancedLines);
-      const primaryText = layoutText.length > 0 ? layoutText : blockText;
-      const calibrated = calibrateDocumentConfidence(ocrResult.confidence, rawText, blockText);
-      ocrConfidence = calibrated.score;
-      metadata.docOcrConfidence = formatConfidence(calibrated.score);
-      metadata.docLowTokenRatio = formatConfidence(calibrated.lowTokenRatio);
-      metadata.docPrintableRatio = formatConfidence(calibrated.printableRatio);
+    const mergedParsed = mergeParsedInvoiceData(baseline.parsed, slm.parsed);
+    const parsed = recoverParsedFromOcr(mergedParsed, ocr.ocrBlocks, ocr.primaryCandidate.text);
+    const recoveryStrategy = classifyOcrRecoveryStrategy(ocr.ocrBlocks, ocr.primaryCandidate.text);
+    metadata.ocrRecoveryStrategy = recoveryStrategy;
 
-      if (primaryText.length > 0) {
-        extractionCandidates.push({
-          text: primaryText,
-          provider: ocrProvider,
-          confidence: ocrConfidence,
-          source: "ocr-layout"
-        });
-      } else if (rawText.length > 0) {
-        extractionCandidates.push({
-          text: rawText,
-          provider: ocrProvider,
-          confidence: ocrConfidence,
-          source: "ocr-raw-text"
-        });
-      }
+    const validation = validateInvoiceFields({
+      parsed,
+      ocrText: ocr.primaryCandidate.text,
+      expectedMaxTotal: input.expectedMaxTotal,
+      expectedMaxDueDays: input.expectedMaxDueDays,
+      referenceDate: input.referenceDate
+    });
 
-      const keyValueText = this.enableOcrKeyValueGrounding ? buildKeyValueGroundingText(ocrBlocks) : "";
-      if (keyValueText.length > 0 && !isNearDuplicateText(keyValueText, primaryText)) {
-        extractionCandidates.push({
-          text: keyValueText,
-          provider: ocrProvider,
-          confidence: ocrConfidence,
-          source: "ocr-key-value-grounding"
-        });
-      }
-      const augmentedKeyValueText =
-        keyValueText.length > 0 ? buildAugmentedGroundingText(keyValueText, blockText, rawText) : "";
-      if (
-        augmentedKeyValueText.length > 0 &&
-        !isNearDuplicateText(augmentedKeyValueText, primaryText) &&
-        !isNearDuplicateText(augmentedKeyValueText, keyValueText)
-      ) {
-        extractionCandidates.push({
-          text: augmentedKeyValueText,
-          provider: ocrProvider,
-          confidence: ocrConfidence,
-          source: "ocr-key-value-augmented"
-        });
-      }
-
-      if (rawText.length === 0 && blockText.length === 0) {
-        processingIssues.push("OCR provider returned empty text.");
-      }
-
-    } catch (error) {
-      if (extractionCandidates.length === 0) {
-        throw new ExtractionPipelineError(
-          "FAILED_OCR",
-          error instanceof Error ? error.message : "OCR provider failed to return text."
-        );
-      }
-
-      processingIssues.push(
-        `OCR provider failed; using fallback extracted text. ${error instanceof Error ? error.message : String(error)}`
-      );
+    if (!validation.valid) {
+      processingIssues.push(...validation.issues);
     }
 
-    if (extractionCandidates.length === 0) {
-      throw new ExtractionPipelineError("FAILED_OCR", "No text detected from OCR.");
+    const diagnostics = addFieldDiagnosticsToMetadata({
+      metadata,
+      parsed,
+      ocrBlocks: ocr.ocrBlocks,
+      fieldRegions,
+      source: "slm-direct",
+      ocrConfidence: ocr.ocrConfidence,
+      validationIssues: validation.issues,
+      warnings: processingIssues,
+      templateAppliedFields: new Set<string>(),
+      verifierChangedFields: slm.changedFields,
+      verifierFieldConfidence: slm.fieldConfidence,
+      verifierFieldProvenance: slm.fieldProvenance
+    });
+
+    const compliance = await this.runCompliance(parsed, input, fingerprint);
+
+    let confidence = this.assessConfidence(input, parsed, processingIssues, ocr.ocrConfidence);
+
+    if (compliance?.riskSignals?.length) {
+      const penalty = RiskSignalEvaluator.sumPenalties(compliance.riskSignals);
+      confidence = this.assessConfidenceWithPenalty(input, parsed, processingIssues, ocr.ocrConfidence, penalty);
     }
 
-    const postOcrLanguage = detectInvoiceLanguage(extractionCandidates.map((candidate) => candidate.text));
-    const detectedLanguage = resolveDetectedLanguage(preOcrLanguage, postOcrLanguage);
-    metadata.documentLanguage = detectedLanguage.code;
-    metadata.documentLanguageConfidence = formatConfidence(detectedLanguage.confidence);
-    metadata.documentLanguageSource = postOcrLanguage.code === "und" ? "pre-ocr" : "post-ocr";
-    if (postOcrLanguage.code !== "und") {
-      metadata.postOcrLanguage = postOcrLanguage.code;
-      metadata.postOcrLanguageConfidence = formatConfidence(postOcrLanguage.confidence);
-    }
-    if (detectedLanguage.signals.length > 0) {
-      metadata.documentLanguageSignals = detectedLanguage.signals.join(",");
-    }
+    const lineItemProvenance = resolveLineItemProvenance({
+      lineItems: parsed.lineItems,
+      ocrBlocks: ocr.ocrBlocks,
+      verifierLineItemProvenance: slm.lineItemProvenance
+    });
+    const lineItemConfidence = collectLineItemConfidence(lineItemProvenance);
+    const combinedFieldConfidence =
+      Object.keys(lineItemConfidence).length > 0
+        ? { ...diagnostics.fieldConfidence, ...lineItemConfidence }
+        : diagnostics.fieldConfidence;
+    const classification = mergeClassification(slm.classification, compliance?.tds?.section);
 
-    const layoutGraph = buildLayoutGraph(ocrBlocks);
-    metadata.layoutGraphNodes = String(layoutGraph.nodes.length);
-    metadata.layoutGraphEdges = String(layoutGraph.edges.length);
-    metadata.layoutGraphSignature = layoutGraph.signature;
+    const extraction: InvoiceExtractionData = {
+      source: "slm-direct",
+      strategy: `slm-${recoveryStrategy}`,
+      ...(classification ? { classification } : {}),
+      ...(classification?.invoiceType ? { invoiceType: classification.invoiceType } : {}),
+      ...(Object.keys(combinedFieldConfidence).length > 0 ? { fieldConfidence: combinedFieldConfidence } : {}),
+      ...(Object.keys(diagnostics.fieldProvenance).length > 0 ? { fieldProvenance: diagnostics.fieldProvenance } : {}),
+      ...(lineItemProvenance.length > 0 ? { lineItemProvenance } : {})
+    };
 
-    metadata.ocrGate = "slm-direct";
-      const bestText = extractionCandidates[0]?.text ?? "";
-
-      let priorCorrections: Array<{ field: string; hint: string; count: number }> = [];
-      if (this.learningStore) {
-        try {
-          const corrections = await this.learningStore.findCorrections(input.tenantId, template?.vendorName ?? "", fingerprint.key);
-          priorCorrections = corrections.map((c) => ({ field: c.field, hint: c.hint, count: c.count }));
-        } catch {
-          logger.warn("extraction.learning.lookup.skipped", { tenantId: input.tenantId });
-        }
-      }
-
-      if (priorCorrections.length > 0) {
-        logger.info("extraction.learning.hints.provided", {
-          tenantId: input.tenantId,
-          vendorFingerprint: fingerprint.key,
-          hintCount: priorCorrections.length,
-          hintFields: priorCorrections.map(c => c.field)
-        });
-      }
-
-      const deterministicFallback = parseInvoiceText(bestText, { languageHint: detectedLanguage.code });
-      const bootstrapFieldCandidates = buildFieldCandidates(bestText, {}, template);
-      const bootstrapFieldRegions = buildFieldRegions(ocrBlocks, bootstrapFieldCandidates);
-
-      let glCategories: string[] | undefined;
-      try {
-        const glDocs = await GlCodeMasterModel.find({ tenantId: input.tenantId, isActive: true }).select("category").lean();
-        const unique = [...new Set(glDocs.map(d => d.category).filter(Boolean))];
-        if (unique.length > 0) glCategories = unique;
-      } catch {
-        logger.warn("extraction.gl_categories.fetch.failed", { tenantId: input.tenantId });
-      }
-
-      const slmResult = await this.fieldVerifier.verify({
-        parsed: {},
-        ocrText: bestText,
-        ocrBlocks,
-        mode: "relaxed",
-        hints: {
-          mimeType: input.mimeType,
-          languageHint: detectedLanguage.code,
-          documentLanguage: detectedLanguage.code,
-          vendorTemplateMatched: false,
-          fieldCandidates: bootstrapFieldCandidates,
-          fieldRegions: bootstrapFieldRegions,
-          pageImages: ocrPageImages.slice(0, 3),
-          llmAssist: true,
-          priorCorrections: this.learningMode === "active" && priorCorrections.length > 0 ? priorCorrections : undefined,
-          glCategories,
-          mergedBlocks: enhancedMergedBlocks.length > 0 ? enhancedMergedBlocks : undefined,
-          structuredLines: enhancedLines.length > 0 ? enhancedLines : undefined,
-          structuredTables: enhancedTables.length > 0 ? enhancedTables : undefined,
-          normalizedAmounts: enhancedNormalizedAmounts.length > 0 ? enhancedNormalizedAmounts : undefined,
-          normalizedDates: enhancedNormalizedDates.length > 0 ? enhancedNormalizedDates : undefined,
-          normalizedCurrencies: enhancedNormalizedCurrencies.length > 0 ? enhancedNormalizedCurrencies : undefined
-        }
-      });
-
-      if (slmResult.invoiceType) metadata.invoiceType = slmResult.invoiceType;
-      if (slmResult.tokenUsage?.totalTokens) slmTokensUsed += slmResult.tokenUsage.totalTokens;
-      const slmParsedRecord = { ...(slmResult.parsed as Record<string, unknown>) };
-      const slmBlockIndices: Record<string, number> =
-        normalizeBlockIndices(slmParsedRecord._blockIndices) ?? {};
-      const verifierFieldConfidence =
-        slmResult.fieldConfidence ?? normalizeFieldConfidence(slmParsedRecord._fieldConfidence) ?? {};
-      const verifierFieldProvenance =
-        slmResult.fieldProvenance ?? normalizeFieldProvenance(slmParsedRecord._fieldProvenance) ?? {};
-      const verifierLineItemProvenance =
-        slmResult.lineItemProvenance ?? normalizeLineItemProvenance(slmParsedRecord._lineItemProvenance) ?? [];
-      const verifierClassification =
-        slmResult.classification ?? normalizeClassification(slmParsedRecord._classification);
-      delete slmParsedRecord._blockIndices;
-      delete slmParsedRecord._fieldConfidence;
-      delete slmParsedRecord._fieldProvenance;
-      delete slmParsedRecord._lineItemProvenance;
-      delete slmParsedRecord._classification;
-      const slmParsed = slmParsedRecord as ParsedInvoiceData;
-      const slmParsedHasFields = Object.keys(slmParsed).some((key) => {
-        const value = (slmParsed as Record<string, unknown>)[key];
-        if (Array.isArray(value)) {
-          return value.length > 0;
-        }
-        if (value && typeof value === "object") {
-          return Object.keys(value as Record<string, unknown>).length > 0;
-        }
-        return value !== undefined && value !== null && value !== "";
-      });
-      const baseParsed = slmParsedHasFields ? { ...slmParsed } : { ...deterministicFallback.parsed };
-      const recoveredParsed = recoverParsedFromOcr(baseParsed, ocrBlocks, bestText);
-      if (priorCorrections.length > 0) {
-        metadata.learningHintsApplied = String(priorCorrections.length);
-      }
-      if (priorCorrections.length > 0) {
-        const hintedFieldResults = priorCorrections.map(c => ({
-          field: c.field,
-          hintValue: c.hint,
-          extractedValue: String((slmParsed as Record<string, unknown>)[c.field] ?? ""),
-          matched: c.hint.includes(String((slmParsed as Record<string, unknown>)[c.field] ?? "")) || String((slmParsed as Record<string, unknown>)[c.field] ?? "").includes(c.hint.split(" not ")[0])
-        }));
-        logger.info("extraction.learning.hints.result", {
-          tenantId: input.tenantId,
-          vendorFingerprint: fingerprint.key,
-          hintCount: priorCorrections.length,
-          matchedCount: hintedFieldResults.filter(r => r.matched).length,
-          fields: hintedFieldResults
-        });
-      }
-      if (this.mappingService) {
-        const mappingResult = await this.mappingService.applyMappings(input.tenantId, recoveredParsed);
-        if (mappingResult.mappingApplied) {
-          metadata.extractionMappingApplied = "true";
-          if (mappingResult.mappingId) metadata.extractionMappingId = mappingResult.mappingId;
-        }
-      }
-
-      const slmWarnings = uniqueIssues([
-        ...processingIssues,
-        ...(slmParsedHasFields ? [] : deterministicFallback.warnings),
-        ...slmResult.issues
-      ]);
-      const slmConfidence = this.assessConfidence(input, recoveredParsed, slmWarnings, ocrConfidence);
-      const slmValidation = validateInvoiceFields({
-        parsed: recoveredParsed,
-        ocrText: bestText,
-        expectedMaxTotal: input.expectedMaxTotal,
-        expectedMaxDueDays: input.expectedMaxDueDays,
-        referenceDate: input.referenceDate
-      });
-
-      const recoveryStrategy = classifyOcrRecoveryStrategy(
-        ocrBlocks,
-        rawTextForNormalization.length > 0 ? rawTextForNormalization : bestText
-      );
-      const preferredVendorBlock = findPreferredVendorBlockForStrategy(ocrBlocks, recoveryStrategy);
-      const slmFieldCandidates = buildFieldCandidates(bestText, recoveredParsed, undefined);
-      const slmFieldRegions = buildFieldRegions(ocrBlocks, slmFieldCandidates);
-      metadata.extractionSource = "slm-direct";
-      metadata.extractionStrategy = recoveryStrategy;
-      metadata.lineItemCount = String(
-        slmResult.contract?.lineItemCount ??
-        (Array.isArray(recoveredParsed.lineItems) ? recoveredParsed.lineItems.length : 0)
-      );
-      if (!slmValidation.valid) {
-        metadata.manualFallback = "required";
-        processingIssues.push(...slmValidation.issues);
-      }
-
-      const diagnostics = addFieldDiagnosticsToMetadata({
-        metadata,
-        parsed: recoveredParsed,
-        ocrBlocks,
-        fieldRegions: slmFieldRegions,
-        source: "slm-direct",
-        ocrConfidence,
-        validationIssues: slmValidation.issues,
-        warnings: slmWarnings,
-        templateAppliedFields: new Set<string>(),
-        verifierChangedFields: Object.keys(slmParsed),
-        slmBlockIndices: slmBlockIndices,
-        verifierFieldConfidence,
-        verifierFieldProvenance
-      });
-      for (const field of ["invoiceDate", "dueDate"] as const) {
-        const fieldValue = recoveredParsed[field];
-        if (!fieldValue) {
-          continue;
-        }
-        const matchedDateBlock = selectDateProvenanceBlock(field, fieldValue, ocrBlocks);
-        if (!matchedDateBlock) {
-          continue;
-        }
-        const currentProvenance = diagnostics.fieldProvenance[field];
-        diagnostics.fieldProvenance[field] = {
-          ...currentProvenance,
-          page: matchedDateBlock.block.page,
-          bbox: matchedDateBlock.block.bbox,
-          ...(matchedDateBlock.block.bboxNormalized ? { bboxNormalized: matchedDateBlock.block.bboxNormalized } : {}),
-          ...(matchedDateBlock.block.bboxModel ? { bboxModel: matchedDateBlock.block.bboxModel } : {}),
-          blockIndex: matchedDateBlock.index
-        };
-      }
-      const invoiceNumberBlock = selectInvoiceNumberProvenanceBlock(recoveredParsed.invoiceNumber, ocrBlocks);
-      if (invoiceNumberBlock && recoveredParsed.invoiceNumber) {
-        diagnostics.fieldProvenance.invoiceNumber = {
-          ...diagnostics.fieldProvenance.invoiceNumber,
-          page: invoiceNumberBlock.block.page,
-          bbox: invoiceNumberBlock.block.bbox,
-          ...(invoiceNumberBlock.block.bboxNormalized ? { bboxNormalized: invoiceNumberBlock.block.bboxNormalized } : {}),
-          ...(invoiceNumberBlock.block.bboxModel ? { bboxModel: invoiceNumberBlock.block.bboxModel } : {}),
-          blockIndex: invoiceNumberBlock.index
-        };
-      }
-      const currentVendorBlock =
-        diagnostics.fieldProvenance.vendorName?.blockIndex !== undefined
-          ? ocrBlocks[diagnostics.fieldProvenance.vendorName.blockIndex]
-          : undefined;
-      if (
-        preferredVendorBlock &&
-        recoveredParsed.vendorName &&
-        shouldPreferVendorProvenanceBlock(currentVendorBlock, preferredVendorBlock.block, recoveredParsed.vendorName)
-      ) {
-        diagnostics.fieldProvenance.vendorName = {
-          ...diagnostics.fieldProvenance.vendorName,
-          page: preferredVendorBlock.block.page,
-          bbox: preferredVendorBlock.block.bbox,
-          ...(preferredVendorBlock.block.bboxNormalized ? { bboxNormalized: preferredVendorBlock.block.bboxNormalized } : {}),
-          ...(preferredVendorBlock.block.bboxModel ? { bboxModel: preferredVendorBlock.block.bboxModel } : {}),
-          blockIndex: preferredVendorBlock.index
-        };
-      }
-      const preferredTotalAmountBlock = findPreferredTotalAmountBlockForStrategy(
-        ocrBlocks,
-        recoveryStrategy,
-        recoveredParsed.totalAmountMinor
-      );
-      const currentTotalAmountBlock =
-        diagnostics.fieldProvenance.totalAmountMinor?.blockIndex !== undefined
-          ? ocrBlocks[diagnostics.fieldProvenance.totalAmountMinor.blockIndex]
-          : undefined;
-      const bestTotalAmountProvenanceBlock = selectBestTotalAmountProvenanceBlock(
-        recoveredParsed.totalAmountMinor,
-        ocrBlocks
-      );
-      const totalAmountProvenanceBlock = bestTotalAmountProvenanceBlock ?? preferredTotalAmountBlock;
-      if (
-        totalAmountProvenanceBlock &&
-        diagnostics.fieldProvenance.totalAmountMinor &&
-        shouldPreferTotalAmountProvenanceBlock(currentTotalAmountBlock, totalAmountProvenanceBlock.block, recoveredParsed.totalAmountMinor, ocrBlocks)
-      ) {
-        diagnostics.fieldProvenance.totalAmountMinor = {
-          ...diagnostics.fieldProvenance.totalAmountMinor,
-          page: totalAmountProvenanceBlock.block.page,
-          bbox: totalAmountProvenanceBlock.block.bbox,
-          ...(totalAmountProvenanceBlock.block.bboxNormalized ? { bboxNormalized: totalAmountProvenanceBlock.block.bboxNormalized } : {}),
-          ...(totalAmountProvenanceBlock.block.bboxModel ? { bboxModel: totalAmountProvenanceBlock.block.bboxModel } : {}),
-          blockIndex: totalAmountProvenanceBlock.index
-        };
-      }
-      metadata.fieldProvenance = JSON.stringify(diagnostics.fieldProvenance);
-      const lineItemProvenance = resolveLineItemProvenance({
-        lineItems: recoveredParsed.lineItems,
-        ocrBlocks,
-        verifierLineItemProvenance
-      });
-      const lineItemConfidence = collectLineItemConfidence(lineItemProvenance);
-      if (Object.keys(lineItemConfidence).length > 0) {
-        Object.assign(diagnostics.fieldConfidence, lineItemConfidence);
-        metadata.fieldConfidence = JSON.stringify(diagnostics.fieldConfidence);
-      }
-      if (lineItemProvenance.length > 0) {
-        metadata.lineItemProvenance = JSON.stringify(lineItemProvenance);
-      }
-
-      const slmGlCategory = verifierClassification?.glCategory ?? undefined;
-      if (slmGlCategory) {
-        metadata.slmGlCategory = slmGlCategory;
-      }
-
-      let complianceData: import("../../types/invoice.js").InvoiceCompliance | undefined;
-      if (this.complianceEnricher) {
-        try {
-          const complianceResult = await this.complianceEnricher.enrich(recoveredParsed, input.tenantId, fingerprint.key, {
-            emailFrom: metadata.from ?? undefined,
-            contentHash: fingerprint.hash,
-            slmGlCategory
-          });
-          if (complianceResult.riskSignals && complianceResult.riskSignals.length > 0 || complianceResult.pan || complianceResult.tds || complianceResult.tcs || complianceResult.glCode || complianceResult.vendorBank) {
-            complianceData = {};
-            if (complianceResult.pan) complianceData.pan = complianceResult.pan;
-            if (complianceResult.tds) complianceData.tds = complianceResult.tds;
-            if (complianceResult.tcs) complianceData.tcs = complianceResult.tcs;
-            if (complianceResult.glCode) complianceData.glCode = complianceResult.glCode;
-            if (complianceResult.costCenter) complianceData.costCenter = complianceResult.costCenter;
-            if (complianceResult.irn) complianceData.irn = complianceResult.irn;
-            if (complianceResult.msme) complianceData.msme = complianceResult.msme;
-            if (complianceResult.vendorBank) complianceData.vendorBank = complianceResult.vendorBank;
-            if (complianceResult.riskSignals && complianceResult.riskSignals.length > 0) complianceData.riskSignals = complianceResult.riskSignals;
-          }
-        } catch (error) {
-          processingIssues.push(`Compliance enrichment failed: ${error instanceof Error ? error.message : String(error)}`);
-          logger.warn("compliance.enrichment.failed", {
-            tenantId: input.tenantId,
-            vendorFingerprint: fingerprint.key,
-            error: error instanceof Error ? error.message : String(error)
-          });
-        }
-      }
-
-      let finalConfidence = slmConfidence;
-      if (complianceData?.riskSignals && complianceData.riskSignals.length > 0) {
-        const compliancePenalty = RiskSignalEvaluator.sumPenalties(complianceData.riskSignals);
-        if (compliancePenalty > 0) {
-          finalConfidence = this.assessConfidenceWithPenalty(input, recoveredParsed, slmWarnings, ocrConfidence, compliancePenalty);
-        }
-      }
-
-      const extractionClassification = mergeClassification(
-        verifierClassification ?? (slmResult.invoiceType ? { invoiceType: slmResult.invoiceType } : undefined),
-        complianceData?.tds?.section
-      );
-      const extractionData: InvoiceExtractionData = {
-        source: "slm-direct",
-        strategy: "slm-direct",
-        ...(slmResult.invoiceType ? { invoiceType: slmResult.invoiceType } : {}),
-        ...(Object.keys(diagnostics.fieldConfidence).length > 0 ? { fieldConfidence: diagnostics.fieldConfidence } : {}),
-        ...(Object.keys(diagnostics.fieldProvenance).length > 0 ? { fieldProvenance: diagnostics.fieldProvenance } : {}),
-        ...(lineItemProvenance.length > 0 ? { lineItemProvenance } : {}),
-        ...(extractionClassification ? { classification: extractionClassification } : {})
-      };
-
-      return {
-        provider: ocrProvider,
-        text: bestText,
-        confidence: ocrConfidence,
-        source: "slm-direct",
-        strategy: "slm-direct",
-        parseResult: { parsed: recoveredParsed, warnings: slmWarnings },
-        confidenceAssessment: finalConfidence,
-        attempts: [],
-        ocrBlocks,
-        ocrPageImages,
-        processingIssues: uniqueIssues(processingIssues),
-        metadata,
-        ocrTokens: ocrTokensUsed,
-        slmTokens: slmTokensUsed,
-        compliance: complianceData,
-        extraction: extractionData
-      };
+    return {
+      provider: this.ocrProvider.name,
+      text: ocr.primaryCandidate.text,
+      confidence: ocr.ocrConfidence,
+      source: "slm-direct",
+      strategy: extraction.strategy ?? "slm-direct",
+      parseResult: { parsed, warnings: processingIssues },
+      confidenceAssessment: confidence,
+      attempts: [],
+      ocrBlocks: ocr.ocrBlocks,
+      ocrPageImages: ocr.ocrPageImages,
+      processingIssues: uniqueIssues(processingIssues),
+      metadata,
+      ocrTokens: ocr.ocrTokens,
+      slmTokens: slm.tokens,
+      compliance,
+      extraction
+    };
   }
 
-  private assessConfidence(
-    input: ExtractionPipelineInput,
+
+  private async runOcrStage(input: ExtractionPipelineInput, metadata: Record<string, string>): Promise<OcrStageResult> {
+    const preOcrLanguage = detectInvoiceLanguageBeforeOcr(input);
+    const preOcrLanguageHint = resolvePreOcrLanguageHint(preOcrLanguage, input.mimeType);
+    metadata.preOcrLanguage = preOcrLanguage.code;
+    metadata.preOcrLanguageConfidence = formatConfidence(preOcrLanguage.confidence);
+    metadata.preOcrLanguageHintReason = preOcrLanguageHint.reason;
+    if (preOcrLanguageHint.hint) {
+      metadata.preOcrLanguageHint = preOcrLanguageHint.hint;
+    }
+
+    const result = await this.ocrProvider.extractText(input.fileBuffer, input.mimeType, {
+      languageHint: preOcrLanguageHint.hint
+    });
+    const enhanced = postProcessOcrResult(result);
+
+    if (this.ocrDumpEnabled) {
+      await this.saveOcrResult(result, enhanced);
+    }
+
+    const rawText = result.text.trim();
+    const textCandidates = buildRankedOcrTextCandidates({
+      rawText,
+      blocks: result.blocks ?? [],
+      layoutLines: enhanced.lines,
+      enableKeyValueGrounding: this.enableOcrKeyValueGrounding
+    });
+    const primary = textCandidates.primary.text;
+
+    if (!primary) throw new ExtractionPipelineError("FAILED_OCR", "Empty OCR");
+
+    const calibrated = calibrateDocumentConfidence(result.confidence, rawText, primary);
+    metadata.ocrPrimaryVariant = textCandidates.primary.id;
+    metadata.ocrPrimaryVariantScore = textCandidates.primary.score.toFixed(3);
+    metadata.ocrPrimaryTokenCount = String(textCandidates.primary.metrics.tokenCount);
+    metadata.ocrCandidateCount = String(textCandidates.ranked.length);
+    metadata.ocrHasKeyValueGrounding = textCandidates.keyValueText.length > 0 ? "true" : "false";
+    metadata.ocrHasAugmentedContext = textCandidates.augmentedText.length > 0 ? "true" : "false";
+    metadata.ocrLowQualityTokenRatio = formatConfidence(textCandidates.primary.metrics.lowQualityTokenRatio);
+    metadata.ocrDuplicateLineRatio = formatConfidence(textCandidates.primary.metrics.duplicateLineRatio);
+
+    return {
+      enhanced,
+      primaryCandidate: textCandidates.primary,
+      rankedCandidates: textCandidates.ranked,
+      augmentedText: textCandidates.augmentedText,
+      ocrBlocks: result.blocks ?? [],
+      ocrPageImages: result.pageImages ?? [],
+      ocrConfidence: calibrated.score,
+      ocrTokens: result.tokenUsage?.totalTokens ?? 0,
+      preOcrLanguage
+    };
+  }
+
+  private resolveLanguage(ocr: OcrStageResult, metadata: Record<string, string>): LanguageResolution {
+    const post = detectInvoiceLanguage(ocr.rankedCandidates.map((candidate) => candidate.text));
+    const resolved = resolveDetectedLanguage(ocr.preOcrLanguage, post);
+
+    metadata.postOcrLanguage = post.code;
+    metadata.postOcrLanguageConfidence = formatConfidence(post.confidence);
+    metadata.documentLanguage = resolved.code;
+    metadata.documentLanguageConfidence = formatConfidence(resolved.confidence);
+
+    return {
+      preOcr: ocr.preOcrLanguage,
+      postOcr: post,
+      resolved
+    };
+  }
+
+  private async runSlmStage(params: {
+    input: ExtractionPipelineInput;
+    template: VendorTemplateSnapshot | undefined;
+    language: LanguageResolution;
+    ocr: OcrStageResult;
+    baselineParsed: ParsedInvoiceData;
+    fieldCandidates: Record<string, string[]>;
+    fieldRegions: Record<string, OcrBlock[]>;
+  }): Promise<SlmStageResult> {
+    const shouldAttachContext = this.shouldAttachDocumentContext(params.ocr.ocrConfidence, params.fieldCandidates);
+    const contextText = shouldAttachContext ? params.ocr.augmentedText || params.ocr.primaryCandidate.text : "";
+    const candidateScores = params.ocr.rankedCandidates.slice(0, 4).map((candidate) => ({
+      id: candidate.id,
+      score: candidate.score
+    }));
+
+    try {
+      const res = await this.fieldVerifier.verify({
+        parsed: params.baselineParsed,
+        ocrText: params.ocr.primaryCandidate.text,
+        ocrBlocks: params.ocr.ocrBlocks,
+        mode: "relaxed",
+        hints: {
+          mimeType: params.input.mimeType,
+          languageHint: params.language.resolved.code !== "und" ? params.language.resolved.code : undefined,
+          documentLanguage: params.language.resolved.code,
+          documentLanguageConfidence: params.language.resolved.confidence,
+          preOcrLanguage: params.language.preOcr.code,
+          preOcrLanguageConfidence: params.language.preOcr.confidence,
+          postOcrLanguage: params.language.postOcr.code,
+          postOcrLanguageConfidence: params.language.postOcr.confidence,
+          vendorNameHint: params.template?.vendorName,
+          vendorTemplateMatched: Boolean(params.template),
+          fieldCandidates: params.fieldCandidates,
+          fieldRegions: params.fieldRegions,
+          pageImages: params.ocr.ocrPageImages.slice(0, 3),
+          llmAssist: params.ocr.ocrConfidence * 100 < this.llmAssistConfidenceThreshold,
+          extractionMode: this.learningMode,
+          mergedBlocks: params.ocr.enhanced.mergedBlocks,
+          structuredLines: params.ocr.enhanced.lines,
+          structuredTables: params.ocr.enhanced.tables,
+          normalizedAmounts: params.ocr.enhanced.normalized.amounts,
+          normalizedDates: params.ocr.enhanced.normalized.dates,
+          normalizedCurrencies: params.ocr.enhanced.normalized.currencies,
+          documentContext: contextText || undefined,
+          fileName: params.input.attachmentName,
+          attachmentName: params.input.attachmentName,
+          ocrTextVariant: params.ocr.primaryCandidate.id,
+          ocrCandidateScores: candidateScores
+        }
+      });
+
+      const normalizedParsed = sanitizeParsedInvoiceData(res.parsed);
+      const parsed = Object.keys(normalizedParsed).length > 0 ? normalizedParsed : params.baselineParsed;
+      const classification = normalizeClassification(
+        res.classification ?? (res.invoiceType ? { invoiceType: res.invoiceType } : undefined)
+      );
+      return {
+        parsed,
+        tokens: res.tokenUsage?.totalTokens ?? 0,
+        issues: uniqueIssues(res.issues ?? []),
+        changedFields: uniqueIssues(res.changedFields ?? []),
+        fieldConfidence: normalizeFieldConfidence(res.fieldConfidence),
+        fieldProvenance: normalizeFieldProvenance(res.fieldProvenance),
+        lineItemProvenance: normalizeLineItemProvenance(res.lineItemProvenance) ?? [],
+        classification
+      };
+    } catch (error) {
+      logger.warn("extraction.pipeline.slm.failed", {
+        provider: this.fieldVerifier.name,
+        error: toErrorMessage(error)
+      });
+      return {
+        parsed: params.baselineParsed,
+        tokens: 0,
+        issues: ["SLM verification failed. Falling back to OCR heuristics."],
+        changedFields: [],
+        lineItemProvenance: []
+      };
+    }
+  }
+
+  private shouldAttachDocumentContext(
+    ocrConfidence: number,
+    fieldCandidates: Record<string, string[]>
+  ): boolean {
+    if (ocrConfidence < this.ocrHighConfidenceThreshold) {
+      return true;
+    }
+
+    return Object.values(fieldCandidates).some((candidates) => candidates.length > 1);
+  }
+
+  private async runCompliance(
     parsed: ParsedInvoiceData,
-    warnings: string[],
-    ocrConfidence?: number
-  ): ConfidenceAssessment {
+    input: ExtractionPipelineInput,
+    fingerprint: ReturnType<typeof computeVendorFingerprint>
+  ) {
+    if (!this.complianceEnricher) return;
+    try {
+      return await this.complianceEnricher.enrich(parsed, input.tenantId, fingerprint.key, {
+        contentHash: fingerprint.hash
+      });
+    } catch {
+      return;
+    }
+  }
+
+  private assessConfidence(input: ExtractionPipelineInput, parsed: ParsedInvoiceData, warnings: string[], ocrConfidence?: number) {
     return assessInvoiceConfidence({
       ocrConfidence,
       parsed,
@@ -630,12 +457,12 @@ export class InvoiceExtractionPipeline {
   }
 
   private assessConfidenceWithPenalty(
-    input: ExtractionPipelineInput,
-    parsed: ParsedInvoiceData,
-    warnings: string[],
-    ocrConfidence: number | undefined,
-    complianceRiskPenalty: number
-  ): ConfidenceAssessment {
+      input: ExtractionPipelineInput,
+      parsed: ParsedInvoiceData,
+      warnings: string[],
+      ocrConfidence: number | undefined,
+      penalty: number
+  ) {
     return assessInvoiceConfidence({
       ocrConfidence,
       parsed,
@@ -644,276 +471,151 @@ export class InvoiceExtractionPipeline {
       expectedMaxDueDays: input.expectedMaxDueDays,
       autoSelectMin: input.autoSelectMin,
       referenceDate: input.referenceDate,
-      complianceRiskPenalty
+      complianceRiskPenalty: penalty
     });
   }
 
-  private async cacheTemplate(
-    input: ExtractionPipelineInput,
-    fingerprintKey: string,
-    layoutSignature: string,
-    parsed: ParsedInvoiceData,
-    confidence: ConfidenceAssessment
-  ): Promise<void> {
-    if (confidence.score < input.autoSelectMin) {
-      return;
+  async saveOcrResult(result: OcrResult, enhanced: EnhancedOcrResult) {
+    const filePath = path.join("/tmp", "ocr_dumps", `${Date.now()}.json`);
+    await fs.mkdir(path.dirname(filePath), { recursive: true });
+    await fs.writeFile(filePath, JSON.stringify({ raw: result, enhanced }, null, 2));
+    logger.info("ocr.dump.saved", { filePath });
+  }
+}
+
+function mergeParsedInvoiceData(base: ParsedInvoiceData, override: ParsedInvoiceData): ParsedInvoiceData {
+  const baseNormalized = sanitizeParsedInvoiceData(base);
+  const overrideNormalized = sanitizeParsedInvoiceData(override);
+  const merged: ParsedInvoiceData = {
+    ...baseNormalized,
+    ...overrideNormalized
+  };
+
+  if (baseNormalized.gst || overrideNormalized.gst) {
+    merged.gst = {
+      ...(baseNormalized.gst ?? {}),
+      ...(overrideNormalized.gst ?? {})
+    };
+  }
+
+  if (overrideNormalized.lineItems && overrideNormalized.lineItems.length > 0) {
+    merged.lineItems = overrideNormalized.lineItems;
+  } else if (baseNormalized.lineItems && baseNormalized.lineItems.length > 0) {
+    merged.lineItems = baseNormalized.lineItems;
+  }
+
+  const notes = uniqueIssues([...(baseNormalized.notes ?? []), ...(overrideNormalized.notes ?? [])]);
+  if (notes.length > 0) {
+    merged.notes = notes;
+  }
+
+  return sanitizeParsedInvoiceData(merged);
+}
+
+function sanitizeParsedInvoiceData(parsed: ParsedInvoiceData | undefined): ParsedInvoiceData {
+  if (!parsed) {
+    return {};
+  }
+
+  const normalized: ParsedInvoiceData = {};
+  const copyString = (value: unknown): string | undefined => {
+    if (typeof value !== "string") {
+      return undefined;
     }
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : undefined;
+  };
 
-    const template = templateFromParsed(
-      input.tenantId,
-      fingerprintKey,
-      layoutSignature,
-      parsed,
-      confidence.score
-    );
-    if (!template) {
-      return;
+  const invoiceNumber = copyString(parsed.invoiceNumber);
+  if (invoiceNumber) {
+    normalized.invoiceNumber = invoiceNumber;
+  }
+  const vendorName = copyString(parsed.vendorName);
+  if (vendorName) {
+    normalized.vendorName = vendorName;
+  }
+  const invoiceDate = copyString(parsed.invoiceDate);
+  if (invoiceDate) {
+    normalized.invoiceDate = invoiceDate;
+  }
+  const dueDate = copyString(parsed.dueDate);
+  if (dueDate) {
+    normalized.dueDate = dueDate;
+  }
+  const currency = copyString(parsed.currency);
+  if (currency) {
+    normalized.currency = currency.toUpperCase();
+  }
+  if (Number.isInteger(parsed.totalAmountMinor) && (parsed.totalAmountMinor ?? 0) > 0) {
+    normalized.totalAmountMinor = parsed.totalAmountMinor;
+  }
+
+  const notes = uniqueIssues(parsed.notes ?? []);
+  if (notes.length > 0) {
+    normalized.notes = notes;
+  }
+
+  const gst = parsed.gst;
+  if (gst) {
+    const normalizedGst: NonNullable<ParsedInvoiceData["gst"]> = {};
+    if (copyString(gst.gstin)) {
+      normalizedGst.gstin = gst.gstin?.trim();
     }
-
-    await this.templateStore.saveOrUpdate(template);
-    logger.info("vendor.template.cached", {
-      tenantId: input.tenantId,
-      fingerprintKey,
-      vendorName: template.vendorName,
-      confidenceScore: confidence.score
-    });
-  }
-}
-
-function shouldPreferVendorProvenanceBlock(
-  currentBlock: OcrBlock | undefined,
-  preferredBlock: OcrBlock,
-  vendorName: string
-): boolean {
-  if (!currentBlock) {
-    return true;
-  }
-  if (!blockMatchesFieldValue("vendorName", vendorName, currentBlock)) {
-    return true;
-  }
-  const currentText = currentBlock.text.trim();
-  const preferredText = preferredBlock.text.trim();
-  const currentHasCorporateSuffix = /\b(llc|inc|limited|private|pbc|ltd)\b/i.test(currentText);
-  const preferredHasCorporateSuffix = /\b(llc|inc|limited|private|pbc|ltd)\b/i.test(preferredText);
-  if (!currentHasCorporateSuffix && preferredHasCorporateSuffix) {
-    return true;
-  }
-  return false;
-}
-
-function shouldPreferTotalAmountProvenanceBlock(
-  currentBlock: OcrBlock | undefined,
-  preferredBlock: OcrBlock,
-  totalAmountMinor: number | undefined,
-  ocrBlocks: OcrBlock[]
-): boolean {
-  if (typeof totalAmountMinor !== "number" || totalAmountMinor <= 0) {
-    return false;
-  }
-  if (!currentBlock) {
-    return true;
-  }
-  if (!blockMatchesFieldValue("totalAmountMinor", totalAmountMinor, currentBlock)) {
-    return true;
-  }
-  const currentAmount = parseAmountToken(currentBlock.text);
-  const preferredAmount = parseAmountToken(preferredBlock.text);
-  const currentIsPlainNumeric = !/[A-Za-z]{3}/.test(currentBlock.text);
-  const preferredIsPlainNumeric = !/[A-Za-z]{3}/.test(preferredBlock.text);
-  const currentY = currentBlock.bboxNormalized?.[1] ?? Number.POSITIVE_INFINITY;
-  const preferredY = preferredBlock.bboxNormalized?.[1] ?? Number.POSITIVE_INFINITY;
-  if (
-    currentAmount !== null &&
-    preferredAmount !== null &&
-    Math.round(currentAmount * 100) === totalAmountMinor &&
-    Math.round(preferredAmount * 100) === totalAmountMinor &&
-    !preferredIsPlainNumeric &&
-    currentIsPlainNumeric
-  ) {
-    return false;
-  }
-  if (
-    currentAmount !== null &&
-    preferredAmount !== null &&
-    Math.round(currentAmount * 100) === totalAmountMinor &&
-    Math.round(preferredAmount * 100) === totalAmountMinor &&
-    preferredIsPlainNumeric &&
-    !currentIsPlainNumeric
-  ) {
-    return true;
-  }
-  if (
-    currentAmount !== null &&
-    preferredAmount !== null &&
-    Math.round(currentAmount * 100) === totalAmountMinor &&
-    Math.round(preferredAmount * 100) === totalAmountMinor &&
-    currentIsPlainNumeric &&
-    preferredIsPlainNumeric &&
-    preferredY < currentY
-  ) {
-    return true;
-  }
-
-  const currentScore = scoreTotalAmountProvenanceBlock(currentBlock, totalAmountMinor, ocrBlocks);
-  const preferredScore = scoreTotalAmountProvenanceBlock(preferredBlock, totalAmountMinor, ocrBlocks);
-  return preferredScore > currentScore;
-}
-
-function selectBestTotalAmountProvenanceBlock(
-  totalAmountMinor: number | undefined,
-  ocrBlocks: OcrBlock[]
-): { block: OcrBlock; index: number } | undefined {
-  if (typeof totalAmountMinor !== "number" || totalAmountMinor <= 0) {
-    return undefined;
-  }
-
-  const matches = ocrBlocks
-    .map((block, index) => ({ block, index }))
-    .filter((entry) => {
-      const amount = parseAmountToken(entry.block.text);
-      return amount !== null && Math.round(amount * 100) === totalAmountMinor;
-    });
-  if (matches.length === 0) {
-    return undefined;
-  }
-  const paymentContextMatches = matches
-    .filter((entry) => hasPaymentContextBelow(entry.block, ocrBlocks))
-    .sort((left, right) => {
-      const leftY = left.block.bboxNormalized?.[1] ?? Number.POSITIVE_INFINITY;
-      const rightY = right.block.bboxNormalized?.[1] ?? Number.POSITIVE_INFINITY;
-      return leftY - rightY;
-    });
-  if (paymentContextMatches.length > 0) {
-    return paymentContextMatches[0];
-  }
-  const summaryLabelPattern = /\b(subtotal|total|grand total|invoice total|amount due|balance due|total due|amount payable)\b/i;
-  const summaryMatches = matches
-    .map((entry) => ({ entry, labelText: findNearestSameRowLabelText(entry.block, ocrBlocks) }))
-    .filter(({ labelText }) => summaryLabelPattern.test(labelText))
-    .sort((left, right) => {
-      const leftPriority = summaryLabelPriority(left.entry.block.text, left.labelText);
-      const rightPriority = summaryLabelPriority(right.entry.block.text, right.labelText);
-      if (leftPriority !== rightPriority) {
-        return leftPriority - rightPriority;
+    for (const field of [
+      "subtotalMinor",
+      "cgstMinor",
+      "sgstMinor",
+      "igstMinor",
+      "cessMinor",
+      "totalTaxMinor"
+    ] as const) {
+      const value = gst[field];
+      if (typeof value === "number" && Number.isInteger(value) && value >= 0) {
+        normalizedGst[field] = value;
       }
-      const leftHasCurrencyCode = /[A-Za-z]{3}/.test(left.entry.block.text);
-      const rightHasCurrencyCode = /[A-Za-z]{3}/.test(right.entry.block.text);
-      if (leftHasCurrencyCode !== rightHasCurrencyCode) {
-        return Number(leftHasCurrencyCode) - Number(rightHasCurrencyCode);
-      }
-      const leftY = left.entry.block.bboxNormalized?.[1] ?? Number.POSITIVE_INFINITY;
-      const rightY = right.entry.block.bboxNormalized?.[1] ?? Number.POSITIVE_INFINITY;
-      return leftY - rightY;
-    });
-  if (summaryMatches.length > 0) {
-    return summaryMatches[0].entry;
-  }
-  const plainNumericMatches = matches
-    .filter((entry) => !/[A-Za-z]{3}/.test(entry.block.text))
-    .sort((left, right) => {
-      const leftY = left.block.bboxNormalized?.[1] ?? Number.POSITIVE_INFINITY;
-      const rightY = right.block.bboxNormalized?.[1] ?? Number.POSITIVE_INFINITY;
-      return leftY - rightY;
-    });
-  if (plainNumericMatches.length > 1) {
-    return plainNumericMatches[0];
+    }
+    if (Object.keys(normalizedGst).length > 0) {
+      normalized.gst = normalizedGst;
+    }
   }
 
-  matches.sort((left, right) => (
-    scoreTotalAmountProvenanceBlock(right.block, totalAmountMinor, ocrBlocks) -
-    scoreTotalAmountProvenanceBlock(left.block, totalAmountMinor, ocrBlocks)
-  ));
-  return matches[0];
-}
-
-function scoreTotalAmountProvenanceBlock(
-  block: OcrBlock,
-  totalAmountMinor: number | undefined,
-  ocrBlocks: OcrBlock[]
-): number {
-  if (typeof totalAmountMinor !== "number" || totalAmountMinor <= 0) {
-    return Number.NEGATIVE_INFINITY;
-  }
-  const amount = parseAmountToken(block.text);
-  if (amount === null || Math.round(amount * 100) !== totalAmountMinor) {
-    return Number.NEGATIVE_INFINITY;
-  }
-
-  let score = 0;
-  const box = block.bboxNormalized;
-  if (box) {
-    score += box[1] * 4;
-  }
-  const labelText = findNearestSameRowLabelText(block, ocrBlocks);
-  if (/^total$/i.test(labelText)) {
-    score += 20;
-  } else if (/\b(grand total|invoice total|total amount)\b/i.test(labelText)) {
-    score += 18;
-  } else if (/\b(amount due|balance due|total due|amount payable)\b/i.test(labelText)) {
-    score += 10;
-  }
-  if (/[A-Za-z]{3}/.test(block.text)) {
-    score -= 6;
-  }
-  if (hasPaymentContextBelow(block, ocrBlocks)) {
-    score += 14;
-  }
-  return score;
-}
-
-function findNearestSameRowLabelText(block: OcrBlock, ocrBlocks: OcrBlock[]): string {
-  const amountBox = block.bboxNormalized;
-  if (!amountBox) {
-    return "";
-  }
-
-  return (
-    ocrBlocks
-      .filter((candidate) => candidate !== block && Boolean(candidate.bboxNormalized))
-      .filter((candidate) => (candidate.bboxNormalized?.[2] ?? 1) <= amountBox[0] + 0.01)
-      .filter((candidate) => {
-        const box = candidate.bboxNormalized!;
-        return Math.abs(((box[1] + box[3]) / 2) - ((amountBox[1] + amountBox[3]) / 2)) <= 0.016;
+  if (Array.isArray(parsed.lineItems)) {
+    const lineItems = parsed.lineItems
+      .map((item) => {
+        const description = copyString(item.description) ?? "";
+        if (!Number.isInteger(item.amountMinor) || item.amountMinor <= 0) {
+          return undefined;
+        }
+        return {
+          ...item,
+          description
+        };
       })
-      .sort((left, right) => (right.bboxNormalized?.[2] ?? 0) - (left.bboxNormalized?.[2] ?? 0))[0]
-      ?.text.trim() ?? ""
-  );
+      .filter((item): item is NonNullable<typeof item> => Boolean(item));
+    if (lineItems.length > 0) {
+      normalized.lineItems = lineItems;
+    }
+  }
+
+  const pan = copyString(parsed.pan);
+  if (pan) {
+    normalized.pan = pan.toUpperCase();
+  }
+  const bankAccountNumber = copyString(parsed.bankAccountNumber);
+  if (bankAccountNumber) {
+    normalized.bankAccountNumber = bankAccountNumber;
+  }
+  const bankIfsc = copyString(parsed.bankIfsc);
+  if (bankIfsc) {
+    normalized.bankIfsc = bankIfsc.toUpperCase();
+  }
+
+  return normalized;
 }
 
-function hasPaymentContextBelow(block: OcrBlock, ocrBlocks: OcrBlock[]): boolean {
-  const box = block.bboxNormalized;
-  if (!box) {
-    return false;
+function toErrorMessage(error: unknown): string {
+  if (error instanceof Error) {
+    return error.message;
   }
-  const blockMidY = (box[1] + box[3]) / 2;
-  return ocrBlocks.some((candidate) => {
-    const candidateBox = candidate.bboxNormalized;
-    if (!candidateBox) {
-      return false;
-    }
-    const candidateMidY = (candidateBox[1] + candidateBox[3]) / 2;
-    if (candidateMidY < blockMidY - 0.004 || candidateBox[1] > box[3] + 0.035) {
-      return false;
-    }
-    return /\b(paid via|paid on|payment method)\b/i.test(candidate.text);
-  });
-}
-
-function summaryLabelPriority(blockText: string, labelText: string): number {
-  if (/^total$/i.test(labelText) && /\bUS\$/i.test(blockText)) {
-    return 0;
-  }
-  if (/^subtotal$/i.test(labelText)) {
-    return 1;
-  }
-  if (/^total$/i.test(labelText)) {
-    return 2;
-  }
-  if (/\b(grand total|invoice total)\b/i.test(labelText)) {
-    return 3;
-  }
-  if (/\b(amount due|balance due|total due|amount payable)\b/i.test(labelText)) {
-    return 4;
-  }
-  return 5;
+  return String(error);
 }

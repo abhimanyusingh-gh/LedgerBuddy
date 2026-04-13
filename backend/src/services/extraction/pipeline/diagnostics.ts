@@ -5,7 +5,7 @@ import {
   findBlockByAmountValue,
   findBlockByLabelProximity,
   findBlockForField,
-  FIELD_LABEL_PATTERNS,
+  DEFAULT_FIELD_LABEL_PATTERNS,
   findPreferredDateValueBlock
 } from "./grounding.js";
 import { looksLikeAddress } from "./textHeuristics.js";
@@ -193,7 +193,7 @@ export function addFieldDiagnosticsToMetadata(params: {
       matched = { block: params.ocrBlocks[slmBlockIndex], index: slmBlockIndex };
     } else {
       if (field.startsWith("gst.") && typeof value === "number") {
-        matched = findBlockByAmountValue(value, params.ocrBlocks, FIELD_LABEL_PATTERNS[field]);
+        matched = findBlockByAmountValue(value, params.ocrBlocks, DEFAULT_FIELD_LABEL_PATTERNS[field]);
       }
       if (!matched) {
         matched =

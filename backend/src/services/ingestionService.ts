@@ -62,7 +62,7 @@ export class IngestionService {
     this.fileStore = options?.fileStore;
     this.pipeline =
       options?.pipeline ??
-      new InvoiceExtractionPipeline(this.ocrProvider, new NoopFieldVerifier(), new MongoVendorTemplateStore(), undefined);
+      new InvoiceExtractionPipeline({ ocrProvider: this.ocrProvider, fieldVerifier: new NoopFieldVerifier(), templateStore: new MongoVendorTemplateStore() });
   }
 
   requestPause(): void {

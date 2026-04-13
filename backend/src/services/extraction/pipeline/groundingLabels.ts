@@ -1,4 +1,4 @@
-export const FIELD_LABEL_PATTERNS: Record<string, RegExp> = {
+export const DEFAULT_FIELD_LABEL_PATTERNS: Record<string, RegExp> = {
   invoiceNumber: /^((?:pro(?:forma|perma)?|performa)\s+invoice\s*(?:number|no\.?|#)?|invoice\s*(?:number|no\.?|#)|bill\s*(?:number|no\.?|#)|inv\s*(?:no\.?|#))$/i,
   vendorName: /^(vendor|supplier|sold\s*by|company|from)$/i,
   invoiceDate: /^(invoice\s*date|bill\s*date|date|dated|date\s*of\s*issue|issue\s*date)$/i,

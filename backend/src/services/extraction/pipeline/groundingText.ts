@@ -2,7 +2,7 @@ import type { OcrBlock } from "../../../core/interfaces/OcrProvider.js";
 import type { ParsedInvoiceData } from "../../../types/invoice.js";
 import { currencyBySymbol, parseAmountToken } from "../../../parser/invoiceParser.js";
 import { looksLikeAddress } from "./textHeuristics.js";
-import { FIELD_LABEL_PATTERNS } from "./groundingLabels.js";
+import { DEFAULT_FIELD_LABEL_PATTERNS } from "./groundingLabels.js";
 
 type FieldAlignmentProfile = {
   minLeftGap: number;
@@ -99,7 +99,7 @@ export function findBlockByLabelProximity(
   field: keyof ParsedInvoiceData,
   blocks: OcrBlock[]
 ): { block: OcrBlock; index: number } | undefined {
-  const labelPattern = FIELD_LABEL_PATTERNS[field];
+  const labelPattern = DEFAULT_FIELD_LABEL_PATTERNS[field];
   if (!labelPattern || blocks.length === 0) {
     return undefined;
   }
