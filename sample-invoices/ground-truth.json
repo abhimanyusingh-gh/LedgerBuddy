@@ -1047,26 +1047,44 @@
       "invoiceNumber": "5133",
       "vendorNameContains": "Kalpana Digitals",
       "invoiceDate": "2025-04-01",
-      "currency": "INR"
+      "currency": "INR",
+      "fieldProvenance": {
+        "invoiceNumber": { "page": 1, "bboxNormalized": [0.22, 0.22, 0.45, 0.26] },
+        "vendorName": { "page": 1, "bboxNormalized": [0.10, 0.06, 0.90, 0.12] },
+        "invoiceDate": { "page": 1, "bboxNormalized": [0.55, 0.22, 0.85, 0.26] }
+      }
     },
     {
       "file": "DV-01042025 Rapi4B ceiling mount screws.jpeg",
       "vendorNameContains": "Kothari Fasteners",
       "currency": "INR",
-      "totalAmountMinor": 32000
+      "totalAmountMinor": 32000,
+      "fieldProvenance": {
+        "vendorName": { "page": 1, "bboxNormalized": [0.10, 0.03, 0.90, 0.10] },
+        "totalAmountMinor": { "page": 1, "bboxNormalized": [0.60, 0.82, 0.95, 0.87] }
+      }
     },
     {
       "file": "DV-02042025 PVC clips for Wire hanging.jpeg",
       "vendorNameContains": "kelater",
       "currency": "INR",
-      "totalAmountMinor": 6000
+      "totalAmountMinor": 6000,
+      "fieldProvenance": {
+        "vendorName": { "page": 1, "bboxNormalized": [0.25, 0.82, 0.75, 0.92] },
+        "totalAmountMinor": { "page": 1, "bboxNormalized": [0.50, 0.72, 0.90, 0.78] }
+      }
     },
     {
       "file": "DV-02042025 Uber for Ceiling Mounts.pdf",
       "vendorNameContains": "Uber",
       "invoiceDate": "2025-04-02",
       "currency": "INR",
-      "totalAmountMinor": 14729
+      "totalAmountMinor": 14729,
+      "fieldProvenance": {
+        "vendorName": { "page": 1, "bboxNormalized": [0.10, 0.05, 0.25, 0.10] },
+        "invoiceDate": { "page": 1, "bboxNormalized": [0.78, 0.05, 0.98, 0.09] },
+        "totalAmountMinor": { "page": 1, "bboxNormalized": [0.75, 0.17, 0.98, 0.22] }
+      }
     },
     {
       "file": "DV-26032025 ThinkRobotics CSI Connector.pdf",
@@ -1083,6 +1101,12 @@
         "subtotalMinor": 15671,
         "igstMinor": 2822,
         "totalTaxMinor": 2822
+      },
+      "fieldProvenance": {
+        "invoiceNumber": { "page": 1, "bboxNormalized": [0.48, 0.02, 0.75, 0.06] },
+        "vendorName": { "page": 1, "bboxNormalized": [0.02, 0.02, 0.20, 0.06] },
+        "invoiceDate": { "page": 1, "bboxNormalized": [0.48, 0.09, 0.75, 0.13] },
+        "totalAmountMinor": { "page": 1, "bboxNormalized": [0.88, 0.86, 1.00, 0.91] }
       }
     },
     {
@@ -1095,7 +1119,13 @@
       "totalAmountMinor": 6000000,
       "lineItemAmountsMinor": [
         6000000
-      ]
+      ],
+      "fieldProvenance": {
+        "invoiceNumber": { "page": 1, "bboxNormalized": [0.25, 0.08, 0.75, 0.13] },
+        "vendorName": { "page": 1, "bboxNormalized": [0.05, 0.16, 0.55, 0.24] },
+        "invoiceDate": { "page": 1, "bboxNormalized": [0.37, 0.37, 0.57, 0.41] },
+        "totalAmountMinor": { "page": 1, "bboxNormalized": [0.55, 0.71, 0.95, 0.76] }
+      }
     },
     {
       "file": "DV-CIE25040046.pdf",
@@ -1107,7 +1137,13 @@
       "totalAmountMinor": 7450000,
       "lineItemAmountsMinor": [
         7450000
-      ]
+      ],
+      "fieldProvenance": {
+        "invoiceNumber": { "page": 1, "bboxNormalized": [0.25, 0.08, 0.75, 0.13] },
+        "vendorName": { "page": 1, "bboxNormalized": [0.05, 0.16, 0.55, 0.24] },
+        "invoiceDate": { "page": 1, "bboxNormalized": [0.37, 0.37, 0.57, 0.41] },
+        "totalAmountMinor": { "page": 1, "bboxNormalized": [0.55, 0.71, 0.95, 0.76] }
+      }
     },
     {
       "file": "DV-DHL.pdf",
@@ -1120,6 +1156,12 @@
         "subtotalMinor": 515566,
         "igstMinor": 92801,
         "totalTaxMinor": 92801
+      },
+      "fieldProvenance": {
+        "invoiceNumber": { "page": 1, "bboxNormalized": [0.60, 0.20, 0.98, 0.24] },
+        "vendorName": { "page": 1, "bboxNormalized": [0.60, 0.02, 0.98, 0.07] },
+        "invoiceDate": { "page": 1, "bboxNormalized": [0.60, 0.24, 0.98, 0.28] },
+        "totalAmountMinor": { "page": 1, "bboxNormalized": [0.55, 0.60, 0.98, 0.65] }
       }
     },
     {
@@ -1137,6 +1179,12 @@
         "cgstMinor": 953390,
         "sgstMinor": 953390,
         "totalTaxMinor": 1906780
+      },
+      "fieldProvenance": {
+        "invoiceNumber": { "page": 1, "bboxNormalized": [0.55, 0.26, 0.95, 0.30] },
+        "vendorName": { "page": 1, "bboxNormalized": [0.20, 0.10, 0.80, 0.16] },
+        "invoiceDate": { "page": 1, "bboxNormalized": [0.55, 0.30, 0.95, 0.34] },
+        "totalAmountMinor": { "page": 1, "bboxNormalized": [0.55, 0.88, 0.98, 0.93] }
       }
     },
     {
@@ -1149,7 +1197,13 @@
       "totalAmountMinor": 3454,
       "lineItemAmountsMinor": [
         3198
-      ]
+      ],
+      "fieldProvenance": {
+        "invoiceNumber": { "page": 1, "bboxNormalized": [0.23, 0.19, 0.55, 0.22] },
+        "vendorName": { "page": 1, "bboxNormalized": [0.78, 0.02, 1.00, 0.09] },
+        "invoiceDate": { "page": 1, "bboxNormalized": [0.23, 0.15, 0.55, 0.18] },
+        "totalAmountMinor": { "page": 1, "bboxNormalized": [0.72, 0.87, 1.00, 0.91] }
+      }
     },
     {
       "file": "DV-INV274339782.pdf",
@@ -1161,7 +1215,13 @@
       "totalAmountMinor": 3454,
       "lineItemAmountsMinor": [
         3198
-      ]
+      ],
+      "fieldProvenance": {
+        "invoiceNumber": { "page": 1, "bboxNormalized": [0.23, 0.19, 0.55, 0.22] },
+        "vendorName": { "page": 1, "bboxNormalized": [0.78, 0.02, 1.00, 0.09] },
+        "invoiceDate": { "page": 1, "bboxNormalized": [0.23, 0.15, 0.55, 0.18] },
+        "totalAmountMinor": { "page": 1, "bboxNormalized": [0.72, 0.87, 1.00, 0.91] }
+      }
     },
     {
       "file": "DV-INV64030142.pdf",
@@ -1174,7 +1234,13 @@
       "lineItemAmountsMinor": [
         2000,
         1500
-      ]
+      ],
+      "fieldProvenance": {
+        "invoiceNumber": { "page": 1, "bboxNormalized": [0.63, 0.19, 0.95, 0.22] },
+        "vendorName": { "page": 1, "bboxNormalized": [0.02, 0.03, 0.18, 0.07] },
+        "invoiceDate": { "page": 1, "bboxNormalized": [0.63, 0.23, 0.95, 0.26] },
+        "totalAmountMinor": { "page": 1, "bboxNormalized": [0.72, 0.73, 0.98, 0.77] }
+      }
     },
     {
       "file": "DV-INV66634981.pdf",
@@ -1187,7 +1253,13 @@
       "lineItemAmountsMinor": [
         2000,
         1500
-      ]
+      ],
+      "fieldProvenance": {
+        "invoiceNumber": { "page": 1, "bboxNormalized": [0.63, 0.19, 0.95, 0.22] },
+        "vendorName": { "page": 1, "bboxNormalized": [0.02, 0.03, 0.18, 0.07] },
+        "invoiceDate": { "page": 1, "bboxNormalized": [0.63, 0.23, 0.95, 0.26] },
+        "totalAmountMinor": { "page": 1, "bboxNormalized": [0.72, 0.73, 0.98, 0.77] }
+      }
     },
     {
       "file": "DV-INV69313348.pdf",
@@ -1200,7 +1272,13 @@
       "lineItemAmountsMinor": [
         2000,
         1500
-      ]
+      ],
+      "fieldProvenance": {
+        "invoiceNumber": { "page": 1, "bboxNormalized": [0.63, 0.19, 0.95, 0.22] },
+        "vendorName": { "page": 1, "bboxNormalized": [0.02, 0.03, 0.18, 0.07] },
+        "invoiceDate": { "page": 1, "bboxNormalized": [0.63, 0.23, 0.95, 0.26] },
+        "totalAmountMinor": { "page": 1, "bboxNormalized": [0.72, 0.73, 0.98, 0.77] }
+      }
     },
     {
       "file": "DV-INV72091489.pdf",
@@ -1213,7 +1291,13 @@
       "lineItemAmountsMinor": [
         2000,
         1500
-      ]
+      ],
+      "fieldProvenance": {
+        "invoiceNumber": { "page": 1, "bboxNormalized": [0.63, 0.19, 0.95, 0.22] },
+        "vendorName": { "page": 1, "bboxNormalized": [0.02, 0.03, 0.18, 0.07] },
+        "invoiceDate": { "page": 1, "bboxNormalized": [0.63, 0.23, 0.95, 0.26] },
+        "totalAmountMinor": { "page": 1, "bboxNormalized": [0.72, 0.73, 0.98, 0.77] }
+      }
     },
     {
       "file": "DV-Murthy_Law_reimbursement_19-0441HHHH-0001.pdf",
@@ -1224,7 +1308,13 @@
       "totalAmountMinor": 400000,
       "lineItemAmountsMinor": [
         400000
-      ]
+      ],
+      "fieldProvenance": {
+        "invoiceNumber": { "page": 1, "bboxNormalized": [0.18, 0.36, 0.52, 0.40] },
+        "vendorName": { "page": 1, "bboxNormalized": [0.23, 0.02, 0.78, 0.06] },
+        "invoiceDate": { "page": 1, "bboxNormalized": [0.04, 0.36, 0.16, 0.40] },
+        "totalAmountMinor": { "page": 1, "bboxNormalized": [0.55, 0.83, 0.90, 0.87] }
+      }
     },
     {
       "file": "DV-Payment invoice - Dropbox- mar.pdf",
@@ -1232,7 +1322,13 @@
       "vendorNameContains": "Dropbox",
       "invoiceDate": "2025-05-23",
       "currency": "USD",
-      "totalAmountMinor": 13515
+      "totalAmountMinor": 13515,
+      "fieldProvenance": {
+        "invoiceNumber": { "page": 1, "bboxNormalized": [0.55, 0.32, 0.98, 0.36] },
+        "vendorName": { "page": 1, "bboxNormalized": [0.02, 0.12, 0.20, 0.16] },
+        "invoiceDate": { "page": 1, "bboxNormalized": [0.27, 0.32, 0.55, 0.36] },
+        "totalAmountMinor": { "page": 1, "bboxNormalized": [0.60, 0.76, 0.98, 0.80] }
+      }
     },
     {
       "file": "DV-Payment invoice - Dropbox-dec.pdf",
@@ -1240,7 +1336,13 @@
       "vendorNameContains": "Dropbox",
       "invoiceDate": "2024-12-23",
       "currency": "USD",
-      "totalAmountMinor": 13515
+      "totalAmountMinor": 13515,
+      "fieldProvenance": {
+        "invoiceNumber": { "page": 1, "bboxNormalized": [0.55, 0.32, 0.98, 0.36] },
+        "vendorName": { "page": 1, "bboxNormalized": [0.02, 0.12, 0.20, 0.16] },
+        "invoiceDate": { "page": 1, "bboxNormalized": [0.27, 0.32, 0.55, 0.36] },
+        "totalAmountMinor": { "page": 1, "bboxNormalized": [0.60, 0.76, 0.98, 0.80] }
+      }
     },
     {
       "file": "DV-Payment invoice - Dropbox-jan.pdf",
@@ -1248,7 +1350,13 @@
       "vendorNameContains": "Dropbox",
       "invoiceDate": "2025-01-23",
       "currency": "USD",
-      "totalAmountMinor": 13515
+      "totalAmountMinor": 13515,
+      "fieldProvenance": {
+        "invoiceNumber": { "page": 1, "bboxNormalized": [0.55, 0.32, 0.98, 0.36] },
+        "vendorName": { "page": 1, "bboxNormalized": [0.02, 0.12, 0.20, 0.16] },
+        "invoiceDate": { "page": 1, "bboxNormalized": [0.27, 0.32, 0.55, 0.36] },
+        "totalAmountMinor": { "page": 1, "bboxNormalized": [0.60, 0.76, 0.98, 0.80] }
+      }
     },
     {
       "file": "DV-Robu IN.pdf",
@@ -1261,6 +1369,12 @@
         "subtotalMinor": 608052,
         "igstMinor": 109448,
         "totalTaxMinor": 109448
+      },
+      "fieldProvenance": {
+        "invoiceNumber": { "page": 1, "bboxNormalized": [0.50, 0.21, 0.85, 0.25] },
+        "vendorName": { "page": 1, "bboxNormalized": [0.10, 0.02, 0.45, 0.08] },
+        "invoiceDate": { "page": 1, "bboxNormalized": [0.50, 0.25, 0.75, 0.29] },
+        "totalAmountMinor": { "page": 1, "bboxNormalized": [0.55, 0.88, 0.95, 0.92] }
       }
     },
     {
@@ -1278,6 +1392,12 @@
         "cgstMinor": 72000,
         "sgstMinor": 72000,
         "totalTaxMinor": 144000
+      },
+      "fieldProvenance": {
+        "invoiceNumber": { "page": 1, "bboxNormalized": [0.38, 0.18, 0.72, 0.22] },
+        "vendorName": { "page": 1, "bboxNormalized": [0.02, 0.02, 0.45, 0.07] },
+        "invoiceDate": { "page": 1, "bboxNormalized": [0.38, 0.22, 0.72, 0.26] },
+        "totalAmountMinor": { "page": 1, "bboxNormalized": [0.60, 0.85, 0.98, 0.89] }
       }
     },
     {
@@ -1295,6 +1415,12 @@
         "subtotalMinor": 304900,
         "igstMinor": 54882,
         "totalTaxMinor": 54882
+      },
+      "fieldProvenance": {
+        "invoiceNumber": { "page": 1, "bboxNormalized": [0.55, 0.22, 0.88, 0.26] },
+        "vendorName": { "page": 1, "bboxNormalized": [0.55, 0.02, 0.98, 0.08] },
+        "invoiceDate": { "page": 1, "bboxNormalized": [0.55, 0.26, 0.88, 0.30] },
+        "totalAmountMinor": { "page": 1, "bboxNormalized": [0.65, 0.88, 0.98, 0.93] }
       }
     },
     {
@@ -1302,7 +1428,12 @@
       "vendorNameContains": "American Airlines",
       "invoiceDate": "2022-08-31",
       "currency": "USD",
-      "totalAmountMinor": 124440
+      "totalAmountMinor": 124440,
+      "fieldProvenance": {
+        "vendorName": { "page": 1, "bboxNormalized": [0.13, 0.26, 0.45, 0.31] },
+        "invoiceDate": { "page": 1, "bboxNormalized": [0.13, 0.33, 0.38, 0.37] },
+        "totalAmountMinor": { "page": 1, "bboxNormalized": [0.13, 0.59, 0.90, 0.63] }
+      }
     },
     {
       "file": "FC-2217-19.01.2026- FICOSA INT. SWIFT DZIRE.pdf",
@@ -1320,6 +1451,12 @@
         "subtotalMinor": 7670000,
         "igstMinor": 1380600,
         "totalTaxMinor": 1380600
+      },
+      "fieldProvenance": {
+        "invoiceNumber": { "page": 1, "bboxNormalized": [0.38, 0.17, 0.75, 0.21] },
+        "vendorName": { "page": 1, "bboxNormalized": [0.18, 0.02, 0.55, 0.10] },
+        "invoiceDate": { "page": 1, "bboxNormalized": [0.38, 0.21, 0.75, 0.25] },
+        "totalAmountMinor": { "page": 1, "bboxNormalized": [0.55, 0.82, 0.98, 0.87] }
       }
     },
     {
@@ -1338,6 +1475,12 @@
         "subtotalMinor": 7655000,
         "igstMinor": 1377900,
         "totalTaxMinor": 1377900
+      },
+      "fieldProvenance": {
+        "invoiceNumber": { "page": 1, "bboxNormalized": [0.38, 0.17, 0.75, 0.21] },
+        "vendorName": { "page": 1, "bboxNormalized": [0.18, 0.02, 0.55, 0.10] },
+        "invoiceDate": { "page": 1, "bboxNormalized": [0.38, 0.21, 0.75, 0.25] },
+        "totalAmountMinor": { "page": 1, "bboxNormalized": [0.55, 0.82, 0.98, 0.87] }
       }
     },
     {
@@ -1353,6 +1496,12 @@
         "cgstMinor": 742500,
         "sgstMinor": 742500,
         "totalTaxMinor": 1485000
+      },
+      "fieldProvenance": {
+        "invoiceNumber": { "page": 1, "bboxNormalized": [0.04, 0.37, 0.45, 0.41] },
+        "vendorName": { "page": 1, "bboxNormalized": [0.04, 0.09, 0.45, 0.14] },
+        "invoiceDate": { "page": 1, "bboxNormalized": [0.18, 0.44, 0.32, 0.48] },
+        "totalAmountMinor": { "page": 1, "bboxNormalized": [0.38, 0.60, 0.55, 0.65] }
       }
     },
     {
@@ -1362,7 +1511,13 @@
       "invoiceDate": "2026-03-18",
       "dueDate": "2026-04-05",
       "currency": "INR",
-      "totalAmountMinor": 924058
+      "totalAmountMinor": 924058,
+      "fieldProvenance": {
+        "invoiceNumber": { "page": 1, "bboxNormalized": [0.52, 0.16, 0.98, 0.19] },
+        "vendorName": { "page": 1, "bboxNormalized": [0.55, 0.02, 0.98, 0.06] },
+        "invoiceDate": { "page": 1, "bboxNormalized": [0.52, 0.19, 0.98, 0.22] },
+        "totalAmountMinor": { "page": 1, "bboxNormalized": [0.52, 0.50, 0.98, 0.55] }
+      }
     },
     {
       "file": "FC-AIT Solutions_524.pdf",
@@ -1379,6 +1534,12 @@
         "cgstMinor": 123210,
         "sgstMinor": 123210,
         "totalTaxMinor": 246420
+      },
+      "fieldProvenance": {
+        "invoiceNumber": { "page": 1, "bboxNormalized": [0.50, 0.22, 0.80, 0.25] },
+        "vendorName": { "page": 1, "bboxNormalized": [0.02, 0.14, 0.48, 0.19] },
+        "invoiceDate": { "page": 1, "bboxNormalized": [0.50, 0.25, 0.80, 0.28] },
+        "totalAmountMinor": { "page": 1, "bboxNormalized": [0.62, 0.93, 0.98, 0.97] }
       }
     },
     {
@@ -1399,6 +1560,12 @@
         "cgstMinor": 307800,
         "sgstMinor": 307800,
         "totalTaxMinor": 615600
+      },
+      "fieldProvenance": {
+        "invoiceNumber": { "page": 1, "bboxNormalized": [0.50, 0.22, 0.80, 0.25] },
+        "vendorName": { "page": 1, "bboxNormalized": [0.02, 0.02, 0.48, 0.07] },
+        "invoiceDate": { "page": 1, "bboxNormalized": [0.50, 0.25, 0.80, 0.28] },
+        "totalAmountMinor": { "page": 1, "bboxNormalized": [0.62, 0.93, 0.98, 0.97] }
       }
     },
     {
@@ -1417,6 +1584,12 @@
         "cgstMinor": 4914000,
         "sgstMinor": 4914000,
         "totalTaxMinor": 9828000
+      },
+      "fieldProvenance": {
+        "invoiceNumber": { "page": 1, "bboxNormalized": [0.52, 0.40, 0.88, 0.44] },
+        "vendorName": { "page": 1, "bboxNormalized": [0.02, 0.02, 0.35, 0.07] },
+        "invoiceDate": { "page": 1, "bboxNormalized": [0.52, 0.44, 0.88, 0.48] },
+        "totalAmountMinor": { "page": 1, "bboxNormalized": [0.52, 0.70, 0.98, 0.74] }
       }
     },
     {
@@ -1431,6 +1604,12 @@
         "cgstMinor": 285300,
         "sgstMinor": 285300,
         "totalTaxMinor": 570600
+      },
+      "fieldProvenance": {
+        "invoiceNumber": { "page": 1, "bboxNormalized": [0.02, 0.19, 0.30, 0.22] },
+        "vendorName": { "page": 1, "bboxNormalized": [0.10, 0.02, 0.90, 0.07] },
+        "invoiceDate": { "page": 1, "bboxNormalized": [0.55, 0.19, 0.98, 0.22] },
+        "totalAmountMinor": { "page": 1, "bboxNormalized": [0.55, 0.79, 0.98, 0.83] }
       }
     },
     {
@@ -1444,6 +1623,12 @@
         "subtotalMinor": 264999906,
         "igstMinor": 47699939,
         "totalTaxMinor": 47699939
+      },
+      "fieldProvenance": {
+        "invoiceNumber": { "page": 1, "bboxNormalized": [0.52, 0.22, 0.98, 0.26] },
+        "vendorName": { "page": 1, "bboxNormalized": [0.02, 0.20, 0.48, 0.24] },
+        "invoiceDate": { "page": 1, "bboxNormalized": [0.52, 0.26, 0.98, 0.30] },
+        "totalAmountMinor": { "page": 1, "bboxNormalized": [0.48, 0.65, 0.98, 0.69] }
       }
     },
     {
@@ -1457,6 +1642,12 @@
         "subtotalMinor": 5786242,
         "igstMinor": 1041523,
         "totalTaxMinor": 1041523
+      },
+      "fieldProvenance": {
+        "invoiceNumber": { "page": 1, "bboxNormalized": [0.52, 0.22, 0.98, 0.26] },
+        "vendorName": { "page": 1, "bboxNormalized": [0.02, 0.20, 0.48, 0.24] },
+        "invoiceDate": { "page": 1, "bboxNormalized": [0.52, 0.26, 0.98, 0.30] },
+        "totalAmountMinor": { "page": 1, "bboxNormalized": [0.48, 0.65, 0.98, 0.69] }
       }
     },
     {
@@ -1474,6 +1665,12 @@
         "subtotalMinor": 400000,
         "igstMinor": 72000,
         "totalTaxMinor": 72000
+      },
+      "fieldProvenance": {
+        "invoiceNumber": { "page": 1, "bboxNormalized": [0.02, 0.22, 0.45, 0.26] },
+        "vendorName": { "page": 1, "bboxNormalized": [0.02, 0.02, 0.35, 0.08] },
+        "invoiceDate": { "page": 1, "bboxNormalized": [0.52, 0.30, 0.98, 0.34] },
+        "totalAmountMinor": { "page": 1, "bboxNormalized": [0.52, 0.82, 0.98, 0.86] }
       }
     },
     {
@@ -1483,7 +1680,13 @@
       "invoiceDate": "2026-02-28",
       "dueDate": "2026-04-14",
       "currency": "INR",
-      "totalAmountMinor": 6153799
+      "totalAmountMinor": 6153799,
+      "fieldProvenance": {
+        "invoiceNumber": { "page": 1, "bboxNormalized": [0.02, 0.22, 0.45, 0.26] },
+        "vendorName": { "page": 1, "bboxNormalized": [0.02, 0.02, 0.35, 0.08] },
+        "invoiceDate": { "page": 1, "bboxNormalized": [0.52, 0.30, 0.98, 0.34] },
+        "totalAmountMinor": { "page": 1, "bboxNormalized": [0.52, 0.82, 0.98, 0.86] }
+      }
     },
     {
       "file": "FC-DSV_BILL OF SUPPLY - IN1PNQ261007177 - 6409833372 (23-Mar-26).pdf",
@@ -1492,7 +1695,13 @@
       "invoiceDate": "2026-03-23",
       "dueDate": "2026-05-07",
       "currency": "INR",
-      "totalAmountMinor": 14716528
+      "totalAmountMinor": 14716528,
+      "fieldProvenance": {
+        "invoiceNumber": { "page": 1, "bboxNormalized": [0.02, 0.22, 0.45, 0.26] },
+        "vendorName": { "page": 1, "bboxNormalized": [0.02, 0.02, 0.35, 0.08] },
+        "invoiceDate": { "page": 1, "bboxNormalized": [0.52, 0.30, 0.98, 0.34] },
+        "totalAmountMinor": { "page": 1, "bboxNormalized": [0.52, 0.82, 0.98, 0.86] }
+      }
     },
     {
       "file": "FC-DSV_TAX INVOICE - IN1PNQ261007097 - 6409833372 (23-Mar-26).pdf",
@@ -1509,6 +1718,12 @@
         "subtotalMinor": 400000,
         "igstMinor": 72000,
         "totalTaxMinor": 72000
+      },
+      "fieldProvenance": {
+        "invoiceNumber": { "page": 1, "bboxNormalized": [0.02, 0.22, 0.45, 0.26] },
+        "vendorName": { "page": 1, "bboxNormalized": [0.02, 0.02, 0.35, 0.08] },
+        "invoiceDate": { "page": 1, "bboxNormalized": [0.52, 0.30, 0.98, 0.34] },
+        "totalAmountMinor": { "page": 1, "bboxNormalized": [0.52, 0.82, 0.98, 0.86] }
       }
     },
     {
@@ -1526,6 +1741,12 @@
         "cgstMinor": 1687657,
         "sgstMinor": 1687657,
         "totalTaxMinor": 3375314
+      },
+      "fieldProvenance": {
+        "invoiceNumber": { "page": 1, "bboxNormalized": [0.52, 0.26, 0.78, 0.30] },
+        "vendorName": { "page": 1, "bboxNormalized": [0.12, 0.26, 0.45, 0.30] },
+        "invoiceDate": { "page": 1, "bboxNormalized": [0.52, 0.30, 0.78, 0.34] },
+        "totalAmountMinor": { "page": 1, "bboxNormalized": [0.75, 0.84, 1.00, 0.88] }
       }
     },
     {
@@ -1539,7 +1760,13 @@
         1180000,
         590000,
         504700
-      ]
+      ],
+      "fieldProvenance": {
+        "invoiceNumber": { "page": 1, "bboxNormalized": [0.42, 0.10, 0.68, 0.14] },
+        "vendorName": { "page": 1, "bboxNormalized": [0.14, 0.02, 0.55, 0.07] },
+        "invoiceDate": { "page": 1, "bboxNormalized": [0.68, 0.10, 0.98, 0.14] },
+        "totalAmountMinor": { "page": 1, "bboxNormalized": [0.80, 0.74, 1.00, 0.78] }
+      }
     },
     {
       "file": "FC-Featuretek - 0091.pdf",
@@ -1555,6 +1782,12 @@
         "subtotalMinor": 35720000,
         "igstMinor": 6429600,
         "totalTaxMinor": 6429600
+      },
+      "fieldProvenance": {
+        "invoiceNumber": { "page": 1, "bboxNormalized": [0.52, 0.04, 0.72, 0.08] },
+        "vendorName": { "page": 1, "bboxNormalized": [0.02, 0.04, 0.45, 0.07] },
+        "invoiceDate": { "page": 1, "bboxNormalized": [0.72, 0.04, 0.98, 0.08] },
+        "totalAmountMinor": { "page": 1, "bboxNormalized": [0.75, 0.85, 1.00, 0.89] }
       }
     },
     {
@@ -1563,7 +1796,13 @@
       "vendorNameContains": "Focus Tours and Travels",
       "invoiceDate": "2026-03-03",
       "currency": "INR",
-      "totalAmountMinor": 1219700
+      "totalAmountMinor": 1219700,
+      "fieldProvenance": {
+        "invoiceNumber": { "page": 1, "bboxNormalized": [0.52, 0.13, 0.80, 0.17] },
+        "vendorName": { "page": 1, "bboxNormalized": [0.48, 0.02, 0.98, 0.07] },
+        "invoiceDate": { "page": 1, "bboxNormalized": [0.52, 0.11, 0.80, 0.13] },
+        "totalAmountMinor": { "page": 1, "bboxNormalized": [0.55, 0.46, 0.98, 0.50] }
+      }
     },
     {
       "file": "FC-Focus_Bills.pdf",
@@ -1571,7 +1810,13 @@
       "vendorNameContains": "Focus Tours and Travels",
       "invoiceDate": "2026-03-17",
       "currency": "INR",
-      "totalAmountMinor": 2458400
+      "totalAmountMinor": 2458400,
+      "fieldProvenance": {
+        "invoiceNumber": { "page": 1, "bboxNormalized": [0.52, 0.13, 0.80, 0.17] },
+        "vendorName": { "page": 1, "bboxNormalized": [0.48, 0.02, 0.98, 0.07] },
+        "invoiceDate": { "page": 1, "bboxNormalized": [0.52, 0.11, 0.80, 0.13] },
+        "totalAmountMinor": { "page": 1, "bboxNormalized": [0.55, 0.46, 0.98, 0.50] }
+      }
     },
     {
       "file": "FC-G4S Facility_.pdf",
@@ -1585,6 +1830,12 @@
         "cgstMinor": 409920,
         "sgstMinor": 409920,
         "totalTaxMinor": 819840
+      },
+      "fieldProvenance": {
+        "invoiceNumber": { "page": 1, "bboxNormalized": [0.62, 0.40, 0.98, 0.44] },
+        "vendorName": { "page": 1, "bboxNormalized": [0.28, 0.09, 0.72, 0.13] },
+        "invoiceDate": { "page": 1, "bboxNormalized": [0.62, 0.44, 0.80, 0.48] },
+        "totalAmountMinor": { "page": 1, "bboxNormalized": [0.52, 0.71, 0.98, 0.75] }
       }
     },
     {
@@ -1599,6 +1850,12 @@
         "cgstMinor": 425583,
         "sgstMinor": 425583,
         "totalTaxMinor": 851166
+      },
+      "fieldProvenance": {
+        "invoiceNumber": { "page": 1, "bboxNormalized": [0.62, 0.38, 0.98, 0.42] },
+        "vendorName": { "page": 1, "bboxNormalized": [0.28, 0.09, 0.72, 0.13] },
+        "invoiceDate": { "page": 1, "bboxNormalized": [0.62, 0.42, 0.80, 0.46] },
+        "totalAmountMinor": { "page": 1, "bboxNormalized": [0.52, 0.68, 0.98, 0.72] }
       }
     },
     {
@@ -1613,6 +1870,12 @@
         "cgstMinor": 2105800,
         "sgstMinor": 2105800,
         "totalTaxMinor": 4211600
+      },
+      "fieldProvenance": {
+        "invoiceNumber": { "page": 1, "bboxNormalized": [0.52, 0.32, 0.98, 0.36] },
+        "vendorName": { "page": 1, "bboxNormalized": [0.02, 0.02, 0.55, 0.06] },
+        "invoiceDate": { "page": 1, "bboxNormalized": [0.52, 0.35, 0.98, 0.39] },
+        "totalAmountMinor": { "page": 1, "bboxNormalized": [0.72, 0.50, 0.98, 0.54] }
       }
     },
     {
@@ -1627,6 +1890,12 @@
         "cgstMinor": 26625,
         "sgstMinor": 26625,
         "totalTaxMinor": 53250
+      },
+      "fieldProvenance": {
+        "invoiceNumber": { "page": 1, "bboxNormalized": [0.62, 0.05, 0.82, 0.09] },
+        "vendorName": { "page": 1, "bboxNormalized": [0.12, 0.05, 0.55, 0.09] },
+        "invoiceDate": { "page": 1, "bboxNormalized": [0.82, 0.05, 0.98, 0.09] },
+        "totalAmountMinor": { "page": 1, "bboxNormalized": [0.82, 0.82, 0.98, 0.86] }
       }
     },
     {
@@ -1641,6 +1910,12 @@
         "cgstMinor": 33375,
         "sgstMinor": 33375,
         "totalTaxMinor": 66750
+      },
+      "fieldProvenance": {
+        "invoiceNumber": { "page": 1, "bboxNormalized": [0.62, 0.05, 0.82, 0.09] },
+        "vendorName": { "page": 1, "bboxNormalized": [0.12, 0.05, 0.55, 0.09] },
+        "invoiceDate": { "page": 1, "bboxNormalized": [0.82, 0.05, 0.98, 0.09] },
+        "totalAmountMinor": { "page": 1, "bboxNormalized": [0.82, 0.82, 0.98, 0.86] }
       }
     },
     {
@@ -1658,6 +1933,12 @@
         "cgstMinor": 21600,
         "sgstMinor": 21600,
         "totalTaxMinor": 43200
+      },
+      "fieldProvenance": {
+        "invoiceNumber": { "page": 1, "bboxNormalized": [0.62, 0.05, 0.82, 0.09] },
+        "vendorName": { "page": 1, "bboxNormalized": [0.12, 0.05, 0.55, 0.09] },
+        "invoiceDate": { "page": 1, "bboxNormalized": [0.82, 0.05, 0.98, 0.09] },
+        "totalAmountMinor": { "page": 1, "bboxNormalized": [0.82, 0.82, 0.98, 0.86] }
       }
     },
     {
@@ -1670,7 +1951,13 @@
       "totalAmountMinor": 5000000,
       "lineItemAmountsMinor": [
         5000000
-      ]
+      ],
+      "fieldProvenance": {
+        "invoiceNumber": { "page": 1, "bboxNormalized": [0.52, 0.13, 0.98, 0.16] },
+        "vendorName": { "page": 1, "bboxNormalized": [0.02, 0.10, 0.48, 0.15] },
+        "invoiceDate": { "page": 1, "bboxNormalized": [0.52, 0.19, 0.98, 0.22] },
+        "totalAmountMinor": { "page": 1, "bboxNormalized": [0.72, 0.55, 0.98, 0.59] }
+      }
     },
     {
       "file": "FC-Jeevan_012.pdf",
@@ -1681,7 +1968,13 @@
       "totalAmountMinor": 20862500,
       "lineItemAmountsMinor": [
         20862500
-      ]
+      ],
+      "fieldProvenance": {
+        "invoiceNumber": { "page": 1, "bboxNormalized": [0.62, 0.02, 0.98, 0.06] },
+        "vendorName": { "page": 1, "bboxNormalized": [0.02, 0.02, 0.55, 0.06] },
+        "invoiceDate": { "page": 1, "bboxNormalized": [0.62, 0.05, 0.98, 0.08] },
+        "totalAmountMinor": { "page": 1, "bboxNormalized": [0.72, 0.66, 0.98, 0.70] }
+      }
     },
     {
       "file": "FC-JSS_103.pdf",
@@ -1698,6 +1991,12 @@
         "cgstMinor": 557712,
         "sgstMinor": 557712,
         "totalTaxMinor": 1115424
+      },
+      "fieldProvenance": {
+        "invoiceNumber": { "page": 1, "bboxNormalized": [0.52, 0.20, 0.85, 0.24] },
+        "vendorName": { "page": 1, "bboxNormalized": [0.28, 0.02, 0.72, 0.06] },
+        "invoiceDate": { "page": 1, "bboxNormalized": [0.52, 0.22, 0.85, 0.26] },
+        "totalAmountMinor": { "page": 1, "bboxNormalized": [0.72, 0.86, 0.98, 0.90] }
       }
     },
     {
@@ -1706,7 +2005,13 @@
       "vendorNameContains": "Just Go Zing",
       "invoiceDate": "2025-05-13",
       "currency": "INR",
-      "totalAmountMinor": 2073700
+      "totalAmountMinor": 2073700,
+      "fieldProvenance": {
+        "invoiceNumber": { "page": 1, "bboxNormalized": [0.52, 0.07, 0.72, 0.11] },
+        "vendorName": { "page": 1, "bboxNormalized": [0.02, 0.07, 0.45, 0.11] },
+        "invoiceDate": { "page": 1, "bboxNormalized": [0.72, 0.07, 0.98, 0.11] },
+        "totalAmountMinor": { "page": 1, "bboxNormalized": [0.72, 0.52, 0.98, 0.56] }
+      }
     },
     {
       "file": "FC-JVP - GST - MARCH 2026.pdf",
@@ -1720,6 +2025,12 @@
         "cgstMinor": 11731950,
         "sgstMinor": 11731950,
         "totalTaxMinor": 23463900
+      },
+      "fieldProvenance": {
+        "invoiceNumber": { "page": 1, "bboxNormalized": [0.52, 0.26, 0.78, 0.30] },
+        "vendorName": { "page": 1, "bboxNormalized": [0.12, 0.26, 0.45, 0.30] },
+        "invoiceDate": { "page": 1, "bboxNormalized": [0.52, 0.30, 0.78, 0.34] },
+        "totalAmountMinor": { "page": 1, "bboxNormalized": [0.75, 0.84, 1.00, 0.88] }
       }
     },
     {
@@ -1727,7 +2038,12 @@
       "vendorNameContains": "KSR Milk",
       "invoiceDate": "2026-03-31",
       "currency": "INR",
-      "totalAmountMinor": 537600
+      "totalAmountMinor": 537600,
+      "fieldProvenance": {
+        "vendorName": { "page": 1, "bboxNormalized": [0.05, 0.02, 0.95, 0.10] },
+        "invoiceDate": { "page": 1, "bboxNormalized": [0.55, 0.18, 0.95, 0.22] },
+        "totalAmountMinor": { "page": 1, "bboxNormalized": [0.55, 0.71, 0.95, 0.76] }
+      }
     },
     {
       "file": "FC-Mangirish_AI-3085-25-26.pdf",
@@ -1745,6 +2061,12 @@
         "subtotalMinor": 1505000,
         "igstMinor": 270900,
         "totalTaxMinor": 270900
+      },
+      "fieldProvenance": {
+        "invoiceNumber": { "page": 1, "bboxNormalized": [0.52, 0.24, 0.75, 0.28] },
+        "vendorName": { "page": 1, "bboxNormalized": [0.02, 0.24, 0.45, 0.28] },
+        "invoiceDate": { "page": 1, "bboxNormalized": [0.75, 0.24, 0.98, 0.28] },
+        "totalAmountMinor": { "page": 1, "bboxNormalized": [0.82, 0.79, 0.98, 0.83] }
       }
     },
     {
@@ -1763,6 +2085,12 @@
         "subtotalMinor": 1505000,
         "igstMinor": 270900,
         "totalTaxMinor": 270900
+      },
+      "fieldProvenance": {
+        "invoiceNumber": { "page": 1, "bboxNormalized": [0.52, 0.24, 0.75, 0.28] },
+        "vendorName": { "page": 1, "bboxNormalized": [0.02, 0.24, 0.45, 0.28] },
+        "invoiceDate": { "page": 1, "bboxNormalized": [0.75, 0.24, 0.98, 0.28] },
+        "totalAmountMinor": { "page": 1, "bboxNormalized": [0.82, 0.79, 0.98, 0.83] }
       }
     },
     {
@@ -1777,6 +2105,12 @@
         "cgstMinor": 92588,
         "sgstMinor": 92588,
         "totalTaxMinor": 185176
+      },
+      "fieldProvenance": {
+        "invoiceNumber": { "page": 1, "bboxNormalized": [0.52, 0.16, 0.78, 0.20] },
+        "vendorName": { "page": 1, "bboxNormalized": [0.10, 0.02, 0.90, 0.08] },
+        "invoiceDate": { "page": 1, "bboxNormalized": [0.62, 0.16, 0.98, 0.20] },
+        "totalAmountMinor": { "page": 1, "bboxNormalized": [0.78, 0.79, 0.98, 0.83] }
       }
     },
     {
@@ -1785,7 +2119,13 @@
       "vendorNameContains": "Nium Forex",
       "invoiceDate": "2025-05-24",
       "currency": "INR",
-      "totalAmountMinor": 8665600
+      "totalAmountMinor": 8665600,
+      "fieldProvenance": {
+        "invoiceNumber": { "page": 1, "bboxNormalized": [0.25, 0.40, 0.98, 0.43] },
+        "vendorName": { "page": 1, "bboxNormalized": [0.25, 0.29, 0.98, 0.32] },
+        "invoiceDate": { "page": 1, "bboxNormalized": [0.25, 0.42, 0.98, 0.45] },
+        "totalAmountMinor": { "page": 1, "bboxNormalized": [0.25, 0.61, 0.98, 0.64] }
+      }
     },
     {
       "file": "FC-Nium Forex_Subash.pdf",
@@ -1793,7 +2133,13 @@
       "vendorNameContains": "Nium Forex",
       "invoiceDate": "2025-05-24",
       "currency": "INR",
-      "totalAmountMinor": 5632600
+      "totalAmountMinor": 5632600,
+      "fieldProvenance": {
+        "invoiceNumber": { "page": 1, "bboxNormalized": [0.25, 0.40, 0.98, 0.43] },
+        "vendorName": { "page": 1, "bboxNormalized": [0.25, 0.29, 0.98, 0.32] },
+        "invoiceDate": { "page": 1, "bboxNormalized": [0.25, 0.42, 0.98, 0.45] },
+        "totalAmountMinor": { "page": 1, "bboxNormalized": [0.25, 0.61, 0.98, 0.64] }
+      }
     },
     {
       "file": "FC-Rudra_1858.pdf",
@@ -1807,6 +2153,12 @@
         "cgstMinor": 123993,
         "sgstMinor": 123993,
         "totalTaxMinor": 247986
+      },
+      "fieldProvenance": {
+        "invoiceNumber": { "page": 1, "bboxNormalized": [0.62, 0.03, 0.82, 0.07] },
+        "vendorName": { "page": 1, "bboxNormalized": [0.12, 0.03, 0.55, 0.07] },
+        "invoiceDate": { "page": 1, "bboxNormalized": [0.82, 0.03, 0.98, 0.07] },
+        "totalAmountMinor": { "page": 1, "bboxNormalized": [0.82, 0.77, 0.98, 0.81] }
       }
     },
     {
@@ -1826,6 +2178,12 @@
         "cgstMinor": 309600,
         "sgstMinor": 309600,
         "totalTaxMinor": 619200
+      },
+      "fieldProvenance": {
+        "invoiceNumber": { "page": 1, "bboxNormalized": [0.52, 0.03, 0.72, 0.07] },
+        "vendorName": { "page": 1, "bboxNormalized": [0.02, 0.03, 0.45, 0.07] },
+        "invoiceDate": { "page": 1, "bboxNormalized": [0.72, 0.03, 0.98, 0.07] },
+        "totalAmountMinor": { "page": 1, "bboxNormalized": [0.72, 0.65, 0.98, 0.69] }
       }
     },
     {
@@ -1842,6 +2200,12 @@
         "subtotalMinor": 300000,
         "igstMinor": 54000,
         "totalTaxMinor": 54000
+      },
+      "fieldProvenance": {
+        "invoiceNumber": { "page": 1, "bboxNormalized": [0.40, 0.26, 0.65, 0.30] },
+        "vendorName": { "page": 1, "bboxNormalized": [0.12, 0.02, 0.88, 0.06] },
+        "invoiceDate": { "page": 1, "bboxNormalized": [0.65, 0.26, 0.98, 0.30] },
+        "totalAmountMinor": { "page": 1, "bboxNormalized": [0.72, 0.84, 0.98, 0.88] }
       }
     },
     {
@@ -1860,6 +2224,12 @@
         "cgstMinor": 11625,
         "sgstMinor": 11625,
         "totalTaxMinor": 23250
+      },
+      "fieldProvenance": {
+        "invoiceNumber": { "page": 1, "bboxNormalized": [0.52, 0.04, 0.75, 0.08] },
+        "vendorName": { "page": 1, "bboxNormalized": [0.12, 0.04, 0.48, 0.08] },
+        "invoiceDate": { "page": 1, "bboxNormalized": [0.75, 0.04, 0.98, 0.08] },
+        "totalAmountMinor": { "page": 1, "bboxNormalized": [0.72, 0.53, 0.98, 0.57] }
       }
     },
     {
@@ -1878,6 +2248,12 @@
         "cgstMinor": 14813,
         "sgstMinor": 14813,
         "totalTaxMinor": 29626
+      },
+      "fieldProvenance": {
+        "invoiceNumber": { "page": 1, "bboxNormalized": [0.52, 0.04, 0.75, 0.08] },
+        "vendorName": { "page": 1, "bboxNormalized": [0.12, 0.04, 0.48, 0.08] },
+        "invoiceDate": { "page": 1, "bboxNormalized": [0.75, 0.04, 0.98, 0.08] },
+        "totalAmountMinor": { "page": 1, "bboxNormalized": [0.72, 0.53, 0.98, 0.57] }
       }
     },
     {
@@ -1886,7 +2262,13 @@
       "vendorNameContains": "Pluxee",
       "invoiceDate": "2026-03-06",
       "currency": "INR",
-      "totalAmountMinor": 5372700
+      "totalAmountMinor": 5372700,
+      "fieldProvenance": {
+        "invoiceNumber": { "page": 1, "bboxNormalized": [0.38, 0.13, 0.95, 0.17] },
+        "vendorName": { "page": 1, "bboxNormalized": [0.52, 0.02, 0.98, 0.06] },
+        "invoiceDate": { "page": 1, "bboxNormalized": [0.38, 0.15, 0.95, 0.18] },
+        "totalAmountMinor": { "page": 1, "bboxNormalized": [0.02, 0.73, 0.98, 0.77] }
+      }
     },
     {
       "file": "FC-Sriram_284.jpeg",
@@ -1894,7 +2276,13 @@
       "vendorNameContains": "Sri Ram Pest Control",
       "invoiceDate": "2026-03-27",
       "currency": "INR",
-      "totalAmountMinor": 800000
+      "totalAmountMinor": 800000,
+      "fieldProvenance": {
+        "invoiceNumber": { "page": 1, "bboxNormalized": [0.52, 0.16, 0.75, 0.20] },
+        "vendorName": { "page": 1, "bboxNormalized": [0.05, 0.02, 0.95, 0.08] },
+        "invoiceDate": { "page": 1, "bboxNormalized": [0.65, 0.16, 0.98, 0.20] },
+        "totalAmountMinor": { "page": 1, "bboxNormalized": [0.52, 0.67, 0.98, 0.72] }
+      }
     },
     {
       "file": "FC-SVC_171.pdf",
@@ -1905,7 +2293,13 @@
       "totalAmountMinor": 8856000,
       "lineItemAmountsMinor": [
         8856000
-      ]
+      ],
+      "fieldProvenance": {
+        "invoiceNumber": { "page": 1, "bboxNormalized": [0.52, 0.19, 0.98, 0.22] },
+        "vendorName": { "page": 1, "bboxNormalized": [0.02, 0.02, 0.65, 0.06] },
+        "invoiceDate": { "page": 1, "bboxNormalized": [0.52, 0.17, 0.98, 0.20] },
+        "totalAmountMinor": { "page": 1, "bboxNormalized": [0.55, 0.44, 0.98, 0.48] }
+      }
     },
     {
       "file": "FC-SVC170.pdf",
@@ -1916,7 +2310,13 @@
       "totalAmountMinor": 9768000,
       "lineItemAmountsMinor": [
         9768000
-      ]
+      ],
+      "fieldProvenance": {
+        "invoiceNumber": { "page": 1, "bboxNormalized": [0.52, 0.19, 0.98, 0.22] },
+        "vendorName": { "page": 1, "bboxNormalized": [0.02, 0.02, 0.65, 0.06] },
+        "invoiceDate": { "page": 1, "bboxNormalized": [0.52, 0.17, 0.98, 0.20] },
+        "totalAmountMinor": { "page": 1, "bboxNormalized": [0.55, 0.44, 0.98, 0.48] }
+      }
     },
     {
       "file": "FC-Tata Comm_IAS033648_362603G10006084.pdf",
@@ -1931,6 +2331,12 @@
         "cgstMinor": 1204875,
         "sgstMinor": 1204875,
         "totalTaxMinor": 2409750
+      },
+      "fieldProvenance": {
+        "invoiceNumber": { "page": 1, "bboxNormalized": [0.62, 0.07, 0.98, 0.11] },
+        "vendorName": { "page": 1, "bboxNormalized": [0.02, 0.02, 0.45, 0.07] },
+        "invoiceDate": { "page": 1, "bboxNormalized": [0.62, 0.11, 0.98, 0.15] },
+        "totalAmountMinor": { "page": 1, "bboxNormalized": [0.02, 0.51, 0.98, 0.55] }
       }
     },
     {
@@ -1947,6 +2353,12 @@
         "subtotalMinor": 1620000,
         "igstMinor": 291600,
         "totalTaxMinor": 291600
+      },
+      "fieldProvenance": {
+        "invoiceNumber": { "page": 1, "bboxNormalized": [0.52, 0.25, 0.72, 0.29] },
+        "vendorName": { "page": 1, "bboxNormalized": [0.12, 0.25, 0.48, 0.29] },
+        "invoiceDate": { "page": 1, "bboxNormalized": [0.72, 0.25, 0.98, 0.29] },
+        "totalAmountMinor": { "page": 1, "bboxNormalized": [0.72, 0.74, 0.98, 0.78] }
       }
     },
     {
@@ -1958,7 +2370,13 @@
       "totalAmountMinor": 34500000,
       "lineItemAmountsMinor": [
         34500000
-      ]
+      ],
+      "fieldProvenance": {
+        "invoiceNumber": { "page": 1, "bboxNormalized": [0.10, 0.34, 0.45, 0.38] },
+        "vendorName": { "page": 1, "bboxNormalized": [0.52, 0.02, 0.98, 0.06] },
+        "invoiceDate": { "page": 1, "bboxNormalized": [0.65, 0.34, 0.98, 0.38] },
+        "totalAmountMinor": { "page": 1, "bboxNormalized": [0.52, 0.66, 0.98, 0.70] }
+      }
     },
     {
       "file": "FC-Vector_.pdf",
@@ -1971,6 +2389,12 @@
         "subtotalMinor": 27602800,
         "igstMinor": 4968504,
         "totalTaxMinor": 4968504
+      },
+      "fieldProvenance": {
+        "invoiceNumber": { "page": 1, "bboxNormalized": [0.52, 0.13, 0.98, 0.17] },
+        "vendorName": { "page": 1, "bboxNormalized": [0.02, 0.22, 0.48, 0.30] },
+        "invoiceDate": { "page": 1, "bboxNormalized": [0.52, 0.15, 0.98, 0.19] },
+        "totalAmountMinor": { "page": 1, "bboxNormalized": [0.72, 0.55, 0.98, 0.59] }
       }
     },
     {
@@ -1992,6 +2416,12 @@
         "subtotalMinor": 306000,
         "igstMinor": 55080,
         "totalTaxMinor": 55080
+      },
+      "fieldProvenance": {
+        "invoiceNumber": { "page": 1, "bboxNormalized": [0.02, 0.20, 0.45, 0.23] },
+        "vendorName": { "page": 1, "bboxNormalized": [0.12, 0.03, 0.88, 0.12] },
+        "invoiceDate": { "page": 1, "bboxNormalized": [0.02, 0.22, 0.45, 0.26] },
+        "totalAmountMinor": { "page": 1, "bboxNormalized": [0.52, 0.67, 0.98, 0.71] }
       }
     }
   ]
