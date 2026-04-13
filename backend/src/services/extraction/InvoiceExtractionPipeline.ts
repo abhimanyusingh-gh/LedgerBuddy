@@ -321,13 +321,23 @@ export class InvoiceExtractionPipeline {
     if (pan) parsed.pan = pan;
 
     const subtotalRaw = getNumber("subtotal");
-    const taxAmountRaw = getNumber("tax_amount");
+    const cgstRaw = getNumber("cgst_amount");
+    const sgstRaw = getNumber("sgst_amount");
+    const igstRaw = getNumber("igst_amount");
+    const cessRaw = getNumber("cess_amount");
     const gstin = getString("gstin");
 
-    if (subtotalRaw !== undefined || taxAmountRaw !== undefined || gstin !== undefined) {
+    const totalTaxRaw = (cgstRaw ?? 0) + (sgstRaw ?? 0) + (igstRaw ?? 0) + (cessRaw ?? 0);
+    const hasGst = subtotalRaw !== undefined || cgstRaw !== undefined || sgstRaw !== undefined || igstRaw !== undefined || cessRaw !== undefined || gstin !== undefined;
+
+    if (hasGst) {
       const gst: NonNullable<ParsedInvoiceData["gst"]> = {};
       if (subtotalRaw !== undefined) gst.subtotalMinor = Math.round(subtotalRaw * 100);
-      if (taxAmountRaw !== undefined) gst.totalTaxMinor = Math.round(taxAmountRaw * 100);
+      if (cgstRaw !== undefined) gst.cgstMinor = Math.round(cgstRaw * 100);
+      if (sgstRaw !== undefined) gst.sgstMinor = Math.round(sgstRaw * 100);
+      if (igstRaw !== undefined) gst.igstMinor = Math.round(igstRaw * 100);
+      if (cessRaw !== undefined) gst.cessMinor = Math.round(cessRaw * 100);
+      if (totalTaxRaw > 0) gst.totalTaxMinor = Math.round(totalTaxRaw * 100);
       if (gstin !== undefined) gst.gstin = gstin;
       parsed.gst = gst;
     }
@@ -339,6 +349,10 @@ export class InvoiceExtractionPipeline {
       due_date: "dueDate",
       currency: "currency",
       total_amount: "totalAmountMinor",
+      cgst_amount: "gst.cgstMinor",
+      sgst_amount: "gst.sgstMinor",
+      igst_amount: "gst.igstMinor",
+      cess_amount: "gst.cessMinor",
       gstin: "gst.gstin",
       pan: "pan"
     };
