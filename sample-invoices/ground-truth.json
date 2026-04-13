@@ -10,7 +10,59 @@
       "totalAmountMinor": 2000,
       "lineItemAmountsMinor": [
         2000
-      ]
+      ],
+      "fieldProvenance": {
+        "invoiceNumber": {
+          "page": 1,
+          "blockIndex": 1,
+          "bboxNormalized": [
+            0.043233,
+            0.088663,
+            0.293233,
+            0.101757
+          ]
+        },
+        "vendorName": {
+          "page": 1,
+          "blockIndex": 6,
+          "bboxNormalized": [
+            0.04691,
+            0.158081,
+            0.157978,
+            0.174768
+          ]
+        },
+        "invoiceDate": {
+          "page": 1,
+          "blockIndex": 3,
+          "bboxNormalized": [
+            0.16343,
+            0.102738,
+            0.300856,
+            0.122552
+          ]
+        },
+        "dueDate": {
+          "page": 1,
+          "blockIndex": 5,
+          "bboxNormalized": [
+            0.167293,
+            0.119186,
+            0.300752,
+            0.138098
+          ]
+        },
+        "totalAmountMinor": {
+          "page": 1,
+          "blockIndex": 42,
+          "bboxNormalized": [
+            0.898456,
+            0.633637,
+            0.949288,
+            0.64834
+          ]
+        }
+      }
     },
     {
       "file": "10-Claud-04-03-Abhi.pdf",
@@ -23,7 +75,59 @@
       "lineItemAmountsMinor": [
         -1513,
         20000
-      ]
+      ],
+      "fieldProvenance": {
+        "invoiceNumber": {
+          "page": 1,
+          "blockIndex": 1,
+          "bboxNormalized": [
+            0.043233,
+            0.088663,
+            0.295113,
+            0.101757
+          ]
+        },
+        "vendorName": {
+          "page": 1,
+          "blockIndex": 6,
+          "bboxNormalized": [
+            0.046945,
+            0.158231,
+            0.157943,
+            0.174618
+          ]
+        },
+        "invoiceDate": {
+          "page": 1,
+          "blockIndex": 3,
+          "bboxNormalized": [
+            0.167268,
+            0.104553,
+            0.272581,
+            0.120737
+          ]
+        },
+        "dueDate": {
+          "page": 1,
+          "blockIndex": 5,
+          "bboxNormalized": [
+            0.166958,
+            0.121429,
+            0.272779,
+            0.138275
+          ]
+        },
+        "totalAmountMinor": {
+          "page": 1,
+          "blockIndex": 46,
+          "bboxNormalized": [
+            0.892827,
+            0.710669,
+            0.949278,
+            0.72247
+          ]
+        }
+      }
     },
     {
       "file": "11-Claud-Sai-05-03.pdf",
@@ -40,7 +144,59 @@
       "lineItemAmountsMinor": [
         -1018,
         10000
-      ]
+      ],
+      "fieldProvenance": {
+        "invoiceNumber": {
+          "page": 1,
+          "blockIndex": 1,
+          "bboxNormalized": [
+            0.043233,
+            0.085706,
+            0.293233,
+            0.101757
+          ]
+        },
+        "vendorName": {
+          "page": 1,
+          "blockIndex": 6,
+          "bboxNormalized": [
+            0.044992,
+            0.157905,
+            0.158016,
+            0.174943
+          ]
+        },
+        "invoiceDate": {
+          "page": 1,
+          "blockIndex": 3,
+          "bboxNormalized": [
+            0.167201,
+            0.102854,
+            0.274528,
+            0.120983
+          ]
+        },
+        "dueDate": {
+          "page": 1,
+          "blockIndex": 5,
+          "bboxNormalized": [
+            0.167191,
+            0.120228,
+            0.272659,
+            0.137039
+          ]
+        },
+        "totalAmountMinor": {
+          "page": 1,
+          "blockIndex": 52,
+          "bboxNormalized": [
+            0.890977,
+            0.729651,
+            0.949248,
+            0.741279
+          ]
+        }
+      }
     },
     {
       "file": "13-mailchimp-receipt-MC23316509.pdf",
@@ -51,7 +207,49 @@
       "totalAmountMinor": 114954,
       "lineItemAmountsMinor": [
         114954
-      ]
+      ],
+      "fieldProvenance": {
+        "invoiceNumber": {
+          "page": 1,
+          "blockIndex": 1,
+          "bboxNormalized": [
+            0.090349,
+            0.088655,
+            0.815195,
+            0.119186
+          ]
+        },
+        "vendorName": {
+          "page": 1,
+          "blockIndex": 7,
+          "bboxNormalized": [
+            0.37577,
+            0.165698,
+            0.439425,
+            0.178779
+          ]
+        },
+        "invoiceDate": {
+          "page": 1,
+          "blockIndex": 14,
+          "bboxNormalized": [
+            0.663244,
+            0.178734,
+            0.893224,
+            0.193314
+          ]
+        },
+        "totalAmountMinor": {
+          "page": 1,
+          "blockIndex": 25,
+          "bboxNormalized": [
+            0.501027,
+            0.411337,
+            0.574949,
+            0.422965
+          ]
+        }
+      }
     },
     {
       "file": "15-Fillout.pdf",
@@ -63,7 +261,59 @@
       "totalAmountMinor": 4900,
       "lineItemAmountsMinor": [
         4900
-      ]
+      ],
+      "fieldProvenance": {
+        "invoiceNumber": {
+          "page": 1,
+          "blockIndex": 1,
+          "bboxNormalized": [
+            0.043233,
+            0.085706,
+            0.295113,
+            0.103271
+          ]
+        },
+        "vendorName": {
+          "page": 1,
+          "blockIndex": 6,
+          "bboxNormalized": [
+            0.045113,
+            0.155523,
+            0.097744,
+            0.171512
+          ]
+        },
+        "invoiceDate": {
+          "page": 1,
+          "blockIndex": 3,
+          "bboxNormalized": [
+            0.167293,
+            0.103198,
+            0.280075,
+            0.119322
+          ]
+        },
+        "dueDate": {
+          "page": 1,
+          "blockIndex": 5,
+          "bboxNormalized": [
+            0.167293,
+            0.119186,
+            0.280075,
+            0.136628
+          ]
+        },
+        "totalAmountMinor": {
+          "page": 1,
+          "blockIndex": 36,
+          "bboxNormalized": [
+            0.87782,
+            0.502907,
+            0.951128,
+            0.518895
+          ]
+        }
+      }
     },
     {
       "file": "18-Calendly.pdf",
@@ -74,7 +324,49 @@
       "totalAmountMinor": 1200,
       "lineItemAmountsMinor": [
         1200
-      ]
+      ],
+      "fieldProvenance": {
+        "invoiceNumber": {
+          "page": 1,
+          "blockIndex": 9,
+          "bboxNormalized": [
+            0.609053,
+            0.084302,
+            0.759259,
+            0.09886
+          ]
+        },
+        "vendorName": {
+          "page": 1,
+          "blockIndex": 1,
+          "bboxNormalized": [
+            0.057613,
+            0.119088,
+            0.148148,
+            0.12936
+          ]
+        },
+        "invoiceDate": {
+          "page": 1,
+          "blockIndex": 10,
+          "bboxNormalized": [
+            0.609054,
+            0.101709,
+            0.806584,
+            0.117733
+          ]
+        },
+        "totalAmountMinor": {
+          "page": 1,
+          "blockIndex": 44,
+          "bboxNormalized": [
+            0.878601,
+            0.498547,
+            0.942387,
+            0.515988
+          ]
+        }
+      }
     },
     {
       "file": "26-Invoice-LP6XQHGY-0011.pdf",
@@ -90,7 +382,59 @@
       },
       "lineItemAmountsMinor": [
         4001
-      ]
+      ],
+      "fieldProvenance": {
+        "invoiceNumber": {
+          "page": 1,
+          "blockIndex": 1,
+          "bboxNormalized": [
+            0.043233,
+            0.085706,
+            0.293233,
+            0.101757
+          ]
+        },
+        "vendorName": {
+          "page": 1,
+          "blockIndex": 6,
+          "bboxNormalized": [
+            0.046876,
+            0.158145,
+            0.099741,
+            0.171796
+          ]
+        },
+        "invoiceDate": {
+          "page": 1,
+          "blockIndex": 3,
+          "bboxNormalized": [
+            0.167293,
+            0.103198,
+            0.283835,
+            0.119322
+          ]
+        },
+        "dueDate": {
+          "page": 1,
+          "blockIndex": 5,
+          "bboxNormalized": [
+            0.167255,
+            0.119047,
+            0.283872,
+            0.138221
+          ]
+        },
+        "totalAmountMinor": {
+          "page": 1,
+          "blockIndex": 44,
+          "bboxNormalized": [
+            0.900376,
+            0.584302,
+            0.951128,
+            0.598837
+          ]
+        }
+      }
     },
     {
       "file": "28-Invoice-BGPWKKCA-0005.pdf",
@@ -106,7 +450,59 @@
       },
       "lineItemAmountsMinor": [
         2000
-      ]
+      ],
+      "fieldProvenance": {
+        "invoiceNumber": {
+          "page": 1,
+          "blockIndex": 1,
+          "bboxNormalized": [
+            0.045113,
+            0.085706,
+            0.302632,
+            0.101757
+          ]
+        },
+        "vendorName": {
+          "page": 1,
+          "blockIndex": 6,
+          "bboxNormalized": [
+            0.046889,
+            0.159599,
+            0.099727,
+            0.171796
+          ]
+        },
+        "invoiceDate": {
+          "page": 1,
+          "blockIndex": 3,
+          "bboxNormalized": [
+            0.167293,
+            0.101744,
+            0.283835,
+            0.12064
+          ]
+        },
+        "dueDate": {
+          "page": 1,
+          "blockIndex": 5,
+          "bboxNormalized": [
+            0.167238,
+            0.120425,
+            0.28013,
+            0.138296
+          ]
+        },
+        "totalAmountMinor": {
+          "page": 1,
+          "blockIndex": 43,
+          "bboxNormalized": [
+            0.898496,
+            0.539244,
+            0.951128,
+            0.555233
+          ]
+        }
+      }
     },
     {
       "file": "3-Cloudflare.pdf",
@@ -118,7 +514,59 @@
       "totalAmountMinor": 1000,
       "lineItemAmountsMinor": [
         1000
-      ]
+      ],
+      "fieldProvenance": {
+        "invoiceNumber": {
+          "page": 1,
+          "blockIndex": 2,
+          "bboxNormalized": [
+            0.171053,
+            0.088663,
+            0.276316,
+            0.101744
+          ]
+        },
+        "vendorName": {
+          "page": 1,
+          "blockIndex": 12,
+          "bboxNormalized": [
+            0.046992,
+            0.209267,
+            0.157895,
+            0.223837
+          ]
+        },
+        "invoiceDate": {
+          "page": 1,
+          "blockIndex": 4,
+          "bboxNormalized": [
+            0.178571,
+            0.104651,
+            0.31203,
+            0.12064
+          ]
+        },
+        "dueDate": {
+          "page": 1,
+          "blockIndex": 6,
+          "bboxNormalized": [
+            0.178571,
+            0.122047,
+            0.31203,
+            0.138098
+          ]
+        },
+        "totalAmountMinor": {
+          "page": 1,
+          "blockIndex": 40,
+          "bboxNormalized": [
+            0.898475,
+            0.537747,
+            0.953029,
+            0.553823
+          ]
+        }
+      }
     },
     {
       "file": "31-Invoice-NWSEPPTE-0002.pdf",
@@ -134,7 +582,59 @@
       },
       "lineItemAmountsMinor": [
         2000
-      ]
+      ],
+      "fieldProvenance": {
+        "invoiceNumber": {
+          "page": 1,
+          "blockIndex": 1,
+          "bboxNormalized": [
+            0.043233,
+            0.088663,
+            0.296992,
+            0.101757
+          ]
+        },
+        "vendorName": {
+          "page": 1,
+          "blockIndex": 6,
+          "bboxNormalized": [
+            0.046879,
+            0.157946,
+            0.158009,
+            0.174903
+          ]
+        },
+        "invoiceDate": {
+          "page": 1,
+          "blockIndex": 3,
+          "bboxNormalized": [
+            0.167293,
+            0.105996,
+            0.280075,
+            0.12064
+          ]
+        },
+        "dueDate": {
+          "page": 1,
+          "blockIndex": 5,
+          "bboxNormalized": [
+            0.167207,
+            0.121723,
+            0.280161,
+            0.138452
+          ]
+        },
+        "totalAmountMinor": {
+          "page": 1,
+          "blockIndex": 46,
+          "bboxNormalized": [
+            0.896617,
+            0.651163,
+            0.951128,
+            0.667151
+          ]
+        }
+      }
     },
     {
       "file": "33-Invoice-MULJRLNR-0006.pdf",
@@ -150,7 +650,59 @@
       },
       "lineItemAmountsMinor": [
         2000
-      ]
+      ],
+      "fieldProvenance": {
+        "invoiceNumber": {
+          "page": 1,
+          "blockIndex": 1,
+          "bboxNormalized": [
+            0.043233,
+            0.088663,
+            0.302632,
+            0.101757
+          ]
+        },
+        "vendorName": {
+          "page": 1,
+          "blockIndex": 8,
+          "bboxNormalized": [
+            0.046992,
+            0.19186,
+            0.159774,
+            0.207849
+          ]
+        },
+        "invoiceDate": {
+          "page": 1,
+          "blockIndex": 3,
+          "bboxNormalized": [
+            0.174728,
+            0.102864,
+            0.289557,
+            0.120973
+          ]
+        },
+        "dueDate": {
+          "page": 1,
+          "blockIndex": 5,
+          "bboxNormalized": [
+            0.174757,
+            0.118985,
+            0.289529,
+            0.138283
+          ]
+        },
+        "totalAmountMinor": {
+          "page": 1,
+          "blockIndex": 49,
+          "bboxNormalized": [
+            0.898496,
+            0.6875,
+            0.949248,
+            0.700581
+          ]
+        }
+      }
     },
     {
       "file": "38-Cloudflare.pdf",
@@ -162,7 +714,59 @@
       "totalAmountMinor": 1000,
       "lineItemAmountsMinor": [
         1000
-      ]
+      ],
+      "fieldProvenance": {
+        "invoiceNumber": {
+          "page": 1,
+          "blockIndex": 2,
+          "bboxNormalized": [
+            0.174812,
+            0.090116,
+            0.280075,
+            0.101744
+          ]
+        },
+        "vendorName": {
+          "page": 1,
+          "blockIndex": 12,
+          "bboxNormalized": [
+            0.046992,
+            0.209267,
+            0.157895,
+            0.223837
+          ]
+        },
+        "invoiceDate": {
+          "page": 1,
+          "blockIndex": 4,
+          "bboxNormalized": [
+            0.178571,
+            0.105996,
+            0.293233,
+            0.12064
+          ]
+        },
+        "dueDate": {
+          "page": 1,
+          "blockIndex": 6,
+          "bboxNormalized": [
+            0.178543,
+            0.121971,
+            0.293261,
+            0.138203
+          ]
+        },
+        "totalAmountMinor": {
+          "page": 1,
+          "blockIndex": 40,
+          "bboxNormalized": [
+            0.898365,
+            0.522996,
+            0.951259,
+            0.539504
+          ]
+        }
+      }
     },
     {
       "file": "41-BOOKING_INVOICE_M06AI26I23851611.pdf",
@@ -174,6 +778,48 @@
       "gst": {
         "igstMinor": 3051,
         "totalTaxMinor": 3051
+      },
+      "fieldProvenance": {
+        "invoiceNumber": {
+          "page": 1,
+          "blockIndex": 6,
+          "bboxNormalized": [
+            0.100616,
+            0.151163,
+            0.232033,
+            0.165698
+          ]
+        },
+        "vendorName": {
+          "page": 1,
+          "blockIndex": 0,
+          "bboxNormalized": [
+            0.638604,
+            0.050741,
+            0.887064,
+            0.063953
+          ]
+        },
+        "invoiceDate": {
+          "page": 1,
+          "blockIndex": 8,
+          "bboxNormalized": [
+            0.098494,
+            0.180053,
+            0.18898,
+            0.197854
+          ]
+        },
+        "totalAmountMinor": {
+          "page": 1,
+          "blockIndex": 69,
+          "bboxNormalized": [
+            0.825425,
+            0.623461,
+            0.885048,
+            0.636713
+          ]
+        }
       }
     },
     {
@@ -182,7 +828,49 @@
       "vendorNameContains": "MAKEMYTRIP",
       "invoiceDate": "2026-03-27",
       "currency": "INR",
-      "totalAmountMinor": 624862
+      "totalAmountMinor": 624862,
+      "fieldProvenance": {
+        "invoiceNumber": {
+          "page": 1,
+          "blockIndex": 4,
+          "bboxNormalized": [
+            0.071869,
+            0.152616,
+            0.207392,
+            0.165698
+          ]
+        },
+        "vendorName": {
+          "page": 1,
+          "blockIndex": 32,
+          "bboxNormalized": [
+            0.650924,
+            0.052326,
+            0.897331,
+            0.065407
+          ]
+        },
+        "invoiceDate": {
+          "page": 1,
+          "blockIndex": 6,
+          "bboxNormalized": [
+            0.069815,
+            0.181585,
+            0.160164,
+            0.197674
+          ]
+        },
+        "totalAmountMinor": {
+          "page": 1,
+          "blockIndex": 58,
+          "bboxNormalized": [
+            0.854209,
+            0.604651,
+            0.915811,
+            0.619186
+          ]
+        }
+      }
     },
     {
       "file": "7-Chat GPT.pdf",
@@ -194,7 +882,59 @@
       "totalAmountMinor": 169407,
       "lineItemAmountsMinor": [
         169407
-      ]
+      ],
+      "fieldProvenance": {
+        "invoiceNumber": {
+          "page": 1,
+          "blockIndex": 1,
+          "bboxNormalized": [
+            0.045113,
+            0.085706,
+            0.289474,
+            0.103271
+          ]
+        },
+        "vendorName": {
+          "page": 1,
+          "blockIndex": 6,
+          "bboxNormalized": [
+            0.046992,
+            0.155523,
+            0.184211,
+            0.172965
+          ]
+        },
+        "invoiceDate": {
+          "page": 1,
+          "blockIndex": 3,
+          "bboxNormalized": [
+            0.167223,
+            0.102938,
+            0.274506,
+            0.1209
+          ]
+        },
+        "dueDate": {
+          "page": 1,
+          "blockIndex": 5,
+          "bboxNormalized": [
+            0.167203,
+            0.120309,
+            0.272647,
+            0.138411
+          ]
+        },
+        "totalAmountMinor": {
+          "page": 1,
+          "blockIndex": 39,
+          "bboxNormalized": [
+            0.879699,
+            0.50436,
+            0.951128,
+            0.520349
+          ]
+        }
+      }
     },
     {
       "file": "INV-FY2526-939.pdf",
@@ -213,7 +953,59 @@
       "lineItemAmountsMinor": [
         1575000,
         7875000
-      ]
+      ],
+      "fieldProvenance": {
+        "invoiceNumber": {
+          "page": 1,
+          "blockIndex": 10,
+          "bboxNormalized": [
+            0.283368,
+            0.202035,
+            0.398357,
+            0.216648
+          ]
+        },
+        "vendorName": {
+          "page": 1,
+          "blockIndex": 0,
+          "bboxNormalized": [
+            0.291581,
+            0.071221,
+            0.61807,
+            0.087229
+          ]
+        },
+        "invoiceDate": {
+          "page": 1,
+          "blockIndex": 11,
+          "bboxNormalized": [
+            0.283315,
+            0.216387,
+            0.373769,
+            0.229834
+          ]
+        },
+        "dueDate": {
+          "page": 1,
+          "blockIndex": 13,
+          "bboxNormalized": [
+            0.283368,
+            0.244186,
+            0.371663,
+            0.255814
+          ]
+        },
+        "totalAmountMinor": {
+          "page": 1,
+          "blockIndex": 89,
+          "bboxNormalized": [
+            0.86028,
+            0.522968,
+            0.942595,
+            0.536625
+          ]
+        }
+      }
     },
     {
       "file": "invoiceNumber.png",
