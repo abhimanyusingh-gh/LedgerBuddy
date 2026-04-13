@@ -74,6 +74,7 @@ export class LlamaParseOcrProvider implements OcrProvider {
         },
         processing_options: {
           aggressive_table_extraction: true,
+          ignore: { ignore_text_in_image: true },
         },
         ...(supportsAgenticOptions && this.customPrompt !== undefined
           ? { agentic_options: { custom_prompt: this.customPrompt } }
