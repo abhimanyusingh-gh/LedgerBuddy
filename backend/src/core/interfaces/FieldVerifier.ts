@@ -32,8 +32,13 @@ export interface FieldVerifierInput {
     llmAssist?: boolean;
     priorCorrections?: Array<{ field: string; hint: string; count: number }>;
     extractionMode?: string;
+    documentContext?: string;
+    fileName?: string;
+    attachmentName?: string;
     bankStatementPrompt?: string;
     glCategories?: string[];
+    ocrTextVariant?: string;
+    ocrCandidateScores?: Array<{ id: string; score: number }>;
     mergedBlocks?: MergedBlock[];
     structuredLines?: OcrLine[];
     structuredTables?: OcrTable[];

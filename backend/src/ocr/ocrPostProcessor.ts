@@ -38,7 +38,7 @@ export interface NormalizedCurrency {
   blockIndex: number;
 }
 
-interface EnhancedOcrResult extends OcrResult {
+export interface EnhancedOcrResult extends OcrResult {
   mergedBlocks: MergedBlock[];
   lines: OcrLine[];
   tables: OcrTable[];
