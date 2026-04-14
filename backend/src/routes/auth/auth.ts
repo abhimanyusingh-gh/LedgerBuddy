@@ -44,6 +44,17 @@ export function createAuthRouter(authService: AuthService) {
       }
 
       const result = await authService.handleAuthorizationCallback(code, state);
+
+      // TODO [SECURITY M3]: The session token is currently passed as a URL query parameter,
+      // which exposes it in browser history, server logs, and Referer headers.
+      // Migration plan:
+      //   1. Install cookie-parser; set an HTTP-only, Secure, SameSite=Strict cookie here
+      //   2. Update auth middleware (resolveBearerToken) to read from req.cookies
+      //   3. Update frontend bootstrapSession() to stop reading ?token from the URL
+      //   4. Switch frontend API calls from Bearer header to credentials:'include'
+      //   5. Add CORS credentials:true in app.ts cors() config
+      // This requires coordinated frontend+backend changes and cannot be done safely
+      // on the backend alone without breaking the existing login flow.
       const redirect = new URL("/", env.FRONTEND_BASE_URL);
       redirect.searchParams.set("token", result.sessionToken);
       redirect.searchParams.set("next", result.redirectPath);
