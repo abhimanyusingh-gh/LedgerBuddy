@@ -127,7 +127,13 @@ export class LlamaParseOcrProvider implements OcrProvider {
         },
       });
       const completed = await this.client.extract.waitForCompletion(job.id, { expand: ["extract_metadata"] });
-      return mapExtractResult(completed.extract_result, completed.extract_metadata?.field_metadata?.document_metadata);
+      const result = mapExtractResult(completed.extract_result, completed.extract_metadata?.field_metadata?.document_metadata);
+      try {
+        await this.client.extract.delete(job.id);
+      } catch (deleteErr) {
+        logger.warn("ocr.extract.delete.failed", { provider: this.name, jobId: job.id, error: String(deleteErr) });
+      }
+      return result;
     } catch (err) {
       logger.warn("ocr.extract.failed", { provider: this.name, fileInput, error: String(err) });
       return { fields: [], lineItems: [] };
