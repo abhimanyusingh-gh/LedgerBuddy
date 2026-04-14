@@ -509,21 +509,6 @@ export class InvoiceExtractionPipeline {
     logger.info("ocr.dump.saved", { filePath });
   }
 
-  private resolveLanguage(
-    preOcrLanguage: DetectedInvoiceLanguage,
-    rankedCandidates: RankedOcrTextCandidate[],
-    metadata: Record<string, string>
-  ): LanguageResolution {
-    const post = detectInvoiceLanguage(rankedCandidates.map((candidate) => candidate.text));
-    const resolved = resolveDetectedLanguage(preOcrLanguage, post);
-
-    metadata.postOcrLanguage = post.code;
-    metadata.postOcrLanguageConfidence = formatConfidence(post.confidence);
-    metadata.documentLanguage = resolved.code;
-    metadata.documentLanguageConfidence = formatConfidence(resolved.confidence);
-
-    return { preOcr: preOcrLanguage, postOcr: post, resolved };
-  }
 }
 
 function mergeParsedInvoiceData(base: ParsedInvoiceData, override: ParsedInvoiceData): ParsedInvoiceData {
