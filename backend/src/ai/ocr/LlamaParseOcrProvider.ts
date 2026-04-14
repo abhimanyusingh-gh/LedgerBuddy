@@ -27,6 +27,7 @@ interface LlamaParseOcrProviderOptions {
   customPrompt?: string;
   extractEnabled?: boolean;
   extractTier?: LlamaExtractTier;
+  extractSystemPrompt?: string;
 }
 
 export class LlamaParseOcrProvider implements OcrProvider {
@@ -36,6 +37,7 @@ export class LlamaParseOcrProvider implements OcrProvider {
   private readonly customPrompt: string | undefined;
   private readonly extractEnabled: boolean;
   private readonly extractTier: LlamaExtractTier;
+  private readonly extractSystemPrompt: string | undefined;
 
   constructor(options?: LlamaParseOcrProviderOptions) {
     const apiKey = options?.apiKey ?? process.env.LLAMA_CLOUD_API_KEY ?? "";
@@ -46,6 +48,7 @@ export class LlamaParseOcrProvider implements OcrProvider {
     this.client = new LlamaCloud({ apiKey });
     this.extractEnabled = options?.extractEnabled ?? (process.env.LLAMA_PARSE_EXTRACT_ENABLED === "true");
     this.extractTier = options?.extractTier ?? (process.env.LLAMA_PARSE_EXTRACT_TIER as LlamaExtractTier | undefined) ?? "agentic";
+    this.extractSystemPrompt = options?.extractSystemPrompt ?? process.env.LLAMA_EXTRACT_SYSTEM_PROMPT;
   }
 
   async extractText(buffer: Buffer, mimeType: string, _options?: OcrExtractionOptions): Promise<OcrResult> {
@@ -120,6 +123,7 @@ export class LlamaParseOcrProvider implements OcrProvider {
           confidence_scores: true,
           tier: this.extractTier,
           extraction_target: "per_doc",
+          ...(this.extractSystemPrompt ? { system_prompt: this.extractSystemPrompt } : {})
         },
       });
       const completed = await this.client.extract.waitForCompletion(job.id, { expand: ["extract_metadata"] });
@@ -166,7 +170,7 @@ function mapExtractResult(
     const fieldMeta = meta[key];
     if (fieldMeta && typeof fieldMeta === "object" && !Array.isArray(fieldMeta)) {
       const fm = fieldMeta as Record<string, unknown>;
-      const citations = Array.isArray(fm["citations"]) ? fm["citations"] : [];
+      const citations = Array.isArray(fm["citations"]) ? fm["citations"] : (Array.isArray(fm["citation"]) ? fm["citation"] : []);
       if (citations.length > 0) {
         let bestBbox: Record<string, unknown> | undefined;
         let bestCitation: Record<string, unknown> | undefined;

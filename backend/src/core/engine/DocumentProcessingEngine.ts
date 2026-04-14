@@ -44,11 +44,22 @@ export class DocumentProcessingEngine<TOutput> {
 
     if (ocrResult.fields && ocrResult.fields.length > 0) {
       const fieldsAsRecord: Record<string, unknown> = {};
+      const extractProvenance: Record<string, { page?: number; bboxNormalized?: [number, number, number, number]; confidence?: number }> = {};
       for (const field of ocrResult.fields) {
         fieldsAsRecord[field.key] = field.value;
+        if (field.page !== undefined || field.bboxNormalized !== undefined || field.confidence !== undefined) {
+          extractProvenance[field.key] = {
+            ...(field.page !== undefined ? { page: field.page } : {}),
+            ...(field.bboxNormalized !== undefined ? { bboxNormalized: field.bboxNormalized } : {}),
+            ...(field.confidence !== undefined ? { confidence: field.confidence } : {})
+          };
+        }
       }
       if (ocrResult.extractedLineItems && ocrResult.extractedLineItems.length > 0) {
         fieldsAsRecord["line_items"] = ocrResult.extractedLineItems;
+      }
+      if (Object.keys(extractProvenance).length > 0) {
+        fieldsAsRecord["__extract_provenance__"] = extractProvenance;
       }
       const output = this.definition.parseOutput(fieldsAsRecord);
       const validationResult = this.runValidation(output, processingIssues);

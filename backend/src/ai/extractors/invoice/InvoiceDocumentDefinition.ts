@@ -117,12 +117,16 @@ export class InvoiceDocumentDefinition implements SinglePassDocumentDefinition<I
   private parseFromExtractFields(fields: Record<string, unknown>): InvoiceSlmOutput {
     const parsed = parseLlamaExtractFields(fields);
 
+    const rawProvenance = fields["__extract_provenance__"];
+    const fieldProvenance = buildFieldProvenanceFromExtract(rawProvenance);
+
     return {
       parsed,
       tokens: 0,
       issues: [],
       changedFields: [],
-      lineItemProvenance: []
+      lineItemProvenance: [],
+      ...(fieldProvenance ? { fieldProvenance } : {})
     };
   }
 
@@ -139,4 +143,32 @@ export class InvoiceDocumentDefinition implements SinglePassDocumentDefinition<I
     });
     return result;
   }
+}
+
+const EXTRACT_KEY_TO_INVOICE_FIELD: Record<string, InvoiceFieldKey> = {
+  invoice_number: "invoiceNumber",
+  vendor_name: "vendorName",
+  invoice_date: "invoiceDate",
+  due_date: "dueDate",
+  total_amount: "totalAmountMinor"
+};
+
+function buildFieldProvenanceFromExtract(
+  raw: unknown
+): Partial<Record<InvoiceFieldKey, InvoiceFieldProvenance>> | undefined {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+    return undefined;
+  }
+  const provenance = raw as Record<string, { page?: number; bboxNormalized?: [number, number, number, number]; confidence?: number }>;
+  const result: Partial<Record<InvoiceFieldKey, InvoiceFieldProvenance>> = {};
+  for (const [extractKey, meta] of Object.entries(provenance)) {
+    const invoiceKey = EXTRACT_KEY_TO_INVOICE_FIELD[extractKey];
+    if (!invoiceKey) continue;
+    if (meta.page === undefined && meta.bboxNormalized === undefined) continue;
+    result[invoiceKey] = {
+      ...(meta.page !== undefined ? { page: meta.page } : {}),
+      ...(meta.bboxNormalized !== undefined ? { bboxNormalized: meta.bboxNormalized } : {})
+    };
+  }
+  return Object.keys(result).length > 0 ? result : undefined;
 }
