@@ -1,6 +1,6 @@
 import { Router } from "express";
 import multer from "multer";
-import { BankStatementModel } from "@/models/bank/BankStatement.js";
+import { BankStatementModel, type BankStatement } from "@/models/bank/BankStatement.js";
 import { BankTransactionModel, BANK_TRANSACTION_MATCH_STATUS, type BankTransactionMatchStatus } from "@/models/bank/BankTransaction.js";
 import { BankStatementParser } from "@/ai/extractors/bank/BankStatementParser.js";
 import { BankStatementParseProgress } from "@/ai/extractors/bank/BankStatementParseProgress.js";
@@ -133,7 +133,7 @@ export function createBankStatementsRouter(
         query.periodFrom = { ...(query.periodFrom as Record<string, unknown> ?? {}), $lte: req.query.periodTo };
       }
 
-      const [items, total] = await Promise.all([
+      const [items, total]: [BankStatement[], number] = await Promise.all([
         BankStatementModel.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
         BankStatementModel.countDocuments(query)
       ]);
@@ -145,11 +145,28 @@ export function createBankStatementsRouter(
   router.get("/bank-statements/:id/matches", async (req, res, next) => {
     try {
       const tenantId = req.authContext!.tenantId;
+
+      const { BankStatementModel } = await import("@/models/bank/BankStatement.js");
       const statement = await BankStatementModel.findOne({ _id: req.params.id, tenantId }).lean();
       if (!statement) { res.status(404).json({ message: "Bank statement not found." }); return; }
-      const transactions = await BankTransactionModel.find({ tenantId, statementId: req.params.id }).sort({ date: 1 }).lean();
-      const invoiceIds = [...new Set(transactions.map((t) => t.matchedInvoiceId).filter((id): id is string => !!id))];
-      const invoiceMap = new Map<string, { _id: string; invoiceNumber: string | null; vendorName: string | null; totalAmountMinor: number | null; invoiceDate: string | null; status: string }>();
+
+      const transactions = await BankTransactionModel.find(
+        { tenantId, statementId: req.params.id }
+      ).sort({ date: 1 }).lean();
+
+      const invoiceIds = [...new Set(
+        transactions.map((t) => t.matchedInvoiceId).filter((id): id is string => !!id)
+      )];
+
+      const invoiceMap = new Map<string, {
+        _id: string;
+        invoiceNumber: string | null;
+        vendorName: string | null;
+        totalAmountMinor: number | null;
+        invoiceDate: string | null;
+        status: string;
+      }>();
+
       if (invoiceIds.length > 0) {
         const invoices = await InvoiceModel.find(
           { _id: { $in: invoiceIds }, tenantId },
@@ -167,11 +184,15 @@ export function createBankStatementsRouter(
           });
         }
       }
-      let matched = 0, suggested = 0, unmatched = 0;
+
+      let matched = 0;
+      let suggested = 0;
+      let unmatched = 0;
+
       const items = transactions.map((t) => {
-        const status = (t.matchStatus ?? BANK_TRANSACTION_MATCH_STATUS.UNMATCHED) as BankTransactionMatchStatus;
-        if (status === BANK_TRANSACTION_MATCH_STATUS.MATCHED || status === BANK_TRANSACTION_MATCH_STATUS.MANUAL) matched++;
-        else if (status === BANK_TRANSACTION_MATCH_STATUS.SUGGESTED) suggested++;
+        const status = (t.matchStatus ?? "unmatched") as BankTransactionMatchStatus;
+        if (status === "matched" || status === "manual") matched++;
+        else if (status === "suggested") suggested++;
         else unmatched++;
         return {
           _id: String(t._id),
@@ -187,7 +208,11 @@ export function createBankStatementsRouter(
           invoice: t.matchedInvoiceId ? (invoiceMap.get(t.matchedInvoiceId) ?? null) : null
         };
       });
-      res.json({ items, summary: { totalTransactions: transactions.length, matched, suggested, unmatched } });
+
+      res.json({
+        items,
+        summary: { totalTransactions: transactions.length, matched, suggested, unmatched }
+      });
     } catch (error) { next(error); }
   });
 
@@ -200,11 +225,11 @@ export function createBankStatementsRouter(
 
       const query: Record<string, unknown> = { tenantId, statementId: req.params.id };
 
-      if (typeof req.query.status === "string" && req.query.status) {
-        query.matchStatus = req.query.status;
+      if (typeof req.query.status === "string" && (Object.values(BANK_TRANSACTION_MATCH_STATUS) as string[]).includes(req.query.status)) {
+        query.matchStatus = req.query.status as BankTransactionMatchStatus;
       }
-      if (typeof req.query.matchStatus === "string" && req.query.matchStatus) {
-        query.matchStatus = req.query.matchStatus;
+      if (typeof req.query.matchStatus === "string" && (Object.values(BANK_TRANSACTION_MATCH_STATUS) as string[]).includes(req.query.matchStatus)) {
+        query.matchStatus = req.query.matchStatus as BankTransactionMatchStatus;
       }
 
       if (typeof req.query.dateFrom === "string" && req.query.dateFrom) {

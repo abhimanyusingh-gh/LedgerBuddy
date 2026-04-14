@@ -1,5 +1,5 @@
 import type { OcrBlock } from "@/core/interfaces/OcrProvider.js";
-import type { InvoiceExtractionData, InvoiceFieldProvenance, InvoiceLineItemProvenance, ParsedInvoiceData } from "@/types/invoice.js";
+import type { InvoiceExtractionData, InvoiceFieldKey, InvoiceFieldProvenance, InvoiceLineItemProvenance, ParsedInvoiceData } from "@/types/invoice.js";
 import { findBlockByAmountValue } from "./grounding.js";
 
 type Box4 = [number, number, number, number];
@@ -19,7 +19,7 @@ const LINE_ITEM_FIELDS = [
   "igstMinor"
 ] as const satisfies readonly LineItemField[];
 
-export function normalizeBlockIndices(value: unknown): Record<string, number> | undefined {
+function normalizeBlockIndices(value: unknown): Record<string, number> | undefined {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     return undefined;
   }
@@ -33,31 +33,31 @@ export function normalizeBlockIndices(value: unknown): Record<string, number> | 
   return Object.keys(output).length > 0 ? output : undefined;
 }
 
-export function normalizeFieldConfidence(value: unknown): Record<string, number> | undefined {
+export function normalizeFieldConfidence(value: unknown): Partial<Record<InvoiceFieldKey, number>> | undefined {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     return undefined;
   }
-  const output: Record<string, number> = {};
+  const output: Partial<Record<InvoiceFieldKey, number>> = {};
   for (const [field, entry] of Object.entries(value)) {
     const parsed = Number(entry);
     if (!Number.isFinite(parsed)) {
       continue;
     }
     const normalized = parsed > 1 ? parsed / 100 : parsed;
-    output[field] = Number(clampProbability(normalized).toFixed(4));
+    output[field as InvoiceFieldKey] = Number(clampProbability(normalized).toFixed(4));
   }
   return Object.keys(output).length > 0 ? output : undefined;
 }
 
-export function normalizeFieldProvenance(value: unknown): Record<string, InvoiceFieldProvenance> | undefined {
+export function normalizeFieldProvenance(value: unknown): Partial<Record<InvoiceFieldKey, InvoiceFieldProvenance>> | undefined {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     return undefined;
   }
-  const output: Record<string, InvoiceFieldProvenance> = {};
+  const output: Partial<Record<InvoiceFieldKey, InvoiceFieldProvenance>> = {};
   for (const [field, entry] of Object.entries(value)) {
     const normalized = normalizeProvenanceEntry(entry);
     if (normalized) {
-      output[field] = normalized;
+      output[field as InvoiceFieldKey] = normalized;
     }
   }
   return Object.keys(output).length > 0 ? output : undefined;

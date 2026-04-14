@@ -1,6 +1,7 @@
 import type { OcrBlock, OcrPageImage } from "@/core/interfaces/OcrProvider.js";
 import type { InvoiceCompliance, InvoiceExtractionData, ParsedInvoiceData } from "@/types/invoice.js";
 import type { ConfidenceAssessment } from "@/services/invoice/confidenceAssessment.js";
+import type { ExtractionSource } from "@/core/engine/extractionSource.js";
 
 export interface ParseResult {
   parsed: ParsedInvoiceData;
@@ -9,8 +10,8 @@ export interface ParseResult {
 
 export interface ExtractionAttemptSummary {
   provider: string;
-  source: string;
-  strategy: string;
+  source: ExtractionSource;
+  strategy: ExtractionSource;
   score: number;
   confidenceScore: number;
   warningCount: number;
@@ -22,8 +23,8 @@ export interface PipelineExtractionResult {
   provider: string;
   text: string;
   confidence?: number;
-  source: string;
-  strategy: string;
+  source: ExtractionSource;
+  strategy: ExtractionSource;
   parseResult: ParseResult;
   confidenceAssessment: ConfidenceAssessment;
   attempts: ExtractionAttemptSummary[];

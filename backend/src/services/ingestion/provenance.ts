@@ -155,14 +155,13 @@ export function normalizeExtractionData(value: InvoiceExtractionData | undefined
         continue;
       }
       const normalized = parsed > 1 ? parsed / 100 : parsed;
-      const key = encodeExtractionFieldKey(field) as InvoiceFieldKey;
-      fieldConfidence[key] = Number(Math.max(0, Math.min(1, normalized)).toFixed(4));
+      fieldConfidence[encodeExtractionFieldKey(field) as InvoiceFieldKey] = Number(Math.max(0, Math.min(1, normalized)).toFixed(4));
     }
   }
 
   const fieldProvenanceRaw = sanitizeFieldProvenanceRecord(value.fieldProvenance);
-  const fieldProvenance = Object.fromEntries(
-    Object.entries(fieldProvenanceRaw).map(([field, provenance]) => [encodeExtractionFieldKey(field), provenance])
+  const fieldProvenance: Partial<Record<InvoiceFieldKey, FieldProvenanceEntry>> = Object.fromEntries(
+    Object.entries(fieldProvenanceRaw).map(([field, provenance]) => [encodeExtractionFieldKey(field) as InvoiceFieldKey, provenance])
   );
   const lineItemProvenance = Array.isArray(value.lineItemProvenance) ? value.lineItemProvenance : [];
 
@@ -177,10 +176,10 @@ export function normalizeExtractionData(value: InvoiceExtractionData | undefined
   };
 
   if (value.fieldOverlayPaths && typeof value.fieldOverlayPaths === "object") {
-    const overlayPaths: Record<string, string> = {};
+    const overlayPaths: Partial<Record<InvoiceFieldKey, string>> = {};
     for (const [field, path] of Object.entries(value.fieldOverlayPaths)) {
       if (typeof path === "string" && path.trim().length > 0) {
-        overlayPaths[encodeExtractionFieldKey(field)] = path.trim();
+        overlayPaths[encodeExtractionFieldKey(field) as InvoiceFieldKey] = path.trim();
       }
     }
     if (Object.keys(overlayPaths).length > 0) {

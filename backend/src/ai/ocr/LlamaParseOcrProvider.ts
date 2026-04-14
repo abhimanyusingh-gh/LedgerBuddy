@@ -3,7 +3,7 @@ import LlamaCloud from "@llamaindex/llama-cloud";
 import type { OcrBlock, OcrExtractionOptions, OcrPageImage, OcrProvider, OcrResult, ExtractedField } from "@/core/interfaces/OcrProvider.js";
 import { logger } from "@/utils/logger.js";
 import { buildOcrRequestError } from "./OcrProviderSupport.js";
-import { LLAMA_EXTRACT_INVOICE_SCHEMA } from "../schemas/invoice/llamaExtractInvoiceSchema.js";
+import { LLAMA_EXTRACT_INVOICE_SCHEMA } from "@/ai/schemas/invoice/llamaExtractInvoiceSchema.js";
 
 const SUPPORTED_MIME_TYPES = new Set([
   "application/pdf",
@@ -45,7 +45,7 @@ export class LlamaParseOcrProvider implements OcrProvider {
     this.customPrompt = options?.customPrompt ?? process.env.LLAMA_PARSE_CUSTOM_PROMPT;
     this.client = new LlamaCloud({ apiKey });
     this.extractEnabled = options?.extractEnabled ?? (process.env.LLAMA_PARSE_EXTRACT_ENABLED === "true");
-    this.extractTier = options?.extractTier ?? (process.env.LLAMA_PARSE_EXTRACT_TIER as LlamaExtractTier | undefined) ?? "cost_effective";
+    this.extractTier = options?.extractTier ?? (process.env.LLAMA_PARSE_EXTRACT_TIER as LlamaExtractTier | undefined) ?? "agentic";
   }
 
   async extractText(buffer: Buffer, mimeType: string, _options?: OcrExtractionOptions): Promise<OcrResult> {
@@ -85,23 +85,32 @@ export class LlamaParseOcrProvider implements OcrProvider {
       const pageImages = await downloadScreenshots(result.images_content_metadata);
 
       let fields: ExtractedField[] | undefined;
+      let extractedLineItems: Array<Record<string, unknown>> | undefined;
       if (this.extractEnabled) {
         const parseJobId = result.job?.id ?? fileObj.id;
         const extracted = await this.runExtract(parseJobId);
-        if (extracted.length > 0) {
-          fields = extracted;
+        if (extracted.fields.length > 0) {
+          fields = extracted.fields;
+        }
+        if (extracted.lineItems.length > 0) {
+          extractedLineItems = extracted.lineItems;
         }
       }
 
+      try {
+        await this.client.files.delete(fileObj.id);
+      } catch (deleteErr) {
+        logger.warn("ocr.file.delete.failed", { provider: this.name, fileId: fileObj.id, error: String(deleteErr) });
+      }
       logger.info("ocr.request.end", { provider: this.name, mimeType, latencyMs: Date.now() - startedAt, chars: text.length, blockCount: blocks.length, pageImageCount: pageImages.length });
-      return { text, provider: this.name, blocks, pageImages, fields };
+      return { text, provider: this.name, blocks, pageImages, fields, extractedLineItems };
     } catch (error) {
       logger.error("ocr.request.failed", { provider: this.name, mimeType, latencyMs: Date.now() - startedAt, error: buildOcrRequestError(this.name, error) });
       throw new Error(buildOcrRequestError(this.name, error));
     }
   }
 
-  private async runExtract(fileInput: string): Promise<ExtractedField[]> {
+  private async runExtract(fileInput: string): Promise<{ fields: ExtractedField[]; lineItems: Array<Record<string, unknown>> }> {
     try {
       const job = await this.client.extract.create({
         file_input: fileInput,
@@ -117,7 +126,7 @@ export class LlamaParseOcrProvider implements OcrProvider {
       return mapExtractResult(completed.extract_result, completed.extract_metadata?.field_metadata?.document_metadata);
     } catch (err) {
       logger.warn("ocr.extract.failed", { provider: this.name, fileInput, error: String(err) });
-      return [];
+      return { fields: [], lineItems: [] };
     }
   }
 }
@@ -125,17 +134,27 @@ export class LlamaParseOcrProvider implements OcrProvider {
 function mapExtractResult(
   extractResult: unknown,
   documentMetadata: unknown
-): ExtractedField[] {
+): { fields: ExtractedField[]; lineItems: Array<Record<string, unknown>> } {
   if (!extractResult || typeof extractResult !== "object" || Array.isArray(extractResult)) {
-    return [];
+    return { fields: [], lineItems: [] };
   }
   const result = extractResult as Record<string, unknown>;
   const meta = (documentMetadata && typeof documentMetadata === "object" && !Array.isArray(documentMetadata))
     ? (documentMetadata as Record<string, unknown>)
     : {};
 
+  const lineItems: Array<Record<string, unknown>> = [];
+  if (Array.isArray(result["line_items"])) {
+    for (const item of result["line_items"]) {
+      if (item && typeof item === "object" && !Array.isArray(item)) {
+        lineItems.push(item as Record<string, unknown>);
+      }
+    }
+  }
+
   const fields: ExtractedField[] = [];
   for (const key of Object.keys(result)) {
+    if (key === "line_items") continue;
     const raw = result[key];
     if (raw === null || raw === undefined) {
       continue;
@@ -149,18 +168,34 @@ function mapExtractResult(
       const fm = fieldMeta as Record<string, unknown>;
       const citations = Array.isArray(fm["citations"]) ? fm["citations"] : [];
       if (citations.length > 0) {
-        const first = citations[0] as Record<string, unknown>;
-        if (typeof first["page"] === "number") {
-          field.page = first["page"];
+        let bestBbox: Record<string, unknown> | undefined;
+        let bestCitation: Record<string, unknown> | undefined;
+        let bestArea = Infinity;
+        for (const c of citations) {
+          const cit = c as Record<string, unknown>;
+          const bboxArr = Array.isArray(cit["bounding_boxes"]) ? cit["bounding_boxes"] : [];
+          for (const b of bboxArr) {
+            const bRaw = b as Record<string, unknown>;
+            if (typeof bRaw["x"] !== "number" || typeof bRaw["y"] !== "number" || typeof bRaw["w"] !== "number" || typeof bRaw["h"] !== "number") {
+              continue;
+            }
+            const area = (bRaw["w"] as number) * (bRaw["h"] as number);
+            if (area < bestArea) {
+              bestArea = area;
+              bestBbox = bRaw;
+              bestCitation = cit;
+            }
+          }
         }
-        const bboxArr = Array.isArray(first["bounding_boxes"]) ? first["bounding_boxes"] : [];
-        const bboxRaw = bboxArr[0] as Record<string, unknown> | undefined;
-        const dims = first["page_dimensions"] as Record<string, unknown> | undefined;
-        if (bboxRaw && typeof bboxRaw["x"] === "number" && typeof bboxRaw["y"] === "number" && typeof bboxRaw["w"] === "number" && typeof bboxRaw["h"] === "number") {
-          const x1 = bboxRaw["x"] as number;
-          const y1 = bboxRaw["y"] as number;
-          const x2 = x1 + (bboxRaw["w"] as number);
-          const y2 = y1 + (bboxRaw["h"] as number);
+        if (bestCitation && typeof bestCitation["page"] === "number") {
+          field.page = bestCitation["page"];
+        }
+        if (bestBbox && bestCitation) {
+          const dims = bestCitation["page_dimensions"] as Record<string, unknown> | undefined;
+          const x1 = bestBbox["x"] as number;
+          const y1 = bestBbox["y"] as number;
+          const x2 = x1 + (bestBbox["w"] as number);
+          const y2 = y1 + (bestBbox["h"] as number);
           field.bbox = [x1, y1, x2, y2];
           const pw = typeof dims?.["width"] === "number" ? (dims["width"] as number) : 0;
           const ph = typeof dims?.["height"] === "number" ? (dims["height"] as number) : 0;
@@ -175,7 +210,7 @@ function mapExtractResult(
     }
     fields.push(field);
   }
-  return fields;
+  return { fields, lineItems };
 }
 
 function buildBlocks(items: ParsingGetResponse["items"] | null | undefined): OcrBlock[] {

@@ -2,13 +2,14 @@ import { Router } from "express";
 import mongoose from "mongoose";
 import axios from "axios";
 import { env } from "@/config/env.js";
+import { OCR_PROVIDER_NAME } from "@/constants.js";
 
 export const healthRouter = Router();
 
 healthRouter.get("/health", async (_req, res) => {
   const mongoOk = mongoose.connection.readyState === 1;
   const [ocrOk, slmOk] = await Promise.all([
-    env.OCR_PROVIDER === "llamaparse" ? Promise.resolve(true) : probeService(env.OCR_PROVIDER_BASE_URL),
+    env.OCR_PROVIDER === OCR_PROVIDER_NAME.LLAMAPARSE ? Promise.resolve(true) : probeService(env.OCR_PROVIDER_BASE_URL),
     probeService(env.FIELD_VERIFIER_BASE_URL)
   ]);
   const ready = mongoOk && ocrOk && slmOk;
@@ -28,7 +29,7 @@ healthRouter.get("/health", async (_req, res) => {
 healthRouter.get("/health/ready", async (_req, res) => {
   const mongoOk = mongoose.connection.readyState === 1;
   const [ocrOk, slmOk] = await Promise.all([
-    env.OCR_PROVIDER === "llamaparse" ? Promise.resolve(true) : probeService(env.OCR_PROVIDER_BASE_URL),
+    env.OCR_PROVIDER === OCR_PROVIDER_NAME.LLAMAPARSE ? Promise.resolve(true) : probeService(env.OCR_PROVIDER_BASE_URL),
     probeService(env.FIELD_VERIFIER_BASE_URL)
   ]);
   const ready = mongoOk && ocrOk && slmOk;

@@ -1,5 +1,5 @@
 import type { OcrBlock } from "@/core/interfaces/OcrProvider.js";
-import type { InvoiceFieldProvenance, ParsedInvoiceData } from "@/types/invoice.js";
+import type { InvoiceFieldKey, InvoiceFieldProvenance, ParsedInvoiceData } from "@/types/invoice.js";
 import {
   blockMatchesFieldValue,
   findBlockByAmountValue,
@@ -8,7 +8,7 @@ import {
   DEFAULT_FIELD_LABEL_PATTERNS,
   findPreferredDateValueBlock
 } from "./grounding.js";
-import { looksLikeAddress } from "./textHeuristics.js";
+import { scoreFieldConfidence } from "../confidenceScoring/FieldConfidenceScorer.js";
 
 export function calibrateDocumentConfidence(
   baseConfidence: number | undefined,
@@ -55,10 +55,10 @@ export function addFieldDiagnosticsToMetadata(params: {
   templateAppliedFields: Set<string>;
   verifierChangedFields: string[];
   slmBlockIndices?: Record<string, number>;
-  verifierFieldConfidence?: Record<string, number>;
-  verifierFieldProvenance?: Record<string, InvoiceFieldProvenance>;
-}): { fieldConfidence: Record<string, number>; fieldProvenance: Record<string, InvoiceFieldProvenance> } {
-  const fieldNames: string[] = [
+  verifierFieldConfidence?: Partial<Record<InvoiceFieldKey, number>>;
+  verifierFieldProvenance?: Partial<Record<InvoiceFieldKey, InvoiceFieldProvenance>>;
+}): { fieldConfidence: Partial<Record<InvoiceFieldKey, number>>; fieldProvenance: Partial<Record<InvoiceFieldKey, InvoiceFieldProvenance>> } {
+  const fieldNames: InvoiceFieldKey[] = [
     "invoiceNumber",
     "vendorName",
     "invoiceDate",
@@ -79,8 +79,8 @@ export function addFieldDiagnosticsToMetadata(params: {
   const warningText = params.warnings.join(" ").toLowerCase();
   const changedByVerifier = new Set(params.verifierChangedFields);
 
-  const fieldConfidence: Record<string, number> = {};
-  const fieldProvenance: Record<string, InvoiceFieldProvenance> = {};
+  const fieldConfidence: Partial<Record<InvoiceFieldKey, number>> = {};
+  const fieldProvenance: Partial<Record<InvoiceFieldKey, InvoiceFieldProvenance>> = {};
 
   for (const field of fieldNames) {
     let value: unknown;
@@ -99,9 +99,7 @@ export function addFieldDiagnosticsToMetadata(params: {
       const normalized = slmConfidence > 1 ? slmConfidence / 100 : slmConfidence;
       fieldConfidence[field] = Number(clampProbability(normalized).toFixed(4));
     } else {
-      const heuristicConfidence = inferHeuristicConfidence(field as keyof ParsedInvoiceData, value, warningText);
-      const validationBonus = inferValidationBonus(field as keyof ParsedInvoiceData, validationText);
-      const finalConfidence = clampProbability(ocrConfidence * heuristicConfidence * validationBonus);
+      const finalConfidence = scoreFieldConfidence(field as keyof ParsedInvoiceData, value, warningText, validationText, ocrConfidence);
       fieldConfidence[field] = Number(finalConfidence.toFixed(4));
     }
 
@@ -230,44 +228,6 @@ export function addFieldDiagnosticsToMetadata(params: {
   return { fieldConfidence, fieldProvenance };
 }
 
-function inferHeuristicConfidence(field: keyof ParsedInvoiceData, value: unknown, warningText: string): number {
-  if (field === "totalAmountMinor") {
-    if (typeof value !== "number" || value <= 0) {
-      return 0.45;
-    }
-    return warningText.includes("total amount") ? 0.7 : 0.92;
-  }
-  if (field === "vendorName") {
-    if (typeof value !== "string") {
-      return 0.45;
-    }
-    if (looksLikeAddress(value)) {
-      return 0.5;
-    }
-    return warningText.includes("vendor name") ? 0.68 : 0.9;
-  }
-  if (field === "invoiceNumber") {
-    return warningText.includes("invoice number") ? 0.65 : 0.9;
-  }
-  if (field === "currency") {
-    return warningText.includes("currency") ? 0.7 : 0.88;
-  }
-  return 0.82;
-}
-
-const VALIDATION_KEY_BY_FIELD: Record<string, string> = {
-  totalAmountMinor: "total amount",
-  vendorName: "vendor",
-  invoiceNumber: "invoice number",
-  currency: "currency",
-  dueDate: "due date",
-  invoiceDate: "invoice date"
-};
-
-function inferValidationBonus(field: keyof ParsedInvoiceData, validationText: string): number {
-  const key = VALIDATION_KEY_BY_FIELD[field] ?? field;
-  return validationText.includes(key) ? 0.7 : 1;
-}
 
 function clampProbability(value: number): number {
   if (!Number.isFinite(value)) {

@@ -1,7 +1,7 @@
 import { Types } from "mongoose";
 import { InvoiceModel } from "@/models/invoice/Invoice.js";
 import { env } from "@/config/env.js";
-import type { GstBreakdown, InvoiceLineItem, ParsedInvoiceData, ComplianceRiskSignal } from "@/types/invoice.js";
+import type { GstBreakdown, ParsedInvoiceData, ComplianceRiskSignal } from "@/types/invoice.js";
 import { assessInvoiceConfidence } from "./confidenceAssessment.js";
 import { toMinorUnits } from "@/utils/currency.js";
 import type { AuthenticatedRequestContext } from "@/types/auth.js";
@@ -13,6 +13,22 @@ import type { ExtractionMappingService } from "@/ai/extractors/invoice/learning/
 import { TdsCalculationService } from "../compliance/TdsCalculationService.js";
 import { GlCodeMasterModel } from "@/models/compliance/GlCodeMaster.js";
 import { TenantTcsConfigModel } from "@/models/integration/TenantTcsConfig.js";
+import {
+  InvoiceUpdateError,
+  sanitizeParsedData,
+  sanitizeForApi,
+  isCompleteParsedData,
+  isPlainObject,
+  getParsedField,
+  applyNullableField,
+  normalizeNullable,
+  normalizeNullableCurrency,
+  normalizeNullableMinorAmount,
+  normalizeNullableMajorAmount,
+  normalizeNullableNotes
+} from "./invoiceHelpers.js";
+export { InvoiceUpdateError } from "./invoiceHelpers.js";
+import { EXTRACTION_GROUP_TYPE } from "@/ai/extractors/invoice/learning/extractionLearningStore.js";
 
 interface ListInvoicesParams {
   status?: string;
@@ -48,16 +64,6 @@ export type UpdateParsedFieldInput = Partial<{
   notes: string[] | null;
   gst: Partial<GstBreakdown> | null;
 }>;
-
-export class InvoiceUpdateError extends Error {
-  constructor(
-    message: string,
-    readonly statusCode = 400
-  ) {
-    super(message);
-    this.name = "InvoiceUpdateError";
-  }
-}
 
 const EDITABLE_PARSED_FIELDS = [
   "invoiceNumber", "vendorName", "invoiceDate", "dueDate",
@@ -346,19 +352,19 @@ export class InvoiceService {
       "bankAccountNumber", "bankIfsc", "lineItems"
     ];
     for (const field of parsedFields) {
-      invoice.set(`parsed.${field}`, (nextParsed as Record<string, unknown>)[field]);
+      invoice.set(`parsed.${field}`, getParsedField(nextParsed, field));
     }
 
     if (this.learningStore) {
       const correctionFields = ["invoiceNumber", "vendorName", "invoiceDate", "dueDate", "currency", "totalAmountMinor"] as const;
       const corrections = correctionFields
         .filter((f) => {
-          const newVal = (nextParsed as Record<string, unknown>)[f];
-          return newVal !== undefined && String(newVal) !== String((currentParsed as Record<string, unknown>)[f] ?? "");
+          const newVal = getParsedField(nextParsed, f);
+          return newVal !== undefined && String(newVal) !== String(getParsedField(currentParsed, f) ?? "");
         })
         .map((f) => ({
           field: f,
-          hint: buildCorrectionHint(f, (currentParsed as Record<string, unknown>)[f], (nextParsed as Record<string, unknown>)[f]),
+          hint: buildCorrectionHint(f, getParsedField(currentParsed, f), getParsedField(nextParsed, f)),
           count: 1,
           lastSeen: new Date()
         }))
@@ -374,12 +380,12 @@ export class InvoiceService {
           invoiceType: invoiceType ?? null
         });
         if (vendorFingerprint) {
-          this.learningStore.recordCorrections(tenantId, vendorFingerprint, "vendor", corrections).catch((err) =>
+          this.learningStore.recordCorrections(tenantId, vendorFingerprint, EXTRACTION_GROUP_TYPE.VENDOR, corrections).catch((err) =>
             logger.warn("learning.record.vendor.failed", { tenantId, error: err instanceof Error ? err.message : String(err) })
           );
         }
         if (invoiceType) {
-          this.learningStore.recordCorrections(tenantId, invoiceType, "invoice-type", corrections).catch((err) =>
+          this.learningStore.recordCorrections(tenantId, invoiceType, EXTRACTION_GROUP_TYPE.INVOICE_TYPE, corrections).catch((err) =>
             logger.warn("learning.record.type.failed", { tenantId, error: err instanceof Error ? err.message : String(err) })
           );
         }
@@ -387,8 +393,8 @@ export class InvoiceService {
     }
 
     if (this.mappingService) {
-      const gstin = (nextParsed as any)?.gst?.gstin as string | undefined;
-      const vendorNameChanged = String((nextParsed as Record<string, unknown>).vendorName ?? "") !== String((currentParsed as Record<string, unknown>).vendorName ?? "");
+      const gstin = nextParsed.gst?.gstin;
+      const vendorNameChanged = String(nextParsed.vendorName ?? "") !== String(currentParsed.vendorName ?? "");
       if (gstin && vendorNameChanged && nextParsed.vendorName) {
         this.mappingService.maybeSeedMappingFromCorrection(tenantId, id, currentParsed, nextParsed, updatedBy)
           .catch(err => logger.warn("extraction.mapping.seed.failed", { tenantId, invoiceId: id, err }));
@@ -502,108 +508,3 @@ export class InvoiceService {
   }
 }
 
-function applyNullableField<K extends keyof ParsedInvoiceData>(parsed: ParsedInvoiceData, key: K, val: ParsedInvoiceData[K] | null | undefined) {
-  if (val === undefined) return;
-  if (val === null) delete parsed[key]; else parsed[key] = val;
-}
-
-function normalizeNullable(source: Record<string, unknown>, field: string, type: "string"): string | null | undefined {
-  if (!Object.prototype.hasOwnProperty.call(source, field)) return undefined;
-  const value = source[field];
-  if (value === null) return null;
-  if (typeof value !== type) throw new InvoiceUpdateError(`${field} must be a string or null.`);
-  const trimmed = (value as string).trim();
-  return trimmed.length === 0 ? null : trimmed;
-}
-
-function normalizeNullableCurrency(source: Record<string, unknown>): string | null | undefined {
-  if (!Object.prototype.hasOwnProperty.call(source, "currency")) return undefined;
-  const value = source.currency;
-  if (value === null) return null;
-  if (typeof value !== "string") throw new InvoiceUpdateError("currency must be a string or null.");
-  const trimmed = value.trim().toUpperCase();
-  return trimmed.length > 0 ? trimmed : null;
-}
-
-function normalizeNullableMinorAmount(source: Record<string, unknown>): number | null | undefined {
-  if (!Object.prototype.hasOwnProperty.call(source, "totalAmountMinor")) return undefined;
-  const value = source.totalAmountMinor;
-  if (value === null) return null;
-  if (typeof value !== "number" || !Number.isInteger(value) || value <= 0)
-    throw new InvoiceUpdateError("totalAmountMinor must be a positive integer or null.");
-  return value;
-}
-
-function normalizeNullableMajorAmount(source: Record<string, unknown>): number | null | undefined {
-  if (!Object.prototype.hasOwnProperty.call(source, "totalAmountMajor")) return undefined;
-  const value = source.totalAmountMajor;
-  if (value === null) return null;
-  if (typeof value === "number") {
-    if (!Number.isFinite(value) || value <= 0) throw new InvoiceUpdateError("totalAmountMajor must be a positive number or numeric string.");
-    return value;
-  }
-  if (typeof value !== "string") throw new InvoiceUpdateError("totalAmountMajor must be a positive number or numeric string.");
-  const trimmed = value.trim();
-  if (trimmed.length === 0) return null;
-  const parsed = Number(trimmed.replace(/,/g, ""));
-  if (!Number.isFinite(parsed) || parsed <= 0) throw new InvoiceUpdateError("totalAmountMajor must be a positive number or numeric string.");
-  return parsed;
-}
-
-function normalizeNullableNotes(source: Record<string, unknown>): string[] | null | undefined {
-  if (!Object.prototype.hasOwnProperty.call(source, "notes")) return undefined;
-  const value = source.notes;
-  if (value === null) return null;
-  if (!Array.isArray(value)) throw new InvoiceUpdateError("notes must be an array of strings or null.");
-  return value.map((entry) => String(entry).trim()).filter((entry) => entry.length > 0);
-}
-
-function sanitizeParsedData(parsed: unknown): ParsedInvoiceData {
-  if (!isPlainObject(parsed)) return {};
-  const s = parsed as Record<string, unknown>;
-  const str = (v: unknown) => typeof v === "string" && v.trim().length > 0 ? v.trim() : undefined;
-  const notes = Array.isArray(s.notes) ? s.notes.map((e) => String(e).trim()).filter((e) => e.length > 0) : undefined;
-  return {
-    invoiceNumber: str(s.invoiceNumber),
-    vendorName: str(s.vendorName),
-    invoiceDate: str(s.invoiceDate),
-    dueDate: str(s.dueDate),
-    totalAmountMinor: typeof s.totalAmountMinor === "number" && Number.isInteger(s.totalAmountMinor) ? s.totalAmountMinor : undefined,
-    currency: typeof s.currency === "string" && s.currency.trim().toUpperCase().length > 0 ? s.currency.trim().toUpperCase() : undefined,
-    notes: notes && notes.length > 0 ? notes : undefined,
-    gst: isPlainObject(s.gst) ? (s.gst as GstBreakdown) : undefined,
-    pan: str(s.pan),
-    bankAccountNumber: str(s.bankAccountNumber),
-    bankIfsc: str(s.bankIfsc),
-    lineItems: Array.isArray(s.lineItems) ? (s.lineItems as InvoiceLineItem[]) : undefined
-  };
-}
-
-function isCompleteParsedData(parsed: ParsedInvoiceData): boolean {
-  return Boolean(
-    parsed.invoiceNumber && parsed.vendorName && parsed.invoiceDate && parsed.currency &&
-    typeof parsed.totalAmountMinor === "number" && Number.isInteger(parsed.totalAmountMinor) && parsed.totalAmountMinor > 0
-  );
-}
-
-function sanitizeForApi<T>(value: T): T {
-  return (stripNulls(value) ?? {}) as T;
-}
-
-function stripNulls(value: unknown): unknown {
-  if (value === null || value === undefined) return undefined;
-  if (Array.isArray(value)) return value.map(stripNulls).filter((v) => v !== undefined);
-  if (!isPlainObject(value)) return value;
-  const output: Record<string, unknown> = {};
-  for (const [key, rawValue] of Object.entries(value)) {
-    const sanitized = stripNulls(rawValue);
-    if (sanitized !== undefined) output[key] = sanitized;
-  }
-  return output;
-}
-
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-  if (typeof value !== "object" || value === null) return false;
-  const proto = Object.getPrototypeOf(value);
-  return proto === Object.prototype || proto === null;
-}
