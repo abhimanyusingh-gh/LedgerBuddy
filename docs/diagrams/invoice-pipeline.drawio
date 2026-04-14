@@ -1,174 +1,158 @@
 <mxfile host="app.diagrams.net" agent="BillForge" version="24.0.0">
-  <diagram id="invoice-pipeline" name="Invoice Processing Pipeline">
-    <mxGraphModel dx="1800" dy="700" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="2200" pageHeight="600" math="0" shadow="0">
+  <diagram id="invoice-pipeline" name="Invoice Extraction Pipeline">
+    <mxGraphModel dx="1600" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="900">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
 
-        <!-- Stage 1: Invoice Input -->
-        <mxCell id="s1" value="Invoice&#xa;PDF / Image" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1f5fe;strokeColor=#0288d1;fontStyle=1;fontSize=12;spacingTop=2;" vertex="1" parent="1">
-          <mxGeometry x="20" y="210" width="120" height="60" as="geometry" />
+        <mxCell id="2" value="BillForge — Invoice Extraction Pipeline (3 OCR Paths)" style="text;html=1;fontSize=16;fontStyle=1;align=center;verticalAlign=middle;whiteSpace=wrap;" vertex="1" parent="1">
+          <mxGeometry x="350" y="10" width="500" height="30" as="geometry" />
         </mxCell>
 
-        <!-- Stage 2: AI Parsing -->
-        <mxCell id="s2" value="AI Parsing&#xa;OCR + Layout" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e3f2fd;strokeColor=#1565c0;fontStyle=1;fontSize=12;" vertex="1" parent="1">
-          <mxGeometry x="190" y="210" width="130" height="60" as="geometry" />
+        <mxCell id="10" value="Invoice&#xa;PDF / Image" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontStyle=1;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="40" y="350" width="130" height="60" as="geometry" />
         </mxCell>
 
-        <!-- Stage 3: Field Extraction -->
-        <mxCell id="s3" value="Structured JSON&#xa;Field Extraction" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e8eaf6;strokeColor=#283593;fontStyle=1;fontSize=12;" vertex="1" parent="1">
-          <mxGeometry x="370" y="210" width="140" height="60" as="geometry" />
+        <mxCell id="20" value="Path 1: LlamaExtract (Cloud)" style="swimlane;startSize=25;fillColor=#d5e8d4;strokeColor=#82b366;fontStyle=1;fontSize=11;rounded=1;" vertex="1" parent="1">
+          <mxGeometry x="240" y="60" width="500" height="100" as="geometry" />
         </mxCell>
-
-        <!-- Stage 3b: SLM Verification + Classification -->
-        <mxCell id="s3b" value="SLM Verify&#xa;+ Classify Type" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ede7f6;strokeColor=#4527a0;fontStyle=1;fontSize=12;" vertex="1" parent="1">
-          <mxGeometry x="560" y="210" width="140" height="60" as="geometry" />
+        <mxCell id="21" value="PDF → LlamaCloud Parse" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#82b366;fontSize=10;" vertex="1" parent="20">
+          <mxGeometry x="15" y="35" width="150" height="40" as="geometry" />
         </mxCell>
-
-        <!-- Stage 3c: LLM Assist Decision -->
-        <mxCell id="s3c" value="Confidence&#xa;&lt; 85%?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#fff9c4;strokeColor=#f9a825;fontStyle=1;fontSize=11;" vertex="1" parent="1">
-          <mxGeometry x="745" y="195" width="110" height="90" as="geometry" />
+        <mxCell id="22" value="LlamaExtract&#xa;structured fields" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#82b366;fontSize=10;" vertex="1" parent="20">
+          <mxGeometry x="185" y="35" width="140" height="40" as="geometry" />
         </mxCell>
-
-        <!-- Stage 3d: LLM Vision Re-extraction -->
-        <mxCell id="s3d" value="LLM Assist&#xa;Vision + Strict" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fce4ec;strokeColor=#880e4f;fontStyle=1;fontSize=11;" vertex="1" parent="1">
-          <mxGeometry x="730" y="80" width="140" height="50" as="geometry" />
+        <mxCell id="23" value="ParsedInvoiceData&#xa;(no SLM needed)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;fontStyle=1;" vertex="1" parent="20">
+          <mxGeometry x="345" y="35" width="140" height="40" as="geometry" />
         </mxCell>
-
-        <!-- Stage 3e: Learning Store -->
-        <mxCell id="s3e" value="Extraction&#xa;Learning Store" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=8;fillColor=#f3e5f5;strokeColor=#6a1b9a;fontStyle=1;fontSize=10;" vertex="1" parent="1">
-          <mxGeometry x="920" y="70" width="110" height="60" as="geometry" />
-        </mxCell>
-
-        <!-- Stage 4: Confidence Scoring -->
-        <mxCell id="s4" value="Confidence&#xa;Scoring" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff3e0;strokeColor=#e65100;fontStyle=1;fontSize=12;" vertex="1" parent="1">
-          <mxGeometry x="910" y="210" width="120" height="60" as="geometry" />
-        </mxCell>
-
-        <!-- Stage 5: Review Gate -->
-        <mxCell id="s5" value="Review&#xa;Required?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#fff9c4;strokeColor=#f9a825;fontStyle=1;fontSize=11;" vertex="1" parent="1">
-          <mxGeometry x="1080" y="195" width="110" height="90" as="geometry" />
-        </mxCell>
-
-        <!-- Branch: Auto-Approve -->
-        <mxCell id="s6a" value="Auto-Approve" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e8f5e9;strokeColor=#2e7d32;fontStyle=1;fontSize=12;" vertex="1" parent="1">
-          <mxGeometry x="1240" y="130" width="120" height="45" as="geometry" />
-        </mxCell>
-
-        <!-- Branch: Human Review -->
-        <mxCell id="s6b" value="Human Review&#xa;Dashboard" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fce4ec;strokeColor=#c62828;fontStyle=1;fontSize=12;" vertex="1" parent="1">
-          <mxGeometry x="1240" y="300" width="130" height="50" as="geometry" />
-        </mxCell>
-
-        <!-- Stage 7: Approve -->
-        <mxCell id="s7" value="Approved" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e8f5e9;strokeColor=#2e7d32;fontStyle=1;fontSize=12;" vertex="1" parent="1">
-          <mxGeometry x="1420" y="210" width="100" height="50" as="geometry" />
-        </mxCell>
-
-        <!-- Stage 8: Tally Mapping -->
-        <mxCell id="s8" value="Tally Mapping&#xa;GST Ledgers" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f3e5f5;strokeColor=#6a1b9a;fontStyle=1;fontSize=12;" vertex="1" parent="1">
-          <mxGeometry x="1570" y="210" width="130" height="50" as="geometry" />
-        </mxCell>
-
-        <!-- Stage 9a: XML Export -->
-        <mxCell id="s9a" value="Tally XML&#xa;Export" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e0f2f1;strokeColor=#00695c;fontStyle=1;fontSize=12;" vertex="1" parent="1">
-          <mxGeometry x="1750" y="160" width="120" height="50" as="geometry" />
-        </mxCell>
-
-        <!-- Stage 9b: S3 Storage -->
-        <mxCell id="s9b" value="S3 / MinIO&#xa;Storage" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e0f2f1;strokeColor=#00695c;fontStyle=1;fontSize=12;" vertex="1" parent="1">
-          <mxGeometry x="1750" y="260" width="120" height="50" as="geometry" />
-        </mxCell>
-
-        <!-- Arrows: main flow -->
-        <mxCell id="a1" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#555555;strokeWidth=2;" edge="1" source="s1" target="s2" parent="1">
+        <mxCell id="24" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#82b366;strokeWidth=2;" edge="1" source="21" target="22" parent="20">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="a2" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#555555;strokeWidth=2;" edge="1" source="s2" target="s3" parent="1">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-        <mxCell id="a3" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#555555;strokeWidth=2;" edge="1" source="s3" target="s3b" parent="1">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-        <mxCell id="a3b" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#555555;strokeWidth=2;" edge="1" source="s3b" target="s3c" parent="1">
+        <mxCell id="25" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#82b366;strokeWidth=2;" edge="1" source="22" target="23" parent="20">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
 
-        <!-- LLM Assist branch (low confidence) -->
-        <mxCell id="a3c_up" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#880e4f;strokeWidth=2;" edge="1" source="s3c" target="s3d" parent="1">
+        <mxCell id="30" value="Path 2: LlamaParse + SLM" style="swimlane;startSize=25;fillColor=#e1d5e7;strokeColor=#9673a6;fontStyle=1;fontSize=11;rounded=1;" vertex="1" parent="1">
+          <mxGeometry x="240" y="200" width="500" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="31" value="PDF → LlamaCloud Parse&#xa;(OCR text)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#9673a6;fontSize=10;" vertex="1" parent="30">
+          <mxGeometry x="15" y="35" width="150" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="32" value="SLM Verify&#xa;(field extraction)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#9673a6;fontSize=10;" vertex="1" parent="30">
+          <mxGeometry x="185" y="35" width="140" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="33" value="ParsedInvoiceData" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10;fontStyle=1;" vertex="1" parent="30">
+          <mxGeometry x="345" y="35" width="140" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="34" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#9673a6;strokeWidth=2;" edge="1" source="31" target="32" parent="30">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="a3c_up_l" value="Low" style="edgeLabel;html=1;fontSize=10;fontColor=#880e4f;" vertex="1" connectable="0" parent="a3c_up">
+        <mxCell id="35" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#9673a6;strokeWidth=2;" edge="1" source="32" target="33" parent="30">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
 
-        <!-- LLM Assist -> Learning Store -->
-        <mxCell id="a3d_learn" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#6a1b9a;strokeWidth=1;dashed=1;" edge="1" source="s3d" target="s3e" parent="1">
+        <mxCell id="40" value="Path 3: DeepSeek + SLM" style="swimlane;startSize=25;fillColor=#ffe6cc;strokeColor=#d79b00;fontStyle=1;fontSize=11;rounded=1;" vertex="1" parent="1">
+          <mxGeometry x="240" y="340" width="500" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="41" value="PDF → DeepSeek MLX&#xa;(local OCR)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#d79b00;fontSize=10;" vertex="1" parent="40">
+          <mxGeometry x="15" y="35" width="150" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="42" value="SLM Verify&#xa;(field extraction)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#d79b00;fontSize=10;" vertex="1" parent="40">
+          <mxGeometry x="185" y="35" width="140" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="43" value="ParsedInvoiceData" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=10;fontStyle=1;" vertex="1" parent="40">
+          <mxGeometry x="345" y="35" width="140" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="44" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#d79b00;strokeWidth=2;" edge="1" source="41" target="42" parent="40">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="a3d_learn_l" value="Record&#xa;Corrections" style="edgeLabel;html=1;fontSize=9;fontColor=#6a1b9a;" vertex="1" connectable="0" parent="a3d_learn">
+        <mxCell id="45" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#d79b00;strokeWidth=2;" edge="1" source="42" target="43" parent="40">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
 
-        <!-- Learning Store -> SLM Verify (feedback loop) -->
-        <mxCell id="a_learn_slm" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#6a1b9a;strokeWidth=1;dashed=1;" edge="1" source="s3e" target="s3b" parent="1">
+        <mxCell id="50" value="Convergence" style="text;html=1;fontSize=11;fontStyle=1;align=center;fillColor=none;strokeColor=none;fontColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="800" y="200" width="100" height="20" as="geometry" />
+        </mxCell>
+
+        <mxCell id="51" value="ParsedInvoiceData&#xa;(unified)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#333333;fontStyle=1;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="790" y="350" width="160" height="60" as="geometry" />
+        </mxCell>
+
+        <mxCell id="60" value="Compliance Enrichment" style="swimlane;startSize=25;fillColor=#f8cecc;strokeColor=#b85450;fontStyle=1;fontSize=11;rounded=1;" vertex="1" parent="1">
+          <mxGeometry x="790" y="460" width="400" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="61" value="GST Validation&#xa;(CGST/SGST/IGST/Cess)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#b85450;fontSize=10;" vertex="1" parent="60">
+          <mxGeometry x="10" y="35" width="115" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="62" value="TDS / PAN&#xa;check" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#b85450;fontSize=10;" vertex="1" parent="60">
+          <mxGeometry x="140" y="35" width="100" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="63" value="Duplicate&#xa;detection" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#b85450;fontSize=10;" vertex="1" parent="60">
+          <mxGeometry x="255" y="35" width="100" height="50" as="geometry" />
+        </mxCell>
+
+        <mxCell id="70" value="Invoice Saved&#xa;(MongoDB)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontStyle=1;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="1250" y="480" width="150" height="60" as="geometry" />
+        </mxCell>
+
+        <mxCell id="80" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#333333;strokeWidth=2;" edge="1" source="10" target="21" parent="1">
           <mxGeometry relative="1" as="geometry">
             <Array as="points">
-              <mxPoint x="975" y="50" />
-              <mxPoint x="630" y="50" />
+              <mxPoint x="105" y="250" />
+              <mxPoint x="200" y="250" />
+              <mxPoint x="200" y="115" />
             </Array>
           </mxGeometry>
         </mxCell>
-        <mxCell id="a_learn_slm_l" value="Prior Corrections" style="edgeLabel;html=1;fontSize=9;fontColor=#6a1b9a;" vertex="1" connectable="0" parent="a_learn_slm">
+        <mxCell id="81" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#333333;strokeWidth=2;" edge="1" source="10" target="31" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="105" y="300" />
+              <mxPoint x="200" y="300" />
+              <mxPoint x="200" y="255" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="82" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#333333;strokeWidth=2;" edge="1" source="10" target="41" parent="1">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
 
-        <!-- LLM Assist -> Confidence (rejoin) -->
-        <mxCell id="a3d_conf" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#555555;strokeWidth=2;" edge="1" source="s3d" target="s4" parent="1">
+        <mxCell id="83" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#82b366;strokeWidth=2;" edge="1" source="23" target="51" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="760" y="115" />
+              <mxPoint x="760" y="380" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="84" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#9673a6;strokeWidth=2;" edge="1" source="33" target="51" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="760" y="255" />
+              <mxPoint x="760" y="380" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="85" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#d79b00;strokeWidth=2;" edge="1" source="43" target="51" parent="1">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
 
-        <!-- High confidence bypass -->
-        <mxCell id="a3c_pass" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#2e7d32;strokeWidth=2;" edge="1" source="s3c" target="s4" parent="1">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-        <mxCell id="a3c_pass_l" value="OK" style="edgeLabel;html=1;fontSize=10;fontColor=#2e7d32;" vertex="1" connectable="0" parent="a3c_pass">
+        <mxCell id="86" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#333333;strokeWidth=2;" edge="1" source="51" target="60" parent="1">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
 
-        <mxCell id="a4" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#555555;strokeWidth=2;" edge="1" source="s4" target="s5" parent="1">
+        <mxCell id="87" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#333333;strokeWidth=2;" edge="1" source="60" target="70" parent="1">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
 
-        <mxCell id="a5a" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#2e7d32;strokeWidth=2;" edge="1" source="s5" target="s6a" parent="1">
-          <mxGeometry relative="1" as="geometry" />
+        <mxCell id="90" value="LLAMA_PARSE_EXTRACT_ENABLED=true" style="text;html=1;fontSize=9;fontStyle=2;align=left;fillColor=none;strokeColor=none;fontColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="245" y="45" width="250" height="15" as="geometry" />
         </mxCell>
-        <mxCell id="a5al" value="High&#xa;Confidence" style="edgeLabel;html=1;fontSize=10;fontColor=#2e7d32;" vertex="1" connectable="0" parent="a5a">
-          <mxGeometry relative="1" as="geometry" />
+        <mxCell id="91" value="OCR_PROVIDER=llamaparse" style="text;html=1;fontSize=9;fontStyle=2;align=left;fillColor=none;strokeColor=none;fontColor=#9673a6;" vertex="1" parent="1">
+          <mxGeometry x="245" y="185" width="200" height="15" as="geometry" />
         </mxCell>
-
-        <mxCell id="a5b" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#c62828;strokeWidth=2;" edge="1" source="s5" target="s6b" parent="1">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-        <mxCell id="a5bl" value="Needs&#xa;Review" style="edgeLabel;html=1;fontSize=10;fontColor=#c62828;" vertex="1" connectable="0" parent="a5b">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-
-        <mxCell id="a6a" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#555555;strokeWidth=2;" edge="1" source="s6a" target="s7" parent="1">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-        <mxCell id="a6b" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#555555;strokeWidth=2;" edge="1" source="s6b" target="s7" parent="1">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-
-        <mxCell id="a7" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#555555;strokeWidth=2;" edge="1" source="s7" target="s8" parent="1">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-        <mxCell id="a8a" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#555555;strokeWidth=2;" edge="1" source="s8" target="s9a" parent="1">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-        <mxCell id="a8b" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#555555;strokeWidth=2;" edge="1" source="s8" target="s9b" parent="1">
-          <mxGeometry relative="1" as="geometry" />
+        <mxCell id="92" value="OCR_PROVIDER=deepseek | auto" style="text;html=1;fontSize=9;fontStyle=2;align=left;fillColor=none;strokeColor=none;fontColor=#d79b00;" vertex="1" parent="1">
+          <mxGeometry x="245" y="325" width="200" height="15" as="geometry" />
         </mxCell>
       </root>
     </mxGraphModel>

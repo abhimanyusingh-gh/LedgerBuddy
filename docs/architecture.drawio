@@ -1,215 +1,114 @@
-<mxfile host="app.diagrams.net" modified="2026-03-21T12:00:00.000Z" agent="BillForge" version="24.0.0" type="device">
-  <diagram id="billforge-architecture" name="System Architecture">
-    <mxGraphModel dx="1400" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="900" math="0" shadow="0">
+<mxfile host="app.diagrams.net" agent="BillForge" version="24.0.0">
+  <diagram id="billforge-architecture" name="High-Level Architecture">
+    <mxGraphModel dx="1422" dy="762" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="827">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
 
-        <!-- Title -->
-        <mxCell id="title" value="BillForge — System Architecture" style="text;html=1;fontSize=18;fontStyle=1;align=center;verticalAlign=middle;whiteSpace=wrap;" vertex="1" parent="1">
-          <mxGeometry x="500" y="10" width="400" height="30" as="geometry" />
+        <mxCell id="2" value="BillForge — High-Level Architecture" style="text;html=1;fontSize=18;fontStyle=1;align=center;verticalAlign=middle;whiteSpace=wrap;" vertex="1" parent="1">
+          <mxGeometry x="335" y="10" width="500" height="30" as="geometry" />
         </mxCell>
 
-        <!-- Tenant Boundary -->
-        <mxCell id="tenant-boundary" value="Multi-Tenant Boundary (tenantId isolation)" style="rounded=1;whiteSpace=wrap;html=1;dashed=1;dashPattern=8 4;fillColor=none;strokeColor=#6c8ebf;fontSize=11;fontStyle=2;verticalAlign=top;align=left;spacingLeft=8;spacingTop=4;" vertex="1" parent="1">
-          <mxGeometry x="30" y="60" width="1340" height="820" as="geometry" />
+        <mxCell id="10" value="Client" style="swimlane;startSize=25;fillColor=#dae8fc;strokeColor=#6c8ebf;fontStyle=1;fontSize=12;rounded=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="60" width="200" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="11" value="User (Browser)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#6c8ebf;fontSize=11;" vertex="1" parent="10">
+          <mxGeometry x="30" y="40" width="140" height="60" as="geometry" />
         </mxCell>
 
-        <!-- INGESTION SOURCES -->
-        <mxCell id="sources-group" value="Ingestion Sources" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontStyle=1;verticalAlign=top;fontSize=11;" vertex="1" parent="1">
-          <mxGeometry x="50" y="100" width="200" height="240" as="geometry" />
+        <mxCell id="20" value="Application" style="swimlane;startSize=25;fillColor=#d5e8d4;strokeColor=#82b366;fontStyle=1;fontSize=12;rounded=1;" vertex="1" parent="1">
+          <mxGeometry x="290" y="60" width="340" height="200" as="geometry" />
         </mxCell>
-        <mxCell id="gmail" value="Gmail&#xa;(IMAP/OAuth2)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;" vertex="1" parent="1">
-          <mxGeometry x="75" y="140" width="150" height="40" as="geometry" />
+        <mxCell id="21" value="Frontend&#xa;React/Vite :3000" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#82b366;fontSize=11;" vertex="1" parent="20">
+          <mxGeometry x="20" y="40" width="140" height="50" as="geometry" />
         </mxCell>
-        <mxCell id="folder" value="Folder Source&#xa;(local disk)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;" vertex="1" parent="1">
-          <mxGeometry x="75" y="195" width="150" height="40" as="geometry" />
+        <mxCell id="22" value="Backend&#xa;Express/TS :4000" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#82b366;fontSize=11;" vertex="1" parent="20">
+          <mxGeometry x="180" y="40" width="140" height="50" as="geometry" />
         </mxCell>
-        <mxCell id="s3upload" value="S3 Upload&#xa;(browser → MinIO/S3)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;" vertex="1" parent="1">
-          <mxGeometry x="75" y="250" width="150" height="40" as="geometry" />
+        <mxCell id="23" value="Keycloak&#xa;OIDC :8180" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#82b366;fontSize=11;" vertex="1" parent="20">
+          <mxGeometry x="20" y="120" width="140" height="50" as="geometry" />
         </mxCell>
-
-        <!-- EXTRACTION PIPELINE -->
-        <mxCell id="pipeline-group" value="Extraction Pipeline" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontStyle=1;verticalAlign=top;fontSize=11;" vertex="1" parent="1">
-          <mxGeometry x="310" y="100" width="420" height="240" as="geometry" />
-        </mxCell>
-        <mxCell id="ocr" value="OCR Provider&#xa;(DeepSeek MLX / Mock)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10;" vertex="1" parent="1">
-          <mxGeometry x="330" y="140" width="170" height="40" as="geometry" />
-        </mxCell>
-        <mxCell id="parser" value="Heuristic Parser&#xa;(vendor fingerprint, layout)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10;" vertex="1" parent="1">
-          <mxGeometry x="330" y="195" width="170" height="40" as="geometry" />
-        </mxCell>
-        <mxCell id="slm" value="SLM Field Verifier&#xa;(relaxed → strict)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10;" vertex="1" parent="1">
-          <mxGeometry x="330" y="250" width="170" height="40" as="geometry" />
-        </mxCell>
-        <mxCell id="confidence" value="Confidence&#xa;Scorer" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10;" vertex="1" parent="1">
-          <mxGeometry x="540" y="140" width="170" height="40" as="geometry" />
-        </mxCell>
-        <mxCell id="learning" value="Extraction&#xa;Learning Store" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10;" vertex="1" parent="1">
-          <mxGeometry x="540" y="195" width="170" height="40" as="geometry" />
-        </mxCell>
-        <mxCell id="validation" value="Deterministic&#xa;Validation" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10;" vertex="1" parent="1">
-          <mxGeometry x="540" y="250" width="170" height="40" as="geometry" />
+        <mxCell id="24" value="Redis&#xa;:6379" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#82b366;fontSize=11;" vertex="1" parent="20">
+          <mxGeometry x="180" y="120" width="140" height="50" as="geometry" />
         </mxCell>
 
-        <!-- APPROVAL ENGINE -->
-        <mxCell id="approval-group" value="Approval Engine" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontStyle=1;verticalAlign=top;fontSize=11;" vertex="1" parent="1">
-          <mxGeometry x="790" y="100" width="250" height="240" as="geometry" />
+        <mxCell id="30" value="Data" style="swimlane;startSize=25;fillColor=#ffe6cc;strokeColor=#d79b00;fontStyle=1;fontSize=12;rounded=1;" vertex="1" parent="1">
+          <mxGeometry x="680" y="60" width="220" height="200" as="geometry" />
         </mxCell>
-        <mxCell id="workflow-config" value="Workflow Config&#xa;(per-tenant, simple/advanced)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=10;" vertex="1" parent="1">
-          <mxGeometry x="810" y="140" width="210" height="40" as="geometry" />
+        <mxCell id="31" value="MongoDB&#xa;:27017" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=8;fillColor=#FFFFFF;strokeColor=#d79b00;fontSize=11;" vertex="1" parent="30">
+          <mxGeometry x="40" y="40" width="140" height="60" as="geometry" />
         </mxCell>
-        <mxCell id="step-engine" value="Step Engine&#xa;(any/all rule, conditions)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=10;" vertex="1" parent="1">
-          <mxGeometry x="810" y="195" width="210" height="40" as="geometry" />
-        </mxCell>
-        <mxCell id="audit-trail" value="Audit Trail&#xa;(stepResults + processingIssues)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=10;" vertex="1" parent="1">
-          <mxGeometry x="810" y="250" width="210" height="40" as="geometry" />
+        <mxCell id="32" value="MinIO (S3)&#xa;:9000 / :9001" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=8;fillColor=#FFFFFF;strokeColor=#d79b00;fontSize=11;" vertex="1" parent="30">
+          <mxGeometry x="40" y="120" width="140" height="60" as="geometry" />
         </mxCell>
 
-        <!-- EXPORT -->
-        <mxCell id="export-group" value="Export" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontStyle=1;verticalAlign=top;fontSize=11;" vertex="1" parent="1">
-          <mxGeometry x="1100" y="100" width="250" height="240" as="geometry" />
+        <mxCell id="40" value="AI / ML" style="swimlane;startSize=25;fillColor=#e1d5e7;strokeColor=#9673a6;fontStyle=1;fontSize=12;rounded=1;" vertex="1" parent="1">
+          <mxGeometry x="950" y="60" width="180" height="200" as="geometry" />
         </mxCell>
-        <mxCell id="tally" value="Tally XML Exporter&#xa;(GST: CGST/SGST/IGST/Cess)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;" vertex="1" parent="1">
-          <mxGeometry x="1120" y="140" width="210" height="40" as="geometry" />
+        <mxCell id="41" value="OCR Service&#xa;DeepSeek MLX :8200" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#9673a6;fontSize=10;" vertex="1" parent="40">
+          <mxGeometry x="15" y="40" width="150" height="50" as="geometry" />
         </mxCell>
-        <mxCell id="filestore" value="File Store&#xa;(LocalDisk / S3)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;" vertex="1" parent="1">
-          <mxGeometry x="1120" y="195" width="210" height="40" as="geometry" />
-        </mxCell>
-        <mxCell id="export-batch" value="Export Batch&#xa;History + Download" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;" vertex="1" parent="1">
-          <mxGeometry x="1120" y="250" width="210" height="40" as="geometry" />
+        <mxCell id="42" value="SLM Verifier&#xa;:8300" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#9673a6;fontSize=10;" vertex="1" parent="40">
+          <mxGeometry x="15" y="110" width="150" height="50" as="geometry" />
         </mxCell>
 
-        <!-- API LAYER -->
-        <mxCell id="api-group" value="Express API Layer" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontStyle=1;verticalAlign=top;fontSize=11;" vertex="1" parent="1">
-          <mxGeometry x="50" y="390" width="1300" height="120" as="geometry" />
+        <mxCell id="50" value="External Services" style="swimlane;startSize=25;fillColor=#f5f5f5;strokeColor=#666666;fontStyle=1;fontSize=12;rounded=1;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="300" width="1090" height="120" as="geometry" />
         </mxCell>
-        <mxCell id="auth-mw" value="Auth Middleware&#xa;(Keycloak JWT)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f0f0f0;strokeColor=#999;fontSize=9;" vertex="1" parent="1">
-          <mxGeometry x="70" y="420" width="120" height="40" as="geometry" />
+        <mxCell id="51" value="LlamaCloud&#xa;(LlamaParse / LlamaExtract)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#666666;fontSize=10;dashed=1;" vertex="1" parent="50">
+          <mxGeometry x="20" y="40" width="180" height="50" as="geometry" />
         </mxCell>
-        <mxCell id="rbac" value="RBAC&#xa;(Admin/Member/Viewer)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f0f0f0;strokeColor=#999;fontSize=9;" vertex="1" parent="1">
-          <mxGeometry x="210" y="420" width="140" height="40" as="geometry" />
+        <mxCell id="52" value="Anthropic&#xa;(Claude LLM assist)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#666666;fontSize=10;dashed=1;" vertex="1" parent="50">
+          <mxGeometry x="220" y="40" width="160" height="50" as="geometry" />
         </mxCell>
-        <mxCell id="route-invoices" value="/invoices&#xa;CRUD + approve" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f0f0f0;strokeColor=#999;fontSize=9;" vertex="1" parent="1">
-          <mxGeometry x="370" y="420" width="120" height="40" as="geometry" />
+        <mxCell id="53" value="Gmail&#xa;(OAuth IMAP)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#666666;fontSize=10;dashed=1;" vertex="1" parent="50">
+          <mxGeometry x="400" y="40" width="130" height="50" as="geometry" />
         </mxCell>
-        <mxCell id="route-jobs" value="/jobs&#xa;ingest + SSE" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f0f0f0;strokeColor=#999;fontSize=9;" vertex="1" parent="1">
-          <mxGeometry x="510" y="420" width="110" height="40" as="geometry" />
+        <mxCell id="54" value="SendGrid&#xa;(invite emails)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#666666;fontSize=10;dashed=1;" vertex="1" parent="50">
+          <mxGeometry x="550" y="40" width="130" height="50" as="geometry" />
         </mxCell>
-        <mxCell id="route-workflow" value="/workflow&#xa;approve + reject" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f0f0f0;strokeColor=#999;fontSize=9;" vertex="1" parent="1">
-          <mxGeometry x="640" y="420" width="120" height="40" as="geometry" />
+        <mxCell id="55" value="MailHog&#xa;(dev email :8025)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#666666;fontSize=10;dashed=1;" vertex="1" parent="50">
+          <mxGeometry x="700" y="40" width="130" height="50" as="geometry" />
         </mxCell>
-        <mxCell id="route-exports" value="/exports&#xa;tally + download" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f0f0f0;strokeColor=#999;fontSize=9;" vertex="1" parent="1">
-          <mxGeometry x="780" y="420" width="120" height="40" as="geometry" />
-        </mxCell>
-        <mxCell id="route-admin" value="/admin&#xa;users + config" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f0f0f0;strokeColor=#999;fontSize=9;" vertex="1" parent="1">
-          <mxGeometry x="920" y="420" width="120" height="40" as="geometry" />
-        </mxCell>
-        <mxCell id="route-platform" value="/platform&#xa;tenants + analytics" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f0f0f0;strokeColor=#999;fontSize=9;" vertex="1" parent="1">
-          <mxGeometry x="1060" y="420" width="130" height="40" as="geometry" />
-        </mxCell>
-        <mxCell id="route-gmail" value="/gmail&#xa;OAuth + connect" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f0f0f0;strokeColor=#999;fontSize=9;" vertex="1" parent="1">
-          <mxGeometry x="1210" y="420" width="120" height="40" as="geometry" />
+        <mxCell id="56" value="Tally ERP&#xa;(XML export)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#666666;fontSize=10;dashed=1;" vertex="1" parent="50">
+          <mxGeometry x="850" y="40" width="130" height="50" as="geometry" />
         </mxCell>
 
-        <!-- FRONTEND -->
-        <mxCell id="frontend-group" value="React Frontend (Vite)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontStyle=1;verticalAlign=top;fontSize=11;" vertex="1" parent="1">
-          <mxGeometry x="50" y="560" width="640" height="140" as="geometry" />
-        </mxCell>
-        <mxCell id="fe-invoices" value="Invoice Table&#xa;+ Detail Popup" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e6f2ff;strokeColor=#6c8ebf;fontSize=9;" vertex="1" parent="1">
-          <mxGeometry x="70" y="590" width="120" height="40" as="geometry" />
-        </mxCell>
-        <mxCell id="fe-viewer" value="Source Viewer&#xa;(zoom/pan/bbox)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e6f2ff;strokeColor=#6c8ebf;fontSize=9;" vertex="1" parent="1">
-          <mxGeometry x="210" y="590" width="120" height="40" as="geometry" />
-        </mxCell>
-        <mxCell id="fe-workflow" value="Workflow Config&#xa;(simple/advanced)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e6f2ff;strokeColor=#6c8ebf;fontSize=9;" vertex="1" parent="1">
-          <mxGeometry x="350" y="590" width="130" height="40" as="geometry" />
-        </mxCell>
-        <mxCell id="fe-timeline" value="Approval&#xa;Timeline" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e6f2ff;strokeColor=#6c8ebf;fontSize=9;" vertex="1" parent="1">
-          <mxGeometry x="500" y="590" width="110" height="40" as="geometry" />
-        </mxCell>
-        <mxCell id="fe-dashboard" value="Analytics&#xa;Dashboard" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e6f2ff;strokeColor=#6c8ebf;fontSize=9;" vertex="1" parent="1">
-          <mxGeometry x="70" y="645" width="120" height="40" as="geometry" />
-        </mxCell>
-        <mxCell id="fe-export" value="Export History&#xa;+ Download" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e6f2ff;strokeColor=#6c8ebf;fontSize=9;" vertex="1" parent="1">
-          <mxGeometry x="210" y="645" width="120" height="40" as="geometry" />
-        </mxCell>
-        <mxCell id="fe-config" value="Tenant Config&#xa;(inboxes, users)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e6f2ff;strokeColor=#6c8ebf;fontSize=9;" vertex="1" parent="1">
-          <mxGeometry x="350" y="645" width="130" height="40" as="geometry" />
-        </mxCell>
-        <mxCell id="fe-platform" value="Platform Admin&#xa;(multi-tenant)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e6f2ff;strokeColor=#6c8ebf;fontSize=9;" vertex="1" parent="1">
-          <mxGeometry x="500" y="645" width="110" height="40" as="geometry" />
+        <mxCell id="60" value="Roles: PLATFORM_ADMIN &gt; TENANT_ADMIN &gt; MEMBER &gt; VIEWER" style="text;html=1;fontSize=11;fontStyle=2;align=left;verticalAlign=middle;fillColor=none;strokeColor=none;fontColor=#666666;" vertex="1" parent="1">
+          <mxGeometry x="40" y="440" width="500" height="20" as="geometry" />
         </mxCell>
 
-        <!-- DATA LAYER -->
-        <mxCell id="data-group" value="Data Layer" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontStyle=1;verticalAlign=top;fontSize=11;" vertex="1" parent="1">
-          <mxGeometry x="750" y="560" width="600" height="140" as="geometry" />
-        </mxCell>
-        <mxCell id="mongodb" value="MongoDB&#xa;(DocumentDB in prod)" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=8;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=9;" vertex="1" parent="1">
-          <mxGeometry x="780" y="590" width="130" height="50" as="geometry" />
-        </mxCell>
-        <mxCell id="s3" value="S3 / MinIO&#xa;(file artifacts)" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=8;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=9;" vertex="1" parent="1">
-          <mxGeometry x="940" y="590" width="130" height="50" as="geometry" />
-        </mxCell>
-        <mxCell id="keycloak" value="Keycloak&#xa;(OIDC IdP)" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=8;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=9;" vertex="1" parent="1">
-          <mxGeometry x="1100" y="590" width="130" height="50" as="geometry" />
-        </mxCell>
-        <mxCell id="data-collections" value="Collections: invoices, tenants, users, checkpoints,&#xa;approvalWorkflows, exportBatches, vendorTemplates,&#xa;extractionLearnings, tenantIntegrations" style="text;html=1;fontSize=8;align=left;verticalAlign=top;whiteSpace=wrap;fontColor=#666;" vertex="1" parent="1">
-          <mxGeometry x="780" y="650" width="460" height="40" as="geometry" />
-        </mxCell>
-
-        <!-- INVOICE LIFECYCLE -->
-        <mxCell id="lifecycle-group" value="Invoice Lifecycle" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff;strokeColor=#333;fontStyle=1;verticalAlign=top;fontSize=11;" vertex="1" parent="1">
-          <mxGeometry x="50" y="750" width="1300" height="110" as="geometry" />
-        </mxCell>
-        <mxCell id="st-pending" value="PENDING" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#999;fontSize=9;fontStyle=1;" vertex="1" parent="1">
-          <mxGeometry x="70" y="790" width="90" height="30" as="geometry" />
-        </mxCell>
-        <mxCell id="st-parsed" value="PARSED" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=9;fontStyle=1;" vertex="1" parent="1">
-          <mxGeometry x="210" y="790" width="90" height="30" as="geometry" />
-        </mxCell>
-        <mxCell id="st-review" value="NEEDS_REVIEW" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=9;fontStyle=1;" vertex="1" parent="1">
-          <mxGeometry x="350" y="790" width="110" height="30" as="geometry" />
-        </mxCell>
-        <mxCell id="st-awaiting" value="AWAITING_APPROVAL" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=9;fontStyle=1;" vertex="1" parent="1">
-          <mxGeometry x="510" y="790" width="140" height="30" as="geometry" />
-        </mxCell>
-        <mxCell id="st-approved" value="APPROVED" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=9;fontStyle=1;" vertex="1" parent="1">
-          <mxGeometry x="700" y="790" width="100" height="30" as="geometry" />
-        </mxCell>
-        <mxCell id="st-exported" value="EXPORTED" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=9;fontStyle=1;" vertex="1" parent="1">
-          <mxGeometry x="850" y="790" width="90" height="30" as="geometry" />
-        </mxCell>
-        <mxCell id="st-failed" value="FAILED_OCR&#xa;FAILED_PARSE" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=9;fontStyle=1;" vertex="1" parent="1">
-          <mxGeometry x="1000" y="790" width="110" height="30" as="geometry" />
-        </mxCell>
-        <mxCell id="lifecycle-note" value="workflow OFF: PARSED/NEEDS_REVIEW → APPROVED (direct)&#xa;workflow ON: PARSED/NEEDS_REVIEW → AWAITING_APPROVAL → step-by-step → APPROVED" style="text;html=1;fontSize=8;align=left;verticalAlign=top;whiteSpace=wrap;fontColor=#666;" vertex="1" parent="1">
-          <mxGeometry x="70" y="830" width="500" height="25" as="geometry" />
-        </mxCell>
-
-        <!-- ARROWS -->
-        <mxCell id="a1" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#666;" edge="1" source="sources-group" target="pipeline-group" parent="1">
+        <mxCell id="70" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#6c8ebf;strokeWidth=2;" edge="1" source="11" target="21" parent="1">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="a2" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#666;" edge="1" source="pipeline-group" target="approval-group" parent="1">
+        <mxCell id="71" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#82b366;strokeWidth=2;" edge="1" source="21" target="22" parent="1">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="a3" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#666;" edge="1" source="approval-group" target="export-group" parent="1">
+        <mxCell id="72" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#d79b00;strokeWidth=2;" edge="1" source="22" target="31" parent="1">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="a4" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#999;dashed=1;" edge="1" source="st-pending" target="st-parsed" parent="1">
+        <mxCell id="73" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#d79b00;strokeWidth=2;" edge="1" source="22" target="32" parent="1">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="a5" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#999;dashed=1;" edge="1" source="st-parsed" target="st-review" parent="1">
+        <mxCell id="74" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#9673a6;strokeWidth=2;" edge="1" source="22" target="41" parent="1">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="a6" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#9673a6;dashed=1;" edge="1" source="st-review" target="st-awaiting" parent="1">
+        <mxCell id="75" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#9673a6;strokeWidth=2;" edge="1" source="22" target="42" parent="1">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="a7" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#999;dashed=1;" edge="1" source="st-awaiting" target="st-approved" parent="1">
+        <mxCell id="76" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#82b366;strokeWidth=1;dashed=1;" edge="1" source="22" target="23" parent="1">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="a8" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#999;dashed=1;" edge="1" source="st-approved" target="st-exported" parent="1">
+        <mxCell id="77" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#82b366;strokeWidth=1;dashed=1;" edge="1" source="22" target="24" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="78" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#666666;strokeWidth=1;dashed=1;" edge="1" source="22" target="51" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="79" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#666666;strokeWidth=1;dashed=1;" edge="1" source="22" target="53" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="80" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#666666;strokeWidth=1;dashed=1;" edge="1" source="22" target="55" parent="1">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
       </root>
