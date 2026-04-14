@@ -1,6 +1,5 @@
-import { BankStatementModel } from "../../models/BankStatement.js";
-import { BankTransactionModel, BANK_TRANSACTION_SOURCES } from "../../models/BankTransaction.js";
-import { BANK_STATEMENT_SOURCES } from "../../models/BankStatement.js";
+import { BankStatementModel, BANK_STATEMENT_SOURCE, BANK_STATEMENT_PROCESSING_STATUS, type BankStatementSource, type BankStatementProcessingStatus } from "../../models/BankStatement.js";
+import { BankTransactionModel, BANK_TRANSACTION_SOURCE, type BankTransactionSource } from "../../models/BankTransaction.js";
 import { logger } from "../../utils/logger.js";
 import type { OcrProvider } from "../../core/interfaces/OcrProvider.js";
 import type { FieldVerifier } from "../../core/interfaces/FieldVerifier.js";
@@ -31,8 +30,8 @@ interface PdfParseResult {
   warnings: string[];
   bankName?: string;
   accountNumber?: string;
-  periodFrom?: string;
-  periodTo?: string;
+  periodFrom?: Date;
+  periodTo?: Date;
 }
 
 export class BankStatementParser {
@@ -51,6 +50,8 @@ export class BankStatementParser {
     columnMapping: { date: number; description: number; debit: number; credit: number; reference?: number; balance?: number },
     uploadedBy: string
   ): Promise<{ statementId: string; transactionCount: number; duplicatesSkipped: number }> {
+    const statementSource: BankStatementSource = BANK_STATEMENT_SOURCE.CSV;
+    const txnSource: BankTransactionSource = BANK_TRANSACTION_SOURCE.CSV;
     const lines = csvContent.split("\n").filter(l => l.trim());
     if (lines.length < 2) throw new Error("CSV must have at least a header row and one data row.");
 
@@ -87,7 +88,7 @@ export class BankStatementParser {
         transactionCount: 0,
         matchedCount: 0,
         unmatchedCount: 0,
-        source: BANK_STATEMENT_SOURCES[1],
+        source: statementSource,
         uploadedBy
       });
       const statementId = String(statement._id);
@@ -126,7 +127,7 @@ export class BankStatementParser {
       transactionCount: transactions.length,
       matchedCount: 0,
       unmatchedCount: transactions.length,
-      source: "csv-import",
+      source: statementSource,
       uploadedBy
     });
 
@@ -144,7 +145,7 @@ export class BankStatementParser {
           creditMinor: txn.creditMinor ?? null,
           balanceMinor: txn.balanceMinor ?? null,
           matchStatus: "unmatched",
-          source: BANK_TRANSACTION_SOURCES[1]
+          source: txnSource
         }))
       );
     }
@@ -164,6 +165,10 @@ export class BankStatementParser {
     if (!this.fieldVerifier) {
       throw new Error("SLM field verifier is not available. Cannot parse PDF bank statements.");
     }
+
+    const statementSource: BankStatementSource = BANK_STATEMENT_SOURCE.PDF;
+    const txnSource: BankTransactionSource = BANK_TRANSACTION_SOURCE.PDF;
+    const processingStatus: BankStatementProcessingStatus = BANK_STATEMENT_PROCESSING_STATUS.COMPLETE;
 
     onProgress?.({ type: "start", fileName });
     onProgress?.({ type: "progress", stage: "text-extraction", transactionsSoFar: 0 });
@@ -197,8 +202,8 @@ export class BankStatementParser {
     const bankName = typeof slmOutput.bankName === "string" ? slmOutput.bankName.trim() || undefined : undefined;
     const accountNumber = typeof slmOutput.accountNumber === "string" ? slmOutput.accountNumber.trim() || undefined : undefined;
     const accountHolder = typeof slmOutput.accountHolder === "string" ? slmOutput.accountHolder.trim() || undefined : undefined;
-    const periodFrom = typeof slmOutput.periodFrom === "string" ? normalizeDate(slmOutput.periodFrom.trim()) : undefined;
-    const periodTo = typeof slmOutput.periodTo === "string" ? normalizeDate(slmOutput.periodTo.trim()) : undefined;
+    const periodFrom = slmOutput.periodFrom ?? undefined;
+    const periodTo = slmOutput.periodTo ?? undefined;
 
     onProgress?.({ type: "progress", stage: "validation", transactionsSoFar: 0 });
 
@@ -291,7 +296,8 @@ export class BankStatementParser {
       transactionCount: transactions.length,
       matchedCount: 0,
       unmatchedCount: transactions.length,
-      source: BANK_STATEMENT_SOURCES[0],
+      processingStatus,
+      source: statementSource,
       uploadedBy
     });
 
@@ -309,7 +315,7 @@ export class BankStatementParser {
           creditMinor: txn.creditMinor ?? null,
           balanceMinor: txn.balanceMinor ?? null,
           matchStatus: "unmatched",
-          source: BANK_TRANSACTION_SOURCES[2]
+          source: txnSource
         }))
       );
     }

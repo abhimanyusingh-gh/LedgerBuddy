@@ -1,7 +1,7 @@
 import { Router } from "express";
 import multer from "multer";
 import { BankStatementModel, type BankStatement } from "../models/BankStatement.js";
-import { BankTransactionModel, BANK_TRANSACTION_MATCH_STATUSES, type BankTransactionMatchStatus } from "../models/BankTransaction.js";
+import { BankTransactionModel, BANK_TRANSACTION_MATCH_STATUS, type BankTransactionMatchStatus } from "../models/BankTransaction.js";
 import { BankStatementParser } from "../services/reconciliation/BankStatementParser.js";
 import { BankStatementParseProgress } from "../services/reconciliation/BankStatementParseProgress.js";
 import { ReconciliationService } from "../services/reconciliation/ReconciliationService.js";
@@ -225,10 +225,10 @@ export function createBankStatementsRouter(
 
       const query: Record<string, unknown> = { tenantId, statementId: req.params.id };
 
-      if (typeof req.query.status === "string" && BANK_TRANSACTION_MATCH_STATUSES.includes(req.query.status as BankTransactionMatchStatus)) {
+      if (typeof req.query.status === "string" && (Object.values(BANK_TRANSACTION_MATCH_STATUS) as string[]).includes(req.query.status)) {
         query.matchStatus = req.query.status as BankTransactionMatchStatus;
       }
-      if (typeof req.query.matchStatus === "string" && BANK_TRANSACTION_MATCH_STATUSES.includes(req.query.matchStatus as BankTransactionMatchStatus)) {
+      if (typeof req.query.matchStatus === "string" && (Object.values(BANK_TRANSACTION_MATCH_STATUS) as string[]).includes(req.query.matchStatus)) {
         query.matchStatus = req.query.matchStatus as BankTransactionMatchStatus;
       }
 

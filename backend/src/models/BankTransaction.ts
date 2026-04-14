@@ -1,9 +1,19 @@
 import { Schema, model, type InferSchemaType } from "mongoose";
 
-export const BANK_TRANSACTION_MATCH_STATUSES = ["matched", "suggested", "unmatched", "manual"] as const;
-export type BankTransactionMatchStatus = (typeof BANK_TRANSACTION_MATCH_STATUSES)[number];
+export const BANK_TRANSACTION_MATCH_STATUS = {
+  MATCHED: "matched",
+  SUGGESTED: "suggested",
+  UNMATCHED: "unmatched",
+  MANUAL: "manual",
+} as const;
+export type BankTransactionMatchStatus = (typeof BANK_TRANSACTION_MATCH_STATUS)[keyof typeof BANK_TRANSACTION_MATCH_STATUS];
 
-export const BANK_TRANSACTION_SOURCES = ["parsed", "csv-import", "pdf-parsed"] as const;
+export const BANK_TRANSACTION_SOURCE = {
+  PARSED: "parsed",
+  CSV: "csv-import",
+  PDF: "pdf-parsed",
+} as const;
+export type BankTransactionSource = (typeof BANK_TRANSACTION_SOURCE)[keyof typeof BANK_TRANSACTION_SOURCE];
 
 const bankTransactionSchema = new Schema(
   {
@@ -17,8 +27,8 @@ const bankTransactionSchema = new Schema(
     balanceMinor: { type: Number, default: null },
     matchedInvoiceId: { type: String, default: null },
     matchConfidence: { type: Number, default: null },
-    matchStatus: { type: String, enum: BANK_TRANSACTION_MATCH_STATUSES, default: "unmatched" },
-    source: { type: String, enum: BANK_TRANSACTION_SOURCES, required: true }
+    matchStatus: { type: String, enum: Object.values(BANK_TRANSACTION_MATCH_STATUS), default: BANK_TRANSACTION_MATCH_STATUS.UNMATCHED },
+    source: { type: String, enum: Object.values(BANK_TRANSACTION_SOURCE), required: true }
   },
   { timestamps: true }
 );

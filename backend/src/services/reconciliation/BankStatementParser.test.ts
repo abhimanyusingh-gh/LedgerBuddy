@@ -1,6 +1,6 @@
 import { BankStatementParser } from "./BankStatementParser.ts";
-import { BankStatementModel, BANK_STATEMENT_SOURCES } from "../../models/BankStatement.ts";
-import { BankTransactionModel, BANK_TRANSACTION_SOURCES } from "../../models/BankTransaction.ts";
+import { BankStatementModel, BANK_STATEMENT_SOURCE } from "../../models/BankStatement.ts";
+import { BankTransactionModel, BANK_TRANSACTION_SOURCE } from "../../models/BankTransaction.ts";
 import * as nativePdfText from "../extraction/pipeline/nativePdfText.ts";
 
 jest.mock("../../models/BankStatement.ts");
@@ -181,7 +181,7 @@ describe("BankStatementParser", () => {
     await parser.parseCsv("t1", "bank.csv", csv, { date: 0, description: 1, debit: 2, credit: 3 }, "user@test.com");
 
     const insertCall = (BankTransactionModel.insertMany as jest.Mock).mock.calls[0][0];
-    expect(insertCall[0].source).toBe(BANK_TRANSACTION_SOURCES[1]);
+    expect(insertCall[0].source).toBe(BANK_TRANSACTION_SOURCE.CSV);
   });
 });
 
@@ -415,10 +415,10 @@ describe("BankStatementParser.parsePdf", () => {
     await parser.parsePdf("t1", "statement.pdf", Buffer.from("pdf"), "application/pdf", "user@test.com");
 
     const createCall = (BankStatementModel.create as jest.Mock).mock.calls[0][0] as Record<string, unknown>;
-    expect(createCall["source"]).toBe(BANK_STATEMENT_SOURCES[0]);
+    expect(createCall["source"]).toBe(BANK_STATEMENT_SOURCE.PDF);
     expect(createCall["accountHolder"]).toBe("John Doe");
 
     const insertCall = (BankTransactionModel.insertMany as jest.Mock).mock.calls[0][0];
-    expect(insertCall[0].source).toBe(BANK_TRANSACTION_SOURCES[2]);
+    expect(insertCall[0].source).toBe(BANK_TRANSACTION_SOURCE.PDF);
   });
 });

@@ -1,8 +1,18 @@
 import { Schema, model, type InferSchemaType } from "mongoose";
 
-export const BANK_STATEMENT_SOURCES = ["pdf-parsed", "csv-import"] as const;
+export const BANK_STATEMENT_SOURCE = {
+  PDF: "pdf-parsed",
+  CSV: "csv-import",
+} as const;
+export type BankStatementSource = (typeof BANK_STATEMENT_SOURCE)[keyof typeof BANK_STATEMENT_SOURCE];
 
-const BANK_STATEMENT_PROCESSING_STATUSES = ["pending", "processing", "complete", "failed"] as const;
+export const BANK_STATEMENT_PROCESSING_STATUS = {
+  PENDING: "pending",
+  PROCESSING: "processing",
+  COMPLETE: "complete",
+  FAILED: "failed",
+} as const;
+export type BankStatementProcessingStatus = (typeof BANK_STATEMENT_PROCESSING_STATUS)[keyof typeof BANK_STATEMENT_PROCESSING_STATUS];
 
 const bankStatementSchema = new Schema(
   {
@@ -12,14 +22,14 @@ const bankStatementSchema = new Schema(
     accountNumberMasked: { type: String, default: null },
     accountHolder: { type: String, default: null },
     currency: { type: String, default: null },
-    periodFrom: { type: String, default: null },
-    periodTo: { type: String, default: null },
+    periodFrom: { type: Date, default: null },
+    periodTo: { type: Date, default: null },
     transactionCount: { type: Number, default: 0 },
     matchedCount: { type: Number, default: 0 },
     suggestedCount: { type: Number, default: 0 },
     unmatchedCount: { type: Number, default: 0 },
-    processingStatus: { type: String, enum: BANK_STATEMENT_PROCESSING_STATUSES, default: "complete" },
-    source: { type: String, enum: BANK_STATEMENT_SOURCES, required: true },
+    processingStatus: { type: String, enum: Object.values(BANK_STATEMENT_PROCESSING_STATUS), default: BANK_STATEMENT_PROCESSING_STATUS.COMPLETE },
+    source: { type: String, enum: Object.values(BANK_STATEMENT_SOURCE), required: true },
     uploadedBy: { type: String },
     s3Key: { type: String, default: null },
     gstin: { type: String, default: null },
