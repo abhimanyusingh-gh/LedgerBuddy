@@ -16,8 +16,6 @@
         "src/ai/parsers/vendorParser.ts",
         "src/ai/extractors/invoice/learning/extractionLearningStore.ts",
         "src/ai/extractors/invoice/learning/vendorTemplateStore.ts",
-        "src/ai/extractors/invoice/invoiceExtractionPipelineHelpers.ts",
-        "src/ai/extractors/invoice/stages/ocrRecovery.ts",
         "src/ai/extractors/invoice/stages/provenance.ts",
         "src/ai/extractors/stages/ocrTextCandidates.ts",
         "src/ai/extractors/bank/BankStatementDocumentDefinition.ts",
@@ -26,12 +24,13 @@
         "src/ai/extractors/invoice/confidenceScoring/FieldConfidenceScorer.ts",
         "src/ai/schemas/bank/llamaExtractBankStatementSchema.ts",
         "src/ai/schemas/invoice/llamaExtractInvoiceSchema.ts",
-        "src/ai/ocr/adapters/LlamaExtractAdapter.ts",
+        "src/ai/extractors/invoice/adapters/LlamaExtractAdapter.ts",
         "src/db/__mocks__/redis.ts",
         "src/testSetup.ts",
         "src/models/bank/BankStatement.ts",
         "src/models/bank/BankTransaction.ts",
         "src/ai/extractors/invoice/pipeline/**/*.ts",
+        "src/ai/extractors/commonSteps/**/*.ts",
         "src/core/pipeline/index.ts"
       ]
     },
