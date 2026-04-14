@@ -43,8 +43,11 @@ export class ReconciliationService {
     let suggested = 0;
     let unmatched = 0;
 
+    // Batch-fetch all candidate invoices in a single query to avoid N+1
+    const allCandidateInvoices = await this.batchFetchCandidateInvoices(tenantId, transactions, tcsRatePercent, statementGstin);
+
     for (const txn of transactions) {
-      const candidates = await this.findMatchCandidates(tenantId, txn, tcsRatePercent, statementGstin);
+      const candidates = this.scoreMatchCandidates(txn, allCandidateInvoices, tcsRatePercent);
 
       if (candidates.length === 0) {
         unmatched++;
@@ -75,40 +78,65 @@ export class ReconciliationService {
     return { matched, suggested, unmatched };
   }
 
-  async findMatchCandidates(
+  /**
+   * Batch-fetch all candidate invoices for a set of transactions in a single DB query.
+   * Computes the global min/max amount range across all transactions to avoid N+1 queries.
+   */
+  private async batchFetchCandidateInvoices(
     tenantId: string,
-    txn: Pick<BankTransaction, "debitMinor" | "description" | "date">,
-    tcsRatePercent: number = 0,
+    transactions: Pick<BankTransaction, "debitMinor" | "description" | "date">[],
+    tcsRatePercent: number,
     gstin?: string
-  ): Promise<MatchCandidate[]> {
-    if (!txn.debitMinor || txn.debitMinor <= 0) return [];
+  ): Promise<Record<string, unknown>[]> {
+    const validTxns = transactions.filter(t => t.debitMinor && t.debitMinor > 0);
+    if (validTxns.length === 0) return [];
 
     const tolerance = 100;
     const tcsMultiplier = 1 + tcsRatePercent / 100;
-    const minAmount = Math.round(txn.debitMinor / tcsMultiplier) - tolerance;
-    const maxAmount = Math.round(txn.debitMinor * tcsMultiplier) + tolerance;
+
+    let globalMin = Infinity;
+    let globalMax = -Infinity;
+    for (const txn of validTxns) {
+      const min = Math.round(txn.debitMinor! / tcsMultiplier) - tolerance;
+      const max = Math.round(txn.debitMinor! * tcsMultiplier) + tolerance;
+      if (min < globalMin) globalMin = min;
+      if (max > globalMax) globalMax = max;
+    }
 
     const invoiceQuery: Record<string, unknown> = {
       tenantId,
       status: { $nin: ["EXPORTED"] },
-      "parsed.totalAmountMinor": { $gte: minAmount, $lte: maxAmount }
+      "parsed.totalAmountMinor": { $gte: globalMin, $lte: globalMax }
     };
 
     if (gstin) {
       invoiceQuery["parsed.gst.gstin"] = gstin;
     }
 
-    const invoices = await InvoiceModel.find(invoiceQuery).lean();
+    return InvoiceModel.find(invoiceQuery).lean();
+  }
 
+  /**
+   * Score pre-fetched candidate invoices against a single transaction in-memory.
+   */
+  private scoreMatchCandidates(
+    txn: Pick<BankTransaction, "debitMinor" | "description" | "date">,
+    invoices: Record<string, unknown>[],
+    tcsRatePercent: number
+  ): MatchCandidate[] {
+    if (!txn.debitMinor || txn.debitMinor <= 0) return [];
+
+    const tolerance = 100;
     const candidates: MatchCandidate[] = [];
     const descLower = txn.description.toLowerCase();
     const txnDate = new Date(txn.date);
 
     for (const inv of invoices) {
+      const parsed = (inv as Record<string, unknown>).parsed as Record<string, unknown> | undefined;
       let score = 0;
-      const compliance = (inv as unknown as Record<string, unknown>).compliance as Record<string, unknown> | undefined;
+      const compliance = (inv as Record<string, unknown>).compliance as Record<string, unknown> | undefined;
       const tds = compliance?.tds as Record<string, unknown> | undefined;
-      const baseNetPayable = (tds?.netPayableMinor as number) ?? inv.parsed?.totalAmountMinor ?? 0;
+      const baseNetPayable = (tds?.netPayableMinor as number) ?? (parsed?.totalAmountMinor as number) ?? 0;
       const tcsAdjustment = tcsRatePercent > 0 ? Math.round(baseNetPayable * tcsRatePercent / 100) : 0;
       const netPayable = baseNetPayable + tcsAdjustment;
 
@@ -120,19 +148,19 @@ export class ReconciliationService {
         score += 30;
       }
 
-      const invoiceNumber = inv.parsed?.invoiceNumber ?? "";
+      const invoiceNumber = (parsed?.invoiceNumber as string) ?? "";
       if (invoiceNumber && descLower.includes(invoiceNumber.toLowerCase())) {
         score += 30;
       }
 
-      const vendorName = inv.parsed?.vendorName ?? "";
+      const vendorName = (parsed?.vendorName as string) ?? "";
       if (vendorName && wordOverlap(vendorName, descLower) >= 1) {
         score += 20;
       }
 
-      const invoiceDate = inv.parsed?.invoiceDate ? new Date(inv.parsed.invoiceDate) : null;
-      const dueDate = inv.parsed?.dueDate ? new Date(inv.parsed.dueDate) : null;
-      const approval = (inv as unknown as Record<string, unknown>).approval as Record<string, unknown> | undefined;
+      const invoiceDate = parsed?.invoiceDate ? new Date(parsed.invoiceDate as string) : null;
+      const dueDate = parsed?.dueDate ? new Date(parsed.dueDate as string) : null;
+      const approval = (inv as Record<string, unknown>).approval as Record<string, unknown> | undefined;
       const approvedAt = approval?.approvedAt ? new Date(approval.approvedAt as string) : null;
 
       if (!isNaN(txnDate.getTime())) {
@@ -148,7 +176,7 @@ export class ReconciliationService {
       }
 
       candidates.push({
-        invoiceId: String(inv._id),
+        invoiceId: String((inv as Record<string, unknown>)._id),
         invoiceNumber,
         vendorName,
         netPayableMinor: netPayable,
@@ -158,6 +186,16 @@ export class ReconciliationService {
 
     candidates.sort((a, b) => b.score - a.score);
     return candidates;
+  }
+
+  async findMatchCandidates(
+    tenantId: string,
+    txn: Pick<BankTransaction, "debitMinor" | "description" | "date">,
+    tcsRatePercent: number = 0,
+    gstin?: string
+  ): Promise<MatchCandidate[]> {
+    const invoices = await this.batchFetchCandidateInvoices(tenantId, [txn], tcsRatePercent, gstin);
+    return this.scoreMatchCandidates(txn, invoices, tcsRatePercent);
   }
 
   async applyMatch(tenantId: string, transactionId: string, invoiceId: string, confidence: number): Promise<void> {
