@@ -1,6 +1,6 @@
 import type { OcrBlock } from "@/core/interfaces/OcrProvider.js";
 import type { InvoiceExtractionData, InvoiceFieldKey, InvoiceFieldProvenance, InvoiceLineItemProvenance, ParsedInvoiceData } from "@/types/invoice.js";
-import { clampProbability } from "./fieldParsingUtils.js";
+import { clampProbability, indexBlocks } from "./fieldParsingUtils.js";
 import { findBlockByAmountValue } from "./groundingAmounts.js";
 
 type Box4 = [number, number, number, number];
@@ -303,9 +303,7 @@ function findDescriptionBlockNearAmount(params: {
     Array.isArray(params.rowField?.bboxNormalized) && params.rowField.bboxNormalized.length === 4
       ? params.rowField.bboxNormalized
       : amountBox;
-  const best = params.blocks
-    .map((block, index) => ({ block, index, box: block.bboxNormalized }))
-    .filter((entry): entry is { block: OcrBlock; index: number; box: [number, number, number, number] } => Boolean(entry.box))
+  const best = indexBlocks(params.blocks)
     .filter((entry) => entry.index !== amountMatch?.index)
     .filter((entry) => entry.box[0] < Math.min(amountBox[0] - 0.04, 0.35))
     .filter((entry) => entry.box[1] >= rowBox[1] - 0.01 && entry.box[3] <= rowBox[3] + 0.01)
