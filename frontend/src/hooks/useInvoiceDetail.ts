@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
-import { fetchInvoiceById } from "../api";
-import type { Invoice } from "../types";
+import { fetchInvoiceById } from "@/api";
+import type { Invoice } from "@/types";
 
 interface UseInvoiceDetailResult {
   detail: Invoice | null;

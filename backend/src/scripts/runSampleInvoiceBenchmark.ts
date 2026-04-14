@@ -3,19 +3,19 @@ import { join, extname, resolve } from "node:path";
 import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { DeepSeekOcrProvider } from "../ocr/DeepSeekOcrProvider.js";
-import { LlamaParseOcrProvider } from "../ocr/LlamaParseOcrProvider.js";
-import { HttpFieldVerifier } from "../verifier/HttpFieldVerifier.js";
-import { InvoiceExtractionPipeline } from "../services/extraction/InvoiceExtractionPipeline.js";
-import { InMemoryVendorTemplateStore } from "../services/extraction/vendorTemplateStore.js";
-import { InMemoryExtractionLearningStore } from "../services/extraction/extractionLearningStore.js";
+import { DeepSeekOcrProvider } from "@/ai/ocr/DeepSeekOcrProvider.js";
+import { LlamaParseOcrProvider } from "@/ai/ocr/LlamaParseOcrProvider.js";
+import { HttpFieldVerifier } from "@/ai/verifiers/HttpFieldVerifier.js";
+import { InvoiceExtractionPipeline } from "@/ai/extractors/invoice/InvoiceExtractionPipeline.js";
+import { InMemoryVendorTemplateStore } from "@/ai/extractors/invoice/learning/vendorTemplateStore.js";
+import { InMemoryExtractionLearningStore } from "@/ai/extractors/invoice/learning/extractionLearningStore.js";
 import type {
   BoundingBox,
   InvoiceFieldProvenance,
   InvoiceLineItemProvenance,
   ParsedInvoiceData
-} from "../types/invoice.js";
-import type { OcrBlock, OcrProvider } from "../core/interfaces/OcrProvider.js";
+} from "@/types/invoice.js";
+import type { OcrBlock, OcrProvider } from "@/core/interfaces/OcrProvider.js";
 
 type ExpectedFieldProvenance = {
   page?: number;

@@ -5,7 +5,7 @@ import type { ChunkableDocumentDefinition, DocumentDefinition } from "./Document
 import type { DocumentDefinitionCanChunk, ProcessingContext, ProcessingResult, ValidationResult } from "./types.js";
 import { DocumentProcessingError } from "./types.js";
 
-import { extractNativePdfText } from "../../services/extraction/pipeline/nativePdfText.js";
+import { extractNativePdfText } from "../../ai/extractors/invoice/stages/nativePdfText.js";
 import { logger } from "../../utils/logger.js";
 import { buildExtractionPromptFromSchema } from "./promptFromSchema.js";
 

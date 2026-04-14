@@ -1,1 +1,0 @@
-export { TenantInvoicesView } from "./TenantInvoicesViewImpl";

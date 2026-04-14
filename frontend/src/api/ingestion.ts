@@ -1,5 +1,5 @@
-import { apiClient, getStoredSessionToken } from "./client";
-import type { IngestionJobStatus } from "../types";
+import { apiClient, getStoredSessionToken } from "@/api/client";
+import type { IngestionJobStatus } from "@/types";
 
 function sanitizeIngestionStatus(value: unknown): IngestionJobStatus {
   const data = value as Partial<IngestionJobStatus>;

@@ -1,6 +1,6 @@
 import type { NextFunction, Request, Response } from "express";
 import type { AuthService } from "./AuthService.js";
-import { normalizeTenantRole } from "../models/TenantUserRole.js";
+import { normalizeTenantRole } from "@/models/core/TenantUserRole.js";
 
 function isQueryTokenAllowed(path: string): boolean {
   if (path === "/jobs/ingest/sse") return true;

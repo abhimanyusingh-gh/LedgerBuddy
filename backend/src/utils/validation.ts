@@ -1,5 +1,5 @@
 import { Types } from "mongoose";
-import { ALLOWED_UPLOAD_EXTENSIONS } from "../constants.js";
+import { ALLOWED_UPLOAD_EXTENSIONS } from "@/constants.js";
 
 export function isString(value: unknown): value is string {
   return typeof value === "string";

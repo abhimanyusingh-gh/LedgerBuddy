@@ -1,16 +1,16 @@
 import { randomBytes, createHash } from "node:crypto";
-import { AuthLoginStateModel } from "../models/AuthLoginState.js";
-import { TenantModel } from "../models/Tenant.js";
-import { TenantUserRoleModel, normalizeTenantRole } from "../models/TenantUserRole.js";
-import { UserModel } from "../models/User.js";
-import { env } from "../config/env.js";
-import type { OidcProvider } from "../sts/OidcProvider.js";
+import { AuthLoginStateModel } from "@/models/core/AuthLoginState.js";
+import { TenantModel } from "@/models/core/Tenant.js";
+import { TenantUserRoleModel, normalizeTenantRole } from "@/models/core/TenantUserRole.js";
+import { UserModel } from "@/models/core/User.js";
+import { env } from "@/config/env.js";
+import type { OidcProvider } from "@/sts/OidcProvider.js";
 import { createSessionToken, verifySessionToken } from "./sessionToken.js";
-import { encryptSecret, decryptSecret } from "../utils/secretCrypto.js";
-import type { AuthenticatedRequestContext, SessionFlagsPayload } from "../types/auth.js";
-import { TenantIntegrationModel } from "../models/TenantIntegration.js";
-import { HttpError } from "../errors/HttpError.js";
-import type { KeycloakAdminClient } from "../keycloak/KeycloakAdminClient.js";
+import { encryptSecret, decryptSecret } from "@/utils/secretCrypto.js";
+import type { AuthenticatedRequestContext, SessionFlagsPayload } from "@/types/auth.js";
+import { TenantIntegrationModel } from "@/models/integration/TenantIntegration.js";
+import { HttpError } from "@/errors/HttpError.js";
+import type { KeycloakAdminClient } from "@/keycloak/KeycloakAdminClient.js";
 import { mergeCapabilitiesWithDefaults } from "./personaDefaults.js";
 
 interface LoginCallbackResult {

@@ -1,10 +1,10 @@
 import { createHash } from "node:crypto";
 import path from "node:path";
 import sharp from "sharp";
-import type { FileStore } from "../../core/interfaces/FileStore.js";
-import type { IngestedFile } from "../../core/interfaces/IngestionSource.js";
-import type { OcrBlock, OcrPageImage } from "../../core/interfaces/OcrProvider.js";
-import { logger } from "../../utils/logger.js";
+import type { FileStore } from "@/core/interfaces/FileStore.js";
+import type { IngestedFile } from "@/core/interfaces/IngestionSource.js";
+import type { OcrBlock, OcrPageImage } from "@/core/interfaces/OcrProvider.js";
+import { logger } from "@/utils/logger.js";
 import { normalizeAbsoluteBox, normalizeModelBox, normalizeUnitBox, type Box4 } from "./box.js";
 import {
   flattenLineItemProvenance,

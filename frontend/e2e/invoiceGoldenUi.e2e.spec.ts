@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import fs from "node:fs";
 import path from "node:path";
-import { formatMinorAmountWithCurrency } from "../src/currency";
+import { formatMinorAmountWithCurrency } from "../src/lib/common/currency";
 import {
   clickTab,
   expectBackendReady,

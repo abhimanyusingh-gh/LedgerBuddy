@@ -1,7 +1,7 @@
-import { CostCenterMasterModel } from "../../models/CostCenterMaster.js";
-import { VendorCostCenterMappingModel } from "../../models/VendorCostCenterMapping.js";
-import { VendorMasterModel } from "../../models/VendorMaster.js";
-import type { ComplianceCostCenterResult } from "../../types/invoice.js";
+import { CostCenterMasterModel } from "@/models/compliance/CostCenterMaster.js";
+import { VendorCostCenterMappingModel } from "@/models/compliance/VendorCostCenterMapping.js";
+import { VendorMasterModel } from "@/models/compliance/VendorMaster.js";
+import type { ComplianceCostCenterResult } from "@/types/invoice.js";
 
 interface CostCenterSuggestion {
   costCenter: ComplianceCostCenterResult;

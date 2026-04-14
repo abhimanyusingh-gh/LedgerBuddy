@@ -1,4 +1,4 @@
-import type { ComplianceRiskSignal } from "../../types/invoice.js";
+import type { ComplianceRiskSignal } from "@/types/invoice.js";
 
 const IRN_FORMAT = /^[a-f0-9]{64}$/i;
 const E_INVOICE_THRESHOLD_MINOR = 500000000;

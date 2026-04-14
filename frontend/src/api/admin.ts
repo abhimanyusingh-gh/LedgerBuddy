@@ -1,4 +1,4 @@
-import { apiClient, safeNum, stripNulls } from "./client";
+import { apiClient, safeNum, stripNulls } from "@/api/client";
 import type {
   AnalyticsOverview,
   ApprovalWorkflowConfig,
@@ -9,7 +9,7 @@ import type {
   TdsRate,
   TdsRateEntry,
   TenantComplianceConfig
-} from "../types";
+} from "@/types";
 
 export interface PlatformTenantUsageSummary {
   tenantId: string;

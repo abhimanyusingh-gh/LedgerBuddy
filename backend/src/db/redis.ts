@@ -1,5 +1,5 @@
 import { Redis } from "ioredis";
-import { env } from "../config/env.js";
+import { env } from "@/config/env.js";
 
 let client: Redis | undefined;
 
@@ -9,7 +9,7 @@ export function getRedisClient(): Redis {
       lazyConnect: false,
       maxRetriesPerRequest: 3,
       enableReadyCheck: false,
-      retryStrategy: (times: number) => Math.min(times * 100, 3000)
+      retryStrategy: (times) => Math.min(times * 100, 3000)
     });
   }
   return client;

@@ -1,7 +1,7 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
-import type { IngestedFile, IngestionSource } from "../core/interfaces/IngestionSource.js";
-import type { WorkloadTier } from "../types/tenant.js";
+import type { IngestedFile, IngestionSource } from "@/core/interfaces/IngestionSource.js";
+import type { WorkloadTier } from "@/types/tenant.js";
 
 interface FolderSourceConfig {
   key: string;

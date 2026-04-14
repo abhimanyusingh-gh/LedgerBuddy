@@ -1,5 +1,5 @@
-import { apiClient } from "./client";
-import type { TcsConfig, TcsRateChange } from "../types";
+import { apiClient } from "@/api/client";
+import type { TcsConfig, TcsRateChange } from "@/types";
 
 interface UpdateTcsConfigBody {
   ratePercent: number;

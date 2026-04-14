@@ -1,13 +1,13 @@
 import { Types } from "mongoose";
-import { TenantModel } from "../models/Tenant.js";
-import { TenantUserRoleModel } from "../models/TenantUserRole.js";
-import { UserModel } from "../models/User.js";
-import { logger } from "../utils/logger.js";
-import { loadLocalDemoUsersConfig } from "../config/localDemoUsers.js";
-import type { KeycloakAdminClient } from "../keycloak/KeycloakAdminClient.js";
+import { TenantModel } from "@/models/core/Tenant.js";
+import { TenantUserRoleModel } from "@/models/core/TenantUserRole.js";
+import { UserModel } from "@/models/core/User.js";
+import { logger } from "@/utils/logger.js";
+import { loadLocalDemoUsersConfig } from "@/config/localDemoUsers.js";
+import type { KeycloakAdminClient } from "@/keycloak/KeycloakAdminClient.js";
 import { seedTdsRates } from "./seedTdsRates.js";
-import { getRoleDefaults } from "../auth/personaDefaults.js";
-import { seedDefaultGlCodes } from "../services/seedGlCodes.js";
+import { getRoleDefaults } from "@/auth/personaDefaults.js";
+import { seedDefaultGlCodes } from "@/services/compliance/seedGlCodes.js";
 
 export async function seedLocalDemoData(keycloakAdmin: KeycloakAdminClient): Promise<void> {
   const config = loadLocalDemoUsersConfig();

@@ -4,11 +4,11 @@ module.exports = {
   roots: ['<rootDir>/src'],
   testMatch: ['**/*.test.ts', '**/*.test.tsx'],
   collectCoverageFrom: [
-    'src/confidence.ts',
-    'src/currency.ts',
-    'src/extractedFields.ts',
-    'src/selection.ts',
-    'src/tallyMapping.ts'
+    'src/lib/invoice/confidence.ts',
+    'src/lib/common/currency.ts',
+    'src/lib/invoice/extractedFields.ts',
+    'src/lib/common/selection.ts',
+    'src/lib/invoice/tallyMapping.ts'
   ],
   coverageThreshold: {
     global: {
@@ -22,7 +22,8 @@ module.exports = {
     '^.+\\.tsx?$': ['ts-jest', { tsconfig: '<rootDir>/tsconfig.test.json' }]
   },
   moduleNameMapper: {
-    '^(\\.{1,2}/.*)\\.js$': '$1'
+    '^(\\.{1,2}/.*)\\.js$': '$1',
+    '^@/(.*)$': '<rootDir>/src/$1'
   },
   clearMocks: true
 };

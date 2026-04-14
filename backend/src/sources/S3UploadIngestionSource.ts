@@ -1,7 +1,7 @@
 import path from "node:path";
-import type { FileStore } from "../core/interfaces/FileStore.js";
-import type { IngestedFile, IngestionSource } from "../core/interfaces/IngestionSource.js";
-import type { WorkloadTier } from "../types/tenant.js";
+import type { FileStore } from "@/core/interfaces/FileStore.js";
+import type { IngestedFile, IngestionSource } from "@/core/interfaces/IngestionSource.js";
+import type { WorkloadTier } from "@/types/tenant.js";
 
 const MIME_BY_EXTENSION: Record<string, string> = {
   ".pdf": "application/pdf",

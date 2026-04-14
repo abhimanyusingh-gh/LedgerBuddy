@@ -1,5 +1,5 @@
 import axios from "axios";
-import type { InviteEmailPayload, InviteEmailSenderBoundary } from "../../core/boundaries/InviteEmailSenderBoundary.js";
+import type { InviteEmailPayload, InviteEmailSenderBoundary } from "@/core/boundaries/InviteEmailSenderBoundary.js";
 
 interface SendGridInviteEmailSenderProviderConfig {
   apiKey: string;

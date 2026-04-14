@@ -100,11 +100,11 @@ jest.mock("axios", () => ({
   }
 }));
 
-jest.mock("../ocr/MockOcrProvider.js", () => ({
+jest.mock("../ai/ocr/MockOcrProvider.js", () => ({
   MockOcrProvider: jest.fn().mockImplementation(() => MockOcrProviderCtorMock())
 }));
 
-jest.mock("../ocr/DeepSeekOcrProvider.js", () => ({
+jest.mock("../ai/ocr/DeepSeekOcrProvider.js", () => ({
   DeepSeekOcrProvider: jest.fn().mockImplementation(() => DeepSeekOcrProviderCtorMock())
 }));
 

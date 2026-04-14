@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
-import { env } from "../config/env.js";
-import { logger } from "../utils/logger.js";
-import type { WorkloadTier } from "../types/tenant.js";
+import { env } from "@/config/env.js";
+import { logger } from "@/utils/logger.js";
+import type { WorkloadTier } from "@/types/tenant.js";
 import { createDefaultManifest, deepMerge, resolveRuntimeManifestPath, resolveSource } from "./runtimeManifestConfig.js";
 import { runtimeManifestSchema, type RuntimeManifestInput, type RuntimeSourceInput } from "./runtimeManifestSchema.js";
 

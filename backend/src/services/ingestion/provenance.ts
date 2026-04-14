@@ -1,5 +1,5 @@
-import type { InvoiceExtractionData, InvoiceFieldProvenance, InvoiceLineItemProvenance, InvoiceFieldKey } from "../../types/invoice.js";
-import type { ExtractionSource } from "../../core/engine/extractionSource.js";
+import type { InvoiceExtractionData, InvoiceFieldProvenance, InvoiceLineItemProvenance, InvoiceFieldKey } from "@/types/invoice.js";
+import type { ExtractionSource } from "@/core/engine/extractionSource.js";
 import { normalizeBoxTuple } from "./box.js";
 
 const EXTRACTION_KEY_DOT_TOKEN = "__dot__";
@@ -155,13 +155,14 @@ export function normalizeExtractionData(value: InvoiceExtractionData | undefined
         continue;
       }
       const normalized = parsed > 1 ? parsed / 100 : parsed;
-      fieldConfidence[encodeExtractionFieldKey(field) as InvoiceFieldKey] = Number(Math.max(0, Math.min(1, normalized)).toFixed(4));
+      const key = encodeExtractionFieldKey(field) as InvoiceFieldKey;
+      fieldConfidence[key] = Number(Math.max(0, Math.min(1, normalized)).toFixed(4));
     }
   }
 
   const fieldProvenanceRaw = sanitizeFieldProvenanceRecord(value.fieldProvenance);
-  const fieldProvenance: Partial<Record<InvoiceFieldKey, FieldProvenanceEntry>> = Object.fromEntries(
-    Object.entries(fieldProvenanceRaw).map(([field, provenance]) => [encodeExtractionFieldKey(field) as InvoiceFieldKey, provenance])
+  const fieldProvenance = Object.fromEntries(
+    Object.entries(fieldProvenanceRaw).map(([field, provenance]) => [encodeExtractionFieldKey(field), provenance])
   );
   const lineItemProvenance = Array.isArray(value.lineItemProvenance) ? value.lineItemProvenance : [];
 
@@ -176,10 +177,10 @@ export function normalizeExtractionData(value: InvoiceExtractionData | undefined
   };
 
   if (value.fieldOverlayPaths && typeof value.fieldOverlayPaths === "object") {
-    const overlayPaths: Partial<Record<InvoiceFieldKey, string>> = {};
+    const overlayPaths: Record<string, string> = {};
     for (const [field, path] of Object.entries(value.fieldOverlayPaths)) {
       if (typeof path === "string" && path.trim().length > 0) {
-        overlayPaths[encodeExtractionFieldKey(field) as InvoiceFieldKey] = path.trim();
+        overlayPaths[encodeExtractionFieldKey(field)] = path.trim();
       }
     }
     if (Object.keys(overlayPaths).length > 0) {

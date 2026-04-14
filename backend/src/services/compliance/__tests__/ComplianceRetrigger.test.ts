@@ -1,12 +1,12 @@
 import { TdsCalculationService } from "../TdsCalculationService";
-import { TdsSectionMappingModel } from "../../../models/TdsSectionMapping";
-import { TdsRateTableModel } from "../../../models/TdsRateTable";
-import { TenantComplianceConfigModel } from "../../../models/TenantComplianceConfig";
-import type { ParsedInvoiceData } from "../../../types/invoice";
+import { TdsSectionMappingModel } from "@/models/compliance/TdsSectionMapping";
+import { TdsRateTableModel } from "@/models/compliance/TdsRateTable";
+import { TenantComplianceConfigModel } from "@/models/integration/TenantComplianceConfig";
+import type { ParsedInvoiceData } from "@/types/invoice";
 
-jest.mock("../../../models/TdsSectionMapping");
-jest.mock("../../../models/TdsRateTable");
-jest.mock("../../../models/TenantComplianceConfig");
+jest.mock("../../../models/compliance/TdsSectionMapping");
+jest.mock("../../../models/compliance/TdsRateTable");
+jest.mock("../../../models/integration/TenantComplianceConfig");
 
 const tdsService = new TdsCalculationService();
 

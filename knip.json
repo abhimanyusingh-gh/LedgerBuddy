@@ -4,11 +4,32 @@
   "workspaces": {
     "backend": {
       "project": ["src/**/*.ts"],
-      "entry": ["src/scripts/seedPlatformAdmin.ts", "src/scripts/runSampleInvoiceBenchmark.ts"],
+      "entry": ["src/server.ts", "src/scripts/seedPlatformAdmin.ts", "src/scripts/runSampleInvoiceBenchmark.ts"],
       "ignoreBinaries": [],
       "ignore": [
+        "src/ai/parsers/invoiceParser.ts",
+        "src/services/invoice/invoiceHelpers.ts",
+        "src/ai/parsers/amountParser.ts",
+        "src/ai/parsers/dateParser.ts",
+        "src/ai/parsers/currencyParser.ts",
+        "src/ai/parsers/vendorParser.ts",
+        "src/ai/extractors/invoice/learning/extractionLearningStore.ts",
+        "src/ai/extractors/invoice/learning/vendorTemplateStore.ts",
+        "src/ai/extractors/invoice/invoiceExtractionPipelineHelpers.ts",
+        "src/ai/extractors/invoice/stages/ocrRecovery.ts",
+        "src/ai/extractors/invoice/stages/provenance.ts",
+        "src/ai/extractors/invoice/stages/ocrTextCandidates.ts",
+        "src/ai/extractors/bank/BankStatementDocumentDefinition.ts",
+        "src/ai/extractors/invoice/InvoiceDocumentDefinition.ts",
+        "src/ai/extractors/invoice/InvoiceExtractionSanitizer.ts",
+        "src/ai/extractors/invoice/confidenceScoring/FieldConfidenceScorer.ts",
+        "src/ai/schemas/bank/llamaExtractBankStatementSchema.ts",
+        "src/ai/schemas/invoice/llamaExtractInvoiceSchema.ts",
+        "src/ai/ocr/adapters/LlamaExtractAdapter.ts",
         "src/db/__mocks__/redis.ts",
-        "src/testSetup.ts"
+        "src/testSetup.ts",
+        "src/models/bank/BankStatement.ts",
+        "src/models/bank/BankTransaction.ts"
       ]
     },
     "frontend": {

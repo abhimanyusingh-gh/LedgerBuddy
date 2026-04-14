@@ -9,9 +9,9 @@ import {
   loginWithCredentials,
   scheduleProactiveRefresh,
   setStoredSessionToken
-} from "../api";
-import { getUserFacingErrorMessage } from "../apiError";
-import type { SessionRole, UserCapabilities } from "../types";
+} from "@/api";
+import { getUserFacingErrorMessage } from "@/lib/common/apiError";
+import type { SessionRole, UserCapabilities } from "@/types";
 
 export type WorkspaceGuard = (fn: () => Promise<void>, fallbackMsg: string) => Promise<void>;
 

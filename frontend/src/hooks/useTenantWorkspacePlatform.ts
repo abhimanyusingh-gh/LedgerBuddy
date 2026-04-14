@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { fetchPlatformTenantUsage, onboardTenantAdmin, setTenantEnabled } from "../api";
-import type { WorkspaceGuard, WorkspaceSessionContext } from "./useTenantWorkspaceSession";
-import type { PlatformTenantUsageSummary } from "../api";
+import { fetchPlatformTenantUsage, onboardTenantAdmin, setTenantEnabled } from "@/api";
+import type { WorkspaceGuard, WorkspaceSessionContext } from "@/hooks/useTenantWorkspaceSession";
+import type { PlatformTenantUsageSummary } from "@/api";
 
 interface UseTenantWorkspacePlatformOptions {
   session: WorkspaceSessionContext | null;

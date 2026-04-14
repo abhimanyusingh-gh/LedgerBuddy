@@ -1,4 +1,4 @@
-import type { GstBreakdown, InvoiceLineItem, ParsedInvoiceData } from "../../types/invoice.js";
+import type { GstBreakdown, InvoiceLineItem, ParsedInvoiceData } from "@/types/invoice.js";
 
 export class InvoiceUpdateError extends Error {
   constructor(

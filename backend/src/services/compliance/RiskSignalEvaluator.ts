@@ -1,5 +1,5 @@
-import type { ComplianceRiskSignal, ParsedInvoiceData, RiskSignalSeverity } from "../../types/invoice.js";
-import { toMinorUnits, minorUnitsToMajorString } from "../../utils/currency.js";
+import type { ComplianceRiskSignal, ParsedInvoiceData, RiskSignalSeverity } from "@/types/invoice.js";
+import { toMinorUnits, minorUnitsToMajorString } from "@/utils/currency.js";
 
 const RISK_SIGNAL_PENALTY_CAP = 30;
 

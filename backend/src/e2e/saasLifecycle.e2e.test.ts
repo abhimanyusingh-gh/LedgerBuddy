@@ -1,17 +1,17 @@
 import axios from "axios";
 import mongoose from "mongoose";
 import { randomUUID, createHash } from "node:crypto";
-import { createSessionToken } from "../auth/sessionToken.js";
-import { UserModel } from "../models/User.js";
-import { TenantModel } from "../models/Tenant.js";
-import { TenantUserRoleModel } from "../models/TenantUserRole.js";
-import { TenantInviteModel } from "../models/TenantInvite.js";
-import { TenantIntegrationModel } from "../models/TenantIntegration.js";
-import { InvoiceModel } from "../models/Invoice.js";
-import { MailboxNotificationEventModel } from "../models/MailboxNotificationEvent.js";
-import { decryptSecret, encryptSecret } from "../utils/secretCrypto.js";
+import { createSessionToken } from "@/auth/sessionToken.js";
+import { UserModel } from "@/models/core/User.js";
+import { TenantModel } from "@/models/core/Tenant.js";
+import { TenantUserRoleModel } from "@/models/core/TenantUserRole.js";
+import { TenantInviteModel } from "@/models/integration/TenantInvite.js";
+import { TenantIntegrationModel } from "@/models/integration/TenantIntegration.js";
+import { InvoiceModel } from "@/models/invoice/Invoice.js";
+import { MailboxNotificationEventModel } from "@/models/integration/MailboxNotificationEvent.js";
+import { decryptSecret, encryptSecret } from "@/utils/secretCrypto.js";
 import { createE2EUserAndLogin, E2E_TEST_PASSWORD } from "./authHelper.js";
-import { buildXoauth2AuthorizationHeader } from "../sources/email/xoauth2.js";
+import { buildXoauth2AuthorizationHeader } from "@/sources/email/xoauth2.js";
 
 const apiBaseUrl = process.env.E2E_API_BASE_URL ?? "http://127.0.0.1:4100";
 const mailhogApiBaseUrl = process.env.E2E_MAILHOG_API_BASE_URL ?? "http://127.0.0.1:8125";

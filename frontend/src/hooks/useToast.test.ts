@@ -2,7 +2,7 @@
  * @jest-environment jsdom
  */
 import { renderHook, act } from "@testing-library/react";
-import { useToast } from "./useToast";
+import { useToast } from "@/hooks/useToast";
 
 let uuidCounter = 0;
 beforeAll(() => {

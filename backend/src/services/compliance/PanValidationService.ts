@@ -1,4 +1,4 @@
-import type { CompliancePanResult, ComplianceRiskSignal } from "../../types/invoice.js";
+import type { CompliancePanResult, ComplianceRiskSignal } from "@/types/invoice.js";
 
 const PAN_FORMAT = /^[A-Z]{5}[0-9]{4}[A-Z]$/;
 const GSTIN_FORMAT = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][0-9A-Z]Z[0-9A-Z]$/;

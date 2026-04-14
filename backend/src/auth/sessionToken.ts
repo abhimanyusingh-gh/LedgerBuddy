@@ -1,5 +1,5 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
-import { TenantRoles, type TenantRole } from "../models/TenantUserRole.js";
+import { TenantRoles, type TenantRole } from "@/models/core/TenantUserRole.js";
 
 interface SessionTokenPayload {
   sub: string;

@@ -2,7 +2,7 @@
  * @jest-environment jsdom
  */
 import { renderHook, act } from "@testing-library/react";
-import { useDebouncedValue } from "./useDebouncedValue";
+import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 
 beforeEach(() => {
   jest.useFakeTimers();

@@ -1,7 +1,7 @@
-import { TdsRateTableModel } from "../../models/TdsRateTable.js";
-import { TdsSectionMappingModel } from "../../models/TdsSectionMapping.js";
-import { TenantComplianceConfigModel } from "../../models/TenantComplianceConfig.js";
-import type { ComplianceTdsResult, ComplianceRiskSignal, ParsedInvoiceData } from "../../types/invoice.js";
+import { TdsRateTableModel } from "@/models/compliance/TdsRateTable.js";
+import { TdsSectionMappingModel } from "@/models/compliance/TdsSectionMapping.js";
+import { TenantComplianceConfigModel } from "@/models/integration/TenantComplianceConfig.js";
+import type { ComplianceTdsResult, ComplianceRiskSignal, ParsedInvoiceData } from "@/types/invoice.js";
 
 const PAN_FORMAT = /^[A-Z]{5}[0-9]{4}[A-Z]$/;
 const VALID_PAN_CATEGORIES = new Set(["C", "P", "H", "F", "T", "A", "B", "L", "J", "G"]);
