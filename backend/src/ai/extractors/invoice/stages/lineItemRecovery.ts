@@ -2,11 +2,11 @@ import type { OcrBlock } from "@/core/interfaces/OcrProvider.js";
 import type { ParsedInvoiceData } from "@/types/invoice.js";
 import { parseAmountTokenWithOcrRepair } from "@/ai/parsers/invoiceParser.js";
 import { extractAmountValueNearColumn, extractNumericValueNearColumn } from "./groundingAmounts.js";
+import { type IndexedBlock, indexBlocks, filterByRow } from "./fieldParsingUtils.js";
 import { findBlockIndexByExactText } from "./groundingText.js";
 import { findSummaryAmountByLabel } from "./totalsRecovery.js";
 
 export type OcrRecoveryStrategy = "generic" | "invoice_table" | "receipt_statement";
-type BoxedBlock = { block: OcrBlock; index: number; box: [number, number, number, number] };
 
 export function classifyOcrRecoveryStrategy(ocrBlocks: OcrBlock[], ocrText: string): OcrRecoveryStrategy {
   const hasBillingStatement = findBlockIndexByExactText(ocrBlocks, /billing statement/i) >= 0;
@@ -63,33 +63,30 @@ export function recoverLineItemsFromOcr(
   );
   const topBoundary = descriptionHeaderBox[3];
   const bottomBoundary = totalBoundaryIndex >= 0 ? (ocrBlocks[totalBoundaryIndex].bboxNormalized?.[1] ?? 1) : 1;
-  const rowBlocks: BoxedBlock[] = ocrBlocks
-    .map((block, index) => ({ block, index, box: block.bboxNormalized }))
-    .filter((entry): entry is BoxedBlock => Boolean(entry.box))
-    .filter((entry) => entry.box![1] >= topBoundary && entry.box![3] <= bottomBoundary + 0.002);
+  const rowBlocks = filterByRow(indexBlocks(ocrBlocks), topBoundary, bottomBoundary);
 
   const descriptionBlocks = rowBlocks
-    .filter((entry) => entry.box![0] <= 0.35)
+    .filter((entry) => entry.box[0] <= 0.35)
     .filter((entry) => !/^(description|qty|unit\s*price|amount)$/i.test(entry.block.text.trim()))
-    .sort((left, right) => left.box![1] - right.box![1]);
+    .sort((left, right) => left.box[1] - right.box[1]);
   const amountBlocks = rowBlocks
-    .filter((entry) => entry.box![0] >= amountHeaderBox[0] - 0.05)
+    .filter((entry) => entry.box[0] >= amountHeaderBox[0] - 0.05)
     .filter((entry) => !/%/.test(entry.block.text))
     .filter((entry) => parseAmountTokenWithOcrRepair(entry.block.text) !== null)
-    .sort((left, right) => left.box![1] - right.box![1]);
+    .sort((left, right) => left.box[1] - right.box[1]);
   if (descriptionBlocks.length === 0 || amountBlocks.length === 0) {
     return normalizedExisting;
   }
 
-  const descriptionRows: BoxedBlock[][] = [];
+  const descriptionRows: IndexedBlock[][] = [];
   for (const block of descriptionBlocks) {
     const lastRow = descriptionRows[descriptionRows.length - 1];
     if (!lastRow) {
       descriptionRows.push([block]);
       continue;
     }
-    const prevMid = (lastRow[lastRow.length - 1].box![1] + lastRow[lastRow.length - 1].box![3]) / 2;
-    const nextMid = (block.box![1] + block.box![3]) / 2;
+    const prevMid = (lastRow[lastRow.length - 1].box[1] + lastRow[lastRow.length - 1].box[3]) / 2;
+    const nextMid = (block.box[1] + block.box[3]) / 2;
     if (Math.abs(nextMid - prevMid) <= 0.012) {
       lastRow.push(block);
     } else {
@@ -134,9 +131,7 @@ function findAmountHeaderIndex(ocrBlocks: OcrBlock[], descriptionHeaderIndex: nu
     return exactAmountIndex >= 0 ? exactAmountIndex : findBlockIndexByExactText(ocrBlocks, /\bamount\b/i);
   }
 
-  const headerCandidates = ocrBlocks
-    .map((block, index) => ({ block, index, box: block.bboxNormalized }))
-    .filter((entry): entry is BoxedBlock => Boolean(entry.box))
+  const headerCandidates = indexBlocks(ocrBlocks)
       .filter((entry) => /\b(amount|rate|amt)\b/i.test(entry.block.text))
       .filter((entry) => entry.box[0] >= 0.5)
       .filter((entry) => Math.abs(((entry.box[1] + entry.box[3]) / 2) - ((descriptionBox[1] + descriptionBox[3]) / 2)) <= 0.03)
@@ -157,23 +152,23 @@ function findAmountHeaderIndex(ocrBlocks: OcrBlock[], descriptionHeaderIndex: nu
 
 function recoverInvoiceTableLineItemsFromRows(
   ocrBlocks: OcrBlock[],
-  descriptionRows: Array<Array<{ block: OcrBlock; index: number; box: [number, number, number, number] | undefined }>>,
-  amountBlocks: Array<{ block: OcrBlock; index: number; box: [number, number, number, number] | undefined }>,
+  descriptionRows: IndexedBlock[][],
+  amountBlocks: IndexedBlock[],
   qtyHeaderIndex: number,
   unitPriceHeaderIndex: number
 ): NonNullable<ParsedInvoiceData["lineItems"]> {
   const recoveredItems: NonNullable<ParsedInvoiceData["lineItems"]> = [];
   for (const row of descriptionRows) {
     const description = row.map((entry) => entry.block.text.trim()).filter(Boolean).join(" ").trim();
-    const rowTop = Math.min(...row.map((entry) => entry.box![1]));
-    const rowBottom = Math.max(...row.map((entry) => entry.box![3]));
+    const rowTop = Math.min(...row.map((entry) => entry.box[1]));
+    const rowBottom = Math.max(...row.map((entry) => entry.box[3]));
     const amountBlockCandidates = amountBlocks.filter((entry) => {
-      const mid = (entry.box![1] + entry.box![3]) / 2;
+      const mid = (entry.box[1] + entry.box[3]) / 2;
       return mid >= rowTop - 0.01 && mid <= rowBottom + 0.01;
     });
     const amountBlock = amountBlockCandidates
       .filter((entry) => !/%/.test(entry.block.text))
-      .sort((left, right) => right.box![0] - left.box![0])[0];
+      .sort((left, right) => right.box[0] - left.box[0])[0];
     const amountMajor = amountBlock ? parseAmountTokenWithOcrRepair(amountBlock.block.text) : null;
     const normalizedDescription = description.replace(/\s+/g, " ");
     if (!description || amountMajor === null || /^(sub\s*total|subtotal|total|amount due|balance due|grand total|tax|cgst|sgst|igst|hsn|\/sac)$/i.test(normalizedDescription)) {
@@ -194,27 +189,24 @@ function recoverInvoiceTableLineItemsFromRows(
 
 function recoverInvoiceTableLineItemsFromAmountAnchors(
   ocrBlocks: OcrBlock[],
-  amountBlocks: Array<{ block: OcrBlock; index: number; box: [number, number, number, number] | undefined }>,
+  amountBlocks: IndexedBlock[],
   qtyHeaderIndex: number,
   unitPriceHeaderIndex: number,
   topBoundary: number,
   bottomBoundary: number
 ): NonNullable<ParsedInvoiceData["lineItems"]> {
-  const blocks = ocrBlocks
-    .map((block, index) => ({ block, index, box: block.bboxNormalized }))
-    .filter((entry): entry is BoxedBlock => Boolean(entry.box))
-    .filter((entry) => entry.box[1] >= topBoundary && entry.box[3] <= bottomBoundary + 0.002);
+  const blocks = filterByRow(indexBlocks(ocrBlocks), topBoundary, bottomBoundary);
   const recoveredItems: NonNullable<ParsedInvoiceData["lineItems"]> = [];
   for (let i = 0; i < amountBlocks.length; i += 1) {
     const amountBlock = amountBlocks[i];
-    const currentMid = (amountBlock.box![1] + amountBlock.box![3]) / 2;
-    const prevMid = i > 0 ? (amountBlocks[i - 1].box![1] + amountBlocks[i - 1].box![3]) / 2 : topBoundary;
-    const nextMid = i < amountBlocks.length - 1 ? (amountBlocks[i + 1].box![1] + amountBlocks[i + 1].box![3]) / 2 : bottomBoundary;
+    const currentMid = (amountBlock.box[1] + amountBlock.box[3]) / 2;
+    const prevMid = i > 0 ? (amountBlocks[i - 1].box[1] + amountBlocks[i - 1].box[3]) / 2 : topBoundary;
+    const nextMid = i < amountBlocks.length - 1 ? (amountBlocks[i + 1].box[1] + amountBlocks[i + 1].box[3]) / 2 : bottomBoundary;
     const rowTop = i > 0 ? (prevMid + currentMid) / 2 : currentMid - 0.02;
     const rowBottom = i < amountBlocks.length - 1 ? (currentMid + nextMid) / 2 : currentMid + 0.02;
     const description = blocks
       .filter((entry) => entry.index !== amountBlock.index)
-      .filter((entry) => entry.box[0] < Math.min(amountBlock.box![0] - 0.05, 0.35))
+      .filter((entry) => entry.box[0] < Math.min(amountBlock.box[0] - 0.05, 0.35))
       .filter((entry) => entry.box[1] >= rowTop - 0.006 && entry.box[3] <= rowBottom + 0.006)
       .map((entry) => entry.block.text.trim())
       .filter((text) => text.length > 0)
@@ -255,14 +247,12 @@ function recoverReceiptLineItemsFromOcr(
     return existing;
   }
 
-  const descriptionBlocks = ocrBlocks
-    .map((block, index) => ({ block, index, box: block.bboxNormalized }))
-    .filter((entry) => entry.box)
-    .filter((entry) => entry.box![1] > statementBox[3])
-    .filter((entry) => !taxableBox || entry.box![3] < taxableBox[1])
-    .filter((entry) => entry.box![0] < 0.35)
+  const descriptionBlocks = indexBlocks(ocrBlocks)
+    .filter((entry) => entry.box[1] > statementBox[3])
+    .filter((entry) => !taxableBox || entry.box[3] < taxableBox[1])
+    .filter((entry) => entry.box[0] < 0.35)
     .filter((entry) => !/^(billing statement|hsn code:|taxable amount)$/i.test(entry.block.text.trim()))
-    .sort((left, right) => left.box![1] - right.box![1]);
+    .sort((left, right) => left.box[1] - right.box[1]);
   if (descriptionBlocks.length === 0) {
     return existing;
   }
