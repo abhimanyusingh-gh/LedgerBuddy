@@ -4,29 +4,29 @@ from ..settings import settings
 
 def create_llm_provider() -> LLMProvider:
   if settings.provider == "local_mlx":
-    from .local_mlx import LocalMlxLLMProvider
+    from .local.mlx import LocalMlxLLMProvider
 
     return LocalMlxLLMProvider()
 
   if settings.provider == "local_codex_cli":
-    from .local_codex_cli import LocalCodexCliLLMProvider
+    from .local.codex_cli import LocalCodexCliLLMProvider
 
     return LocalCodexCliLLMProvider()
 
   if settings.provider == "local_claude_cli":
-    from .local_claude_cli import LocalClaudeCliLLMProvider
+    from .local.claude_cli import LocalClaudeCliLLMProvider
 
     return LocalClaudeCliLLMProvider()
 
   if settings.provider == "prod_http":
     if not settings.remote_base_url:
       raise RuntimeError("SLM_ENGINE=prod_http requires SLM_REMOTE_BASE_URL.")
-    from .prod_http import ProdHttpLLMProvider
+    from .http.provider import ProdHttpLLMProvider
 
     return ProdHttpLLMProvider()
 
   if settings.provider == "anthropic_api":
-    from .anthropic_api import AnthropicApiLLMProvider
+    from .api.anthropic import AnthropicApiLLMProvider
 
     return AnthropicApiLLMProvider()
 

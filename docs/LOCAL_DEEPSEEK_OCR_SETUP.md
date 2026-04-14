@@ -7,7 +7,7 @@ Run MLX services on Apple Silicon host, not in Docker.
 ```bash
 python3 -m venv .venv-ml
 ./.venv-ml/bin/pip install --upgrade pip
-./.venv-ml/bin/pip install -r invoice-ocr/requirements.local.txt -r invoice-slm/requirements.local.txt
+./.venv-ml/bin/pip install -r ocr/requirements.local.txt -r slm/requirements.local.txt
 ```
 
 ## 2. Start full local stack
@@ -55,9 +55,9 @@ Backend readiness is blocked until OCR + SLM are reachable and ready.
 - No `/v1/chat/completions` usage.
 
 MLX exists only in local provider modules:
-- `invoice-ocr/app/providers/local_mlx.py`
-- `invoice-ocr/app/providers/local_hybrid.py` (imports local MLX + Apple Vision only in local mode)
-- `invoice-slm/app/providers/local_mlx.py`
+- `ocr/app/providers/local/mlx.py`
+- `ocr/app/providers/local/hybrid.py` (imports local MLX + Apple Vision only in local mode)
+- `slm/app/providers/local/mlx.py`
 
 Production Docker images install `requirements.prod.txt` only (no MLX packages).
 

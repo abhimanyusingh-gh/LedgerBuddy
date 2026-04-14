@@ -93,11 +93,11 @@ Minimal `extra_env` example for DeepSeek:
 ```hcl
 extra_env = {
   ENV = "prod"
-  OCR_PROVIDER_BASE_URL  = "http://your-invoice-ocr-endpoint:8000/v1"
-  OCR_MODEL = "invoice-ocr-model"
+  OCR_PROVIDER_BASE_URL  = "http://your-ocr-endpoint:8000/v1"
+  OCR_MODEL = "ocr-model"
   OCR_TIMEOUT_MS = "3600000"
   # OCR_PROVIDER_API_KEY = "set-only-if-endpoint-requires-auth"
-  FIELD_VERIFIER_BASE_URL = "http://your-invoice-slm-endpoint:8100/v1"
+  FIELD_VERIFIER_BASE_URL = "http://your-slm-endpoint:8100/v1"
 }
 ```
 

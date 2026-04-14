@@ -18,12 +18,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 RUN groupadd -r appgroup && useradd -r -g appgroup -d /app appuser
 
-COPY invoice-ocr/requirements.base.txt /app/requirements.base.txt
-COPY invoice-ocr/requirements.prod.txt /app/requirements.txt
+COPY ocr/requirements.base.txt /app/requirements.base.txt
+COPY ocr/requirements.prod.txt /app/requirements.txt
 RUN pip install --no-cache-dir --upgrade pip && pip install --no-cache-dir -r /app/requirements.txt
 
-COPY invoice-ocr/server.py /app/server.py
-COPY invoice-ocr/app /app/app
+COPY ocr/server.py /app/server.py
+COPY ocr/app /app/app
 
 RUN chown -R appuser:appgroup /app
 

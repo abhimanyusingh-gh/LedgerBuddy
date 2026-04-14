@@ -4,7 +4,7 @@ import json
 import logging
 import sys
 
-SERVICE_NAME = "invoice-ocr"
+SERVICE_NAME = "slm"
 _correlation_id: ContextVar[str] = ContextVar("correlation_id", default="")
 
 

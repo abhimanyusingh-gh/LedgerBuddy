@@ -4,24 +4,24 @@ from ..settings import settings
 
 def create_ocr_provider() -> OCRProvider:
   if settings.provider == "local_hybrid":
-    from .local_hybrid import LocalHybridOCRProvider
+    from .local.hybrid import LocalHybridOCRProvider
 
     return LocalHybridOCRProvider()
 
   if settings.provider == "local_mlx":
-    from .local_mlx import LocalMlxOCRProvider
+    from .local.mlx import LocalMlxOCRProvider
 
     return LocalMlxOCRProvider()
 
   if settings.provider == "local_apple_vision":
-    from .local_apple_vision import LocalAppleVisionOCRProvider
+    from .local.apple_vision import LocalAppleVisionOCRProvider
 
     return LocalAppleVisionOCRProvider()
 
   if settings.provider == "prod_http":
     if not settings.remote_base_url:
       raise RuntimeError("OCR_ENGINE=prod_http requires OCR_REMOTE_BASE_URL.")
-    from .prod_http import ProdHttpOCRProvider
+    from .http.provider import ProdHttpOCRProvider
 
     return ProdHttpOCRProvider()
 

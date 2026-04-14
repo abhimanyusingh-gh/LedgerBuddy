@@ -11,12 +11,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends curl \
 
 RUN groupadd -r appgroup && useradd -r -g appgroup -d /app appuser
 
-COPY invoice-slm/requirements.base.txt /app/requirements.base.txt
-COPY invoice-slm/requirements.prod.txt /app/requirements.txt
+COPY slm/requirements.base.txt /app/requirements.base.txt
+COPY slm/requirements.prod.txt /app/requirements.txt
 RUN pip install --no-cache-dir --upgrade pip && pip install --no-cache-dir -r /app/requirements.txt
 
-COPY invoice-slm/server.py /app/server.py
-COPY invoice-slm/app /app/app
+COPY slm/server.py /app/server.py
+COPY slm/app /app/app
 
 RUN chown -R appuser:appgroup /app
 

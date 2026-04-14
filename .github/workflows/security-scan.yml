@@ -31,7 +31,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        service: [invoice-ocr, invoice-slm]
+        service: [ocr, slm]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -55,10 +55,10 @@ jobs:
             dockerfile: backend/Dockerfile
           - service: frontend
             dockerfile: frontend/Dockerfile
-          - service: invoice-ocr
-            dockerfile: invoice-ocr/Dockerfile
-          - service: invoice-slm
-            dockerfile: invoice-slm/Dockerfile
+          - service: ocr
+            dockerfile: ocr/Dockerfile
+          - service: slm
+            dockerfile: slm/Dockerfile
     steps:
       - uses: actions/checkout@v4
       - uses: docker/setup-buildx-action@v3

@@ -62,16 +62,16 @@ ensure_native_service() {
 }
 
 mkdir -p "$RUN_DIR"
-ensure_native_service "OCR" "$OCR_HEALTH_URL" "$RUN_DIR/ocr.pid" 8200 invoice-ocr
-ensure_native_service "SLM" "$SLM_HEALTH_URL" "$RUN_DIR/slm.pid" 8300 invoice-slm
+ensure_native_service "OCR" "$OCR_HEALTH_URL" "$RUN_DIR/ocr.pid" 8200 ocr
+ensure_native_service "SLM" "$SLM_HEALTH_URL" "$RUN_DIR/slm.pid" 8300 slm
 
 # Build all images with no cache (backend, frontend, OCR proxy, SLM proxy)
 echo "Building images (no cache)..."
-"${COMPOSE_CMD[@]}" build --no-cache backend frontend invoice-ocr invoice-slm
+"${COMPOSE_CMD[@]}" build --no-cache backend frontend ocr slm
 
 # Swap containers
 echo "Recreating containers..."
-"${COMPOSE_CMD[@]}" up -d --no-deps --force-recreate backend frontend invoice-ocr invoice-slm
+"${COMPOSE_CMD[@]}" up -d --no-deps --force-recreate backend frontend ocr slm
 
 # Wait for backend health
 echo "Waiting for backend..."

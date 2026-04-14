@@ -115,8 +115,8 @@ ensure_venv_ml() {
   if [[ "$needs_deps" == "true" ]]; then
     echo "Installing Python dependencies into .venv-ml..." >&2
     "$venv_dir/bin/pip" install --quiet --upgrade pip
-    "$venv_dir/bin/pip" install --quiet -r invoice-ocr/requirements.txt
-    "$venv_dir/bin/pip" install --quiet -r invoice-slm/requirements.txt
+    "$venv_dir/bin/pip" install --quiet -r ocr/requirements.txt
+    "$venv_dir/bin/pip" install --quiet -r slm/requirements.txt
     echo "Python dependencies installed." >&2
   fi
 
@@ -317,7 +317,7 @@ if [[ "$ENV_MODE" == "local" || "$ENV_MODE" == "dev" ]]; then
       "$OCR_HEALTH_URL" \
       "$OCR_PID_FILE" \
       "$OCR_LOG_FILE" \
-      "$PYTHON_BIN" -m uvicorn app.api:app --app-dir invoice-ocr --host 0.0.0.0 --port 8200
+      "$PYTHON_BIN" -m uvicorn app.api:app --app-dir ocr --host 0.0.0.0 --port 8200
 
     detected_ocr_model="$(curl -fsS http://localhost:8200/v1/models 2>/dev/null \
       | "$PYTHON_BIN" -c "import sys,json; d=json.load(sys.stdin); print(d['data'][0]['id'] if d.get('data') else '')" 2>/dev/null || true)"
@@ -339,7 +339,7 @@ if [[ "$ENV_MODE" == "local" || "$ENV_MODE" == "dev" ]]; then
       "$SLM_HEALTH_URL" \
       "$SLM_PID_FILE" \
       "$SLM_LOG_FILE" \
-      "$PYTHON_BIN" -m uvicorn app.api:app --app-dir invoice-slm --host 0.0.0.0 --port 8300
+      "$PYTHON_BIN" -m uvicorn app.api:app --app-dir slm --host 0.0.0.0 --port 8300
   fi
 fi
 

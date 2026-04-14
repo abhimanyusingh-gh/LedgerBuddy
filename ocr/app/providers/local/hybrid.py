@@ -4,12 +4,12 @@ import re
 from threading import Lock
 from typing import Any
 
-from ..boundary import OCRProvider
-from .local_apple_vision import LocalAppleVisionOCRProvider
-from .local_mlx import LocalMlxOCRProvider
-from ..engine import estimate_confidence
-from ..logging import log_error, log_info
-from ..settings import settings
+from ...boundary import OCRProvider
+from .apple_vision import LocalAppleVisionOCRProvider
+from .mlx import LocalMlxOCRProvider
+from ...engine import estimate_confidence
+from ...logging import log_error, log_info
+from ...settings import settings
 
 
 class LocalHybridOCRProvider(OCRProvider):

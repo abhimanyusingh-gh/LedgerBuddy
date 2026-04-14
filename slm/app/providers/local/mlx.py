@@ -9,10 +9,10 @@ from typing import Any
 
 from mlx_lm import generate, load
 
-from ..boundary import LLMProvider
-from ..logging import log_error, log_info
-from ..settings import settings
-from .shared import parse_json_object, recover_payload_from_candidates, recover_payload_from_text, sanitize_payload_for_prompt
+from ...boundary import LLMProvider
+from ...logging import log_error, log_info
+from ...settings import settings
+from ..shared import parse_json_object, recover_payload_from_candidates, recover_payload_from_text, sanitize_payload_for_prompt
 
 GENERATION_RESULT_PATTERN = re.compile(
   r"GenerationResult\(\s*text\s*=\s*(?P<literal>'(?:\\.|[^'\\])*'|\"(?:\\.|[^\"\\])*\")\s*,",

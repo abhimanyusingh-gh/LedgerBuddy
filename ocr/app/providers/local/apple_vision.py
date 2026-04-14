@@ -14,14 +14,14 @@ from Quartz import (
 )
 import Vision
 
-from ..boundary import OCRProvider
-from ..engine import (
+from ...boundary import OCRProvider
+from ...engine import (
   estimate_confidence,
   normalize_model_output,
   render_pdf_pages,
   resolve_prompt
 )
-from ..settings import settings
+from ...settings import settings
 
 
 APPLE_VISION_MODEL_ID = "apple-vision-text-recognition"

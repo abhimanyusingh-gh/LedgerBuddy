@@ -16,9 +16,9 @@ services:
         condition: service_healthy
       minio:
         condition: service_healthy
-      invoice-ocr:
+      ocr:
         condition: service_healthy
-      invoice-slm:
+      slm:
         condition: service_healthy
       redis:
         condition: service_started
@@ -94,7 +94,7 @@ services:
       GMAIL_OAUTH_SUCCESS_REDIRECT_URL: ${GMAIL_OAUTH_SUCCESS_REDIRECT_URL:-http://localhost:5177}
       GMAIL_OAUTH_FAILURE_REDIRECT_URL: ${GMAIL_OAUTH_FAILURE_REDIRECT_URL:-http://localhost:5177}
       OCR_PROVIDER: ${OCR_PROVIDER:-auto}
-      OCR_PROVIDER_BASE_URL: http://invoice-ocr:8000/v1
+      OCR_PROVIDER_BASE_URL: http://ocr:8000/v1
       OCR_MODEL: ${OCR_MODEL:-mlx-community/DeepSeek-OCR-4bit}
       LLAMA_CLOUD_API_KEY: ${LLAMA_CLOUD_API_KEY:-}
       LLAMA_PARSE_TIER: ${LLAMA_PARSE_TIER:-cost_effective}
@@ -104,7 +104,7 @@ services:
       OCR_TIMEOUT_MS: "3600000"
       OCR_HIGH_CONFIDENCE_THRESHOLD: "0.92"
       FIELD_VERIFIER_PROVIDER: ${FIELD_VERIFIER_PROVIDER:-http}
-      FIELD_VERIFIER_BASE_URL: http://invoice-slm:8100/v1
+      FIELD_VERIFIER_BASE_URL: http://slm:8100/v1
       FIELD_VERIFIER_TIMEOUT_MS: ${FIELD_VERIFIER_TIMEOUT_MS:-180000}
       S3_FILE_STORE_BUCKET: ${S3_FILE_STORE_BUCKET:-billforge-local}
       S3_FILE_STORE_REGION: ${S3_FILE_STORE_REGION:-us-east-1}
@@ -315,11 +315,11 @@ services:
       retries: 12
       start_period: 30s
 
-  invoice-ocr:
+  ocr:
     build:
       context: .
-      dockerfile: invoice-ocr/Dockerfile
-    container_name: billforge-invoice-ocr
+      dockerfile: ocr/Dockerfile
+    container_name: billforge-ocr
     restart: unless-stopped
     ports:
       - "8202:8000"
@@ -341,11 +341,11 @@ services:
         limits:
           memory: 256M
 
-  invoice-slm:
+  slm:
     build:
       context: .
-      dockerfile: invoice-slm/Dockerfile
-    container_name: billforge-invoice-slm
+      dockerfile: slm/Dockerfile
+    container_name: billforge-slm
     restart: unless-stopped
     ports:
       - "8302:8100"

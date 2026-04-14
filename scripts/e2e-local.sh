@@ -213,18 +213,18 @@ start_local_service_if_needed \
   "$E2E_OCR_HEALTH_URL" \
   "$OCR_PID_FILE" \
   "$OCR_LOG_FILE" \
-  "$PYTHON_BIN" -m uvicorn app.api:app --app-dir invoice-ocr --host 0.0.0.0 --port 8200
+  "$PYTHON_BIN" -m uvicorn app.api:app --app-dir ocr --host 0.0.0.0 --port 8200
 
 start_local_service_if_needed \
   "SLM" \
   "$E2E_SLM_HEALTH_URL" \
   "$SLM_PID_FILE" \
   "$SLM_LOG_FILE" \
-  "$PYTHON_BIN" -m uvicorn app.api:app --app-dir invoice-slm --host 0.0.0.0 --port 8300
+  "$PYTHON_BIN" -m uvicorn app.api:app --app-dir slm --host 0.0.0.0 --port 8300
 
 INVOICE_INBOX_PATH="$E2E_INBOX_DIR" ENV=local \
   "${COMPOSE_CMD[@]}" up -d --build --remove-orphans \
-  backend frontend mongo mongo-express mailhog mailhog-oauth minio-init invoice-ocr invoice-slm
+  backend frontend mongo mongo-express mailhog mailhog-oauth minio-init ocr slm
 
 wait_for_http_contains "$E2E_API_BASE_URL/health" "\"ready\":true" "backend" 600
 wait_for_http_contains "$E2E_FRONTEND_BASE_URL" "<html" "frontend" 300

@@ -8,15 +8,15 @@
   "ocr": {
     "provider": "deepseek",
     "deepseek": {
-      "baseUrl": "http://invoice-ocr.modal.internal/v1",
-      "model": "invoice-ocr-model",
+      "baseUrl": "http://ocr.modal.internal/v1",
+      "model": "ocr-model",
       "timeoutMs": 3600000
     }
   },
   "verifier": {
     "provider": "http",
     "http": {
-      "baseUrl": "http://invoice-slm.modal.internal/v1",
+      "baseUrl": "http://slm.modal.internal/v1",
       "timeoutMs": 20000,
       "apiKey": "replace-with-token"
     }

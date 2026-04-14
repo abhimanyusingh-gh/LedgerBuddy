@@ -11,10 +11,10 @@ from mlx_vlm import generate, load
 from mlx_vlm.prompt_utils import apply_chat_template
 from mlx_vlm.utils import load_config
 
-from ..boundary import OCRProvider
-from ..engine import normalize_model_output, open_image, parse_grounding_blocks, render_pdf_pages, resolve_prompt
-from ..logging import log_error, log_info
-from ..settings import settings
+from ...boundary import OCRProvider
+from ...engine import normalize_model_output, open_image, parse_grounding_blocks, render_pdf_pages, resolve_prompt
+from ...logging import log_error, log_info
+from ...settings import settings
 
 
 class LocalMlxOCRProvider(OCRProvider):

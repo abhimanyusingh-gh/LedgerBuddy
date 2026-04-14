@@ -149,18 +149,34 @@ function mapExtractResult(
       const fm = fieldMeta as Record<string, unknown>;
       const citations = Array.isArray(fm["citations"]) ? fm["citations"] : [];
       if (citations.length > 0) {
-        const first = citations[0] as Record<string, unknown>;
-        if (typeof first["page"] === "number") {
-          field.page = first["page"];
+        let bestBbox: Record<string, unknown> | undefined;
+        let bestCitation: Record<string, unknown> | undefined;
+        let bestArea = Infinity;
+        for (const c of citations) {
+          const cit = c as Record<string, unknown>;
+          const bboxArr = Array.isArray(cit["bounding_boxes"]) ? cit["bounding_boxes"] : [];
+          for (const b of bboxArr) {
+            const bRaw = b as Record<string, unknown>;
+            if (typeof bRaw["x"] !== "number" || typeof bRaw["y"] !== "number" || typeof bRaw["w"] !== "number" || typeof bRaw["h"] !== "number") {
+              continue;
+            }
+            const area = (bRaw["w"] as number) * (bRaw["h"] as number);
+            if (area < bestArea) {
+              bestArea = area;
+              bestBbox = bRaw;
+              bestCitation = cit;
+            }
+          }
         }
-        const bboxArr = Array.isArray(first["bounding_boxes"]) ? first["bounding_boxes"] : [];
-        const bboxRaw = bboxArr[0] as Record<string, unknown> | undefined;
-        const dims = first["page_dimensions"] as Record<string, unknown> | undefined;
-        if (bboxRaw && typeof bboxRaw["x"] === "number" && typeof bboxRaw["y"] === "number" && typeof bboxRaw["w"] === "number" && typeof bboxRaw["h"] === "number") {
-          const x1 = bboxRaw["x"] as number;
-          const y1 = bboxRaw["y"] as number;
-          const x2 = x1 + (bboxRaw["w"] as number);
-          const y2 = y1 + (bboxRaw["h"] as number);
+        if (bestCitation && typeof bestCitation["page"] === "number") {
+          field.page = bestCitation["page"];
+        }
+        if (bestBbox && bestCitation) {
+          const dims = bestCitation["page_dimensions"] as Record<string, unknown> | undefined;
+          const x1 = bestBbox["x"] as number;
+          const y1 = bestBbox["y"] as number;
+          const x2 = x1 + (bestBbox["w"] as number);
+          const y2 = y1 + (bestBbox["h"] as number);
           field.bbox = [x1, y1, x2, y2];
           const pw = typeof dims?.["width"] === "number" ? (dims["width"] as number) : 0;
           const ph = typeof dims?.["height"] === "number" ? (dims["height"] as number) : 0;

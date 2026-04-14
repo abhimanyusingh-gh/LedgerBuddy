@@ -135,8 +135,8 @@ yarn install
 
 # Optional: local ML services (mock OCR works without this)
 python3 -m venv .venv-ml
-./.venv-ml/bin/pip install -r invoice-ocr/requirements.local.txt \
-                           -r invoice-slm/requirements.local.txt
+./.venv-ml/bin/pip install -r ocr/requirements.local.txt \
+                           -r slm/requirements.local.txt
 
 # Start everything
 yarn docker:up

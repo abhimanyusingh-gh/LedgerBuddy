@@ -7,9 +7,9 @@ from typing import Any
 from urllib import error as url_error
 from urllib import request as url_request
 
-from ..boundary import OCRProvider
-from ..engine import normalize_blocks, normalize_remote_confidence, normalize_text
-from ..settings import settings
+from ...boundary import OCRProvider
+from ...engine import normalize_blocks, normalize_remote_confidence, normalize_text
+from ...settings import settings
 
 
 class ProdHttpOCRProvider(OCRProvider):

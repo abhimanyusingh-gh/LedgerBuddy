@@ -34,7 +34,7 @@ SLM_MULTI_STEP_EXTRACTION="$multi_step" \
   --pid-file "$SLM_PID_FILE" \
   --log-file "$SLM_LOG_FILE" \
   --cwd "$ROOT_DIR" \
-  -- "$PYTHON_BIN" -m uvicorn app.api:app --app-dir invoice-slm --host 0.0.0.0 --port 8300
+  -- "$PYTHON_BIN" -m uvicorn app.api:app --app-dir slm --host 0.0.0.0 --port 8300
 
 echo "SLM started (PID $(cat "$SLM_PID_FILE"))"
 printf "Waiting for health"

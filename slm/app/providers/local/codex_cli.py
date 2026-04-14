@@ -6,17 +6,17 @@ from pathlib import Path
 from threading import Lock
 from typing import Any
 
-from ..boundary import LLMProvider
-from ..logging import log_error, log_info
-from ..settings import settings
-from .shared import build_extraction_prompt, parse_json_object, recover_payload_from_candidates, recover_payload_from_text
+from ...boundary import LLMProvider
+from ...logging import log_error, log_info
+from ...settings import settings
+from ..shared import build_extraction_prompt, parse_json_object, recover_payload_from_candidates, recover_payload_from_text
 
 
 class LocalCodexCliLLMProvider(LLMProvider):
   def __init__(self) -> None:
     self.generation_lock = Lock()
     self.last_error = ""
-    self.root_dir = Path(__file__).resolve().parents[3]
+    self.root_dir = Path(__file__).resolve().parents[4]
 
   def startup(self) -> None:
     # No preload needed. Health probes validate the CLI on demand.

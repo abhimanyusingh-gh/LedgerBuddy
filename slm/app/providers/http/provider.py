@@ -5,8 +5,8 @@ from typing import Any
 from urllib import error as url_error
 from urllib import request as url_request
 
-from ..boundary import LLMProvider
-from ..settings import settings
+from ...boundary import LLMProvider
+from ...settings import settings
 
 
 class ProdHttpLLMProvider(LLMProvider):
