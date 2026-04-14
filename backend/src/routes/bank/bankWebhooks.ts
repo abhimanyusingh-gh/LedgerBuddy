@@ -1,7 +1,36 @@
 import { Router } from "express";
+import type { Request, Response, NextFunction } from "express";
 import { BankAccountModel } from "@/models/bank/BankAccount.js";
 import type { IBankConnectionService } from "@/services/bank/anumati/IBankConnectionService.js";
 import { logger } from "@/utils/logger.js";
+import { createHmac, timingSafeEqual } from "node:crypto";
+import { env } from "@/config/env.js";
+
+function verifyWebhookSignature(req: Request, res: Response, next: NextFunction): void {
+  const secret = env.WEBHOOK_SIGNING_SECRET;
+  if (!secret) {
+    next();
+    return;
+  }
+
+  const signature = req.headers["x-webhook-signature"];
+  if (typeof signature !== "string" || !signature) {
+    res.status(401).json({ message: "Missing webhook signature." });
+    return;
+  }
+
+  const body = JSON.stringify(req.body);
+  const expected = createHmac("sha256", secret).update(body).digest("hex");
+
+  const sigBuffer = Buffer.from(signature, "hex");
+  const expectedBuffer = Buffer.from(expected, "hex");
+  if (sigBuffer.length !== expectedBuffer.length || !timingSafeEqual(sigBuffer, expectedBuffer)) {
+    res.status(401).json({ message: "Invalid webhook signature." });
+    return;
+  }
+
+  next();
+}
 
 export function createBankWebhooksRouter(bankService: IBankConnectionService) {
   const router = Router();
@@ -33,7 +62,8 @@ export function createBankWebhooksRouter(bankService: IBankConnectionService) {
     }
   });
 
-  router.post("/bank/consent-notify", async (req, res) => {
+  // TODO: Add rate limiting to webhook endpoints (e.g. express-rate-limit) to prevent abuse (H6)
+  router.post("/bank/consent-notify", verifyWebhookSignature, async (req, res) => {
     try {
       await bankService.handleConsentNotify(req.body);
       res.status(200).json({ status: "ok" });
@@ -43,7 +73,7 @@ export function createBankWebhooksRouter(bankService: IBankConnectionService) {
     }
   });
 
-  router.post("/bank/fi-notify", async (req, res) => {
+  router.post("/bank/fi-notify", verifyWebhookSignature, async (req, res) => {
     try {
       await bankService.handleFiNotify(req.body);
       res.status(200).json({ status: "ok" });

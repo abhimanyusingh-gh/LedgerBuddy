@@ -9,6 +9,7 @@ export function createAuthRouter(authService: AuthService) {
   const router = Router();
   const authenticate = createAuthenticationMiddleware(authService);
 
+  // TODO: Add rate limiting to /auth/token (e.g. express-rate-limit) to prevent brute-force attacks (H5)
   router.post("/auth/token", async (request, response, next) => {
     try {
       const email = typeof request.body?.email === "string" ? request.body.email : "";
