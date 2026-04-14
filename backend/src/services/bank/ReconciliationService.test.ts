@@ -1,12 +1,12 @@
 import { ReconciliationService } from "./ReconciliationService.ts";
-import { InvoiceModel } from "../../models/Invoice.ts";
-import { BankTransactionModel } from "../../models/BankTransaction.ts";
-import { TenantTcsConfigModel } from "../../models/TenantTcsConfig.ts";
+import { InvoiceModel } from "../../models/invoice/Invoice.ts";
+import { BankTransactionModel } from "../../models/bank/BankTransaction.ts";
+import { TenantTcsConfigModel } from "../../models/integration/TenantTcsConfig.ts";
 
-jest.mock("../../models/Invoice.ts");
-jest.mock("../../models/BankTransaction.ts");
-jest.mock("../../models/BankStatement.ts");
-jest.mock("../../models/TenantTcsConfig.ts");
+jest.mock("../../models/invoice/Invoice.ts");
+jest.mock("../../models/bank/BankTransaction.ts");
+jest.mock("../../models/bank/BankStatement.ts");
+jest.mock("../../models/integration/TenantTcsConfig.ts");
 
 function makeTxn(overrides: Partial<{
   _id: string;

@@ -1,8 +1,8 @@
 import { getAuth } from "../types/auth.js";
 import { Router } from "express";
-import { TenantAssignableRoles, type TenantAssignableRole } from "../models/TenantUserRole.js";
-import type { TenantAdminService } from "../services/tenantAdminService.js";
-import type { TenantInviteService } from "../services/tenantInviteService.js";
+import { TenantAssignableRoles, type TenantAssignableRole } from "../models/core/TenantUserRole.js";
+import type { TenantAdminService } from "../services/tenant/tenantAdminService.js";
+import type { TenantInviteService } from "../services/tenant/tenantInviteService.js";
 import { requireCap } from "../auth/requireCapability.js";
 import { toValidObjectId } from "../utils/validation.js";
 

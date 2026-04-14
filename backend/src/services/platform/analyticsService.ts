@@ -1,4 +1,4 @@
-import { InvoiceModel } from "../models/Invoice.js";
+import { InvoiceModel } from "../../models/invoice/Invoice.js";
 
 interface DailyStat {
   date: string;

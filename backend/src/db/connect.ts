@@ -1,9 +1,9 @@
 import mongoose from "mongoose";
 import { loadRuntimeManifest } from "../core/runtimeManifest.js";
 import { logger } from "../utils/logger.js";
-import { seedDefaultGlCodes } from "../services/seedGlCodes.js";
-import { TenantModel } from "../models/Tenant.js";
-import { GlCodeMasterModel } from "../models/GlCodeMaster.js";
+import { seedDefaultGlCodes } from "../services/compliance/seedGlCodes.js";
+import { TenantModel } from "../models/core/Tenant.js";
+import { GlCodeMasterModel } from "../models/compliance/GlCodeMaster.js";
 
 let connected = false;
 

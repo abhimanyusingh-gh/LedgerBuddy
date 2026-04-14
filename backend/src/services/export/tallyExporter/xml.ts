@@ -1,4 +1,4 @@
-import { isPositiveMinorUnits, minorUnitsToMajorString } from "../../utils/currency.js";
+import { isPositiveMinorUnits, minorUnitsToMajorString } from "../../../utils/currency.js";
 
 export interface TallyGstLedgerConfig {
   cgstLedger: string;

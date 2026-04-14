@@ -1,4 +1,4 @@
-import { ExtractionLearningModel } from "../../../../models/ExtractionLearning.js";
+import { ExtractionLearningModel } from "../../../../models/invoice/ExtractionLearning.js";
 import { logger } from "../../../../utils/logger.js";
 
 const MAX_CORRECTIONS_PER_DOCUMENT = 6;

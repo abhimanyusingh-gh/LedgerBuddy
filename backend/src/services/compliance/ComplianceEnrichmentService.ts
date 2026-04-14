@@ -1,7 +1,7 @@
 import type { ParsedInvoiceData } from "../../types/invoice.js";
 import type { ComplianceRiskSignal } from "../../types/invoice.js";
-import { TenantComplianceConfigModel } from "../../models/TenantComplianceConfig.js";
-import { TenantTcsConfigModel } from "../../models/TenantTcsConfig.js";
+import { TenantComplianceConfigModel } from "../../models/integration/TenantComplianceConfig.js";
+import { TenantTcsConfigModel } from "../../models/integration/TenantTcsConfig.js";
 import { logger } from "../../utils/logger.js";
 import type { ComplianceEnricher, ComplianceEnrichContext, ComplianceResult } from "./ComplianceEnricher.js";
 import { emptyComplianceResult } from "./ComplianceEnricher.js";
@@ -9,7 +9,7 @@ import { PanValidationService } from "./PanValidationService.js";
 import { VendorMasterService } from "./VendorMasterService.js";
 import { TdsCalculationService } from "./TdsCalculationService.js";
 import { GlCodeSuggestionService } from "./GlCodeSuggestionService.js";
-import { GlCodeMasterModel } from "../../models/GlCodeMaster.js";
+import { GlCodeMasterModel } from "../../models/compliance/GlCodeMaster.js";
 import { IrnValidationService } from "./IrnValidationService.js";
 import { MsmeTrackingService } from "./MsmeTrackingService.js";
 import { DuplicateInvoiceDetector } from "./DuplicateInvoiceDetector.js";

@@ -1,6 +1,6 @@
-import { GlCodeMasterModel } from "../../models/GlCodeMaster.js";
-import { VendorGlMappingModel } from "../../models/VendorGlMapping.js";
-import { VendorMasterModel } from "../../models/VendorMaster.js";
+import { GlCodeMasterModel } from "../../models/compliance/GlCodeMaster.js";
+import { VendorGlMappingModel } from "../../models/compliance/VendorGlMapping.js";
+import { VendorMasterModel } from "../../models/compliance/VendorMaster.js";
 import type { ComplianceGlCodeResult, ParsedInvoiceData } from "../../types/invoice.js";
 
 interface GlSuggestion {

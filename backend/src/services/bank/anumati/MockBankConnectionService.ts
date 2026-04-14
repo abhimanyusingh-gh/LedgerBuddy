@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { BankAccountModel } from "../../models/BankAccount.js";
+import { BankAccountModel } from "../../../models/bank/BankAccount.js";
 import type { IBankConnectionService, InitiateConsentResult, FetchFiResult } from "./IBankConnectionService.js";
 
 const MOCK_BALANCE_MINOR = 12345600;

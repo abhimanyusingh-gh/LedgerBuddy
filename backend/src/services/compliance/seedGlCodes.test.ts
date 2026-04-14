@@ -3,7 +3,7 @@ const mockFind = jest.fn();
 const mockCreate = jest.fn();
 const mockCountDocuments = jest.fn();
 
-jest.mock("../models/GlCodeMaster.js", () => ({
+jest.mock("../../models/compliance/GlCodeMaster.js", () => ({
   GlCodeMasterModel: {
     find: jest.fn(() => ({ lean: () => mockFind() })),
     create: mockCreate,
@@ -11,7 +11,7 @@ jest.mock("../models/GlCodeMaster.js", () => ({
   }
 }));
 
-jest.mock("../utils/logger.js", () => ({
+jest.mock("../../utils/logger.js", () => ({
   logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() }
 }));
 

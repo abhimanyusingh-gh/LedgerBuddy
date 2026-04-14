@@ -1,10 +1,10 @@
-jest.mock("../models/Invoice.js");
-jest.mock("../models/GlCodeMaster.js");
-jest.mock("../models/TenantTcsConfig.js");
-jest.mock("../utils/logger.js", () => ({
+jest.mock("../../models/invoice/Invoice.js");
+jest.mock("../../models/compliance/GlCodeMaster.js");
+jest.mock("../../models/integration/TenantTcsConfig.js");
+jest.mock("../../utils/logger.js", () => ({
   logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() }
 }));
-jest.mock("./compliance/TdsCalculationService.js", () => ({
+jest.mock("../compliance/TdsCalculationService.js", () => ({
   TdsCalculationService: jest.fn().mockImplementation(() => ({
     computeTds: jest.fn().mockResolvedValue({
       tds: { section: null, confidence: "low" },
@@ -14,11 +14,11 @@ jest.mock("./compliance/TdsCalculationService.js", () => ({
 }));
 
 import { Types } from "mongoose";
-import { InvoiceModel } from "../models/Invoice.js";
-import { GlCodeMasterModel } from "../models/GlCodeMaster.js";
-import { TenantTcsConfigModel } from "../models/TenantTcsConfig.js";
+import { InvoiceModel } from "../../models/invoice/Invoice.js";
+import { GlCodeMasterModel } from "../../models/compliance/GlCodeMaster.js";
+import { TenantTcsConfigModel } from "../../models/integration/TenantTcsConfig.js";
 import { InvoiceService } from "./invoiceService.js";
-import type { AuthenticatedRequestContext } from "../types/auth.js";
+import type { AuthenticatedRequestContext } from "../../types/auth.js";
 
 const TENANT_ID = "65f0000000000000000000b1";
 

@@ -1,9 +1,9 @@
 import { getAuth } from "../types/auth.js";
 import { Router } from "express";
-import { TenantTcsConfigModel } from "../models/TenantTcsConfig.js";
+import { TenantTcsConfigModel } from "../models/integration/TenantTcsConfig.js";
 import { requireAuth } from "../auth/requireAuth.js";
 import { requireCap } from "../auth/requireCapability.js";
-import { ActiveTenantRoles, normalizeTenantRole } from "../models/TenantUserRole.js";
+import { ActiveTenantRoles, normalizeTenantRole } from "../models/core/TenantUserRole.js";
 import type { Request, Response, NextFunction } from "express";
 
 const VALID_ROLES = new Set<string>(ActiveTenantRoles);

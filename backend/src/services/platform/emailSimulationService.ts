@@ -2,9 +2,9 @@ import axios from "axios";
 import { existsSync } from "node:fs";
 import { promises as fs } from "node:fs";
 import path from "node:path";
-import { env } from "../config/env.js";
-import { refreshGoogleAccessToken } from "../sources/email/gmailOAuthClient.js";
-import { buildXoauth2AuthorizationHeader } from "../sources/email/xoauth2.js";
+import { env } from "../../config/env.js";
+import { refreshGoogleAccessToken } from "../../sources/email/gmailOAuthClient.js";
+import { buildXoauth2AuthorizationHeader } from "../../sources/email/xoauth2.js";
 
 const MAX_ATTACHMENTS_PER_EMAIL = 2;
 

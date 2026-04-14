@@ -1,7 +1,7 @@
 import { Schema, model, type InferSchemaType, type HydratedDocument } from "mongoose";
-import { InvoiceStatuses } from "../types/invoice.js";
-import { ConfidenceTones, RiskFlags } from "../types/confidence.js";
-import { WorkloadTiers } from "../types/tenant.js";
+import { InvoiceStatuses } from "../../types/invoice.js";
+import { ConfidenceTones, RiskFlags } from "../../types/confidence.js";
+import { WorkloadTiers } from "../../types/tenant.js";
 
 const ocrBlockSchema = new Schema(
   {

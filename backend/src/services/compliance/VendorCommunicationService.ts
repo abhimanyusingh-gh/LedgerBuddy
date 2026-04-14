@@ -1,4 +1,4 @@
-import type { InvoiceDocument } from "../../models/Invoice.js";
+import type { InvoiceDocument } from "../../models/invoice/Invoice.js";
 
 interface EmailDraft {
   to: string;

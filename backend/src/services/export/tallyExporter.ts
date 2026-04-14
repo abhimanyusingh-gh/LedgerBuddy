@@ -1,7 +1,7 @@
 import axios from "axios";
-import type { AccountingExporter, ExportFileResult, ExportResultItem } from "../core/interfaces/AccountingExporter.js";
-import type { InvoiceDocument } from "../models/Invoice.js";
-import { logger } from "../utils/logger.js";
+import type { AccountingExporter, ExportFileResult, ExportResultItem } from "../../core/interfaces/AccountingExporter.js";
+import type { InvoiceDocument } from "../../models/invoice/Invoice.js";
+import { logger } from "../../utils/logger.js";
 import {
   buildTallyBatchImportXml,
   buildTallyPurchaseVoucherPayload,

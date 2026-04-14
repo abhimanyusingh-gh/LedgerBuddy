@@ -1,4 +1,4 @@
-jest.mock("../models/Invoice.js", () => ({
+jest.mock("../models/invoice/Invoice.js", () => ({
   InvoiceModel: {
     create: jest.fn(async () => ({ _id: "inv-1" }))
   }
@@ -11,7 +11,7 @@ jest.mock("../utils/logger.js", () => ({
   runWithLogContext: jest.fn((_id, cb) => cb())
 }));
 
-import type { IngestionService } from "../services/ingestionService.ts";
+import type { IngestionService } from "../services/ingestion/ingestionService.ts";
 import { defaultAuth, findHandler, findSecondHandler, mockRequest, mockResponse, createMockFileStore } from "./testHelpers.ts";
 
 let createJobsRouter: typeof import("./jobs.ts").createJobsRouter;
@@ -19,7 +19,7 @@ let createJobsRouter: typeof import("./jobs.ts").createJobsRouter;
 beforeEach(async () => {
   jest.resetModules();
 
-  jest.mock("../models/Invoice.js", () => ({
+  jest.mock("../models/invoice/Invoice.js", () => ({
     InvoiceModel: { create: jest.fn(async () => ({ _id: "inv-1" })) }
   }));
 
@@ -216,7 +216,7 @@ describe("jobs routes", () => {
 
     it("handles E11000 duplicate invoice creation gracefully", async () => {
       const router = createJobsRouter(createMockIngestionService(), undefined, createMockFileStore());
-      const { InvoiceModel } = await import("../models/Invoice.ts");
+      const { InvoiceModel } = await import("../models/invoice/Invoice.ts");
       const dupError = Object.assign(new Error("E11000 duplicate key error"), { code: 11000 });
       (InvoiceModel.create as jest.Mock).mockResolvedValueOnce({ _id: "inv-1" }).mockRejectedValueOnce(dupError);
 

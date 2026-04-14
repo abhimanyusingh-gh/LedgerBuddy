@@ -2,10 +2,10 @@ import { getAuth } from "../types/auth.js";
 import { Router } from "express";
 import type { AuthService } from "../auth/AuthService.js";
 import { requireCap } from "../auth/requireCapability.js";
-import type { TenantGmailIntegrationService } from "../services/tenantGmailIntegrationService.js";
+import type { TenantGmailIntegrationService } from "../services/tenant/tenantGmailIntegrationService.js";
 import { logger } from "../utils/logger.js";
 import { apiUrl } from "../config/env.js";
-import { TenantUserRoleModel } from "../models/TenantUserRole.js";
+import { TenantUserRoleModel } from "../models/core/TenantUserRole.js";
 import { mergeCapabilitiesWithDefaults } from "../auth/personaDefaults.js";
 
 /**

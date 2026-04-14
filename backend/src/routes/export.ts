@@ -1,6 +1,6 @@
 import { getAuth } from "../types/auth.js";
 import { Router } from "express";
-import type { ExportService } from "../services/exportService.js";
+import type { ExportService } from "../services/export/exportService.js";
 import { requireAuth } from "../auth/requireAuth.js";
 import { requireCap } from "../auth/requireCapability.js";
 import { isString } from "../utils/validation.js";

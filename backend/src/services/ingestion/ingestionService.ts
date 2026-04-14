@@ -1,19 +1,19 @@
-import type { IngestionSource, IngestedFile } from "../core/interfaces/IngestionSource.js";
-import type { FileStore } from "../core/interfaces/FileStore.js";
-import type { OcrBlock, OcrProvider } from "../core/interfaces/OcrProvider.js";
-import { CheckpointModel } from "../models/Checkpoint.js";
-import { InvoiceModel } from "../models/Invoice.js";
-import { logger } from "../utils/logger.js";
-import { env } from "../config/env.js";
-import { normalizeInvoiceMimeType } from "../utils/mime.js";
-import type { WorkloadTier } from "../types/tenant.js";
-import { TenantModel } from "../models/Tenant.js";
-import { S3UploadIngestionSource } from "../sources/S3UploadIngestionSource.js";
-import { InvoiceExtractionPipeline, ExtractionPipelineError } from "../ai/extractors/invoice/InvoiceExtractionPipeline.js";
-import { NoopFieldVerifier } from "../ai/verifiers/NoopFieldVerifier.js";
-import { MongoVendorTemplateStore } from "../ai/extractors/invoice/learning/vendorTemplateStore.js";
-import { buildFailureData, buildSuccessData, isDuplicateKeyError, upsertFromPending } from "./ingestion/persistence.js";
-import { persistFieldArtifacts } from "./ingestion/artifacts.js";
+import type { IngestionSource, IngestedFile } from "../../core/interfaces/IngestionSource.js";
+import type { FileStore } from "../../core/interfaces/FileStore.js";
+import type { OcrBlock, OcrProvider } from "../../core/interfaces/OcrProvider.js";
+import { CheckpointModel } from "../../models/core/Checkpoint.js";
+import { InvoiceModel } from "../../models/invoice/Invoice.js";
+import { logger } from "../../utils/logger.js";
+import { env } from "../../config/env.js";
+import { normalizeInvoiceMimeType } from "../../utils/mime.js";
+import type { WorkloadTier } from "../../types/tenant.js";
+import { TenantModel } from "../../models/core/Tenant.js";
+import { S3UploadIngestionSource } from "../../sources/S3UploadIngestionSource.js";
+import { InvoiceExtractionPipeline, ExtractionPipelineError } from "../../ai/extractors/invoice/InvoiceExtractionPipeline.js";
+import { NoopFieldVerifier } from "../../ai/verifiers/NoopFieldVerifier.js";
+import { MongoVendorTemplateStore } from "../../ai/extractors/invoice/learning/vendorTemplateStore.js";
+import { buildFailureData, buildSuccessData, isDuplicateKeyError, upsertFromPending } from "./persistence.js";
+import { persistFieldArtifacts } from "./artifacts.js";
 const MAX_FILE_PROCESSING_CONCURRENCY = env.INGESTION_CONCURRENCY;
 
 interface IngestionRunSummary {

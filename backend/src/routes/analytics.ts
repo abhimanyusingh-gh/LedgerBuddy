@@ -1,7 +1,7 @@
 import { getAuth } from "../types/auth.js";
 import { Router } from "express";
 import { requireAuth } from "../auth/requireAuth.js";
-import { getOverview } from "../services/analyticsService.js";
+import { getOverview } from "../services/platform/analyticsService.js";
 
 export function createAnalyticsRouter() {
   const router = Router();

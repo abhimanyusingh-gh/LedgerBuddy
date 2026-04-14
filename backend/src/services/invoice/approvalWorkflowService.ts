@@ -1,9 +1,9 @@
-import { ApprovalWorkflowModel } from "../models/ApprovalWorkflow.js";
-import { InvoiceModel } from "../models/Invoice.js";
-import { TenantAssignableRoles, TenantUserRoleModel, normalizeTenantRole } from "../models/TenantUserRole.js";
-import { HttpError } from "../errors/HttpError.js";
-import { logger } from "../utils/logger.js";
-import type { AuthenticatedRequestContext } from "../types/auth.js";
+import { ApprovalWorkflowModel } from "../../models/invoice/ApprovalWorkflow.js";
+import { InvoiceModel } from "../../models/invoice/Invoice.js";
+import { TenantAssignableRoles, TenantUserRoleModel, normalizeTenantRole } from "../../models/core/TenantUserRole.js";
+import { HttpError } from "../../errors/HttpError.js";
+import { logger } from "../../utils/logger.js";
+import type { AuthenticatedRequestContext } from "../../types/auth.js";
 
 interface WorkflowStep {
   order: number;

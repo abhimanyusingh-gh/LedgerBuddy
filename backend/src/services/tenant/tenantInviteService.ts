@@ -1,11 +1,11 @@
 import { createHash, randomBytes } from "node:crypto";
-import { env } from "../config/env.js";
-import type { InviteEmailSenderBoundary } from "../core/boundaries/InviteEmailSenderBoundary.js";
-import { TenantInviteModel } from "../models/TenantInvite.js";
-import { TenantUserRoleModel } from "../models/TenantUserRole.js";
-import { UserModel } from "../models/User.js";
-import { HttpError } from "../errors/HttpError.js";
-import type { KeycloakAdminClient } from "../keycloak/KeycloakAdminClient.js";
+import { env } from "../../config/env.js";
+import type { InviteEmailSenderBoundary } from "../../core/boundaries/InviteEmailSenderBoundary.js";
+import { TenantInviteModel } from "../../models/integration/TenantInvite.js";
+import { TenantUserRoleModel } from "../../models/core/TenantUserRole.js";
+import { UserModel } from "../../models/core/User.js";
+import { HttpError } from "../../errors/HttpError.js";
+import type { KeycloakAdminClient } from "../../keycloak/KeycloakAdminClient.js";
 
 const INVITE_TTL_MS = 24 * 60 * 60 * 1000;
 

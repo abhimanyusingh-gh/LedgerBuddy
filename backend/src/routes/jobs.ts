@@ -2,14 +2,14 @@ import { getAuth } from "../types/auth.js";
 import { createHash, randomBytes } from "node:crypto";
 import { Router } from "express";
 import multer from "multer";
-import type { IngestionService } from "../services/ingestionService.js";
-import type { EmailSimulationService } from "../services/emailSimulationService.js";
+import type { IngestionService } from "../services/ingestion/ingestionService.js";
+import type { EmailSimulationService } from "../services/platform/emailSimulationService.js";
 import type { FileStore } from "../core/interfaces/FileStore.js";
-import { InvoiceModel } from "../models/Invoice.js";
+import { InvoiceModel } from "../models/invoice/Invoice.js";
 import { logger } from "../utils/logger.js";
 import { requireAuth } from "../auth/requireAuth.js";
 import { requireCap } from "../auth/requireCapability.js";
-import { IngestionJobOrchestrator } from "../services/IngestionJobOrchestrator.js";
+import { IngestionJobOrchestrator } from "../services/ingestion/IngestionJobOrchestrator.js";
 import { MAX_UPLOAD_FILE_COUNT, MAX_UPLOAD_FILE_SIZE_BYTES } from "../constants.js";
 import { isAllowedFileExtension } from "../utils/validation.js";
 

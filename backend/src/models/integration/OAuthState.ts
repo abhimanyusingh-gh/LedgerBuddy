@@ -1,5 +1,5 @@
 import { Schema, model, type InferSchemaType } from "mongoose";
-import { MailboxProviders } from "../types/mailbox.js";
+import { MailboxProviders } from "../../types/mailbox.js";
 
 const oauthStateSchema = new Schema(
   {

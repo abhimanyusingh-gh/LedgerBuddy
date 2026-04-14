@@ -1,13 +1,13 @@
 import { randomBytes, scryptSync } from "node:crypto";
-import { InvoiceModel } from "../models/Invoice.js";
-import { TenantIntegrationModel } from "../models/TenantIntegration.js";
-import { TenantModel } from "../models/Tenant.js";
-import { UserModel } from "../models/User.js";
-import { TenantUserRoleModel } from "../models/TenantUserRole.js";
-import { HttpError } from "../errors/HttpError.js";
-import type { InviteEmailSenderBoundary } from "../core/boundaries/InviteEmailSenderBoundary.js";
-import type { KeycloakAdminClient } from "../keycloak/KeycloakAdminClient.js";
-import { seedDefaultGlCodes } from "./seedGlCodes.js";
+import { InvoiceModel } from "../../models/invoice/Invoice.js";
+import { TenantIntegrationModel } from "../../models/integration/TenantIntegration.js";
+import { TenantModel } from "../../models/core/Tenant.js";
+import { UserModel } from "../../models/core/User.js";
+import { TenantUserRoleModel } from "../../models/core/TenantUserRole.js";
+import { HttpError } from "../../errors/HttpError.js";
+import type { InviteEmailSenderBoundary } from "../../core/boundaries/InviteEmailSenderBoundary.js";
+import type { KeycloakAdminClient } from "../../keycloak/KeycloakAdminClient.js";
+import { seedDefaultGlCodes } from "../compliance/seedGlCodes.js";
 
 interface TenantUsageOverview {
   tenantId: string;

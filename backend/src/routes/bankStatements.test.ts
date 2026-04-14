@@ -31,7 +31,7 @@ describe("requireNotViewer blocks viewer on write routes", () => {
 const mockStatementFind = jest.fn();
 const mockStatementCountDocuments = jest.fn();
 
-jest.mock("../models/BankStatement.ts", () => ({
+jest.mock("../models/bank/BankStatement.ts", () => ({
   BankStatementModel: {
     find: (...args: unknown[]) => mockStatementFind(...args),
     countDocuments: (...args: unknown[]) => mockStatementCountDocuments(...args)
@@ -41,27 +41,27 @@ jest.mock("../models/BankStatement.ts", () => ({
 const mockTransactionFind = jest.fn();
 const mockTransactionCountDocuments = jest.fn();
 
-jest.mock("../models/BankTransaction.ts", () => ({
+jest.mock("../models/bank/BankTransaction.ts", () => ({
   BankTransactionModel: {
     find: (...args: unknown[]) => mockTransactionFind(...args),
     countDocuments: (...args: unknown[]) => mockTransactionCountDocuments(...args)
   }
 }));
 
-jest.mock("../models/TenantUserRole.ts", () => {
-  const actual = jest.requireActual("../models/TenantUserRole.ts");
+jest.mock("../models/core/TenantUserRole.ts", () => {
+  const actual = jest.requireActual("../models/core/TenantUserRole.ts");
   return {
     ...actual,
     TenantUserRoleModel: { findOne: jest.fn() }
   };
 });
-jest.mock("../models/TenantTcsConfig.ts");
+jest.mock("../models/integration/TenantTcsConfig.ts");
 
 const mockUnmatch = jest.fn();
 const mockManualMatch = jest.fn();
 const mockReconcileStatement = jest.fn();
 
-jest.mock("../services/reconciliation/ReconciliationService.ts", () => ({
+jest.mock("../services/bank/ReconciliationService.ts", () => ({
   ReconciliationService: jest.fn().mockImplementation(() => ({
     unmatch: mockUnmatch,
     manualMatch: mockManualMatch,

@@ -1,12 +1,12 @@
 import { createTcsConfigRouter, requireTcsModifyAccess } from "./tcsConfig.ts";
 import { defaultAuth, findHandler, mockRequest, mockResponse } from "./testHelpers.ts";
-import { TenantTcsConfigModel } from "../models/TenantTcsConfig.ts";
-import { TenantUserRoleModel } from "../models/TenantUserRole.ts";
+import { TenantTcsConfigModel } from "../models/integration/TenantTcsConfig.ts";
+import { TenantUserRoleModel } from "../models/core/TenantUserRole.ts";
 import { requireCap } from "../auth/requireCapability.ts";
 
-jest.mock("../models/TenantTcsConfig.ts");
-jest.mock("../models/TenantUserRole.ts", () => {
-  const actual = jest.requireActual("../models/TenantUserRole.ts");
+jest.mock("../models/integration/TenantTcsConfig.ts");
+jest.mock("../models/core/TenantUserRole.ts", () => {
+  const actual = jest.requireActual("../models/core/TenantUserRole.ts");
   return {
     ...actual,
     TenantUserRoleModel: {

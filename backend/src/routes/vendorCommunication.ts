@@ -1,7 +1,7 @@
 import { getAuth } from "../types/auth.js";
 import { Router } from "express";
-import { InvoiceModel } from "../models/Invoice.js";
-import { TenantModel } from "../models/Tenant.js";
+import { InvoiceModel } from "../models/invoice/Invoice.js";
+import { TenantModel } from "../models/core/Tenant.js";
 import { VendorCommunicationService } from "../services/compliance/VendorCommunicationService.js";
 import { requireAuth } from "../auth/requireAuth.js";
 import { requireCap } from "../auth/requireCapability.js";

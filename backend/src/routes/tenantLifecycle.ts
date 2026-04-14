@@ -1,8 +1,8 @@
 import { getAuth } from "../types/auth.js";
 import { Router } from "express";
 import { requireCap } from "../auth/requireCapability.js";
-import type { TenantAdminService } from "../services/tenantAdminService.js";
-import type { TenantInviteService } from "../services/tenantInviteService.js";
+import type { TenantAdminService } from "../services/tenant/tenantAdminService.js";
+import type { TenantInviteService } from "../services/tenant/tenantInviteService.js";
 
 export function createTenantLifecycleRouter(tenantAdminService: TenantAdminService, inviteService: TenantInviteService) {
   const router = Router();

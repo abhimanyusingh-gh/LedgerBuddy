@@ -1,6 +1,6 @@
 import { Router } from "express";
 import multer from "multer";
-import { GlCodeMasterModel } from "../models/GlCodeMaster.js";
+import { GlCodeMasterModel } from "../models/compliance/GlCodeMaster.js";
 import { requireAuth } from "../auth/requireAuth.js";
 import { requireCap } from "../auth/requireCapability.js";
 

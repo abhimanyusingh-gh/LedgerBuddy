@@ -1,5 +1,5 @@
-import { BankStatementModel } from "../../../models/BankStatement.js";
-import { BankTransactionModel } from "../../../models/BankTransaction.js";
+import { BankStatementModel } from "../../../models/bank/BankStatement.js";
+import { BankTransactionModel } from "../../../models/bank/BankTransaction.js";
 import { logger } from "../../../utils/logger.js";
 import { extractNativePdfText } from "../invoice/stages/nativePdfText.js";
 import type { OcrProvider } from "../../../core/interfaces/OcrProvider.js";

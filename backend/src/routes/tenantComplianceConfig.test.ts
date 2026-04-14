@@ -6,7 +6,7 @@ jest.mock("../auth/requireCapability.js", () => ({
   requireCap: () => (_req: unknown, _res: unknown, next: Function) => next()
 }));
 
-jest.mock("../models/TenantComplianceConfig.js", () => {
+jest.mock("../models/integration/TenantComplianceConfig.js", () => {
   let store: Record<string, Record<string, unknown>> = {};
 
   const toObject = (doc: Record<string, unknown>) => ({ ...doc });
@@ -44,7 +44,7 @@ jest.mock("../models/TenantComplianceConfig.js", () => {
 });
 
 import { defaultAuth, findHandler, mockRequest, mockResponse } from "./testHelpers.ts";
-import { TenantComplianceConfigModel } from "../models/TenantComplianceConfig.ts";
+import { TenantComplianceConfigModel } from "../models/integration/TenantComplianceConfig.ts";
 
 let createTenantComplianceConfigRouter: typeof import("./tenantComplianceConfig.ts").createTenantComplianceConfigRouter;
 

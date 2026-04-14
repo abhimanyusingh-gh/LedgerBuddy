@@ -1,9 +1,9 @@
 import { randomUUID } from "node:crypto";
-import { BankAccountModel } from "../../models/BankAccount.js";
+import { BankAccountModel } from "../../../models/bank/BankAccount.js";
 import { aesDecrypt, aesEncrypt } from "./AnumatiCrypto.js";
 import { AnumatiClient } from "./AnumatiClient.js";
 import type { IBankConnectionService, InitiateConsentResult, FetchFiResult } from "./IBankConnectionService.js";
-import { env } from "../../config/env.js";
+import { env } from "../../../config/env.js";
 
 export class AnumatiBankConnectionService implements IBankConnectionService {
   private readonly client: AnumatiClient;

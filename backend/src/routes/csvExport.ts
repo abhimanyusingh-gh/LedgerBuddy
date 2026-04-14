@@ -1,7 +1,7 @@
 import { getAuth } from "../types/auth.js";
 import { Router } from "express";
-import { InvoiceModel } from "../models/Invoice.js";
-import { generateCsvExport } from "../services/csvExporter.js";
+import { InvoiceModel } from "../models/invoice/Invoice.js";
+import { generateCsvExport } from "../services/export/csvExporter.js";
 import { requireAuth } from "../auth/requireAuth.js";
 import { requireCap } from "../auth/requireCapability.js";
 
@@ -24,7 +24,7 @@ export function createCsvExportRouter() {
         return;
       }
 
-      const result = generateCsvExport(invoices as unknown as import("../models/Invoice.js").InvoiceDocument[], columns);
+      const result = generateCsvExport(invoices as unknown as import("../models/invoice/Invoice.js").InvoiceDocument[], columns);
 
       res.setHeader("Content-Type", "text/csv");
       res.setHeader("Content-Disposition", `attachment; filename="${result.filename}"`);

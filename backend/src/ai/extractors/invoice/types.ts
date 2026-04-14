@@ -1,6 +1,6 @@
 import type { OcrBlock, OcrPageImage } from "../../../core/interfaces/OcrProvider.js";
 import type { InvoiceCompliance, InvoiceExtractionData, ParsedInvoiceData } from "../../../types/invoice.js";
-import type { ConfidenceAssessment } from "../../../services/confidenceAssessment.js";
+import type { ConfidenceAssessment } from "../../../services/invoice/confidenceAssessment.js";
 
 export interface ParseResult {
   parsed: ParsedInvoiceData;

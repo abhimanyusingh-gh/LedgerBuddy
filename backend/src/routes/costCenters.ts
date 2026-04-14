@@ -1,6 +1,6 @@
 import { getAuth } from "../types/auth.js";
 import { Router } from "express";
-import { CostCenterMasterModel } from "../models/CostCenterMaster.js";
+import { CostCenterMasterModel } from "../models/compliance/CostCenterMaster.js";
 import { requireAuth } from "../auth/requireAuth.js";
 import { requireCap } from "../auth/requireCapability.js";
 

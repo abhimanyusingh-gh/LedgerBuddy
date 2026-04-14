@@ -1,4 +1,4 @@
-import { InvoiceModel } from "../../models/Invoice.js";
+import { InvoiceModel } from "../../models/invoice/Invoice.js";
 import type { ComplianceRiskSignal } from "../../types/invoice.js";
 
 export class DuplicateInvoiceDetector {

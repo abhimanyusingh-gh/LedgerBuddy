@@ -1,6 +1,6 @@
 import { getAuth } from "../types/auth.js";
 import { Router } from "express";
-import type { ApprovalWorkflowService } from "../services/approvalWorkflowService.js";
+import type { ApprovalWorkflowService } from "../services/invoice/approvalWorkflowService.js";
 import { requireAuth } from "../auth/requireAuth.js";
 import { requireCap } from "../auth/requireCapability.js";
 

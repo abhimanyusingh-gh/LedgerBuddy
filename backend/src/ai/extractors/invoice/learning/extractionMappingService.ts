@@ -1,5 +1,5 @@
 import type { ParsedInvoiceData } from "../../../../types/invoice.js";
-import { ExtractionMappingModel } from "../../../../models/ExtractionMapping.js";
+import { ExtractionMappingModel } from "../../../../models/invoice/ExtractionMapping.js";
 import { logger } from "../../../../utils/logger.js";
 
 

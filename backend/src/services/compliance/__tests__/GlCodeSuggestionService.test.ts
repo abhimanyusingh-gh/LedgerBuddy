@@ -1,9 +1,9 @@
 import { GlCodeSuggestionService } from "../GlCodeSuggestionService";
-import { GlCodeMasterModel } from "../../../models/GlCodeMaster";
+import { GlCodeMasterModel } from "../../../models/compliance/GlCodeMaster";
 
-jest.mock("../../../models/GlCodeMaster");
-jest.mock("../../../models/VendorGlMapping");
-jest.mock("../../../models/VendorMaster");
+jest.mock("../../../models/compliance/GlCodeMaster");
+jest.mock("../../../models/compliance/VendorGlMapping");
+jest.mock("../../../models/compliance/VendorMaster");
 
 const service = new GlCodeSuggestionService();
 
@@ -84,7 +84,7 @@ describe("GlCodeSuggestionService", () => {
 
   describe("suggest with slmGlCategory", () => {
     it("prioritizes vendor history over SLM classification", async () => {
-      const { VendorGlMappingModel } = jest.requireMock("../../../models/VendorGlMapping") as { VendorGlMappingModel: { find: jest.Mock } };
+      const { VendorGlMappingModel } = jest.requireMock("../../../models/compliance/VendorGlMapping") as { VendorGlMappingModel: { find: jest.Mock } };
       VendorGlMappingModel.find = jest.fn().mockReturnValue({
         lean: () => Promise.resolve([
           { glCode: "5001", glCodeName: "Vendor Default GL", usageCount: 10, recentUsages: [new Date()] }
@@ -97,7 +97,7 @@ describe("GlCodeSuggestionService", () => {
     });
 
     it("uses SLM classification when vendor history has no matches", async () => {
-      const { VendorGlMappingModel } = jest.requireMock("../../../models/VendorGlMapping") as { VendorGlMappingModel: { find: jest.Mock } };
+      const { VendorGlMappingModel } = jest.requireMock("../../../models/compliance/VendorGlMapping") as { VendorGlMappingModel: { find: jest.Mock } };
       VendorGlMappingModel.find = jest.fn().mockReturnValue({ lean: () => Promise.resolve([]) });
 
       (GlCodeMasterModel.find as jest.Mock).mockReturnValue({

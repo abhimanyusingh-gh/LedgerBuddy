@@ -1,18 +1,18 @@
 import { Types } from "mongoose";
-import { InvoiceModel } from "../models/Invoice.js";
-import { env } from "../config/env.js";
-import type { GstBreakdown, InvoiceLineItem, ParsedInvoiceData, ComplianceRiskSignal } from "../types/invoice.js";
+import { InvoiceModel } from "../../models/invoice/Invoice.js";
+import { env } from "../../config/env.js";
+import type { GstBreakdown, InvoiceLineItem, ParsedInvoiceData, ComplianceRiskSignal } from "../../types/invoice.js";
 import { assessInvoiceConfidence } from "./confidenceAssessment.js";
-import { toMinorUnits } from "../utils/currency.js";
-import type { AuthenticatedRequestContext } from "../types/auth.js";
-import type { FileStore } from "../core/interfaces/FileStore.js";
-import { logger } from "../utils/logger.js";
+import { toMinorUnits } from "../../utils/currency.js";
+import type { AuthenticatedRequestContext } from "../../types/auth.js";
+import type { FileStore } from "../../core/interfaces/FileStore.js";
+import { logger } from "../../utils/logger.js";
 import type { ApprovalWorkflowService } from "./approvalWorkflowService.js";
-import { buildCorrectionHint, type ExtractionLearningStore } from "../ai/extractors/invoice/learning/extractionLearningStore.js";
-import type { ExtractionMappingService } from "../ai/extractors/invoice/learning/extractionMappingService.js";
-import { TdsCalculationService } from "./compliance/TdsCalculationService.js";
-import { GlCodeMasterModel } from "../models/GlCodeMaster.js";
-import { TenantTcsConfigModel } from "../models/TenantTcsConfig.js";
+import { buildCorrectionHint, type ExtractionLearningStore } from "../../ai/extractors/invoice/learning/extractionLearningStore.js";
+import type { ExtractionMappingService } from "../../ai/extractors/invoice/learning/extractionMappingService.js";
+import { TdsCalculationService } from "../compliance/TdsCalculationService.js";
+import { GlCodeMasterModel } from "../../models/compliance/GlCodeMaster.js";
+import { TenantTcsConfigModel } from "../../models/integration/TenantTcsConfig.js";
 
 interface ListInvoicesParams {
   status?: string;

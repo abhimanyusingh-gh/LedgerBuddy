@@ -1,5 +1,5 @@
-import type { InvoiceDocument } from "../models/Invoice.js";
-import { minorUnitsToMajorString } from "../utils/currency.js";
+import type { InvoiceDocument } from "../../models/invoice/Invoice.js";
+import { minorUnitsToMajorString } from "../../utils/currency.js";
 
 const DEFAULT_COLUMNS = [
   "invoiceNumber", "vendorName", "invoiceDate", "dueDate",

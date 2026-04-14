@@ -1,10 +1,10 @@
-import { TenantModel } from "../models/Tenant.js";
-import { TenantUserRoleModel, normalizeTenantRole, type TenantAssignableRole } from "../models/TenantUserRole.js";
-import { UserModel } from "../models/User.js";
-import { HttpError } from "../errors/HttpError.js";
-import { TenantIntegrationModel } from "../models/TenantIntegration.js";
-import { TenantMailboxAssignmentModel } from "../models/TenantMailboxAssignment.js";
-import { ViewerScopeModel } from "../models/ViewerScope.js";
+import { TenantModel } from "../../models/core/Tenant.js";
+import { TenantUserRoleModel, normalizeTenantRole, type TenantAssignableRole } from "../../models/core/TenantUserRole.js";
+import { UserModel } from "../../models/core/User.js";
+import { HttpError } from "../../errors/HttpError.js";
+import { TenantIntegrationModel } from "../../models/integration/TenantIntegration.js";
+import { TenantMailboxAssignmentModel } from "../../models/integration/TenantMailboxAssignment.js";
+import { ViewerScopeModel } from "../../models/integration/ViewerScope.js";
 import { Types } from "mongoose";
 
 export class TenantAdminService {

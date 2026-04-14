@@ -389,7 +389,7 @@ describe("TallyExporter.exportInvoices", () => {
       ocrText: "Grand Total: 10.00",
       set: jest.fn(),
       get: jest.fn(() => undefined)
-    } as unknown as import("../models/Invoice.js").InvoiceDocument;
+    } as unknown as import("../../models/invoice/Invoice.js").InvoiceDocument;
 
     const result = await exporter.exportInvoices([invoice]);
 
@@ -1270,7 +1270,7 @@ function createInvoiceStub(input: InvoiceStubInput) {
 
       return undefined;
     })
-  } as unknown as import("../models/Invoice.js").InvoiceDocument;
+  } as unknown as import("../../models/invoice/Invoice.js").InvoiceDocument;
 }
 
 describe("TallyExporter with compliance data", () => {

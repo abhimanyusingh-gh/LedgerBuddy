@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { requirePlatformAdmin } from "../auth/middleware.js";
-import type { PlatformAdminService } from "../services/platformAdminService.js";
+import type { PlatformAdminService } from "../services/platform/platformAdminService.js";
 
 export function createPlatformAdminRouter(platformAdminService: PlatformAdminService) {
   const router = Router();

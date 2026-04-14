@@ -1,5 +1,5 @@
-import { GlCodeMasterModel } from "../models/GlCodeMaster.js";
-import { logger } from "../utils/logger.js";
+import { GlCodeMasterModel } from "../../models/compliance/GlCodeMaster.js";
+import { logger } from "../../utils/logger.js";
 
 interface DefaultGlCode {
   code: string;

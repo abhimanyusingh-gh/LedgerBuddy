@@ -2,7 +2,7 @@ import { Router } from "express";
 import { getAuth } from "../types/auth.js";
 import { requireAuth } from "../auth/requireAuth.js";
 import { requireCap } from "../auth/requireCapability.js";
-import { ExtractionMappingModel } from "../models/ExtractionMapping.js";
+import { ExtractionMappingModel } from "../models/invoice/ExtractionMapping.js";
 import { toValidObjectId } from "../utils/validation.js";
 
 const VALID_MATCH_TYPES = ["gstin", "vendorNameFuzzy"] as const;

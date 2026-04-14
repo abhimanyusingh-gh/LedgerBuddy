@@ -1,5 +1,5 @@
 import type { ComplianceRiskSignal } from "../../types/invoice.js";
-import { VendorMasterModel } from "../../models/VendorMaster.js";
+import { VendorMasterModel } from "../../models/compliance/VendorMaster.js";
 
 const UDYAM_FORMAT = /^UDYAM-[A-Z]{2}-\d{2}-\d{7}$/;
 const MSME_PAYMENT_WARNING_DAYS = 30;

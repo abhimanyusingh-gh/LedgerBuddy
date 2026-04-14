@@ -1,4 +1,4 @@
-import { VendorTemplateModel } from "../../../../models/VendorTemplate.js";
+import { VendorTemplateModel } from "../../../../models/invoice/VendorTemplate.js";
 import type { ParsedInvoiceData } from "../../../../types/invoice.js";
 import { logger } from "../../../../utils/logger.js";
 

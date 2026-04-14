@@ -1,9 +1,9 @@
 import { Types } from "mongoose";
 import { ExportService } from "./exportService.ts";
-import { ExportBatchModel } from "../models/ExportBatch.ts";
-import { InvoiceModel } from "../models/Invoice.ts";
-import type { AccountingExporter } from "../core/interfaces/AccountingExporter.ts";
-import type { FileStore } from "../core/interfaces/FileStore.ts";
+import { ExportBatchModel } from "../../models/invoice/ExportBatch.ts";
+import { InvoiceModel } from "../../models/invoice/Invoice.ts";
+import type { AccountingExporter } from "../../core/interfaces/AccountingExporter.ts";
+import type { FileStore } from "../../core/interfaces/FileStore.ts";
 
 function createMockExporter(overrides?: Partial<AccountingExporter>): AccountingExporter {
   return {

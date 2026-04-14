@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { TenantComplianceConfigModel } from "../models/TenantComplianceConfig.js";
+import { TenantComplianceConfigModel } from "../models/integration/TenantComplianceConfig.js";
 import { requireAuth } from "../auth/requireAuth.js";
 import { requireCap } from "../auth/requireCapability.js";
 

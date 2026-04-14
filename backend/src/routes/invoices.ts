@@ -9,18 +9,18 @@ import {
   InvoiceUpdateError,
   type InvoiceService,
   type UpdateParsedFieldInput
-} from "../services/invoiceService.js";
+} from "../services/invoice/invoiceService.js";
 import { env } from "../config/env.js";
 import { loadRuntimeManifest, type FolderSourceManifest } from "../core/runtimeManifest.js";
 import type { FileStore } from "../core/interfaces/FileStore.js";
 import { requireCap, resolveCapabilities } from "../auth/requireCapability.js";
-import { ViewerScopeModel } from "../models/ViewerScope.js";
-import { InvoiceModel } from "../models/Invoice.js";
+import { ViewerScopeModel } from "../models/integration/ViewerScope.js";
+import { InvoiceModel } from "../models/invoice/Invoice.js";
 import { VendorMasterService } from "../services/compliance/VendorMasterService.js";
 import { GlCodeSuggestionService } from "../services/compliance/GlCodeSuggestionService.js";
 import { TdsCalculationService } from "../services/compliance/TdsCalculationService.js";
-import { GlCodeMasterModel } from "../models/GlCodeMaster.js";
-import { TenantTcsConfigModel } from "../models/TenantTcsConfig.js";
+import { GlCodeMasterModel } from "../models/compliance/GlCodeMaster.js";
+import { TenantTcsConfigModel } from "../models/integration/TenantTcsConfig.js";
 import { requireAuth } from "../auth/requireAuth.js";
 import { logger } from "../utils/logger.js";
 import { isRecord, isString, validateDateRange } from "../utils/validation.js";

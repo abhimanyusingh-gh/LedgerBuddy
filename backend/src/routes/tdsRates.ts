@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { TdsRateTableModel } from "../models/TdsRateTable.js";
+import { TdsRateTableModel } from "../models/compliance/TdsRateTable.js";
 import { requirePlatformAdmin } from "../auth/middleware.js";
 import { requireAuth } from "../auth/requireAuth.js";
 import { requireCap } from "../auth/requireCapability.js";

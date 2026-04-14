@@ -1,8 +1,8 @@
 import { getAuth } from "../types/auth.js";
 import { Router } from "express";
 import { requireCap } from "../auth/requireCapability.js";
-import { BankAccountModel } from "../models/BankAccount.js";
-import type { IBankConnectionService } from "../services/anumati/IBankConnectionService.js";
+import { BankAccountModel } from "../models/bank/BankAccount.js";
+import type { IBankConnectionService } from "../services/bank/anumati/IBankConnectionService.js";
 
 export function createBankAccountsRouter(bankService: IBankConnectionService) {
   const router = Router();

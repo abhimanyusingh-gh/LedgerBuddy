@@ -1,10 +1,10 @@
 import { BankStatementParser } from "./BankStatementParser.ts";
-import { BankStatementModel } from "../../../models/BankStatement.ts";
-import { BankTransactionModel } from "../../../models/BankTransaction.ts";
+import { BankStatementModel } from "../../../models/bank/BankStatement.ts";
+import { BankTransactionModel } from "../../../models/bank/BankTransaction.ts";
 import * as nativePdfText from "../invoice/stages/nativePdfText.ts";
 
-jest.mock("../../../models/BankStatement.ts");
-jest.mock("../../../models/BankTransaction.ts");
+jest.mock("../../../models/bank/BankStatement.ts");
+jest.mock("../../../models/bank/BankTransaction.ts");
 jest.mock("../invoice/stages/nativePdfText.ts");
 
 function makeStatementCreate(id = "stmt-1") {

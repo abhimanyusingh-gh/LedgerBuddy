@@ -1,5 +1,5 @@
-import { TdsRateTableModel } from "../models/TdsRateTable.js";
-import { TdsSectionMappingModel } from "../models/TdsSectionMapping.js";
+import { TdsRateTableModel } from "../models/compliance/TdsRateTable.js";
+import { TdsSectionMappingModel } from "../models/compliance/TdsSectionMapping.js";
 import { logger } from "../utils/logger.js";
 
 const FY2025_START = new Date("2025-04-01T00:00:00.000Z");

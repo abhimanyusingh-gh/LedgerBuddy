@@ -1,6 +1,6 @@
 import { getAuth } from "../types/auth.js";
 import { Router } from "express";
-import { VendorMasterModel } from "../models/VendorMaster.js";
+import { VendorMasterModel } from "../models/compliance/VendorMaster.js";
 import { requireAuth } from "../auth/requireAuth.js";
 import { requireCap } from "../auth/requireCapability.js";
 

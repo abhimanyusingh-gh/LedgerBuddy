@@ -9,7 +9,7 @@ import type {
   ParsedInvoiceData
 } from "../../../types/invoice.js";
 import { logger } from "../../../utils/logger.js";
-import { assessInvoiceConfidence } from "../../../services/confidenceAssessment.js";
+import { assessInvoiceConfidence } from "../../../services/invoice/confidenceAssessment.js";
 import type { ComplianceEnricher } from "../../../services/compliance/ComplianceEnricher.js";
 import { RiskSignalEvaluator } from "../../../services/compliance/RiskSignalEvaluator.js";
 import type { ExtractionLearningStore } from "./learning/extractionLearningStore.js";

@@ -1,7 +1,7 @@
 import { Router } from "express";
 import type { AuthService } from "../auth/AuthService.js";
-import { TenantModel } from "../models/Tenant.js";
-import { TenantUserRoleModel } from "../models/TenantUserRole.js";
+import { TenantModel } from "../models/core/Tenant.js";
+import { TenantUserRoleModel } from "../models/core/TenantUserRole.js";
 import { mergeCapabilitiesWithDefaults } from "../auth/personaDefaults.js";
 
 export function createSessionRouter(authService: AuthService) {

@@ -8,7 +8,7 @@ const mockCreate = jest.fn(async (data: any) => ({
 }));
 const mockFindOne = jest.fn(async () => null);
 
-jest.mock("../models/GlCodeMaster.js", () => ({
+jest.mock("../models/compliance/GlCodeMaster.js", () => ({
   GlCodeMasterModel: {
     find: jest.fn(() => ({
       sort: () => ({ skip: () => ({ limit: () => ({ lean: () => mockFind() }) }) }),
@@ -29,7 +29,7 @@ let createGlCodesRouter: typeof import("./glCodes.ts").createGlCodesRouter;
 beforeEach(async () => {
   jest.resetModules();
 
-  jest.mock("../models/GlCodeMaster.js", () => ({
+  jest.mock("../models/compliance/GlCodeMaster.js", () => ({
     GlCodeMasterModel: {
       find: jest.fn(() => ({
         sort: () => ({ skip: () => ({ limit: () => ({ lean: () => mockFind() }) }) }),

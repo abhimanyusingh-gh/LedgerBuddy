@@ -1,7 +1,7 @@
 import nodemailer from "nodemailer";
-import { env } from "../config/env.js";
-import { MailboxNotificationEventModel } from "../models/MailboxNotificationEvent.js";
-import { logger } from "../utils/logger.js";
+import { env } from "../../config/env.js";
+import { MailboxNotificationEventModel } from "../../models/integration/MailboxNotificationEvent.js";
+import { logger } from "../../utils/logger.js";
 
 interface ReauthNotificationInput {
   userId: string;

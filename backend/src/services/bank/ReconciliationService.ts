@@ -1,6 +1,6 @@
-import { InvoiceModel } from "../../models/Invoice.js";
-import { BankTransactionModel } from "../../models/BankTransaction.js";
-import { TenantTcsConfigModel } from "../../models/TenantTcsConfig.js";
+import { InvoiceModel } from "../../models/invoice/Invoice.js";
+import { BankTransactionModel } from "../../models/bank/BankTransaction.js";
+import { TenantTcsConfigModel } from "../../models/integration/TenantTcsConfig.js";
 import { logger } from "../../utils/logger.js";
 
 interface MatchCandidate {
@@ -22,7 +22,7 @@ export class ReconciliationService {
       debitMinor: { $gt: 0 }
     }).lean();
 
-    const { BankStatementModel } = await import("../../models/BankStatement.js");
+    const { BankStatementModel } = await import("../../models/bank/BankStatement.js");
     const statement = await BankStatementModel.findOne({ _id: statementId, tenantId }).lean();
     const statementGstin = statement?.gstin ?? undefined;
 

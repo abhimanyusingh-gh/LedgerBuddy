@@ -1,11 +1,11 @@
 import { Router } from "express";
 import multer from "multer";
-import { BankStatementModel } from "../models/BankStatement.js";
-import { BankTransactionModel } from "../models/BankTransaction.js";
+import { BankStatementModel } from "../models/bank/BankStatement.js";
+import { BankTransactionModel } from "../models/bank/BankTransaction.js";
 import { BankStatementParser } from "../ai/extractors/bank/BankStatementParser.js";
 import { BankStatementParseProgress } from "../ai/extractors/bank/BankStatementParseProgress.js";
-import { ReconciliationService } from "../services/reconciliation/ReconciliationService.js";
-import { InvoiceModel } from "../models/Invoice.js";
+import { ReconciliationService } from "../services/bank/ReconciliationService.js";
+import { InvoiceModel } from "../models/invoice/Invoice.js";
 import { requireAuth } from "../auth/requireAuth.js";
 import { requireCap } from "../auth/requireCapability.js";
 import { requireNotViewer } from "../auth/middleware.js";

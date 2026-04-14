@@ -1,18 +1,18 @@
 import { createHash, randomBytes } from "node:crypto";
-import { env } from "../config/env.js";
-import { OAuthStateModel } from "../models/OAuthState.js";
-import { TenantIntegrationModel } from "../models/TenantIntegration.js";
-import { TenantMailboxAssignmentModel } from "../models/TenantMailboxAssignment.js";
+import { env } from "../../config/env.js";
+import { OAuthStateModel } from "../../models/integration/OAuthState.js";
+import { TenantIntegrationModel } from "../../models/integration/TenantIntegration.js";
+import { TenantMailboxAssignmentModel } from "../../models/integration/TenantMailboxAssignment.js";
 import {
   exchangeGoogleAuthorizationCode,
   fetchGoogleUserEmail,
   isInvalidGrantError,
   refreshGoogleAccessToken
-} from "../sources/email/gmailOAuthClient.js";
-import { GmailMailboxNeedsReauthError } from "../sources/email/errors.js";
-import { decryptSecret, encryptSecret } from "../utils/secretCrypto.js";
-import { MailboxNotificationService } from "./mailboxNotificationService.js";
-import { HttpError } from "../errors/HttpError.js";
+} from "../../sources/email/gmailOAuthClient.js";
+import { GmailMailboxNeedsReauthError } from "../../sources/email/errors.js";
+import { decryptSecret, encryptSecret } from "../../utils/secretCrypto.js";
+import { MailboxNotificationService } from "../platform/mailboxNotificationService.js";
+import { HttpError } from "../../errors/HttpError.js";
 
 const PROVIDER = "gmail";
 
@@ -273,7 +273,7 @@ export class TenantGmailIntegrationService {
       throw new HttpError("Polling can only be enabled on connected integrations.", 400, "integration_not_connected");
     }
 
-    const { ALLOWED_POLLING_INTERVALS_HOURS } = await import("../models/TenantIntegration.js");
+    const { ALLOWED_POLLING_INTERVALS_HOURS } = await import("../../models/integration/TenantIntegration.js");
     if (!ALLOWED_POLLING_INTERVALS_HOURS.includes(input.intervalHours as 1 | 2 | 4 | 8)) {
       throw new HttpError(`Polling interval must be one of: ${ALLOWED_POLLING_INTERVALS_HOURS.join(", ")} hours.`, 400, "invalid_polling_interval");
     }
