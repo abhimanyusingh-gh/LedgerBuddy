@@ -62,7 +62,7 @@ export function normalizeDateToken(text: string): string | undefined {
  * Parse a named date string like "January 15 2024" or "15 January 2024"
  * into ISO format "2024-01-15".
  */
-export function normalizeDateValue(value: string): string | undefined {
+function normalizeDateValue(value: string): string | undefined {
   const sanitized = value.replace(/,/g, "").trim();
   const monthNameFirst = sanitized.match(/^([A-Za-z]{3,9})\s+(\d{1,2})\s+(\d{4})$/);
   if (monthNameFirst) {

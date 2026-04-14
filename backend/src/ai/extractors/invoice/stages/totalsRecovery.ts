@@ -81,7 +81,7 @@ export function recoverGstSummaryFromOcr(
   };
 }
 
-export function findPreferredTotalAmountBlockForStrategy(
+function findPreferredTotalAmountBlockForStrategy(
   ocrBlocks: OcrBlock[],
   strategy: "generic" | "invoice_table" | "receipt_statement",
   totalAmountMinor?: number

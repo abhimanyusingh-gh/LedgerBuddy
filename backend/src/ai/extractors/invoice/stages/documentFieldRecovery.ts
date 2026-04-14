@@ -109,7 +109,7 @@ export function recoverHeaderFieldsFromOcr(
   return next;
 }
 
-export function findPreferredVendorBlockForStrategy(
+function findPreferredVendorBlockForStrategy(
   ocrBlocks: OcrBlock[],
   strategy: "generic" | "invoice_table" | "receipt_statement"
 ): { block: OcrBlock; index: number } | undefined {
