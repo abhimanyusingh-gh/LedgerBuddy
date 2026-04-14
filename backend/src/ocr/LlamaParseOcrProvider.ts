@@ -85,23 +85,27 @@ export class LlamaParseOcrProvider implements OcrProvider {
       const pageImages = await downloadScreenshots(result.images_content_metadata);
 
       let fields: ExtractedField[] | undefined;
+      let extractedLineItems: Array<Record<string, unknown>> | undefined;
       if (this.extractEnabled) {
         const parseJobId = result.job?.id ?? fileObj.id;
         const extracted = await this.runExtract(parseJobId);
-        if (extracted.length > 0) {
-          fields = extracted;
+        if (extracted.fields.length > 0) {
+          fields = extracted.fields;
+        }
+        if (extracted.lineItems.length > 0) {
+          extractedLineItems = extracted.lineItems;
         }
       }
 
       logger.info("ocr.request.end", { provider: this.name, mimeType, latencyMs: Date.now() - startedAt, chars: text.length, blockCount: blocks.length, pageImageCount: pageImages.length });
-      return { text, provider: this.name, blocks, pageImages, fields };
+      return { text, provider: this.name, blocks, pageImages, fields, extractedLineItems };
     } catch (error) {
       logger.error("ocr.request.failed", { provider: this.name, mimeType, latencyMs: Date.now() - startedAt, error: buildOcrRequestError(this.name, error) });
       throw new Error(buildOcrRequestError(this.name, error));
     }
   }
 
-  private async runExtract(fileInput: string): Promise<ExtractedField[]> {
+  private async runExtract(fileInput: string): Promise<{ fields: ExtractedField[]; lineItems: Array<Record<string, unknown>> }> {
     try {
       const job = await this.client.extract.create({
         file_input: fileInput,
@@ -117,7 +121,7 @@ export class LlamaParseOcrProvider implements OcrProvider {
       return mapExtractResult(completed.extract_result, completed.extract_metadata?.field_metadata?.document_metadata);
     } catch (err) {
       logger.warn("ocr.extract.failed", { provider: this.name, fileInput, error: String(err) });
-      return [];
+      return { fields: [], lineItems: [] };
     }
   }
 }
@@ -125,17 +129,27 @@ export class LlamaParseOcrProvider implements OcrProvider {
 function mapExtractResult(
   extractResult: unknown,
   documentMetadata: unknown
-): ExtractedField[] {
+): { fields: ExtractedField[]; lineItems: Array<Record<string, unknown>> } {
   if (!extractResult || typeof extractResult !== "object" || Array.isArray(extractResult)) {
-    return [];
+    return { fields: [], lineItems: [] };
   }
   const result = extractResult as Record<string, unknown>;
   const meta = (documentMetadata && typeof documentMetadata === "object" && !Array.isArray(documentMetadata))
     ? (documentMetadata as Record<string, unknown>)
     : {};
 
+  const lineItems: Array<Record<string, unknown>> = [];
+  if (Array.isArray(result["line_items"])) {
+    for (const item of result["line_items"]) {
+      if (item && typeof item === "object" && !Array.isArray(item)) {
+        lineItems.push(item as Record<string, unknown>);
+      }
+    }
+  }
+
   const fields: ExtractedField[] = [];
   for (const key of Object.keys(result)) {
+    if (key === "line_items") continue;
     const raw = result[key];
     if (raw === null || raw === undefined) {
       continue;
@@ -191,7 +205,7 @@ function mapExtractResult(
     }
     fields.push(field);
   }
-  return fields;
+  return { fields, lineItems };
 }
 
 function buildBlocks(items: ParsingGetResponse["items"] | null | undefined): OcrBlock[] {

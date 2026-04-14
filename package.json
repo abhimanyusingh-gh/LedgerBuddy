@@ -28,6 +28,7 @@
     "docker:up:llamaparse:claude:single": "APP_MANIFEST_PATH=backend/runtime-manifest.llamaparse.json SLM_ENGINE=local_claude_cli SLM_EXTRACTION_PIPELINE=single_verify SLM_MULTI_STEP_EXTRACTION=false RESTART_LOCAL_ML=true bash ./scripts/docker-up.sh",
     "docker:up:llamaparse:api": "APP_MANIFEST_PATH=backend/runtime-manifest.llamaparse.json SLM_ENGINE=anthropic_api RESTART_LOCAL_ML=true bash ./scripts/docker-up.sh",
     "docker:up:llamaextract": "OCR_PROVIDER=llamaparse LLAMA_PARSE_EXTRACT_ENABLED=true LLAMA_PARSE_EXTRACT_TIER=agentic FIELD_VERIFIER_PROVIDER=none bash ./scripts/docker-up.sh",
+    "docker:up:llamaextract:lowcost": "OCR_PROVIDER=llamaparse LLAMA_PARSE_EXTRACT_ENABLED=true LLAMA_PARSE_EXTRACT_TIER=cost_effective FIELD_VERIFIER_PROVIDER=none bash ./scripts/docker-up.sh",
     "docker:up:llamaextract:slm": "OCR_PROVIDER=llamaparse LLAMA_PARSE_EXTRACT_ENABLED=true LLAMA_PARSE_EXTRACT_TIER=agentic SLM_ENGINE=local_claude_cli RESTART_LOCAL_ML=true bash ./scripts/docker-up.sh",
     "docker:down": "bash ./scripts/docker-down.sh",
     "docker:down:all": "KEEP_ML=false bash ./scripts/docker-down.sh",

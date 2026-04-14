@@ -40,6 +40,7 @@ export interface OcrResult {
   pageImages?: OcrPageImage[];
   tokenUsage?: TokenUsage;
   fields?: ExtractedField[];
+  extractedLineItems?: Array<Record<string, unknown>>;
 }
 
 export interface OcrExtractionOptions {

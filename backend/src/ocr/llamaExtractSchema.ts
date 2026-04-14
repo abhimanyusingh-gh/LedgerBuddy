@@ -66,5 +66,51 @@ export const INVOICE_EXTRACT_SCHEMA = {
     description:
       "The 10-character Permanent Account Number (PAN) of the supplier/vendor. May be labeled 'PAN', 'Company PAN', or \"Company's PAN\". Format: 5 letters + 4 digits + 1 letter (e.g. 'AGIPP2724Q').",
     },
+  line_items: {
+    type: "array",
+    description:
+      "All line items listed in the invoice body table. Each item represents one billable row. Extract every row that has a description and a monetary amount.",
+    items: {
+      type: "object",
+      properties: {
+        description: {
+          type: "string",
+          description: "The product or service name/description for this line item.",
+        },
+        hsn_sac: {
+          type: "string",
+          description: "HSN (Harmonized System of Nomenclature) or SAC (Services Accounting Code) for this line item, if present.",
+        },
+        quantity: {
+          type: "number",
+          description: "Quantity or number of units for this line item.",
+        },
+        rate: {
+          type: "number",
+          description: "Unit rate or price per unit for this line item.",
+        },
+        amount: {
+          type: "number",
+          description: "Total pre-tax amount for this line item (quantity × rate). Numeric value only.",
+        },
+        tax_rate: {
+          type: "number",
+          description: "GST or tax rate percentage applied to this line item (e.g. 18 for 18%).",
+        },
+        cgst: {
+          type: "number",
+          description: "CGST amount for this line item. Numeric value only.",
+        },
+        sgst: {
+          type: "number",
+          description: "SGST/UTGST amount for this line item. Numeric value only.",
+        },
+        igst: {
+          type: "number",
+          description: "IGST amount for this line item. Numeric value only.",
+        },
+      },
+    },
+  },
   },
 };

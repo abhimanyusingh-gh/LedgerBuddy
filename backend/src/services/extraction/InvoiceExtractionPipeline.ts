@@ -80,6 +80,7 @@ interface OcrStageResult {
   ocrTokens: number;
   preOcrLanguage: DetectedInvoiceLanguage;
   extractFields?: ExtractedField[];
+  extractedLineItems?: Array<Record<string, unknown>>;
 }
 
 interface LanguageResolution {
@@ -350,6 +351,26 @@ export class InvoiceExtractionPipeline {
       parsed.gst = gst;
     }
 
+    const rawLineItems = ocr.extractedLineItems ?? [];
+    if (rawLineItems.length > 0) {
+      const lineItems = rawLineItems
+        .map((item) => ({
+          description: typeof item["description"] === "string" ? item["description"].trim() : "",
+          ...(typeof item["hsn_sac"] === "string" && item["hsn_sac"] ? { hsnSac: item["hsn_sac"] } : {}),
+          ...(typeof item["quantity"] === "number" ? { quantity: item["quantity"] } : {}),
+          ...(typeof item["rate"] === "number" ? { rate: item["rate"] } : {}),
+          amountMinor: typeof item["amount"] === "number" ? Math.round(item["amount"] * 100) : 0,
+          ...(typeof item["tax_rate"] === "number" ? { taxRate: item["tax_rate"] } : {}),
+          ...(typeof item["cgst"] === "number" ? { cgstMinor: Math.round(item["cgst"] * 100) } : {}),
+          ...(typeof item["sgst"] === "number" ? { sgstMinor: Math.round(item["sgst"] * 100) } : {}),
+          ...(typeof item["igst"] === "number" ? { igstMinor: Math.round(item["igst"] * 100) } : {}),
+        }))
+        .filter((item) => item.description || item.amountMinor > 0);
+      if (lineItems.length > 0) {
+        parsed.lineItems = lineItems;
+      }
+    }
+
     const provenanceKeyMap: Record<string, string> = {
       invoice_number: "invoiceNumber",
       vendor_name: "vendorName",
@@ -473,7 +494,8 @@ export class InvoiceExtractionPipeline {
       ocrConfidence: calibrated.score,
       ocrTokens: result.tokenUsage?.totalTokens ?? 0,
       preOcrLanguage,
-      extractFields: result.fields
+      extractFields: result.fields,
+      extractedLineItems: result.extractedLineItems,
     };
   }
 
