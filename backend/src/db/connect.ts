@@ -5,20 +5,21 @@ import { seedDefaultGlCodes } from "@/services/compliance/seedGlCodes.js";
 import { TenantModel } from "@/models/core/Tenant.js";
 import { GlCodeMasterModel } from "@/models/compliance/GlCodeMaster.js";
 
-let connected = false;
+let connectionPromise: Promise<void> | null = null;
 
 export async function connectToDatabase() {
-  if (connected) {
-    return;
-  }
+  if (connectionPromise) return connectionPromise;
+  connectionPromise = doConnect();
+  return connectionPromise;
+}
 
+async function doConnect() {
   const runtimeManifest = loadRuntimeManifest();
   await mongoose.connect(runtimeManifest.database.uri, {
     maxPoolSize: 10,
     minPoolSize: 2,
     serverSelectionTimeoutMS: 5000,
   });
-  connected = true;
 
   try {
     const db = mongoose.connection.db;
@@ -85,9 +86,9 @@ export async function connectToDatabase() {
 }
 
 export async function disconnectFromDatabase() {
-  if (!connected) {
+  if (!connectionPromise) {
     return;
   }
   await mongoose.disconnect();
-  connected = false;
+  connectionPromise = null;
 }
