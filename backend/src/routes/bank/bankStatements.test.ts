@@ -87,8 +87,8 @@ jest.mock("@/services/bank/ReconciliationService.ts", () => ({
   }))
 }));
 
-jest.mock("@/ai/extractors/bank/BankStatementParser.ts", () => ({
-  BankStatementParser: jest.fn().mockImplementation(() => ({
+jest.mock("@/ai/extractors/bank/BankStatementExtractionPipeline.ts", () => ({
+  BankStatementExtractionPipeline: jest.fn().mockImplementation(() => ({
     parseCsv: jest.fn(),
     parsePdf: jest.fn()
   }))

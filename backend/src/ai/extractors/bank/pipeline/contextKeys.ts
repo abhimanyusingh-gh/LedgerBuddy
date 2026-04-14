@@ -1,0 +1,15 @@
+export const BANK_CTX = {
+  ENGINE_RESULT: "bank.engineResult",
+  SLM_OUTPUT: "bank.slmOutput",
+  WARNINGS: "bank.warnings",
+  PARSED_TRANSACTIONS: "bank.parsedTransactions",
+  DEDUPLICATED_TRANSACTIONS: "bank.deduplicatedTransactions",
+  DUPLICATES_SKIPPED: "bank.duplicatesSkipped",
+  BANK_NAME: "bank.bankName",
+  ACCOUNT_NUMBER: "bank.accountNumber",
+  ACCOUNT_HOLDER: "bank.accountHolder",
+  PERIOD_FROM: "bank.periodFrom",
+  PERIOD_TO: "bank.periodTo",
+  STATEMENT_ID: "bank.statementId",
+  TRANSACTION_COUNT: "bank.transactionCount",
+} as const;

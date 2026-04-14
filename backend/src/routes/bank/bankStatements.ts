@@ -2,7 +2,7 @@ import { Router } from "express";
 import multer from "multer";
 import { BankStatementModel, type BankStatement } from "@/models/bank/BankStatement.js";
 import { BankTransactionModel, BANK_TRANSACTION_MATCH_STATUS, type BankTransactionMatchStatus } from "@/models/bank/BankTransaction.js";
-import { BankStatementParser } from "@/ai/extractors/bank/BankStatementParser.js";
+import { BankStatementExtractionPipeline } from "@/ai/extractors/bank/BankStatementExtractionPipeline.js";
 import { BankStatementParseProgress } from "@/ai/extractors/bank/BankStatementParseProgress.js";
 import { ReconciliationService } from "@/services/bank/ReconciliationService.js";
 import { InvoiceModel } from "@/models/invoice/Invoice.js";
@@ -41,7 +41,7 @@ export function createBankStatementsRouter(
   ocrProvider?: OcrProvider,
   fieldVerifier?: FieldVerifier
 ) {
-  const parser = new BankStatementParser({ ocrProvider, fieldVerifier });
+  const parser = new BankStatementExtractionPipeline({ ocrProvider, fieldVerifier });
   const parseProgress = new BankStatementParseProgress();
   const router = Router();
   router.use(requireAuth);

@@ -1,4 +1,4 @@
-import { BankStatementModel, BANK_STATEMENT_SOURCE, BANK_STATEMENT_PROCESSING_STATUS, type BankStatementSource, type BankStatementProcessingStatus } from "@/models/bank/BankStatement.js";
+import { BankStatementModel, BANK_STATEMENT_SOURCE, type BankStatementSource } from "@/models/bank/BankStatement.js";
 import { BankTransactionModel, BANK_TRANSACTION_SOURCE, type BankTransactionSource } from "@/models/bank/BankTransaction.js";
 import { logger } from "@/utils/logger.js";
 import type { OcrProvider } from "@/core/interfaces/OcrProvider.js";
@@ -8,8 +8,10 @@ import { DocumentProcessingEngine, type DocumentProcessingProgressEvent } from "
 import {
   BankStatementDocumentDefinition,
   type SlmBankStatementOutput,
-  type BankStatementTransaction
 } from "./BankStatementDocumentDefinition.js";
+import { ContextStore } from "@/core/pipeline/PipelineContext.js";
+import { buildBankPostEnginePipeline, type BankPdfParseResult } from "./pipeline/bankPipelineFactory.js";
+import { BANK_CTX } from "./pipeline/contextKeys.js";
 
 type OnParseProgress = (event: BankParseProgressEvent) => void;
 
@@ -22,19 +24,7 @@ interface ParsedTransaction {
   balanceMinor?: number;
 }
 
-
-interface PdfParseResult {
-  statementId: string;
-  transactionCount: number;
-  duplicatesSkipped: number;
-  warnings: string[];
-  bankName?: string;
-  accountNumber?: string;
-  periodFrom?: Date;
-  periodTo?: Date;
-}
-
-export class BankStatementParser {
+export class BankStatementExtractionPipeline {
   private readonly ocrProvider: OcrProvider | null;
   private readonly fieldVerifier: FieldVerifier | null;
 
@@ -161,18 +151,15 @@ export class BankStatementParser {
     mimeType: string,
     uploadedBy: string,
     onProgress?: OnParseProgress
-  ): Promise<PdfParseResult> {
+  ): Promise<BankPdfParseResult> {
     if (!this.fieldVerifier) {
       throw new Error("SLM field verifier is not available. Cannot parse PDF bank statements.");
     }
 
-    const statementSource: BankStatementSource = BANK_STATEMENT_SOURCE.PDF;
-    const txnSource: BankTransactionSource = BANK_TRANSACTION_SOURCE.PDF;
-    const processingStatus: BankStatementProcessingStatus = BANK_STATEMENT_PROCESSING_STATUS.COMPLETE;
-
     onProgress?.({ type: "start", fileName });
     onProgress?.({ type: "progress", stage: "text-extraction", transactionsSoFar: 0 });
 
+    // Stage 1: Run DocumentProcessingEngine (handles OCR/native text + SLM)
     const definition = new BankStatementDocumentDefinition();
     const engine = new DocumentProcessingEngine<SlmBankStatementOutput>(
       definition,
@@ -195,6 +182,9 @@ export class BankStatementParser {
       }
     );
 
+    onProgress?.({ type: "progress", stage: "validation", transactionsSoFar: 0 });
+
+    // Stage 2: Run composed post-engine pipeline (normalize, dedup, persist)
     const slmOutput = engineResult.output;
     const warnings: string[] = [...engineResult.processingIssues];
 
@@ -204,164 +194,36 @@ export class BankStatementParser {
     const periodFrom = slmOutput.periodFrom ?? undefined;
     const periodTo = slmOutput.periodTo ?? undefined;
 
-    onProgress?.({ type: "progress", stage: "validation", transactionsSoFar: 0 });
+    const pipelineInput = { tenantId, fileName, mimeType, fileBuffer: buffer };
 
-    const rawTransactions = Array.isArray(slmOutput.transactions) ? slmOutput.transactions : [];
-    const parsed: ParsedTransaction[] = [];
+    const store = new ContextStore();
+    store.set(BANK_CTX.SLM_OUTPUT, slmOutput);
+    store.set(BANK_CTX.WARNINGS, warnings);
+    store.set(BANK_CTX.BANK_NAME, bankName);
+    store.set(BANK_CTX.ACCOUNT_NUMBER, accountNumber);
+    store.set(BANK_CTX.ACCOUNT_HOLDER, accountHolder);
+    store.set(BANK_CTX.PERIOD_FROM, periodFrom);
+    store.set(BANK_CTX.PERIOD_TO, periodTo);
 
-    for (let i = 0; i < rawTransactions.length; i++) {
-      const raw = rawTransactions[i] as BankStatementTransaction;
-      if (!raw || typeof raw !== "object") {
-        warnings.push(`Transaction at index ${i}: not a valid object, skipped.`);
-        continue;
-      }
+    const pipeline = buildBankPostEnginePipeline({ uploadedBy });
+    const ctx = {
+      input: pipelineInput,
+      store,
+      metadata: {} as Record<string, string>,
+      issues: [] as string[],
+    };
 
-      const date = typeof raw.date === "string" ? raw.date.trim() : "";
-      const description = typeof raw.description === "string" ? raw.description.trim() : "";
-
-      if (!date || !description) {
-        warnings.push(`Transaction at index ${i}: missing date or description, skipped.`);
-        continue;
-      }
-
-      const normalizedDate = normalizeDate(date);
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(normalizedDate)) {
-        warnings.push(`Transaction at index ${i}: invalid date format "${date}", skipped.`);
-        continue;
-      }
-
-      const reference = typeof raw.reference === "string" ? raw.reference.trim() || undefined : undefined;
-      const debitMinor = normalizeSlmAmount(raw.debit);
-      const creditMinor = normalizeSlmAmount(raw.credit);
-      const balanceMinor = normalizeSlmAmount(raw.balance);
-
-      if (!debitMinor && !creditMinor) {
-        warnings.push(`Transaction at index ${i}: no debit or credit amount, skipped.`);
-        continue;
-      }
-
-      parsed.push({
-        date: normalizedDate,
-        description,
-        reference,
-        debitMinor: debitMinor ?? undefined,
-        creditMinor: creditMinor ?? undefined,
-        balanceMinor: balanceMinor ?? undefined
-      });
-    }
-
-    if (parsed.length === 0 && rawTransactions.length > 0) {
-      warnings.push("All transactions from SLM output were invalid.");
-    }
-
-    let duplicatesSkipped = 0;
-    let transactions = parsed;
-
-    if (parsed.length > 0) {
-      const dates = parsed.map(t => t.date);
-      const minDate = dates.reduce((a, b) => (a < b ? a : b));
-      const maxDate = dates.reduce((a, b) => (a > b ? a : b));
-
-      const existing = await BankTransactionModel.find({
-        tenantId,
-        date: { $gte: minDate, $lte: maxDate }
-      }).lean();
-
-      const existingFingerprints = new Set(
-        existing.map(e => `${e.date}|${e.description}|${e.debitMinor ?? ""}|${e.creditMinor ?? ""}|${e.reference ?? ""}`)
-      );
-
-      const deduplicated: ParsedTransaction[] = [];
-      for (const txn of parsed) {
-        const fp = `${txn.date}|${txn.description}|${txn.debitMinor ?? ""}|${txn.creditMinor ?? ""}|${txn.reference ?? ""}`;
-        if (existingFingerprints.has(fp)) {
-          duplicatesSkipped++;
-        } else {
-          deduplicated.push(txn);
-          existingFingerprints.add(fp);
-        }
-      }
-      transactions = deduplicated;
-    }
-
-    const statement = await BankStatementModel.create({
-      tenantId,
-      fileName,
-      bankName: bankName ?? null,
-      accountNumberMasked: accountNumber ?? null,
-      accountHolder: accountHolder ?? null,
-      periodFrom: periodFrom ?? null,
-      periodTo: periodTo ?? null,
-      transactionCount: transactions.length,
-      matchedCount: 0,
-      unmatchedCount: transactions.length,
-      processingStatus,
-      source: statementSource,
-      uploadedBy
-    });
-
-    const statementId = String(statement._id);
-
-    if (transactions.length > 0) {
-      await BankTransactionModel.insertMany(
-        transactions.map(txn => ({
-          tenantId,
-          statementId,
-          date: txn.date,
-          description: txn.description,
-          reference: txn.reference ?? null,
-          debitMinor: txn.debitMinor ?? null,
-          creditMinor: txn.creditMinor ?? null,
-          balanceMinor: txn.balanceMinor ?? null,
-          matchStatus: "unmatched",
-          source: txnSource
-        }))
-      );
-    }
-
-    logger.info("bank.statement.pdf.parsed", {
-      tenantId,
-      statementId,
-      transactionCount: transactions.length,
-      duplicatesSkipped,
-      warningCount: warnings.length,
-      bankName,
-      accountNumber
-    });
+    const result = await pipeline.executeWithContext(ctx);
 
     onProgress?.({
       type: "complete",
-      statementId,
-      transactionCount: transactions.length,
-      warnings
+      statementId: result.output.statementId,
+      transactionCount: result.output.transactionCount,
+      warnings: result.output.warnings
     });
 
-    return {
-      statementId,
-      transactionCount: transactions.length,
-      duplicatesSkipped,
-      warnings,
-      bankName,
-      accountNumber,
-      periodFrom,
-      periodTo
-    };
+    return result.output;
   }
-}
-
-function normalizeSlmAmount(value: unknown): number | null {
-  if (value === null || value === undefined) return null;
-
-  if (typeof value === "number") {
-    if (!Number.isFinite(value) || value === 0) return null;
-    return Math.round(Math.abs(value) * 100);
-  }
-
-  if (typeof value === "string") {
-    return parseAmountToMinor(value);
-  }
-
-  return null;
 }
 
 function parseCsvLine(line: string): string[] {

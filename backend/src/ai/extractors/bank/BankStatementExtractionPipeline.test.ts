@@ -1,4 +1,4 @@
-import { BankStatementParser } from "./BankStatementParser.ts";
+import { BankStatementExtractionPipeline } from "./BankStatementExtractionPipeline.ts";
 import { BankStatementModel, BANK_STATEMENT_SOURCE } from "@/models/bank/BankStatement.ts";
 import { BankTransactionModel, BANK_TRANSACTION_SOURCE } from "@/models/bank/BankTransaction.ts";
 import * as nativePdfText from "../stages/nativePdfText.ts";
@@ -44,11 +44,11 @@ function makeOcrProvider(text: string) {
   };
 }
 
-describe("BankStatementParser", () => {
-  let parser: BankStatementParser;
+describe("BankStatementExtractionPipeline", () => {
+  let parser: BankStatementExtractionPipeline;
 
   beforeEach(() => {
-    parser = new BankStatementParser();
+    parser = new BankStatementExtractionPipeline();
     jest.clearAllMocks();
     makeNativePdfText("");
   });
@@ -185,7 +185,7 @@ describe("BankStatementParser", () => {
   });
 });
 
-describe("BankStatementParser.parsePdf", () => {
+describe("BankStatementExtractionPipeline.parsePdf", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     makeNativePdfText("");
@@ -207,7 +207,7 @@ describe("BankStatementParser.parsePdf", () => {
     const fieldVerifier = makeSlmResponse(slmData);
     const ocrProvider = makeOcrProvider("should not be called");
 
-    const parser = new BankStatementParser({ ocrProvider: ocrProvider as never, fieldVerifier: fieldVerifier as never });
+    const parser = new BankStatementExtractionPipeline({ ocrProvider: ocrProvider as never, fieldVerifier: fieldVerifier as never });
     makeStatementCreate();
     makeTransactionInsert();
     makeTransactionFind();
@@ -241,7 +241,7 @@ describe("BankStatementParser.parsePdf", () => {
     const fieldVerifier = makeSlmResponse(slmData);
     const ocrProvider = makeOcrProvider("HDFC Bank Statement\nAccount details and transactions...");
 
-    const parser = new BankStatementParser({ ocrProvider: ocrProvider as never, fieldVerifier: fieldVerifier as never });
+    const parser = new BankStatementExtractionPipeline({ ocrProvider: ocrProvider as never, fieldVerifier: fieldVerifier as never });
     makeStatementCreate();
     makeTransactionInsert();
     makeTransactionFind();
@@ -257,7 +257,7 @@ describe("BankStatementParser.parsePdf", () => {
     makeNativePdfText("short");
 
     const fieldVerifier = makeSlmResponse({ transactions: [] });
-    const parser = new BankStatementParser({ fieldVerifier: fieldVerifier as never });
+    const parser = new BankStatementExtractionPipeline({ fieldVerifier: fieldVerifier as never });
 
     await expect(
       parser.parsePdf("t1", "scan.pdf", Buffer.from("pdf"), "application/pdf", "user@test.com")
@@ -265,7 +265,7 @@ describe("BankStatementParser.parsePdf", () => {
   });
 
   it("throws when SLM field verifier is not available", async () => {
-    const parser = new BankStatementParser();
+    const parser = new BankStatementExtractionPipeline();
 
     await expect(
       parser.parsePdf("t1", "test.pdf", Buffer.from("pdf"), "application/pdf", "user@test.com")
@@ -309,7 +309,7 @@ describe("BankStatementParser.parsePdf", () => {
       })
     };
 
-    const parser = new BankStatementParser({ fieldVerifier: fieldVerifier as never });
+    const parser = new BankStatementExtractionPipeline({ fieldVerifier: fieldVerifier as never });
     makeStatementCreate();
     makeTransactionInsert();
     makeTransactionFind();
@@ -333,7 +333,7 @@ describe("BankStatementParser.parsePdf", () => {
       ]
     };
     const fieldVerifier = makeSlmResponse(slmData);
-    const parser = new BankStatementParser({ fieldVerifier: fieldVerifier as never });
+    const parser = new BankStatementExtractionPipeline({ fieldVerifier: fieldVerifier as never });
     makeStatementCreate();
     makeTransactionInsert();
     makeTransactionFind();
@@ -357,7 +357,7 @@ describe("BankStatementParser.parsePdf", () => {
       ]
     };
     const fieldVerifier = makeSlmResponse(slmData);
-    const parser = new BankStatementParser({ fieldVerifier: fieldVerifier as never });
+    const parser = new BankStatementExtractionPipeline({ fieldVerifier: fieldVerifier as never });
     makeStatementCreate();
     makeTransactionInsert();
     makeTransactionFind();
@@ -383,7 +383,7 @@ describe("BankStatementParser.parsePdf", () => {
       ]
     };
     const fieldVerifier = makeSlmResponse(slmData);
-    const parser = new BankStatementParser({ fieldVerifier: fieldVerifier as never });
+    const parser = new BankStatementExtractionPipeline({ fieldVerifier: fieldVerifier as never });
     makeStatementCreate();
     makeTransactionInsert();
     makeTransactionFind();
@@ -407,7 +407,7 @@ describe("BankStatementParser.parsePdf", () => {
       ]
     };
     const fieldVerifier = makeSlmResponse(slmData);
-    const parser = new BankStatementParser({ fieldVerifier: fieldVerifier as never });
+    const parser = new BankStatementExtractionPipeline({ fieldVerifier: fieldVerifier as never });
     makeStatementCreate();
     makeTransactionInsert();
     makeTransactionFind();
