@@ -1,6 +1,6 @@
 import type { OcrBlock } from "@/core/interfaces/OcrProvider.js";
 import type { InvoiceExtractionData, InvoiceFieldKey, InvoiceFieldProvenance, InvoiceLineItemProvenance, ParsedInvoiceData } from "@/types/invoice.js";
-import { findBlockByAmountValue } from "./grounding.js";
+import { findBlockByAmountValue } from "./groundingAmounts.js";
 
 type Box4 = [number, number, number, number];
 

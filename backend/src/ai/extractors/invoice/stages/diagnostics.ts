@@ -2,12 +2,12 @@ import type { OcrBlock } from "@/core/interfaces/OcrProvider.js";
 import type { InvoiceFieldKey, InvoiceFieldProvenance, ParsedInvoiceData } from "@/types/invoice.js";
 import {
   blockMatchesFieldValue,
-  findBlockByAmountValue,
+  DEFAULT_FIELD_LABEL_PATTERNS,
   findBlockByLabelProximity,
   findBlockForField,
-  DEFAULT_FIELD_LABEL_PATTERNS,
   findPreferredDateValueBlock
-} from "./grounding.js";
+} from "./groundingText.js";
+import { findBlockByAmountValue } from "./groundingAmounts.js";
 import { scoreFieldConfidence } from "../confidenceScoring/FieldConfidenceScorer.js";
 
 export function calibrateDocumentConfidence(

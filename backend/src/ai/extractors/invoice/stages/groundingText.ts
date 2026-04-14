@@ -1,9 +1,24 @@
 import type { OcrBlock } from "@/core/interfaces/OcrProvider.js";
 import type { ParsedInvoiceData } from "@/types/invoice.js";
-import { currencyBySymbol, parseAmountToken } from "@/ai/parsers/invoiceParser.js";
-import { looksLikeAddress } from "./textHeuristics.js";
-import { DEFAULT_FIELD_LABEL_PATTERNS } from "./groundingLabels.js";
-import { normalizeDateToken, buildDateTerms } from "./fieldParsingUtils.js";
+import { parseAmountToken } from "@/ai/parsers/invoiceParser.js";
+import { looksLikeAddress } from "./fieldCandidates.js";
+import { normalizeDateToken, buildDateTerms, detectExplicitCurrency } from "./fieldParsingUtils.js";
+
+export const DEFAULT_FIELD_LABEL_PATTERNS: Record<string, RegExp> = {
+  invoiceNumber: /^((?:pro(?:forma|perma)?|performa)\s+invoice\s*(?:number|no\.?|#)?|invoice\s*(?:number|no\.?|#)|bill\s*(?:number|no\.?|#)|inv\s*(?:no\.?|#))$/i,
+  vendorName: /^(vendor|supplier|sold\s*by|company|from)$/i,
+  invoiceDate: /^(invoice\s*date|bill\s*date|date|dated|date\s*of\s*issue|issue\s*date)$/i,
+  dueDate: /^(due\s*date|payment\s*due|date\s*due)$/i,
+  totalAmountMinor: /^(grand\s*total|total|total\s*amount|invoice\s*value|invoice\s*total|amount\s*due|balance\s*due|net\s*payable|net\s*amount\s*payable|amount\s*payable)$/i,
+  currency: /^(currency)$/i,
+  "gst.gstin": /^(gstin|gst\s*(?:no\.?|number|id|in))$/i,
+  "gst.subtotalMinor": /^(sub\s*total|subtotal|taxable\s*(?:value|amount))$/i,
+  "gst.cgstMinor": /\bcgst(?:\d+)?\b/i,
+  "gst.sgstMinor": /\bsgst(?:\d+)?\b/i,
+  "gst.igstMinor": /\bigst(?:\d+)?\b/i,
+  "gst.cessMinor": /\bcess\b/i,
+  "gst.totalTaxMinor": /\b(total\s*tax|tax\s*total|total\s*gst)\b/i
+};
 
 type FieldAlignmentProfile = {
   minLeftGap: number;
@@ -519,20 +534,6 @@ function blockShapePenalty(field: keyof ParsedInvoiceData, text: string): number
   }
 
   return linePenalty + lengthPenalty;
-}
-
-function detectExplicitCurrency(text: string): string | undefined {
-  if (/\bUSD\b/i.test(text) || /\$\d/.test(text)) {
-    return "USD";
-  }
-  if (/\bINR\b/i.test(text) || /₹/.test(text)) {
-    return "INR";
-  }
-  const symbolMatch = text.match(/([$€£₹])/);
-  if (!symbolMatch) {
-    return undefined;
-  }
-  return currencyBySymbol[symbolMatch[1]];
 }
 
 function containsTerm(haystack: string, term: string): boolean {

@@ -1,7 +1,8 @@
 import type { OcrBlock } from "@/core/interfaces/OcrProvider.js";
 import type { ParsedInvoiceData } from "@/types/invoice.js";
 import { parseAmountTokenWithOcrRepair } from "@/ai/parsers/invoiceParser.js";
-import { extractAmountValueNearColumn, extractNumericValueNearColumn, findBlockIndexByExactText } from "./grounding.js";
+import { extractAmountValueNearColumn, extractNumericValueNearColumn } from "./groundingAmounts.js";
+import { findBlockIndexByExactText } from "./groundingText.js";
 import { findSummaryAmountByLabel } from "./totalsRecovery.js";
 
 export type OcrRecoveryStrategy = "generic" | "invoice_table" | "receipt_statement";

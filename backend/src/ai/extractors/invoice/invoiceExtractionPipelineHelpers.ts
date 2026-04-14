@@ -1,6 +1,6 @@
 import type { OcrBlock } from "@/core/interfaces/OcrProvider.js";
 import type { DetectedInvoiceLanguage } from "./languageDetection.js";
-import { findBlockByLabelProximity } from "./stages/grounding.js";
+import { findBlockByLabelProximity } from "./stages/groundingText.js";
 import { normalizeDateValue } from "./stages/fieldParsingUtils.js";
 
 export function buildKeyValueGroundingText(blocks: OcrBlock[]): string {
