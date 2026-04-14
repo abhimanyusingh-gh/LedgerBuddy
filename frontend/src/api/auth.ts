@@ -1,6 +1,6 @@
 import axios from "axios";
-import { apiClient } from "./client";
-import type { SessionRole, TenantRole, UserCapabilities } from "../types";
+import { apiClient } from "@/api/client";
+import type { SessionRole, TenantRole, UserCapabilities } from "@/types";
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:4100/api";
 

@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
-import { VendorMasterModel, type VendorMasterDocument } from "../../models/VendorMaster.js";
-import type { ParsedInvoiceData } from "../../types/invoice.js";
-import { logger } from "../../utils/logger.js";
+import { VendorMasterModel, type VendorMasterDocument } from "@/models/compliance/VendorMaster.js";
+import type { ParsedInvoiceData } from "@/types/invoice.js";
+import { logger } from "@/utils/logger.js";
 
 interface VendorUpsertInput {
   vendorName: string;

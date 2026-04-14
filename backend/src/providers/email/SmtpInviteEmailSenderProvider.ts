@@ -1,5 +1,5 @@
 import nodemailer from "nodemailer";
-import type { InviteEmailPayload, InviteEmailSenderBoundary } from "../../core/boundaries/InviteEmailSenderBoundary.js";
+import type { InviteEmailPayload, InviteEmailSenderBoundary } from "@/core/boundaries/InviteEmailSenderBoundary.js";
 
 interface SmtpInviteEmailSenderProviderConfig {
   host: string;

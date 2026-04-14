@@ -1,4 +1,4 @@
-import { normalizeTenantRole, type ActiveTenantRole } from "../models/TenantUserRole.js";
+import { normalizeTenantRole, type ActiveTenantRole } from "@/models/core/TenantUserRole.js";
 
 export interface UserCapabilities {
   approvalLimitMinor: number | null;

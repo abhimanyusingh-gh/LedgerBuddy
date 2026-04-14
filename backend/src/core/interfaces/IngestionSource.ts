@@ -1,4 +1,4 @@
-import type { WorkloadTier } from "../../types/tenant.js";
+import type { WorkloadTier } from "@/types/tenant.js";
 
 export interface IngestedFile {
   tenantId: string;

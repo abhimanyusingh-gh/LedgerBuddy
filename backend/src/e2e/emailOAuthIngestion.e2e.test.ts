@@ -1,7 +1,7 @@
 import axios from "axios";
 import { promises as fs } from "node:fs";
 import path from "node:path";
-import { buildXoauth2AuthorizationHeader } from "../sources/email/xoauth2.js";
+import { buildXoauth2AuthorizationHeader } from "@/sources/email/xoauth2.js";
 import { completeE2ETenantOnboarding, createE2EUserAndLogin } from "./authHelper.js";
 
 const apiBaseUrl = process.env.E2E_API_BASE_URL ?? "http://127.0.0.1:4100";

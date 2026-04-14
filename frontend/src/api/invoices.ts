@@ -1,5 +1,5 @@
-import { apiClient, authenticatedUrl, safeNum, stripNulls } from "./client";
-import type { Invoice, InvoiceListResponse, TallyFileExportResponse, ExportHistoryResponse } from "../types";
+import { apiClient, authenticatedUrl, safeNum, stripNulls } from "@/api/client";
+import type { Invoice, InvoiceListResponse, TallyFileExportResponse, ExportHistoryResponse } from "@/types";
 
 interface UpdateInvoiceParsedPayload {
   parsed: Partial<{

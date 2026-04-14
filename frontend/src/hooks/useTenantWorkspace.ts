@@ -1,9 +1,9 @@
 import { useCallback, useState } from "react";
-import { getUserFacingErrorMessage } from "../apiError";
-import { useTenantWorkspaceConnections } from "./useTenantWorkspaceConnections";
-import { useTenantWorkspacePlatform } from "./useTenantWorkspacePlatform";
-import { useTenantWorkspaceSession } from "./useTenantWorkspaceSession";
-import type { TenantViewTab } from "../types";
+import { getUserFacingErrorMessage } from "@/lib/common/apiError";
+import { useTenantWorkspaceConnections } from "@/hooks/useTenantWorkspaceConnections";
+import { useTenantWorkspacePlatform } from "@/hooks/useTenantWorkspacePlatform";
+import { useTenantWorkspaceSession } from "@/hooks/useTenantWorkspaceSession";
+import type { TenantViewTab } from "@/types";
 
 interface UseTenantWorkspaceOptions {
   addToast: (type: "success" | "error" | "info", message: string) => void;

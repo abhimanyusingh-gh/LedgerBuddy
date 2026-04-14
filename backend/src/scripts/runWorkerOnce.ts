@@ -1,7 +1,7 @@
-import { connectToDatabase } from "../db/connect.js";
-import { buildDependencies } from "../core/dependencies.js";
+import { connectToDatabase } from "@/db/connect.js";
+import { buildDependencies } from "@/core/dependencies.js";
 import { randomUUID } from "node:crypto";
-import { logger, runWithLogContext } from "../utils/logger.js";
+import { logger, runWithLogContext } from "@/utils/logger.js";
 
 async function run() {
   await runWithLogContext(randomUUID(), async () => {

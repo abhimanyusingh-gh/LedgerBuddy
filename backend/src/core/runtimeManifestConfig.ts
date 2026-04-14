@@ -1,7 +1,7 @@
 import { existsSync } from "node:fs";
 import path from "node:path";
-import { env } from "../config/env.js";
-import type { WorkloadTier } from "../types/tenant.js";
+import { env } from "@/config/env.js";
+import type { WorkloadTier } from "@/types/tenant.js";
 import type { IngestionSourceManifest, RuntimeManifest } from "./runtimeManifest.js";
 import type { RuntimeSourceInput } from "./runtimeManifestSchema.js";
 

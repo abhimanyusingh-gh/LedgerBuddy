@@ -1,5 +1,5 @@
 import { DeleteObjectCommand, GetObjectCommand, ListObjectsV2Command, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
-import type { FileStore, FileStoreGetResult, FileStoreObjectRef, FileStorePutInput } from "../core/interfaces/FileStore.js";
+import type { FileStore, FileStoreGetResult, FileStoreObjectRef, FileStorePutInput } from "@/core/interfaces/FileStore.js";
 
 interface S3FileStoreOptions {
   bucket: string;

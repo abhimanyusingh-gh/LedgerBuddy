@@ -1,7 +1,7 @@
 import type {
   InvoiceCompliance,
   ParsedInvoiceData
-} from "../../types/invoice.js";
+} from "@/types/invoice.js";
 
 export interface ComplianceResult {
   pan?: InvoiceCompliance["pan"];

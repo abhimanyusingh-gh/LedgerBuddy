@@ -17,9 +17,9 @@ import {
   revokeBankAccount,
   setUserEnabled,
   uploadBankStatement
-} from "../api";
-import type { BankAccount, BankStatementSummary, GmailConnectionStatus, TenantMailbox, TenantRole } from "../types";
-import type { WorkspaceGuard, WorkspaceSessionContext } from "./useTenantWorkspaceSession";
+} from "@/api";
+import type { BankAccount, BankStatementSummary, GmailConnectionStatus, TenantMailbox, TenantRole } from "@/types";
+import type { WorkspaceGuard, WorkspaceSessionContext } from "@/hooks/useTenantWorkspaceSession";
 
 interface UseTenantWorkspaceConnectionsOptions {
   session: WorkspaceSessionContext | null;

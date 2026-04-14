@@ -1,13 +1,13 @@
-import type { IngestedFile } from "../../core/interfaces/IngestionSource.js";
-import type { OcrBlock } from "../../core/interfaces/OcrProvider.js";
-import { InvoiceModel } from "../../models/Invoice.js";
+import type { IngestedFile } from "@/core/interfaces/IngestionSource.js";
+import type { OcrBlock } from "@/core/interfaces/OcrProvider.js";
+import { InvoiceModel } from "@/models/invoice/Invoice.js";
 import type {
   InvoiceExtractionData,
   InvoiceStatus
-} from "../../types/invoice.js";
+} from "@/types/invoice.js";
 import type { ArtifactResults } from "./artifacts.js";
 import { normalizeExtractionData, encodeExtractionFieldKey } from "./provenance.js";
-import { ExtractionPipelineError } from "../extraction/InvoiceExtractionPipeline.js";
+import { ExtractionPipelineError } from "@/ai/extractors/invoice/InvoiceExtractionPipeline.js";
 
 interface ExtractionResult {
   provider: string;

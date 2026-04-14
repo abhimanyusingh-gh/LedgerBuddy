@@ -1,5 +1,5 @@
-import type { WorkloadTier } from "../../types/tenant.js";
-import type { GmailMailboxBoundary } from "../../core/boundaries/GmailMailboxBoundary.js";
+import type { WorkloadTier } from "@/types/tenant.js";
+import type { GmailMailboxBoundary } from "@/core/boundaries/GmailMailboxBoundary.js";
 
 interface PasswordEmailAuthConfig {
   type: "password";

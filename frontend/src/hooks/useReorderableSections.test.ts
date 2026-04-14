@@ -2,7 +2,7 @@
  * @jest-environment jsdom
  */
 import { renderHook, act } from "@testing-library/react";
-import { useReorderableSections } from "./useReorderableSections";
+import { useReorderableSections } from "@/hooks/useReorderableSections";
 
 const STORAGE_KEY = "test:section-order";
 const DEFAULT_ORDER = ["alpha", "beta", "gamma"];

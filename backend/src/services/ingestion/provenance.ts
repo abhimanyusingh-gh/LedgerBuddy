@@ -1,5 +1,5 @@
-import type { InvoiceExtractionData, InvoiceFieldProvenance, InvoiceLineItemProvenance, InvoiceFieldKey } from "../../types/invoice.js";
-import type { ExtractionSource } from "../../core/engine/extractionSource.js";
+import type { InvoiceExtractionData, InvoiceFieldProvenance, InvoiceLineItemProvenance, InvoiceFieldKey } from "@/types/invoice.js";
+import type { ExtractionSource } from "@/core/engine/extractionSource.js";
 import { normalizeBoxTuple } from "./box.js";
 
 const EXTRACTION_KEY_DOT_TOKEN = "__dot__";

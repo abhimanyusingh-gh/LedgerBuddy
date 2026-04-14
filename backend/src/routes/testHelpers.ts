@@ -1,4 +1,4 @@
-import type { FileStore } from "../core/interfaces/FileStore.js";
+import type { FileStore } from "@/core/interfaces/FileStore.js";
 
 export const defaultAuth = {
   userId: "user-1",

@@ -1,10 +1,10 @@
-import { connectToDatabase } from "../db/connect.js";
-import { logger } from "../utils/logger.js";
-import { env } from "../config/env.js";
-import { KeycloakAdminClient } from "../keycloak/KeycloakAdminClient.js";
-import { TenantModel } from "../models/Tenant.js";
-import { UserModel } from "../models/User.js";
-import { TenantUserRoleModel } from "../models/TenantUserRole.js";
+import { connectToDatabase } from "@/db/connect.js";
+import { logger } from "@/utils/logger.js";
+import { env } from "@/config/env.js";
+import { KeycloakAdminClient } from "@/keycloak/KeycloakAdminClient.js";
+import { TenantModel } from "@/models/core/Tenant.js";
+import { UserModel } from "@/models/core/User.js";
+import { TenantUserRoleModel } from "@/models/core/TenantUserRole.js";
 
 async function run() {
   const email = env.platformAdminEmails[0];

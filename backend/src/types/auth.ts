@@ -1,5 +1,5 @@
 import type { Request } from "express";
-import type { TenantRole } from "../models/TenantUserRole.js";
+import type { TenantRole } from "@/models/core/TenantUserRole.js";
 
 export interface AuthenticatedRequestContext {
   userId: string;

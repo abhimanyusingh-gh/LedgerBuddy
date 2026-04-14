@@ -1,5 +1,5 @@
-import { env } from "../../config/env.js";
-import type { InviteEmailSenderBoundary } from "../../core/boundaries/InviteEmailSenderBoundary.js";
+import { env } from "@/config/env.js";
+import type { InviteEmailSenderBoundary } from "@/core/boundaries/InviteEmailSenderBoundary.js";
 import { SendGridInviteEmailSenderProvider } from "./SendGridInviteEmailSenderProvider.js";
 import { SmtpInviteEmailSenderProvider } from "./SmtpInviteEmailSenderProvider.js";
 

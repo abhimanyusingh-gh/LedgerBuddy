@@ -1,5 +1,5 @@
 import axios from "axios";
-import { normalizeApiError } from "../apiError";
+import { normalizeApiError } from "@/lib/common/apiError";
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:4100/api";
 const SESSION_TOKEN_KEY = "billforge_session_token";
@@ -57,7 +57,7 @@ export function scheduleProactiveRefresh(token: string) {
     proactiveRefreshTimer = null;
     const currentToken = getStoredSessionToken();
     if (!currentToken) return;
-    void import("./auth").then(({ refreshSessionToken }) =>
+    void import("@/api/auth").then(({ refreshSessionToken }) =>
       refreshSessionToken(currentToken)
         .then((newToken) => {
           setStoredSessionToken(newToken);
@@ -107,7 +107,7 @@ apiClient.interceptors.response.use(
 
       isRefreshing = true;
 
-      return import("./auth")
+      return import("@/api/auth")
         .then(({ refreshSessionToken }) => refreshSessionToken(currentToken))
         .then((newToken) => {
           setStoredSessionToken(newToken);

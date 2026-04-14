@@ -1,5 +1,5 @@
-import { apiClient, getStoredSessionToken } from "./client";
-import type { BankAccount, BankStatementSummary } from "../types";
+import { apiClient, getStoredSessionToken } from "@/api/client";
+import type { BankAccount, BankStatementSummary } from "@/types";
 
 export interface BankParseProgressEvent {
   type: "start" | "progress" | "complete" | "error";
@@ -73,8 +73,8 @@ export function subscribeBankParseSSE(
   };
 }
 
-export async function fetchMailboxes(): Promise<import("../types").TenantMailbox[]> {
-  return (await apiClient.get<{ items: import("../types").TenantMailbox[] }>("/admin/mailboxes")).data.items;
+export async function fetchMailboxes(): Promise<import("@/types").TenantMailbox[]> {
+  return (await apiClient.get<{ items: import("@/types").TenantMailbox[] }>("/admin/mailboxes")).data.items;
 }
 
 export async function assignMailboxUser(integrationId: string, userId: string): Promise<void> {
@@ -144,7 +144,7 @@ export async function uploadBankStatement(file: File, columnMapping?: Record<str
   })).data;
 }
 
-export async function fetchStatementMatches(statementId: string): Promise<{ items: import("../types").ReconciliationMatchItem[]; summary: { totalTransactions: number; matched: number; suggested: number; unmatched: number } }> {
+export async function fetchStatementMatches(statementId: string): Promise<{ items: import("@/types").ReconciliationMatchItem[]; summary: { totalTransactions: number; matched: number; suggested: number; unmatched: number } }> {
   return (await apiClient.get(`/bank-statements/${statementId}/matches`)).data;
 }
 
@@ -166,7 +166,7 @@ export interface BankTransactionFilterParams {
   limit?: number;
 }
 
-export async function fetchBankTransactions(statementId: string, params?: BankTransactionFilterParams): Promise<{ items: import("../types").BankTransactionEntry[]; total: number; page: number; limit: number }> {
+export async function fetchBankTransactions(statementId: string, params?: BankTransactionFilterParams): Promise<{ items: import("@/types").BankTransactionEntry[]; total: number; page: number; limit: number }> {
   return (await apiClient.get(`/bank-statements/${statementId}/transactions`, { params })).data;
 }
 
