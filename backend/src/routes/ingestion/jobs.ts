@@ -18,6 +18,14 @@ const upload = multer({
   limits: { fileSize: MAX_UPLOAD_FILE_SIZE_BYTES, files: MAX_UPLOAD_FILE_COUNT }
 });
 
+function matchesMagicBytes(filename: string, buffer: Buffer): boolean {
+  const ext = filename.slice(filename.lastIndexOf(".")).toLowerCase();
+  if (ext === ".pdf") return buffer.length >= 4 && buffer.subarray(0, 4).toString("ascii").startsWith("%PDF");
+  if (ext === ".png") return buffer.length >= 4 && buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4e && buffer[3] === 0x47;
+  if (ext === ".jpg" || ext === ".jpeg") return buffer.length >= 3 && buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff;
+  return true;
+}
+
 export function createJobsRouter(
   ingestionService: IngestionService,
   emailSimulationService?: EmailSimulationService,
@@ -104,6 +112,14 @@ export function createJobsRouter(
       if (rejected.length > 0) {
         res.status(400).json({
           message: `Unsupported file type. Allowed extensions: .pdf, .jpg, .jpeg, .png. Rejected: ${rejected.map((f) => f.originalname).join(", ")}`
+        });
+        return;
+      }
+
+      const magicMismatch = files.filter((f) => !matchesMagicBytes(f.originalname, f.buffer));
+      if (magicMismatch.length > 0) {
+        res.status(400).json({
+          message: `File content does not match extension. Rejected: ${magicMismatch.map((f) => f.originalname).join(", ")}`
         });
         return;
       }

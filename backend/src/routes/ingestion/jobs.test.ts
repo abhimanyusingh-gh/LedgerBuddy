@@ -151,9 +151,10 @@ describe("jobs routes", () => {
     it("uploads files and creates invoice records", async () => {
       const fileStore = createMockFileStore();
       const router = createJobsRouter(createMockIngestionService(), undefined, fileStore);
+      const pdfBuffer = Buffer.from("%PDF-1.4 test content");
       const files = [
-        { originalname: "a.pdf", buffer: Buffer.from("a"), mimetype: "application/pdf" },
-        { originalname: "b.pdf", buffer: Buffer.from("b"), mimetype: "application/pdf" }
+        { originalname: "a.pdf", buffer: pdfBuffer, mimetype: "application/pdf" },
+        { originalname: "b.pdf", buffer: pdfBuffer, mimetype: "application/pdf" }
       ];
       const res = mockResponse();
 
@@ -204,7 +205,7 @@ describe("jobs routes", () => {
 
       for (let i = 0; i < 3; i++) {
         await findSecondHandler(router, "post", "/jobs/upload")(
-          mockRequest({ authContext: defaultAuth, files: [{ originalname: `f${i}.pdf`, buffer: Buffer.from(`d${i}`), mimetype: "application/pdf" }] }),
+          mockRequest({ authContext: defaultAuth, files: [{ originalname: `f${i}.pdf`, buffer: Buffer.from(`%PDF-1.4 d${i}`), mimetype: "application/pdf" }] }),
           mockResponse(), jest.fn()
         );
       }
@@ -220,11 +221,12 @@ describe("jobs routes", () => {
       const dupError = Object.assign(new Error("E11000 duplicate key error"), { code: 11000 });
       (InvoiceModel.create as jest.Mock).mockResolvedValueOnce({ _id: "inv-1" }).mockRejectedValueOnce(dupError);
 
+      const pdfBuffer = Buffer.from("%PDF-1.4 test content");
       const res = mockResponse();
       await findSecondHandler(router, "post", "/jobs/upload")(
         mockRequest({ authContext: defaultAuth, files: [
-          { originalname: "a.pdf", buffer: Buffer.from("a"), mimetype: "application/pdf" },
-          { originalname: "b.pdf", buffer: Buffer.from("b"), mimetype: "application/pdf" }
+          { originalname: "a.pdf", buffer: pdfBuffer, mimetype: "application/pdf" },
+          { originalname: "b.pdf", buffer: pdfBuffer, mimetype: "application/pdf" }
         ] }),
         res, jest.fn()
       );
@@ -246,7 +248,7 @@ describe("jobs routes", () => {
       await findHandler(router, "post", "/jobs/ingest")(mockRequest({ authContext: defaultAuth }), mockResponse(), jest.fn());
 
       await findSecondHandler(router, "post", "/jobs/upload")(
-        mockRequest({ authContext: defaultAuth, files: [{ originalname: "f.pdf", buffer: Buffer.from("d"), mimetype: "application/pdf" }] }),
+        mockRequest({ authContext: defaultAuth, files: [{ originalname: "f.pdf", buffer: Buffer.from("%PDF-1.4 d"), mimetype: "application/pdf" }] }),
         mockResponse(), jest.fn()
       );
 
