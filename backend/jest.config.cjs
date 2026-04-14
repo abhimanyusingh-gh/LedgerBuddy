@@ -13,12 +13,12 @@ module.exports = {
   testPathIgnorePatterns: ['/node_modules/', '\\.integration\\.test\\.ts$', '\\.e2e\\.test\\.ts$'],
   setupFiles: ['<rootDir>/src/testSetup.ts'],
   collectCoverageFrom: [
-    'src/parser/invoiceParser.ts',
-    'src/services/confidenceAssessment.ts',
+    'src/ai/parsers/invoiceParser.ts',
+    'src/services/invoice/confidenceAssessment.ts',
     'src/services/invoiceExtractionAgent.ts',
-    'src/services/tallyExporter.ts',
+    'src/services/export/tallyExporter.ts',
     'src/utils/currency.ts',
-    'src/ocr/DeepSeekOcrProvider.ts',
+    'src/ai/ocr/DeepSeekOcrProvider.ts',
     'src/utils/mime.ts'
   ],
   coverageThreshold: {
@@ -28,8 +28,8 @@ module.exports = {
       lines: 30,
       statements: 30
     },
-    './src/services/confidenceAssessment.ts': { branches: 95, functions: 100, lines: 100, statements: 100 },
-    './src/services/tallyExporter.ts': { branches: 86, functions: 100, lines: 95, statements: 95 },
+    './src/services/invoice/confidenceAssessment.ts': { branches: 95, functions: 100, lines: 100, statements: 100 },
+    './src/services/export/tallyExporter.ts': { branches: 86, functions: 100, lines: 95, statements: 95 },
     './src/utils/currency.ts': { branches: 100, functions: 100, lines: 100, statements: 100 },
     './src/utils/mime.ts': { branches: 100, functions: 100, lines: 100, statements: 100 }
   },
