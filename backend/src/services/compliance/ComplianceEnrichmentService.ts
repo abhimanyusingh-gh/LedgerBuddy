@@ -66,8 +66,45 @@ export class ComplianceEnrichmentService implements ComplianceEnricher {
     const riskSignals: ComplianceRiskSignal[] = [];
     const processingIssues: string[] = [];
 
+    this.enrichPan(invoice, config, result, riskSignals, processingIssues, tenantId, vendorFingerprint);
+    await this.enrichVendorMaster(invoice, tenantId, vendorFingerprint, result, riskSignals, processingIssues);
+    await this.enrichGlCode(invoice, config, tenantId, vendorFingerprint, context, result, processingIssues);
+    await this.enrichCostCenter(tenantId, vendorFingerprint, result, processingIssues);
+    await this.enrichTcs(invoice, tenantId, result);
+    await this.enrichTds(invoice, config, tenantId, vendorFingerprint, result, riskSignals, processingIssues);
+    this.enrichIrn(invoice, result, riskSignals, processingIssues);
+    await this.enrichMsme(invoice, tenantId, vendorFingerprint, result, riskSignals, processingIssues);
+    await this.enrichEmailSender(tenantId, vendorFingerprint, context, riskSignals, processingIssues);
+    await this.enrichDuplicateDetection(invoice, tenantId, context, riskSignals, processingIssues);
+
+    if (config.riskSignalsEnabled === false) {
+      result.riskSignals = [];
+    } else {
+      result.riskSignals = filterSignalsByConfig(riskSignals, config);
+    }
+
+    if (processingIssues.length > 0) {
+      logger.info("compliance.enrichment.partial", {
+        tenantId, vendorFingerprint,
+        issueCount: processingIssues.length,
+        signalCount: result.riskSignals?.length ?? 0
+      });
+    }
+
+    return result;
+  }
+
+  private enrichPan(
+    invoice: ParsedInvoiceData,
+    config: Record<string, unknown>,
+    result: ComplianceResult,
+    riskSignals: ComplianceRiskSignal[],
+    processingIssues: string[],
+    tenantId: string,
+    vendorFingerprint: string
+  ): void {
     try {
-      if (config.panValidationEnabled !== false) {
+      if ((config as Record<string, unknown>).panValidationEnabled !== false) {
         const panResult = this.panValidation.validate(invoice.pan, invoice.gst?.gstin);
         result.pan = panResult.pan;
         riskSignals.push(...panResult.riskSignals);
@@ -79,7 +116,16 @@ export class ComplianceEnrichmentService implements ComplianceEnricher {
         error: error instanceof Error ? error.message : String(error)
       });
     }
+  }
 
+  private async enrichVendorMaster(
+    invoice: ParsedInvoiceData,
+    tenantId: string,
+    vendorFingerprint: string,
+    result: ComplianceResult,
+    riskSignals: ComplianceRiskSignal[],
+    processingIssues: string[]
+  ): Promise<void> {
     try {
       const vendorName = invoice.vendorName ?? "Unknown";
       const emailDomain = undefined;
@@ -124,9 +170,19 @@ export class ComplianceEnrichmentService implements ComplianceEnricher {
         error: error instanceof Error ? error.message : String(error)
       });
     }
+  }
 
+  private async enrichGlCode(
+    invoice: ParsedInvoiceData,
+    config: Record<string, unknown>,
+    tenantId: string,
+    vendorFingerprint: string,
+    context: ComplianceEnrichContext | undefined,
+    result: ComplianceResult,
+    processingIssues: string[]
+  ): Promise<void> {
     try {
-      if (config.autoSuggestGlCodes !== false) {
+      if ((config as Record<string, unknown>).autoSuggestGlCodes !== false) {
         const slmGlCategory = context?.slmGlCategory;
         const glSuggestion = await this.glCodeSuggestion.suggest(tenantId, vendorFingerprint, invoice, undefined, slmGlCategory);
         result.glCode = glSuggestion.glCode;
@@ -138,14 +194,27 @@ export class ComplianceEnrichmentService implements ComplianceEnricher {
         error: error instanceof Error ? error.message : String(error)
       });
     }
+  }
 
+  private async enrichCostCenter(
+    tenantId: string,
+    vendorFingerprint: string,
+    result: ComplianceResult,
+    processingIssues: string[]
+  ): Promise<void> {
     try {
       const ccSuggestion = await this.costCenter.suggest(tenantId, vendorFingerprint, result.glCode?.code ?? null);
       result.costCenter = ccSuggestion.costCenter;
     } catch (error) {
       processingIssues.push(`Compliance: Cost center suggestion failed — ${error instanceof Error ? error.message : String(error)}`);
     }
+  }
 
+  private async enrichTcs(
+    invoice: ParsedInvoiceData,
+    tenantId: string,
+    result: ComplianceResult
+  ): Promise<void> {
     const tcsConfig = await TenantTcsConfigModel.findOne({ tenantId }).lean();
     if (tcsConfig?.enabled && tcsConfig.ratePercent > 0 && invoice.totalAmountMinor && invoice.totalAmountMinor > 0) {
       const tcsAmount = Math.floor(invoice.totalAmountMinor * tcsConfig.ratePercent / 100);
@@ -155,9 +224,19 @@ export class ComplianceEnrichmentService implements ComplianceEnricher {
         source: "configured"
       };
     }
+  }
 
+  private async enrichTds(
+    invoice: ParsedInvoiceData,
+    config: Record<string, unknown>,
+    tenantId: string,
+    vendorFingerprint: string,
+    result: ComplianceResult,
+    riskSignals: ComplianceRiskSignal[],
+    processingIssues: string[]
+  ): Promise<void> {
     try {
-      if (config.tdsEnabled !== false && config.autoDetectTds !== false) {
+      if ((config as Record<string, unknown>).tdsEnabled !== false && (config as Record<string, unknown>).autoDetectTds !== false) {
         const glCode = result.glCode?.code ?? null;
         let glCategory: string | null = null;
         if (glCode) {
@@ -175,7 +254,14 @@ export class ComplianceEnrichmentService implements ComplianceEnricher {
         error: error instanceof Error ? error.message : String(error)
       });
     }
+  }
 
+  private enrichIrn(
+    invoice: ParsedInvoiceData,
+    result: ComplianceResult,
+    riskSignals: ComplianceRiskSignal[],
+    processingIssues: string[]
+  ): void {
     try {
       const irnResult = this.irnValidation.validate(
         (invoice as Record<string, unknown>).irn as string | undefined,
@@ -187,7 +273,16 @@ export class ComplianceEnrichmentService implements ComplianceEnricher {
     } catch (error) {
       processingIssues.push(`Compliance: IRN validation failed — ${error instanceof Error ? error.message : String(error)}`);
     }
+  }
 
+  private async enrichMsme(
+    invoice: ParsedInvoiceData,
+    tenantId: string,
+    vendorFingerprint: string,
+    result: ComplianceResult,
+    riskSignals: ComplianceRiskSignal[],
+    processingIssues: string[]
+  ): Promise<void> {
     try {
       const msmeResult = await this.msmeTracking.checkAndUpdate(
         tenantId,
@@ -200,7 +295,15 @@ export class ComplianceEnrichmentService implements ComplianceEnricher {
     } catch (error) {
       processingIssues.push(`Compliance: MSME tracking failed — ${error instanceof Error ? error.message : String(error)}`);
     }
+  }
 
+  private async enrichEmailSender(
+    tenantId: string,
+    vendorFingerprint: string,
+    context: ComplianceEnrichContext | undefined,
+    riskSignals: ComplianceRiskSignal[],
+    processingIssues: string[]
+  ): Promise<void> {
     try {
       const emailFrom = context?.emailFrom;
       if (emailFrom) {
@@ -252,7 +355,15 @@ export class ComplianceEnrichmentService implements ComplianceEnricher {
     } catch (error) {
       processingIssues.push(`Compliance: Email sender detection failed — ${error instanceof Error ? error.message : String(error)}`);
     }
+  }
 
+  private async enrichDuplicateDetection(
+    invoice: ParsedInvoiceData,
+    tenantId: string,
+    context: ComplianceEnrichContext | undefined,
+    riskSignals: ComplianceRiskSignal[],
+    processingIssues: string[]
+  ): Promise<void> {
     try {
       const dupSignals = await this.duplicateDetector.check(
         tenantId,
@@ -264,22 +375,6 @@ export class ComplianceEnrichmentService implements ComplianceEnricher {
     } catch (error) {
       processingIssues.push(`Compliance: Duplicate detection failed — ${error instanceof Error ? error.message : String(error)}`);
     }
-
-    if (config.riskSignalsEnabled === false) {
-      result.riskSignals = [];
-    } else {
-      result.riskSignals = filterSignalsByConfig(riskSignals, config);
-    }
-
-    if (processingIssues.length > 0) {
-      logger.info("compliance.enrichment.partial", {
-        tenantId, vendorFingerprint,
-        issueCount: processingIssues.length,
-        signalCount: result.riskSignals?.length ?? 0
-      });
-    }
-
-    return result;
   }
 }
 
