@@ -31,6 +31,10 @@ export class ComposablePipeline<T> {
       issues: [],
     };
 
+    return this.executeWithContext(ctx);
+  }
+
+  async executeWithContext(ctx: PipelineContext): Promise<PipelineResult<T>> {
     const stagesExecuted: string[] = [];
     const start = performance.now();
 
