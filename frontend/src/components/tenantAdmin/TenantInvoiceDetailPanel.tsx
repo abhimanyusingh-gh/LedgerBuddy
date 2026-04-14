@@ -1,3 +1,4 @@
+import { useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import type { GlCode, Invoice, TdsRate } from "../../types";
 import { ConfidenceBadge } from "../ConfidenceBadge";
@@ -10,6 +11,18 @@ import { CollapsibleSectionHeader } from "./CollapsibleSectionHeader";
 import { formatInvoiceType } from "./invoiceViewHelpers";
 import type { SourceFieldKey } from "../../sourceHighlights";
 import type { ExtractedFieldRow } from "../../extractedFields";
+
+const KEY_FIELD_KEYS = ["vendorName", "invoiceNumber", "invoiceDate", "dueDate", "totalAmountMinor", "currency"];
+
+function toIsoDateString(value: string): string {
+  if (!value || /^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+  const d = new Date(value);
+  if (isNaN(d.getTime())) return "";
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const dy = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${dy}`;
+}
 
 interface TenantInvoiceDetailPanelProps {
   invoice: Invoice;
@@ -70,6 +83,37 @@ export function TenantInvoiceDetailPanel({
   onOverrideTdsSection,
   onDismissRiskSignal
 }: TenantInvoiceDetailPanelProps) {
+  const [editingField, setEditingField] = useState<string | null>(null);
+  const [editValue, setEditValue] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const keyRows = extractedRows.filter((r) => KEY_FIELD_KEYS.includes(r.fieldKey));
+  const isEditable = invoice.status !== "EXPORTED" && canEditInvoiceFields;
+
+  function startDetailEdit(row: ExtractedFieldRow) {
+    setEditingField(row.fieldKey);
+    const raw = row.rawValue != null ? row.rawValue : row.value === "-" ? "" : row.value;
+    const isDateField = row.fieldKey === "invoiceDate" || row.fieldKey === "dueDate";
+    setEditValue(isDateField ? toIsoDateString(raw) : raw);
+  }
+
+  async function confirmDetailEdit() {
+    if (!editingField) return;
+    try {
+      setSaving(true);
+      await onSaveField(editingField, editValue, refreshActiveInvoiceDetail);
+    } finally {
+      setSaving(false);
+      setEditingField(null);
+      setEditValue("");
+    }
+  }
+
+  function cancelDetailEdit() {
+    setEditingField(null);
+    setEditValue("");
+  }
+
   return (
     <section className="panel detail-panel">
       <div className="panel-title">
@@ -97,6 +141,59 @@ export function TenantInvoiceDetailPanel({
             ) : null}
             <p><span>File</span>{invoice.attachmentName}</p>
           </div>
+          {keyRows.length > 0 ? (
+            <div className="detail-key-fields">
+              {keyRows.map((row) => {
+                const isEditing = editingField === row.fieldKey;
+                return (
+                  <div key={row.fieldKey} className="key-field-item">
+                    <span className="key-field-label">{row.label}</span>
+                    {isEditing ? (
+                      <div className="extracted-value-cell">
+                        <input
+                          className="extracted-value-input"
+                          type={row.fieldKey === "invoiceDate" || row.fieldKey === "dueDate" ? "date" : "text"}
+                          value={editValue}
+                          onChange={(e) => setEditValue(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") void confirmDetailEdit();
+                            if (e.key === "Escape") cancelDetailEdit();
+                          }}
+                          disabled={saving}
+                          autoFocus
+                        />
+                        <button
+                          type="button"
+                          className="field-save-button"
+                          aria-label={`Save ${row.label}`}
+                          disabled={saving}
+                          onClick={() => void confirmDetailEdit()}
+                        >
+                          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                            <path d="M5 13l4 4L19 7" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="extracted-value-cell">
+                        <span className="extracted-value-display">{row.value}</span>
+                        {isEditable && (
+                          <button
+                            type="button"
+                            className="row-action-button field-edit-button"
+                            title={`Edit ${row.label}`}
+                            onClick={() => startDetailEdit(row)}
+                          >
+                            <span className="material-symbols-outlined">edit</span>
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          ) : null}
           {invoice.status === "AWAITING_APPROVAL" && canApproveInvoices ? (
             <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap", marginBottom: "1rem" }}>
               <button

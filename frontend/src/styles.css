@@ -2196,6 +2196,46 @@ tr:hover {
   letter-spacing: 0.06em;
 }
 
+.detail-key-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 0.5rem 0.8rem;
+  padding-bottom: 1rem;
+  margin-bottom: 1rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.detail-key-fields .key-field-item {
+  display: grid;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.detail-key-fields .key-field-label {
+  color: var(--ink-soft);
+  font-size: 0.76rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.detail-key-fields .extracted-value-cell {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.detail-key-fields .extracted-value-display {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.detail-key-fields .extracted-value-input {
+  width: 100%;
+  min-width: 0;
+}
+
 .system-details-line {
   margin-top: 0.45rem;
   font-size: 0.84rem;
