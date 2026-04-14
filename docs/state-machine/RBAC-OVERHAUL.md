@@ -1,6 +1,6 @@
 # RBAC Overhaul: Full Capability-Based Permission System
 
-> Last updated: 2026-03-30
+> Last updated: 2026-04-14
 >
 > **Problem:** The legacy permission system used coarse role guards (`requireTenantAdmin`, `requireNotViewer`).
 > Tenant access now uses persona-aligned roles plus capability checks, so route/UI gates must map to
@@ -8,6 +8,12 @@
 >
 > **Solution:** Replace role-based middleware with capability-based middleware. Every route and
 > every UI element checks specific capabilities, not roles.
+>
+> **Current base roles:** PLATFORM_ADMIN, TENANT_ADMIN, MEMBER, VIEWER.
+> VIEWER is read-only with configurable data scope via ViewerScope.
+> Persona-based capability defaults (ap_clerk, senior_accountant, ca, tax_specialist,
+> firm_partner, ops_admin, audit_clerk) resolve specific permissions per role.
+> Authentication is Keycloak-only (OIDC). All OIDC env vars use the `OIDC_*` prefix.
 
 ---
 

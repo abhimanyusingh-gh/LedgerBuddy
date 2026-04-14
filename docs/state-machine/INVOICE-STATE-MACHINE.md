@@ -1,11 +1,15 @@
 # Invoice State Machine & FE/BE Contracts
 
-> Last updated: 2026-03-31
+> Last updated: 2026-04-14
 >
 > This document is the source of truth for invoice lifecycle states, all API endpoints,
 > FE/BE contracts, compliance enrichment, bank reconciliation, persona capabilities,
 > and the extraction pipeline. Any change to state transitions or API contracts
 > MUST be reflected here first.
+>
+> **Key invariant:** FAILED_PARSE invoices are never approvable. They can only be retried
+> (re-enters PENDING) or deleted. This is enforced in both the backend `approveInvoices`
+> query filter and the frontend `isInvoiceApprovable` guard.
 
 ---
 

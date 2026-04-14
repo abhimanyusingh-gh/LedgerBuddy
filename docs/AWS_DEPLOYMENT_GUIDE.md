@@ -1,12 +1,13 @@
-# AWS Deployment Guide (Junior-Friendly)
+# AWS Deployment Guide
 
-This guide deploys the backend worker on AWS Spot instances and a production DocumentDB cluster using Terraform.
+This guide deploys BillForge on AWS using Spot instances, DocumentDB, and S3. Authentication is handled exclusively by Keycloak (OIDC).
 
 ## 1. Prerequisites
 
 - AWS account with access to EC2, Auto Scaling, IAM, and ECR.
 - Existing VPC and at least 2 private/public subnets.
 - If you are not provisioning DocumentDB, an external MongoDB connection string (Atlas or self-hosted).
+- A running Keycloak instance (realm `billforge`, client `billforge-app`, port 8180 in production).
 - Terraform `>= 1.6` (matches `infra/terraform/versions.tf`).
 - AWS CLI configured (`aws configure`).
 - Docker and Yarn installed locally.
@@ -19,7 +20,7 @@ Run one command from repo root to build, push, and apply:
 ENV=stg \
 AWS_REGION=us-east-1 \
 TFVARS_FILE=infra/terraform/environments/stg.tfvars \
-bash ./scripts/deploy-aws.sh
+bash ./dev/scripts/deploy-aws.sh
 ```
 
 The script performs:
@@ -78,31 +79,77 @@ cp environments/prod.tfvars.example terraform.tfvars
 - Database mode:
   - Production standard: `provision_documentdb=true` and `documentdb_*` values (module-managed DB)
   - Worker runtime uses the module output (`effective_mongo_uri`) automatically.
+- Keycloak OIDC settings (see `extra_env` below)
 - Email source values (`email_host`, `email_username`, `email_password`, etc.)
 - Keep email variables populated even if your current run mode is folder-only (the current Terraform input schema requires these fields).
 - OCR provider mode (`ocr_provider`) and credentials:
   - `ocr_provider="auto"` or `ocr_provider="deepseek"` routes OCR through DeepSeek-OCR
+  - `ocr_provider="llamaparse"` routes OCR through LlamaParse (requires `LLAMA_CLOUD_API_KEY`)
   - `ocr_provider="mock"` forces Mock OCR
-  - DeepSeek values are passed via `extra_env` (see snippet below)
 - Tally connection values (`tally_endpoint`, `tally_company`, `tally_purchase_ledger`)
 - Scale schedule cron values
 - Optional composable overrides:
   - set `app_manifest` object in tfvars to define app-level runtime overrides without changing reusable module wiring
 
-Minimal `extra_env` example for DeepSeek:
+### Authentication Environment Variables (Keycloak OIDC)
+
+BillForge authenticates exclusively through Keycloak. The following OIDC variables must be set:
+
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `OIDC_ISSUER_URL` | Keycloak realm issuer | `https://auth.example.com/realms/billforge` |
+| `OIDC_CLIENT_ID` | OIDC client identifier | `billforge-app` |
+| `OIDC_CLIENT_SECRET` | OIDC client secret | (from Keycloak admin console) |
+| `OIDC_AUTH_URL` | Authorization endpoint | `https://auth.example.com/realms/billforge/protocol/openid-connect/auth` |
+| `OIDC_TOKEN_URL` | Token endpoint | `https://auth.example.com/realms/billforge/protocol/openid-connect/token` |
+| `OIDC_VALIDATE_URL` | Token introspection endpoint | `https://auth.example.com/realms/billforge/protocol/openid-connect/token/introspect` |
+| `OIDC_USERINFO_URL` | UserInfo endpoint | `https://auth.example.com/realms/billforge/protocol/openid-connect/userinfo` |
+| `OIDC_REDIRECT_URI` | OAuth callback URI | `https://app.example.com/api/auth/callback` |
+| `AUTH_AUTO_PROVISION_USERS` | Auto-create MongoDB user on first Keycloak login | `true` |
+| `KEYCLOAK_INTERNAL_BASE_URL` | Keycloak base URL for server-to-server calls | `http://keycloak:8080` |
+| `KEYCLOAK_REALM` | Keycloak realm name | `billforge` |
+
+### OCR and Extraction Provider Variables
+
+| Variable | Description | Required When |
+|----------|-------------|---------------|
+| `OCR_PROVIDER` | Provider selection: `auto`, `deepseek`, `llamaparse`, `mock` | Always |
+| `OCR_PROVIDER_BASE_URL` | DeepSeek OCR endpoint | `ocr_provider=auto` or `deepseek` |
+| `OCR_MODEL` | DeepSeek model name | DeepSeek provider |
+| `OCR_TIMEOUT_MS` | OCR request timeout | Always (default 3600000) |
+| `LLAMA_CLOUD_API_KEY` | LlamaCloud API key | `ocr_provider=llamaparse` or LlamaExtract |
+| `LLAMA_PARSE_EXTRACT_ENABLED` | Enable LlamaExtract for extraction (bypasses SLM) | LlamaExtract mode |
+| `LLAMA_PARSE_EXTRACT_TIER` | LlamaExtract tier: `cost_effective` or `agentic` | LlamaExtract mode |
+| `FIELD_VERIFIER_PROVIDER` | SLM provider: `http` or `none` | Always |
+| `FIELD_VERIFIER_BASE_URL` | SLM service endpoint | `FIELD_VERIFIER_PROVIDER=http` |
+
+Minimal `extra_env` example for production:
 ```hcl
 extra_env = {
   ENV = "prod"
-  OCR_PROVIDER_BASE_URL  = "http://your-ocr-endpoint:8000/v1"
-  OCR_MODEL = "ocr-model"
-  OCR_TIMEOUT_MS = "3600000"
-  # OCR_PROVIDER_API_KEY = "set-only-if-endpoint-requires-auth"
-  FIELD_VERIFIER_BASE_URL = "http://your-slm-endpoint:8100/v1"
+
+  OIDC_CLIENT_ID          = "billforge-app"
+  OIDC_CLIENT_SECRET      = "your-keycloak-client-secret"
+  OIDC_AUTH_URL            = "https://auth.example.com/realms/billforge/protocol/openid-connect/auth"
+  OIDC_TOKEN_URL           = "https://auth.example.com/realms/billforge/protocol/openid-connect/token"
+  OIDC_VALIDATE_URL        = "https://auth.example.com/realms/billforge/protocol/openid-connect/token/introspect"
+  OIDC_USERINFO_URL        = "https://auth.example.com/realms/billforge/protocol/openid-connect/userinfo"
+  OIDC_REDIRECT_URI        = "https://app.example.com/api/auth/callback"
+  AUTH_AUTO_PROVISION_USERS = "true"
+  KEYCLOAK_INTERNAL_BASE_URL = "http://keycloak:8080"
+  KEYCLOAK_REALM           = "billforge"
+
+  OCR_PROVIDER             = "deepseek"
+  OCR_PROVIDER_BASE_URL    = "http://your-ocr-endpoint:8000/v1"
+  OCR_MODEL                = "ocr-model"
+  OCR_TIMEOUT_MS           = "3600000"
+
+  FIELD_VERIFIER_PROVIDER  = "http"
+  FIELD_VERIFIER_BASE_URL  = "http://your-slm-endpoint:8100/v1"
 }
 ```
 
-In `ENV=prod`, backend stays abstraction-based and routes OCR/SLM to remote providers.
-No local MLX runtime containers are required in production deployment.
+In `ENV=prod`, backend routes OCR/SLM to remote providers. No local MLX runtime containers are required in production deployment.
 
 Optional `app_manifest` block:
 ```hcl
@@ -143,7 +190,20 @@ yarn run quality:check
 ```
 This must pass before image build/push.
 
-## 4. Deploy Infrastructure
+## 4. Service Ports Reference
+
+| Service | Internal Port | Default Exposed Port |
+|---------|--------------|---------------------|
+| Backend | 4000 | 4100 |
+| Frontend | 80 | 5177 (dev: 3000) |
+| Keycloak | 8080 | 8180 (dev: 8280) |
+| MongoDB | 27017 | 27018 |
+| MinIO (S3 API) | 9000 | 9100 |
+| MinIO Console | 9001 | 9101 |
+| OCR (Docker proxy) | 8000 | 8202 |
+| SLM (Docker proxy) | 8100 | 8302 |
+
+## 5. Deploy Infrastructure
 
 ```bash
 terraform init
@@ -151,7 +211,7 @@ terraform plan -var-file=terraform.tfvars
 terraform apply -var-file=terraform.tfvars
 ```
 
-## 5. Verify Deployment
+## 6. Verify Deployment
 
 1. In AWS Console, confirm these resources exist:
 - Launch template
@@ -188,13 +248,14 @@ terraform output -raw effective_mongo_uri
 ```
 With the production template, `provision_documentdb=true` by default and `effective_mongo_uri` points to the provisioned DocumentDB cluster.
 
-## 6. Day-2 Operations
+## 7. Day-2 Operations
 
+- Rotate Keycloak client secrets by updating `OIDC_CLIENT_SECRET` in `extra_env` and re-running `terraform apply`.
 - Rotate email/Tally credentials by updating `terraform.tfvars` and re-running `terraform apply`.
 - Update backend code by pushing a new Docker image tag and updating `app_image`.
 - Adjust frequency by changing `schedule_scale_up_cron` and `schedule_scale_down_cron`.
 
-## 7. Rollback
+## 8. Rollback
 
 - Revert `app_image` to previous tag in `terraform.tfvars`.
 - Run:
@@ -202,7 +263,7 @@ With the production template, `provision_documentdb=true` by default and `effect
 terraform apply
 ```
 
-## 8. Destroy (Non-Production Only)
+## 9. Destroy (Non-Production Only)
 
 ```bash
 terraform destroy

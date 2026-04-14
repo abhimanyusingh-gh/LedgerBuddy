@@ -1,5 +1,15 @@
 # BillForge -- Product Requirements Document for CA and Accounting Firms in India
 
+> **Implementation Status (2026-04-14)**
+>
+> This document serves as the domain reference for BillForge's India-focused feature set.
+> Features marked [IMPLEMENTED] are live in the current codebase. Features marked [PLANNED]
+> are designed but not yet built. Authentication is Keycloak-only (OIDC). Roles are
+> PLATFORM_ADMIN, TENANT_ADMIN, MEMBER, VIEWER at the base level, with persona-based
+> capability defaults (ap_clerk, senior_accountant, ca, tax_specialist, firm_partner,
+> ops_admin, audit_clerk). See `docs/state-machine/RBAC-OVERHAUL.md` for the full
+> capability system.
+
 ---
 
 ## 1. Executive Summary
@@ -52,7 +62,7 @@ BillForge addresses each of these pain points through an integrated platform bui
 
 ## 4. Key Features
 
-### 4a. Invoice Capture
+### 4a. Invoice Capture [IMPLEMENTED]
 
 BillForge supports three methods for getting invoices into the system:
 
@@ -62,7 +72,7 @@ BillForge supports three methods for getting invoices into the system:
 
 Each ingested invoice receives a unique identifier and tracks its source (email, upload, or folder), attachment filename, and receipt timestamp.
 
-### 4b. AI Extraction and Verification
+### 4b. AI Extraction and Verification [IMPLEMENTED]
 
 The extraction pipeline operates in two stages:
 
@@ -90,7 +100,7 @@ The extraction pipeline operates in two stages:
 
 When a senior accountant reviews an invoice, they can click on any extracted field -- say, the total amount or the GSTIN -- and immediately see where on the original PDF that value came from, with the relevant region highlighted. This eliminates the need to manually search through the source document to verify a number.
 
-### 4c. GST and Compliance Engine
+### 4c. GST and Compliance Engine [IMPLEMENTED]
 
 The compliance engine runs automatically on every extracted invoice and produces a structured compliance record with the following components:
 
@@ -155,7 +165,7 @@ The compliance engine runs automatically on every extracted invoice and produces
 - GL-linked fallback: suggests cost center linked to the assigned GL code
 - Usage tracking for progressive learning
 
-### 4d. Review and Approval Workflow
+### 4d. Review and Approval Workflow [IMPLEMENTED]
 
 BillForge provides a configurable multi-step approval workflow:
 
@@ -179,9 +189,9 @@ BillForge provides a configurable multi-step approval workflow:
 - Editing an invoice's parsed fields while in the approval workflow automatically resets the workflow
 - Disabling the workflow returns all AWAITING_APPROVAL invoices to NEEDS_REVIEW
 
-**Viewer access:** External auditors and read-only stakeholders can be assigned the audit_clerk role, which provides visibility into invoice data, compliance records, and risk signals without the ability to upload, edit, approve, or export.
+**Viewer access:** External auditors and read-only stakeholders can be assigned the VIEWER role (audit_clerk persona), which provides visibility into invoice data, compliance records, and risk signals without the ability to upload, edit, approve, or export. Data scope can be configured per viewer through ViewerScope.
 
-### 4e. Export and Integration
+### 4e. Export and Integration [IMPLEMENTED]
 
 **Tally XML Export**
 
@@ -225,7 +235,7 @@ For firms that need to import into systems other than Tally, BillForge also supp
 - Reconciliation status tracked on the invoice compliance record
 - Bank payment verification signal added to invoice risk signals upon match
 
-### 4f. Practice Management
+### 4f. Practice Management [IMPLEMENTED]
 
 **Multi-Tenant Architecture**
 
@@ -261,7 +271,7 @@ Within each client workspace:
 - Scope toggle: view your own activity or all team activity
 - Period-over-period trend comparison
 
-**User Management**
+**User Management** [IMPLEMENTED]
 - Invite users by email with automatic Keycloak account creation
 - Temporary password workflow with mandatory password change on first login
 - Role assignment and modification
@@ -269,7 +279,7 @@ Within each client workspace:
 - User removal
 - Per-user capability overrides (granular permissions beyond role defaults)
 
-### 4g. Source Traceability
+### 4g. Source Traceability [IMPLEMENTED]
 
 Source traceability is not a feature -- it is a design principle that runs through the entire platform.
 
@@ -288,7 +298,7 @@ Source traceability is not a feature -- it is a design principle that runs throu
 
 ---
 
-## 5. Role Hierarchy
+## 5. Role Hierarchy [IMPLEMENTED]
 
 BillForge's role system maps directly to how CA and accounting firms are structured. Each role carries a default set of capabilities that can be customized per user.
 
@@ -317,7 +327,7 @@ BillForge's role system maps directly to how CA and accounting firms are structu
 
 ---
 
-## 6. India-Specific Compliance
+## 6. India-Specific Compliance [IMPLEMENTED]
 
 ### GST: Automatic Tax Split
 
@@ -449,7 +459,7 @@ Risk signals can be:
 | DUPLICATE_INVOICE_NUMBER | Fraud | Critical | Same vendor + invoice number seen before |
 | BANK_PAYMENT_VERIFIED | Financial | Info | Payment matched to bank statement |
 
-### Automated Vendor Communication
+### Automated Vendor Communication [IMPLEMENTED]
 
 When compliance issues are detected, BillForge generates email drafts for vendor communication:
 - **PAN missing:** Request PAN for TDS compliance
@@ -461,7 +471,7 @@ Each template is populated with invoice-specific details (vendor name, invoice n
 
 ---
 
-## 7. Tally Integration
+## 7. Tally Integration [IMPLEMENTED]
 
 ### How It Works
 
@@ -519,7 +529,7 @@ Every export is tracked with:
 
 ---
 
-## 8. Security and Data
+## 8. Security and Data [IMPLEMENTED]
 
 **Multi-Tenant Isolation.** Every client's data is stored in a separate logical partition. Invoices, vendor records, compliance data, GL codes, workflows, and exports for one client are completely invisible to users of another client. Platform admins can see aggregate analytics but do not access individual invoice data through the tenant interface.
 

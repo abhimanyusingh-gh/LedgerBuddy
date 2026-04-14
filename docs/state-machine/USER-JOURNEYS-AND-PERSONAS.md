@@ -1,14 +1,24 @@
 # User Journeys, Personas, and Role Model Overhaul
 
-> Last updated: 2026-03-30
+> Last updated: 2026-04-14
 >
 > This document maps every user path through BillForge by persona,
 > identifies gaps in the current 4-role model for Indian accounting firms,
 > and proposes a persona-aware role model + approval workflow overhaul.
 >
-> **Status (2026-03-31): Archived design note.** Runtime RBAC has moved to persona-as-role
-> (`TENANT_ADMIN`, `ap_clerk`, `senior_accountant`, `ca`, `tax_specialist`, `firm_partner`, `ops_admin`, `audit_clerk`).
-> Legacy `MEMBER/VIEWER` references below are historical context, not active behavior.
+> **Status (2026-04-14):** Runtime RBAC uses four base roles (PLATFORM_ADMIN, TENANT_ADMIN,
+> MEMBER, VIEWER) with persona-based capability defaults (ap_clerk, senior_accountant, ca,
+> tax_specialist, firm_partner, ops_admin, audit_clerk). Authentication is exclusively
+> Keycloak OIDC -- users authenticate via the Keycloak login page, receive OIDC tokens,
+> and the backend validates tokens via introspection using `OIDC_CLIENT_ID` and
+> `OIDC_CLIENT_SECRET`. MongoDB user records are auto-created on first Keycloak login
+> when `AUTH_AUTO_PROVISION_USERS=true`.
+>
+> **Tab visibility by role:**
+> - PLATFORM_ADMIN: Platform Dashboard (tenant list, usage, onboarding). No tenant-level access.
+> - TENANT_ADMIN / firm_partner: Overview, Invoices, Exports, Config, Connections tabs.
+> - MEMBER roles (ap_clerk, senior_accountant, ca, tax_specialist): Overview, Invoices, Exports tabs. Config and Connections are hidden.
+> - VIEWER / audit_clerk: Overview, Invoices (read-only), Exports (history only, no actions).
 
 ---
 
@@ -43,7 +53,7 @@ This model was designed for "AP clerk reviews invoices, admin manages the team."
 ### 2.1 Platform Admin Journey
 
 ```
-Login → Platform Dashboard
+Keycloak OIDC Login → Platform Dashboard
   ├── View tenant list (usage, document counts, connection status)
   ├── Onboard new tenant (POST /platform/tenants/onboard-admin)
   │     └── Creates tenant + admin user → KC user with temp password
@@ -56,7 +66,7 @@ Login → Platform Dashboard
 ### 2.2 Tenant Admin Journey
 
 ```
-Login → Dashboard (Overview tab default)
+Keycloak OIDC Login → Dashboard (Overview tab default)
   │
   ├── OVERVIEW TAB
   │     ├── KPI cards (total, approved, pending, exported, needs review)
@@ -100,7 +110,7 @@ Login → Dashboard (Overview tab default)
 ### 2.3 Member Journey
 
 ```
-Login → Dashboard (Overview tab default)
+Keycloak OIDC Login → Dashboard (Overview tab default)
   │
   ├── OVERVIEW TAB (same as admin but scope = "mine")
   │
@@ -126,7 +136,7 @@ Login → Dashboard (Overview tab default)
 ### 2.4 Viewer Journey
 
 ```
-Login → Dashboard (Overview tab, scope = scoped)
+Keycloak OIDC Login → Dashboard (Overview tab, scope = scoped)
   │
   ├── OVERVIEW TAB (scoped analytics)
   │
