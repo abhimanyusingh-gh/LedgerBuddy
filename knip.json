@@ -29,7 +29,9 @@
         "src/db/__mocks__/redis.ts",
         "src/testSetup.ts",
         "src/models/bank/BankStatement.ts",
-        "src/models/bank/BankTransaction.ts"
+        "src/models/bank/BankTransaction.ts",
+        "src/ai/extractors/invoice/pipeline/**/*.ts",
+        "src/core/pipeline/index.ts"
       ]
     },
     "frontend": {
