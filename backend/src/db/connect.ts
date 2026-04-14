@@ -13,7 +13,11 @@ export async function connectToDatabase() {
   }
 
   const runtimeManifest = loadRuntimeManifest();
-  await mongoose.connect(runtimeManifest.database.uri);
+  await mongoose.connect(runtimeManifest.database.uri, {
+    maxPoolSize: 10,
+    minPoolSize: 2,
+    serverSelectionTimeoutMS: 5000,
+  });
   connected = true;
 
   try {
