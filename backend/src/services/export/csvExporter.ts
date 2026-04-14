@@ -1,5 +1,6 @@
 import type { InvoiceDocument } from "@/models/invoice/Invoice.js";
 import { minorUnitsToMajorString } from "@/utils/currency.js";
+import { isRecord } from "@/utils/validation.js";
 
 const DEFAULT_COLUMNS = [
   "invoiceNumber", "vendorName", "invoiceDate", "dueDate",
@@ -30,11 +31,12 @@ export function generateCsvExport(
       continue;
     }
 
-    const compliance = (inv as unknown as Record<string, unknown>).compliance as Record<string, unknown> | undefined;
-    const tds = compliance?.tds as Record<string, unknown> | undefined;
-    const gl = compliance?.glCode as Record<string, unknown> | undefined;
-    const cc = compliance?.costCenter as Record<string, unknown> | undefined;
-    const pan = compliance?.pan as Record<string, unknown> | undefined;
+    const invObj = inv as unknown as Record<string, unknown>;
+    const compliance = isRecord(invObj.compliance) ? invObj.compliance : undefined;
+    const tds = isRecord(compliance?.tds) ? compliance.tds : undefined;
+    const gl = isRecord(compliance?.glCode) ? compliance.glCode : undefined;
+    const cc = isRecord(compliance?.costCenter) ? compliance.costCenter : undefined;
+    const pan = isRecord(compliance?.pan) ? compliance.pan : undefined;
     const currency = inv.parsed?.currency ?? "INR";
 
     const values: Record<string, string> = {

@@ -2,6 +2,7 @@ import axios from "axios";
 import type { AccountingExporter, ExportFileResult, ExportResultItem } from "@/core/interfaces/AccountingExporter.js";
 import type { InvoiceDocument } from "@/models/invoice/Invoice.js";
 import { logger } from "@/utils/logger.js";
+import { isRecord } from "@/utils/validation.js";
 import {
   buildTallyBatchImportXml,
   buildTallyPurchaseVoucherPayload,
@@ -237,8 +238,10 @@ function buildVoucherInput(
     narration: buildNarration(invoice)
   };
 
-  const compliance = (invoice as unknown as Record<string, unknown>).compliance as
-    { tds?: { section?: string; amountMinor?: number; netPayableMinor?: number }; tcs?: { amountMinor?: number }; glCode?: { code?: string; name?: string } } | undefined;
+  const invoiceObj = invoice as unknown as Record<string, unknown>;
+  const compliance = isRecord(invoiceObj.compliance)
+    ? (invoiceObj.compliance as { tds?: { section?: string; amountMinor?: number; netPayableMinor?: number }; tcs?: { amountMinor?: number }; glCode?: { code?: string; name?: string } })
+    : undefined;
 
   if (compliance?.glCode?.name) {
     input.purchaseLedgerName = compliance.glCode.name;

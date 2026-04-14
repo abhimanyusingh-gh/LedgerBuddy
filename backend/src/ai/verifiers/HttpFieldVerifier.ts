@@ -66,7 +66,7 @@ export class HttpFieldVerifier implements FieldVerifier {
   async verify(input: FieldVerifierInput): Promise<FieldVerifierResult> {
     return new Promise<FieldVerifierResult>((resolve, reject) => {
       this.queueTail = this.queueTail
-        .then(() => this.verifySerial(input))
+        .then(() => this.verifySerial(input), () => this.verifySerial(input))
         .then(resolve, reject);
     });
   }

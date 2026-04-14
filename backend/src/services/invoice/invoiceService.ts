@@ -7,6 +7,7 @@ import { toMinorUnits } from "@/utils/currency.js";
 import type { AuthenticatedRequestContext } from "@/types/auth.js";
 import type { FileStore } from "@/core/interfaces/FileStore.js";
 import { logger } from "@/utils/logger.js";
+import { isRecord } from "@/utils/validation.js";
 import type { ApprovalWorkflowService } from "./approvalWorkflowService.js";
 import { buildCorrectionHint, type ExtractionLearningStore } from "@/ai/extractors/invoice/learning/extractionLearningStore.js";
 import type { ExtractionMappingService } from "@/ai/extractors/invoice/learning/extractionMappingService.js";
@@ -454,7 +455,8 @@ export class InvoiceService {
     if (invoice.status === "EXPORTED") throw new InvoiceUpdateError("Cannot retrigger compliance on an exported invoice.", 403);
 
     const parsed = sanitizeParsedData(invoice.toObject().parsed);
-    const compliance = (invoice as unknown as Record<string, unknown>).compliance as Record<string, unknown> | undefined ?? {};
+    const invoiceObj = invoice.toObject() as Record<string, unknown>;
+    const compliance = isRecord(invoiceObj.compliance) ? invoiceObj.compliance : {};
 
     (compliance as Record<string, unknown>).glCode = {
       code: newGlCode,

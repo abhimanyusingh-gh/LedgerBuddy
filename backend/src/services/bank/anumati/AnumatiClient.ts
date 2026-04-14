@@ -8,6 +8,12 @@ interface AnumatiClientConfig {
   timeoutMs?: number;
 }
 
+function assertValidResponseBody(data: unknown): asserts data is Record<string, unknown> {
+  if (typeof data !== "object" || data === null || Array.isArray(data)) {
+    throw new Error(`Anumati API returned invalid response body: expected object, got ${Array.isArray(data) ? "array" : typeof data}`);
+  }
+}
+
 export class AnumatiClient {
   private readonly config: Required<AnumatiClientConfig>;
 
@@ -40,7 +46,9 @@ export class AnumatiClient {
         throw new Error(`Anumati API error ${response.status}: ${text}`);
       }
 
-      return (await response.json()) as T;
+      const data: unknown = await response.json();
+      assertValidResponseBody(data);
+      return data as T;
     } finally {
       clearTimeout(timer);
     }
@@ -63,7 +71,9 @@ export class AnumatiClient {
         throw new Error(`Anumati API error ${response.status}: ${text}`);
       }
 
-      return (await response.json()) as T;
+      const data: unknown = await response.json();
+      assertValidResponseBody(data);
+      return data as T;
     } finally {
       clearTimeout(timer);
     }

@@ -36,18 +36,18 @@ export class IngestionJobOrchestrator {
 
   setCurrentStatus(tenantId: string, status: IngestionJobStatus): void {
     this.localStatus.set(tenantId, status);
-    void getRedisClient().setex(`ingestion:status:${tenantId}`, STATUS_TTL_SECONDS, JSON.stringify(status)).catch(() => {});
+    void getRedisClient().setex(`ingestion:status:${tenantId}`, STATUS_TTL_SECONDS, JSON.stringify(status)).catch((err) => logger.warn("redis.operation.failed", { error: String(err) }));
   }
 
   setPendingRerun(tenantId: string): void {
     this.localPendingRerun.set(tenantId, true);
-    void getRedisClient().setex(`ingestion:pendingRerun:${tenantId}`, PENDING_RERUN_TTL_SECONDS, "1").catch(() => {});
+    void getRedisClient().setex(`ingestion:pendingRerun:${tenantId}`, PENDING_RERUN_TTL_SECONDS, "1").catch((err) => logger.warn("redis.operation.failed", { error: String(err) }));
   }
 
   private consumePendingRerun(tenantId: string): boolean {
     const had = this.localPendingRerun.get(tenantId) === true;
     this.localPendingRerun.delete(tenantId);
-    void getRedisClient().del(`ingestion:pendingRerun:${tenantId}`).catch(() => {});
+    void getRedisClient().del(`ingestion:pendingRerun:${tenantId}`).catch((err) => logger.warn("redis.operation.failed", { error: String(err) }));
     return had;
   }
 
@@ -170,7 +170,7 @@ export class IngestionJobOrchestrator {
 
         if (summary.paused) {
           this.localPendingRerun.delete(tenantId);
-          void getRedisClient().del(`ingestion:pendingRerun:${tenantId}`).catch(() => {});
+          void getRedisClient().del(`ingestion:pendingRerun:${tenantId}`).catch((err) => logger.warn("redis.operation.failed", { error: String(err) }));
           return;
         }
 
@@ -192,7 +192,7 @@ export class IngestionJobOrchestrator {
         this.setCurrentStatus(tenantId, nextStatus);
         this.broadcastToSubscribers(tenantId, nextStatus);
         this.localPendingRerun.delete(tenantId);
-        void getRedisClient().del(`ingestion:pendingRerun:${tenantId}`).catch(() => {});
+        void getRedisClient().del(`ingestion:pendingRerun:${tenantId}`).catch((err) => logger.warn("redis.operation.failed", { error: String(err) }));
         logger.error("ingestion.job.failed", {
           error: error instanceof Error ? error.message : String(error),
           correlationId: correlationId ?? null,
@@ -210,7 +210,7 @@ export class IngestionJobOrchestrator {
     }
     ingestionService.requestPause();
     this.localPendingRerun.delete(tenantId);
-    void getRedisClient().del(`ingestion:pendingRerun:${tenantId}`).catch(() => {});
+    void getRedisClient().del(`ingestion:pendingRerun:${tenantId}`).catch((err) => logger.warn("redis.operation.failed", { error: String(err) }));
     const paused: IngestionJobStatus = { ...current, state: "paused" };
     this.setCurrentStatus(tenantId, paused);
     this.broadcastToSubscribers(tenantId, paused);

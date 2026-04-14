@@ -2,6 +2,7 @@ import { InvoiceModel } from "@/models/invoice/Invoice.js";
 import { BankTransactionModel, type BankTransaction } from "@/models/bank/BankTransaction.js";
 import { TenantTcsConfigModel } from "@/models/integration/TenantTcsConfig.js";
 import { logger } from "@/utils/logger.js";
+import { isRecord } from "@/utils/validation.js";
 
 interface MatchCandidate {
   invoiceId: string;
@@ -134,8 +135,9 @@ export class ReconciliationService {
     for (const inv of invoices) {
       const parsed = (inv as Record<string, unknown>).parsed as Record<string, unknown> | undefined;
       let score = 0;
-      const compliance = (inv as Record<string, unknown>).compliance as Record<string, unknown> | undefined;
-      const tds = compliance?.tds as Record<string, unknown> | undefined;
+      const invObj = inv as unknown as Record<string, unknown>;
+      const compliance = isRecord(invObj.compliance) ? invObj.compliance : undefined;
+      const tds = isRecord(compliance?.tds) ? compliance.tds : undefined;
       const baseNetPayable = (tds?.netPayableMinor as number) ?? (parsed?.totalAmountMinor as number) ?? 0;
       const tcsAdjustment = tcsRatePercent > 0 ? Math.round(baseNetPayable * tcsRatePercent / 100) : 0;
       const netPayable = baseNetPayable + tcsAdjustment;
@@ -160,7 +162,7 @@ export class ReconciliationService {
 
       const invoiceDate = parsed?.invoiceDate ? new Date(parsed.invoiceDate as string) : null;
       const dueDate = parsed?.dueDate ? new Date(parsed.dueDate as string) : null;
-      const approval = (inv as Record<string, unknown>).approval as Record<string, unknown> | undefined;
+      const approval = isRecord(invObj.approval) ? invObj.approval : undefined;
       const approvedAt = approval?.approvedAt ? new Date(approval.approvedAt as string) : null;
 
       if (!isNaN(txnDate.getTime())) {

@@ -2,6 +2,7 @@ import type { BBox, ParsingGetResponse } from "@llamaindex/llama-cloud/resources
 import LlamaCloud from "@llamaindex/llama-cloud";
 import type { OcrBlock, OcrExtractionOptions, OcrPageImage, OcrProvider, OcrResult, ExtractedField } from "@/core/interfaces/OcrProvider.js";
 import { logger } from "@/utils/logger.js";
+import { env } from "@/config/env.js";
 import { buildOcrRequestError } from "./OcrProviderSupport.js";
 import { LLAMA_EXTRACT_INVOICE_SCHEMA } from "@/ai/schemas/invoice/llamaExtractInvoiceSchema.js";
 
@@ -40,14 +41,14 @@ export class LlamaParseOcrProvider implements OcrProvider {
   private readonly extractSystemPrompt: string | undefined;
 
   constructor(options?: LlamaParseOcrProviderOptions) {
-    const apiKey = options?.apiKey ?? process.env.LLAMA_CLOUD_API_KEY ?? "";
-    const optimizeModeEnv = process.env.LLAMA_PARSE_OPTIMIZE_MODE as LlamaParseOcrTier | undefined;
-    const tierEnv = process.env.LLAMA_PARSE_TIER as LlamaParseOcrTier | undefined;
+    const apiKey = options?.apiKey ?? env.LLAMA_CLOUD_API_KEY ?? "";
+    const optimizeModeEnv = env.LLAMA_PARSE_OPTIMIZE_MODE;
+    const tierEnv = env.LLAMA_PARSE_TIER;
     this.tier = options?.optimizeMode ?? options?.tier ?? optimizeModeEnv ?? tierEnv ?? "cost_effective";
-    this.customPrompt = options?.customPrompt ?? process.env.LLAMA_PARSE_CUSTOM_PROMPT;
+    this.customPrompt = options?.customPrompt ?? env.LLAMA_PARSE_CUSTOM_PROMPT;
     this.client = new LlamaCloud({ apiKey });
-    this.extractEnabled = options?.extractEnabled ?? (process.env.LLAMA_PARSE_EXTRACT_ENABLED === "true");
-    this.extractTier = options?.extractTier ?? (process.env.LLAMA_PARSE_EXTRACT_TIER as LlamaExtractTier | undefined) ?? "agentic";
+    this.extractEnabled = options?.extractEnabled ?? env.LLAMA_PARSE_EXTRACT_ENABLED;
+    this.extractTier = options?.extractTier ?? env.LLAMA_PARSE_EXTRACT_TIER ?? "agentic";
     this.extractSystemPrompt = options?.extractSystemPrompt ?? process.env.LLAMA_EXTRACT_SYSTEM_PROMPT;
   }
 
