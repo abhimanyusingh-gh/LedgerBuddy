@@ -30,6 +30,7 @@
         "src/models/bank/BankStatement.ts",
         "src/models/bank/BankTransaction.ts",
         "src/ai/extractors/invoice/pipeline/**/*.ts",
+        "src/ai/extractors/bank/pipeline/**/*.ts",
         "src/ai/extractors/commonSteps/**/*.ts",
         "src/core/pipeline/index.ts"
       ]
