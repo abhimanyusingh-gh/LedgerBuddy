@@ -1,5 +1,5 @@
 import type { ParsedInvoiceData } from "@/types/invoice.js";
-import { uniqueIssues } from "./invoiceExtractionPipelineHelpers.js";
+import { uniqueIssues } from "./stages/fieldParsingUtils.js";
 
 export function sanitizeInvoiceExtraction(parsed: ParsedInvoiceData | undefined): ParsedInvoiceData {
   if (!parsed) {

@@ -1,11 +1,6 @@
 import type { OcrBlock } from "@/core/interfaces/OcrProvider.js";
 import type { OcrLine } from "@/ai/ocr/ocrPostProcessor.js";
 import { buildLayoutText } from "@/ai/ocr/ocrPostProcessor.js";
-import {
-  buildAugmentedGroundingText,
-  buildBlocksText,
-  buildKeyValueGroundingText
-} from "../invoiceExtractionPipelineHelpers.js";
 
 export interface RankedOcrTextCandidate {
   id: "layout" | "blocks" | "raw" | "keyValue" | "augmented";
@@ -202,4 +197,103 @@ function isLowQualityToken(token: string): boolean {
     return true;
   }
   return false;
+}
+
+export function buildBlocksText(blocks: OcrBlock[]): string {
+  if (blocks.length === 0) {
+    return "";
+  }
+
+  return blocks
+    .map((block) => block.text.trim())
+    .filter((line) => line.length > 0)
+    .filter((line) => !/^(text|table|title|line|image)$/i.test(line))
+    .join("\n");
+}
+
+export function buildKeyValueGroundingText(blocks: OcrBlock[]): string {
+  if (blocks.length < 2) {
+    return "";
+  }
+
+  const labelPattern =
+    /\b(invoice(?:\s*number)?|facture|factuurnummer|rechnungsnummer|vendor|supplier|fournisseur|due(?:\s*date)?|date|total|amount|currency|betrag|montant|numero)\b/i;
+
+  const normalizedBlocks = blocks
+    .map((block) => ({
+      block,
+      bbox: block.bboxNormalized ?? block.bboxModel ?? block.bbox,
+      text: block.text.trim()
+    }))
+    .filter((entry) => entry.text.length > 0)
+    .sort((left, right) => {
+      if (left.block.page !== right.block.page) {
+        return left.block.page - right.block.page;
+      }
+      return left.bbox[1] - right.bbox[1];
+    });
+
+  const lines: string[] = [];
+  for (const entry of normalizedBlocks) {
+    const labelText = entry.text.replace(/[:\-]+$/, "").trim();
+    if (!labelPattern.test(labelText)) {
+      continue;
+    }
+
+    const scale = inferBlockScale(entry.bbox);
+    const maxYDrift = scale === "normalized" ? 0.06 : 42;
+    const minXDrift = scale === "normalized" ? -0.03 : -24;
+    const labelRight = entry.bbox[2];
+    const labelCenterY = (entry.bbox[1] + entry.bbox[3]) / 2;
+    const candidate = normalizedBlocks
+      .filter((blockEntry) => blockEntry.block.page === entry.block.page && blockEntry.block !== entry.block)
+      .map((blockEntry) => {
+        const valueCenterY = (blockEntry.bbox[1] + blockEntry.bbox[3]) / 2;
+        const yDrift = Math.abs(valueCenterY - labelCenterY);
+        const xDrift = blockEntry.bbox[0] - labelRight;
+        return {
+          ...blockEntry,
+          yDrift,
+          xDrift
+        };
+      })
+      .filter((blockEntry) => blockEntry.xDrift >= minXDrift && blockEntry.yDrift <= maxYDrift)
+      .sort((left, right) => {
+        if (left.yDrift !== right.yDrift) {
+          return left.yDrift - right.yDrift;
+        }
+        return left.xDrift - right.xDrift;
+      })[0];
+
+    if (!candidate) {
+      continue;
+    }
+
+    const valueText = candidate.text.replace(/\s+/g, " ").trim();
+    if (!valueText || labelPattern.test(valueText) || valueText.length > 100) {
+      continue;
+    }
+
+    lines.push(`${labelText}: ${valueText}`);
+  }
+
+  return [...new Set(lines)].join("\n");
+}
+
+export function buildAugmentedGroundingText(keyValueText: string, blockText: string, rawText: string): string {
+  const sections = [keyValueText, blockText, rawText]
+    .map((entry) => entry.trim())
+    .filter((entry) => entry.length > 0);
+  if (sections.length < 2) {
+    return "";
+  }
+
+  return sections.join("\n\n");
+}
+
+function inferBlockScale(bbox: [number, number, number, number]): "normalized" | "pixel" {
+  if (bbox.every((value) => Number.isFinite(value) && Math.abs(value) <= 2.5)) {
+    return "normalized";
+  }
+  return "pixel";
 }

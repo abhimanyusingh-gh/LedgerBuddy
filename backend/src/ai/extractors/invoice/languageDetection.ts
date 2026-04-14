@@ -307,3 +307,62 @@ function detectLanguageFromHintKeywords(text: string): string | undefined {
   }
   return undefined;
 }
+
+export function resolvePreOcrLanguageHint(
+  language: DetectedInvoiceLanguage,
+  mimeType: string
+): { hint?: string; reason: "detected" | "low-confidence-detected" | "default-en" | "none" } {
+  if (language.code !== "und") {
+    return {
+      hint: language.code,
+      reason: shouldUseLanguageHint(language) ? "detected" : "low-confidence-detected"
+    };
+  }
+
+  if (isDocumentMimeType(mimeType)) {
+    return {
+      hint: "en",
+      reason: "default-en"
+    };
+  }
+
+  return {
+    reason: "none"
+  };
+}
+
+export function resolveDetectedLanguage(
+  preOcrLanguage: DetectedInvoiceLanguage,
+  postOcrLanguage: DetectedInvoiceLanguage
+): DetectedInvoiceLanguage {
+  if (postOcrLanguage.code === "und") {
+    return preOcrLanguage;
+  }
+
+  if (preOcrLanguage.code === "und") {
+    return postOcrLanguage;
+  }
+
+  if (postOcrLanguage.code === preOcrLanguage.code) {
+    return {
+      code: postOcrLanguage.code,
+      confidence: clampProbability(Math.max(postOcrLanguage.confidence, preOcrLanguage.confidence)),
+      signals: [...new Set([...postOcrLanguage.signals, ...preOcrLanguage.signals].map((s) => s.trim()).filter((s) => s.length > 0))]
+    };
+  }
+
+  if (postOcrLanguage.confidence >= preOcrLanguage.confidence - 0.12) {
+    return postOcrLanguage;
+  }
+
+  return preOcrLanguage;
+}
+
+function shouldUseLanguageHint(language: DetectedInvoiceLanguage): boolean {
+  return language.code !== "und" && language.confidence >= 0.4;
+}
+
+function isDocumentMimeType(mimeType: string): boolean {
+  const normalized = mimeType.trim().toLowerCase();
+  return normalized.startsWith("image/") || normalized === "application/pdf";
+}

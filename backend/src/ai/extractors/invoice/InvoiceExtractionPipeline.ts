@@ -15,17 +15,16 @@ import { RiskSignalEvaluator } from "@/services/compliance/RiskSignalEvaluator.j
 import type { ExtractionLearningStore } from "./learning/extractionLearningStore.js";
 import type { ExtractionMappingService } from "./learning/extractionMappingService.js";
 import type { DetectedInvoiceLanguage } from "./languageDetection.js";
-import { detectInvoiceLanguage, detectInvoiceLanguageBeforeOcr } from "./languageDetection.js";
+import {
+  detectInvoiceLanguage,
+  detectInvoiceLanguageBeforeOcr,
+  resolveDetectedLanguage,
+  resolvePreOcrLanguageHint
+} from "./languageDetection.js";
 import type { PipelineExtractionResult } from "./types.js";
 import type { VendorTemplateSnapshot, VendorTemplateStore } from "./learning/vendorTemplateStore.js";
 import { validateInvoiceFields } from "./deterministicValidation.js";
-import {
-  clampProbability,
-  formatConfidence,
-  resolveDetectedLanguage,
-  resolvePreOcrLanguageHint,
-  uniqueIssues
-} from "./invoiceExtractionPipelineHelpers.js";
+import { clampProbability, formatConfidence, uniqueIssues } from "./stages/fieldParsingUtils.js";
 import { addFieldDiagnosticsToMetadata, calibrateDocumentConfidence } from "./stages/diagnostics.js";
 import { buildFieldCandidates, buildFieldRegions } from "./stages/fieldCandidates.js";
 import {
