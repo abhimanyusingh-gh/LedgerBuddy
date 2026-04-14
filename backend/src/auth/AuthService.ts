@@ -97,6 +97,11 @@ export class AuthService {
       throw new HttpError("Email and password are required.", 400, "auth_credentials_missing");
     }
 
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(normalizedEmail)) {
+      throw new HttpError("Invalid email format.", 400, "auth_invalid_email");
+    }
+
     const grant = await this.oidc.exchangePasswordGrant(normalizedEmail, password);
     if (!grant.ok) {
       throw new HttpError("Invalid email or password.", 401, "auth_credentials_invalid");
