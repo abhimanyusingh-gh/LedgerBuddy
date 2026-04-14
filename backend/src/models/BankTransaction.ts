@@ -1,4 +1,9 @@
-import { Schema, model, type InferSchemaType, type HydratedDocument } from "mongoose";
+import { Schema, model, type InferSchemaType } from "mongoose";
+
+export const BANK_TRANSACTION_MATCH_STATUSES = ["matched", "suggested", "unmatched", "manual"] as const;
+export type BankTransactionMatchStatus = (typeof BANK_TRANSACTION_MATCH_STATUSES)[number];
+
+export const BANK_TRANSACTION_SOURCES = ["parsed", "csv-import", "pdf-parsed"] as const;
 
 const bankTransactionSchema = new Schema(
   {
@@ -12,8 +17,8 @@ const bankTransactionSchema = new Schema(
     balanceMinor: { type: Number, default: null },
     matchedInvoiceId: { type: String, default: null },
     matchConfidence: { type: Number, default: null },
-    matchStatus: { type: String, enum: ["matched", "suggested", "unmatched", "manual"], default: "unmatched" },
-    source: { type: String, enum: ["parsed", "csv-import", "pdf-parsed"], required: true }
+    matchStatus: { type: String, enum: BANK_TRANSACTION_MATCH_STATUSES, default: "unmatched" },
+    source: { type: String, enum: BANK_TRANSACTION_SOURCES, required: true }
   },
   { timestamps: true }
 );
@@ -23,7 +28,6 @@ bankTransactionSchema.index({ tenantId: 1, matchStatus: 1 });
 bankTransactionSchema.index({ tenantId: 1, matchedInvoiceId: 1 }, { sparse: true });
 bankTransactionSchema.index({ tenantId: 1, date: 1, description: 1, debitMinor: 1, creditMinor: 1 });
 
-type BankTransaction = InferSchemaType<typeof bankTransactionSchema>;
-type BankTransactionDocument = HydratedDocument<BankTransaction>;
+export type BankTransaction = InferSchemaType<typeof bankTransactionSchema>;
 
 export const BankTransactionModel = model<BankTransaction>("BankTransaction", bankTransactionSchema);

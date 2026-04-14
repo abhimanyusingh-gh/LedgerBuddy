@@ -1,6 +1,6 @@
 import { BankStatementParser } from "./BankStatementParser.ts";
-import { BankStatementModel } from "../../models/BankStatement.ts";
-import { BankTransactionModel } from "../../models/BankTransaction.ts";
+import { BankStatementModel, BANK_STATEMENT_SOURCES } from "../../models/BankStatement.ts";
+import { BankTransactionModel, BANK_TRANSACTION_SOURCES } from "../../models/BankTransaction.ts";
 import * as nativePdfText from "../extraction/pipeline/nativePdfText.ts";
 
 jest.mock("../../models/BankStatement.ts");
@@ -170,6 +170,18 @@ describe("BankStatementParser", () => {
     await expect(
       parser.parseCsv("t1", "bank.csv", csv, { date: 0, description: 1, debit: 2, credit: 3 }, "user@test.com")
     ).rejects.toThrow("CSV must have at least a header row and one data row.");
+  });
+
+  it("stores csv-import source constant on transactions", async () => {
+    makeStatementCreate();
+    makeTransactionInsert();
+    makeTransactionFind();
+
+    const csv = `Date,Description,Debit,Credit\n2026-01-10,Vendor Payment,50000,`;
+    await parser.parseCsv("t1", "bank.csv", csv, { date: 0, description: 1, debit: 2, credit: 3 }, "user@test.com");
+
+    const insertCall = (BankTransactionModel.insertMany as jest.Mock).mock.calls[0][0];
+    expect(insertCall[0].source).toBe(BANK_TRANSACTION_SOURCES[1]);
   });
 });
 
@@ -380,5 +392,33 @@ describe("BankStatementParser.parsePdf", () => {
 
     expect(result.transactionCount).toBe(1);
     expect(result.warnings.length).toBeGreaterThan(0);
+  });
+
+  it("stores pdf-parsed source constant on statement and transactions", async () => {
+    const nativeText = "Bank statement with sufficient text content " + "x".repeat(200);
+    makeNativePdfText(nativeText);
+
+    const slmData = {
+      bankName: "ICICI Bank",
+      accountNumber: "9732",
+      accountHolder: "John Doe",
+      transactions: [
+        { date: "2026-01-10", description: "UPI Payment", debit: 500.00, credit: null, balance: 1000.00 }
+      ]
+    };
+    const fieldVerifier = makeSlmResponse(slmData);
+    const parser = new BankStatementParser({ fieldVerifier: fieldVerifier as never });
+    makeStatementCreate();
+    makeTransactionInsert();
+    makeTransactionFind();
+
+    await parser.parsePdf("t1", "statement.pdf", Buffer.from("pdf"), "application/pdf", "user@test.com");
+
+    const createCall = (BankStatementModel.create as jest.Mock).mock.calls[0][0] as Record<string, unknown>;
+    expect(createCall["source"]).toBe(BANK_STATEMENT_SOURCES[0]);
+    expect(createCall["accountHolder"]).toBe("John Doe");
+
+    const insertCall = (BankTransactionModel.insertMany as jest.Mock).mock.calls[0][0];
+    expect(insertCall[0].source).toBe(BANK_TRANSACTION_SOURCES[2]);
   });
 });

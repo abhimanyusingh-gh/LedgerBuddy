@@ -46,13 +46,17 @@ const mockTransactionFind = jest.fn();
 const mockTransactionCountDocuments = jest.fn();
 const mockTransactionUpdateOne = jest.fn();
 
-jest.mock("../models/BankTransaction.ts", () => ({
-  BankTransactionModel: {
-    find: (...args: unknown[]) => mockTransactionFind(...args),
-    countDocuments: (...args: unknown[]) => mockTransactionCountDocuments(...args),
-    updateOne: (...args: unknown[]) => mockTransactionUpdateOne(...args)
-  }
-}));
+jest.mock("../models/BankTransaction.ts", () => {
+  const actual = jest.requireActual("../models/BankTransaction.ts");
+  return {
+    BANK_TRANSACTION_MATCH_STATUSES: actual.BANK_TRANSACTION_MATCH_STATUSES,
+    BankTransactionModel: {
+      find: (...args: unknown[]) => mockTransactionFind(...args),
+      countDocuments: (...args: unknown[]) => mockTransactionCountDocuments(...args),
+      updateOne: (...args: unknown[]) => mockTransactionUpdateOne(...args)
+    }
+  };
+});
 
 const mockInvoiceFind = jest.fn();
 

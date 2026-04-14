@@ -1,5 +1,5 @@
 import { InvoiceModel } from "../../models/Invoice.js";
-import { BankTransactionModel } from "../../models/BankTransaction.js";
+import { BankTransactionModel, type BankTransaction } from "../../models/BankTransaction.js";
 import { TenantTcsConfigModel } from "../../models/TenantTcsConfig.js";
 import { logger } from "../../utils/logger.js";
 
@@ -12,6 +12,16 @@ interface MatchCandidate {
 }
 
 const GSTIN_REGEX = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
+
+function wordOverlap(a: string, b: string): number {
+  const wordsA = new Set(a.toLowerCase().split(/\s+/).filter(w => w.length > 2));
+  const wordsB = new Set(b.toLowerCase().split(/\s+/).filter(w => w.length > 2));
+  let matches = 0;
+  for (const w of wordsA) {
+    if (wordsB.has(w)) matches++;
+  }
+  return matches;
+}
 
 export class ReconciliationService {
   async reconcileStatement(tenantId: string, statementId: string): Promise<{ matched: number; suggested: number; unmatched: number }> {
@@ -58,7 +68,7 @@ export class ReconciliationService {
 
     await BankStatementModel.updateOne(
       { _id: statementId },
-      { $set: { matchedCount: matched, unmatchedCount: unmatched } }
+      { $set: { matchedCount: matched, suggestedCount: suggested, unmatchedCount: unmatched } }
     );
 
     logger.info("reconciliation.complete", { tenantId, statementId, matched, suggested, unmatched });
@@ -67,16 +77,21 @@ export class ReconciliationService {
 
   async findMatchCandidates(
     tenantId: string,
-    txn: { debitMinor?: number | null; description: string; date: string },
+    txn: Pick<BankTransaction, "debitMinor" | "description" | "date">,
     tcsRatePercent: number = 0,
     gstin?: string
   ): Promise<MatchCandidate[]> {
     if (!txn.debitMinor || txn.debitMinor <= 0) return [];
 
     const tolerance = 100;
+    const tcsMultiplier = 1 + tcsRatePercent / 100;
+    const minAmount = Math.round(txn.debitMinor / tcsMultiplier) - tolerance;
+    const maxAmount = Math.round(txn.debitMinor * tcsMultiplier) + tolerance;
+
     const invoiceQuery: Record<string, unknown> = {
       tenantId,
-      status: { $nin: ["EXPORTED"] }
+      status: { $nin: ["EXPORTED"] },
+      "parsed.totalAmountMinor": { $gte: minAmount, $lte: maxAmount }
     };
 
     if (gstin) {
@@ -111,7 +126,7 @@ export class ReconciliationService {
       }
 
       const vendorName = inv.parsed?.vendorName ?? "";
-      if (vendorName && descLower.includes(vendorName.substring(0, 10).toLowerCase())) {
+      if (vendorName && wordOverlap(vendorName, descLower) >= 1) {
         score += 20;
       }
 

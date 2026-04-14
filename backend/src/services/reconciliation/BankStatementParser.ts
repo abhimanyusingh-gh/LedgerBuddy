@@ -1,5 +1,6 @@
 import { BankStatementModel } from "../../models/BankStatement.js";
-import { BankTransactionModel } from "../../models/BankTransaction.js";
+import { BankTransactionModel, BANK_TRANSACTION_SOURCES } from "../../models/BankTransaction.js";
+import { BANK_STATEMENT_SOURCES } from "../../models/BankStatement.js";
 import { logger } from "../../utils/logger.js";
 import type { OcrProvider } from "../../core/interfaces/OcrProvider.js";
 import type { FieldVerifier } from "../../core/interfaces/FieldVerifier.js";
@@ -7,7 +8,8 @@ import type { BankParseProgressEvent } from "./BankStatementParseProgress.js";
 import { DocumentProcessingEngine } from "../../core/engine/DocumentProcessingEngine.js";
 import {
   BankStatementDocumentDefinition,
-  type SlmBankStatementOutput
+  type SlmBankStatementOutput,
+  type BankStatementTransaction
 } from "./BankStatementDocumentDefinition.js";
 
 type OnParseProgress = (event: BankParseProgressEvent) => void;
@@ -21,14 +23,6 @@ interface ParsedTransaction {
   balanceMinor?: number;
 }
 
-interface SlmBankTransaction {
-  date?: unknown;
-  description?: unknown;
-  reference?: unknown;
-  debit?: unknown;
-  credit?: unknown;
-  balance?: unknown;
-}
 
 interface PdfParseResult {
   statementId: string;
@@ -93,7 +87,7 @@ export class BankStatementParser {
         transactionCount: 0,
         matchedCount: 0,
         unmatchedCount: 0,
-        source: "csv-import",
+        source: BANK_STATEMENT_SOURCES[1],
         uploadedBy
       });
       const statementId = String(statement._id);
@@ -150,7 +144,7 @@ export class BankStatementParser {
           creditMinor: txn.creditMinor ?? null,
           balanceMinor: txn.balanceMinor ?? null,
           matchStatus: "unmatched",
-          source: "csv-import"
+          source: BANK_TRANSACTION_SOURCES[1]
         }))
       );
     }
@@ -202,6 +196,7 @@ export class BankStatementParser {
 
     const bankName = typeof slmOutput.bankName === "string" ? slmOutput.bankName.trim() || undefined : undefined;
     const accountNumber = typeof slmOutput.accountNumber === "string" ? slmOutput.accountNumber.trim() || undefined : undefined;
+    const accountHolder = typeof slmOutput.accountHolder === "string" ? slmOutput.accountHolder.trim() || undefined : undefined;
     const periodFrom = typeof slmOutput.periodFrom === "string" ? normalizeDate(slmOutput.periodFrom.trim()) : undefined;
     const periodTo = typeof slmOutput.periodTo === "string" ? normalizeDate(slmOutput.periodTo.trim()) : undefined;
 
@@ -211,7 +206,7 @@ export class BankStatementParser {
     const parsed: ParsedTransaction[] = [];
 
     for (let i = 0; i < rawTransactions.length; i++) {
-      const raw = rawTransactions[i] as SlmBankTransaction;
+      const raw = rawTransactions[i] as BankStatementTransaction;
       if (!raw || typeof raw !== "object") {
         warnings.push(`Transaction at index ${i}: not a valid object, skipped.`);
         continue;
@@ -290,12 +285,13 @@ export class BankStatementParser {
       fileName,
       bankName: bankName ?? null,
       accountNumberMasked: accountNumber ?? null,
+      accountHolder: accountHolder ?? null,
       periodFrom: periodFrom ?? null,
       periodTo: periodTo ?? null,
       transactionCount: transactions.length,
       matchedCount: 0,
       unmatchedCount: transactions.length,
-      source: "pdf-parsed",
+      source: BANK_STATEMENT_SOURCES[0],
       uploadedBy
     });
 
@@ -313,7 +309,7 @@ export class BankStatementParser {
           creditMinor: txn.creditMinor ?? null,
           balanceMinor: txn.balanceMinor ?? null,
           matchStatus: "unmatched",
-          source: "pdf-parsed"
+          source: BANK_TRANSACTION_SOURCES[2]
         }))
       );
     }

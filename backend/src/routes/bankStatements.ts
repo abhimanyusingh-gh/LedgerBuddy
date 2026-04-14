@@ -1,7 +1,7 @@
 import { Router } from "express";
 import multer from "multer";
-import { BankStatementModel } from "../models/BankStatement.js";
-import { BankTransactionModel } from "../models/BankTransaction.js";
+import { BankStatementModel, type BankStatement } from "../models/BankStatement.js";
+import { BankTransactionModel, BANK_TRANSACTION_MATCH_STATUSES, type BankTransactionMatchStatus } from "../models/BankTransaction.js";
 import { BankStatementParser } from "../services/reconciliation/BankStatementParser.js";
 import { BankStatementParseProgress } from "../services/reconciliation/BankStatementParseProgress.js";
 import { ReconciliationService } from "../services/reconciliation/ReconciliationService.js";
@@ -133,7 +133,7 @@ export function createBankStatementsRouter(
         query.periodFrom = { ...(query.periodFrom as Record<string, unknown> ?? {}), $lte: req.query.periodTo };
       }
 
-      const [items, total] = await Promise.all([
+      const [items, total]: [BankStatement[], number] = await Promise.all([
         BankStatementModel.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
         BankStatementModel.countDocuments(query)
       ]);
@@ -190,7 +190,7 @@ export function createBankStatementsRouter(
       let unmatched = 0;
 
       const items = transactions.map((t) => {
-        const status = (t.matchStatus as string) ?? "unmatched";
+        const status = (t.matchStatus ?? "unmatched") as BankTransactionMatchStatus;
         if (status === "matched" || status === "manual") matched++;
         else if (status === "suggested") suggested++;
         else unmatched++;
@@ -225,11 +225,11 @@ export function createBankStatementsRouter(
 
       const query: Record<string, unknown> = { tenantId, statementId: req.params.id };
 
-      if (typeof req.query.status === "string" && req.query.status) {
-        query.matchStatus = req.query.status;
+      if (typeof req.query.status === "string" && BANK_TRANSACTION_MATCH_STATUSES.includes(req.query.status as BankTransactionMatchStatus)) {
+        query.matchStatus = req.query.status as BankTransactionMatchStatus;
       }
-      if (typeof req.query.matchStatus === "string" && req.query.matchStatus) {
-        query.matchStatus = req.query.matchStatus;
+      if (typeof req.query.matchStatus === "string" && BANK_TRANSACTION_MATCH_STATUSES.includes(req.query.matchStatus as BankTransactionMatchStatus)) {
+        query.matchStatus = req.query.matchStatus as BankTransactionMatchStatus;
       }
 
       if (typeof req.query.dateFrom === "string" && req.query.dateFrom) {

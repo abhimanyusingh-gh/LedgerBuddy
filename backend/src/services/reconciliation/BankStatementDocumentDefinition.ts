@@ -3,13 +3,22 @@ import { DOC_TYPE } from "../../core/engine/DocumentDefinition.js";
 import type { ValidationResult } from "../../core/engine/types.js";
 import { BANK_STATEMENT_EXTRACT_SCHEMA, BANK_STATEMENT_CHUNK_SCHEMA } from "./bankStatementExtractSchema.js";
 
+export interface BankStatementTransaction {
+  date?: string;
+  description?: string;
+  reference?: string;
+  debit?: number | null;
+  credit?: number | null;
+  balance?: number | null;
+}
+
 export interface SlmBankStatementOutput {
-  bankName?: unknown;
-  accountNumber?: unknown;
-  accountHolder?: unknown;
-  periodFrom?: unknown;
-  periodTo?: unknown;
-  transactions?: unknown;
+  bankName?: string;
+  accountNumber?: string;
+  accountHolder?: string;
+  periodFrom?: string;
+  periodTo?: string;
+  transactions?: BankStatementTransaction[];
 }
 
 export class BankStatementDocumentDefinition implements ChunkableDocumentDefinition<SlmBankStatementOutput> {
@@ -23,13 +32,24 @@ export class BankStatementDocumentDefinition implements ChunkableDocumentDefinit
 
   parseOutput(raw: string | Record<string, unknown>): SlmBankStatementOutput {
     if (typeof raw === "object") {
+      const rawTxns = raw["transactions"];
+      const transactions: BankStatementTransaction[] = Array.isArray(rawTxns)
+        ? (rawTxns as Record<string, unknown>[]).map(t => ({
+            date: typeof t["date"] === "string" ? t["date"] : undefined,
+            description: typeof t["description"] === "string" ? t["description"] : undefined,
+            reference: typeof t["reference"] === "string" ? t["reference"] : undefined,
+            debit: (typeof t["debit"] === "number" || t["debit"] === null) ? t["debit"] as number | null : undefined,
+            credit: (typeof t["credit"] === "number" || t["credit"] === null) ? t["credit"] as number | null : undefined,
+            balance: (typeof t["balance"] === "number" || t["balance"] === null) ? t["balance"] as number | null : undefined
+          }))
+        : [];
       return {
-        bankName: raw["bank_name"],
-        accountNumber: raw["account_number"],
-        accountHolder: raw["account_holder"],
-        periodFrom: raw["period_from"],
-        periodTo: raw["period_to"],
-        transactions: Array.isArray(raw["transactions"]) ? raw["transactions"] : []
+        bankName: typeof raw["bank_name"] === "string" ? raw["bank_name"] : undefined,
+        accountNumber: typeof raw["account_number"] === "string" ? raw["account_number"] : undefined,
+        accountHolder: typeof raw["account_holder"] === "string" ? raw["account_holder"] : undefined,
+        periodFrom: typeof raw["period_from"] === "string" ? raw["period_from"] : undefined,
+        periodTo: typeof raw["period_to"] === "string" ? raw["period_to"] : undefined,
+        transactions
       };
     }
     return parseSlmJson(raw);
@@ -41,7 +61,7 @@ export class BankStatementDocumentDefinition implements ChunkableDocumentDefinit
     }
 
     const first = chunks[0];
-    const allTransactions: unknown[] = [];
+    const allTransactions: BankStatementTransaction[] = [];
 
     for (const chunk of chunks) {
       const txns = Array.isArray(chunk.transactions) ? chunk.transactions : [];
@@ -68,14 +88,14 @@ function parseSlmJson(text: string): SlmBankStatementOutput {
 
   const jsonBlockMatch = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/);
   if (jsonBlockMatch) {
-    return JSON.parse(jsonBlockMatch[1].trim());
+    return JSON.parse(jsonBlockMatch[1].trim()) as SlmBankStatementOutput;
   }
 
   const firstBrace = trimmed.indexOf("{");
   const lastBrace = trimmed.lastIndexOf("}");
   if (firstBrace !== -1 && lastBrace > firstBrace) {
-    return JSON.parse(trimmed.substring(firstBrace, lastBrace + 1));
+    return JSON.parse(trimmed.substring(firstBrace, lastBrace + 1)) as SlmBankStatementOutput;
   }
 
-  return JSON.parse(trimmed);
+  return JSON.parse(trimmed) as SlmBankStatementOutput;
 }
