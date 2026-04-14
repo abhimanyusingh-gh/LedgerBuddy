@@ -7,7 +7,7 @@ import { resolveVendorName, buildExplicitVendorLinePattern, VENDOR_ADDRESS_SIGNA
 export { extractTotalAmount, parseAmountToken, parseAmountTokenWithOcrRepair } from "./amountParser.js";
 export { currencyBySymbol } from "./currencyParser.js";
 
-export interface ParseResult {
+interface ParseResult {
   parsed: ParsedInvoiceData;
   warnings: string[];
 }
@@ -307,7 +307,7 @@ function extractHeaderFields(
   };
 }
 
-export function splitParsedLines(text: string): string[] {
+function splitParsedLines(text: string): string[] {
   return text
     .replace(/\r/g, "\n")
     .split(/\n+/)
@@ -365,7 +365,7 @@ function resolvePatternSet(
   return [...override, ...fallback];
 }
 
-export function findFirstMatch(text: string, patterns: RegExp[]): string | undefined {
+function findFirstMatch(text: string, patterns: RegExp[]): string | undefined {
   for (const pattern of patterns) {
     const match = text.match(pattern);
     if (match?.[1]) {

@@ -21,7 +21,7 @@ export interface RankedOcrTextCandidate {
   };
 }
 
-export interface RankedOcrTextCandidates {
+interface RankedOcrTextCandidates {
   primary: RankedOcrTextCandidate;
   ranked: RankedOcrTextCandidate[];
   keyValueText: string;

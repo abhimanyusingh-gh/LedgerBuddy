@@ -98,7 +98,7 @@ export function sanitizeForApi<T>(value: T): T {
   return (stripNulls(value) ?? {}) as T;
 }
 
-export function stripNulls(value: unknown): unknown {
+function stripNulls(value: unknown): unknown {
   if (value === null || value === undefined) return undefined;
   if (Array.isArray(value)) return value.map(stripNulls).filter((v) => v !== undefined);
   if (!isPlainObject(value)) return value;

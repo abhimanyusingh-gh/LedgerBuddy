@@ -7,22 +7,8 @@
       "entry": ["src/scripts/seedPlatformAdmin.ts", "src/scripts/runSampleInvoiceBenchmark.ts"],
       "ignoreBinaries": [],
       "ignore": [
-        "src/parser/invoiceParser.ts",
-        "src/services/invoice/invoiceHelpers.ts",
-        "src/parser/amountParser.ts",
-        "src/parser/dateParser.ts",
-        "src/parser/currencyParser.ts",
-        "src/parser/vendorParser.ts",
-        "src/services/extraction/extractionLearningStore.ts",
-        "src/services/extraction/vendorTemplateStore.ts",
-        "src/services/extraction/layoutGraph.ts",
-        "src/services/extraction/invoiceExtractionPipelineHelpers.ts",
-        "src/services/extraction/pipeline/ocrRecovery.ts",
-        "src/services/extraction/pipeline/provenance.ts",
-        "src/services/extraction/pipeline/ocrTextCandidates.ts",
         "src/db/__mocks__/redis.ts",
-        "src/testSetup.ts",
-        "src/core/engine/extractionSource.ts"
+        "src/testSetup.ts"
       ]
     },
     "frontend": {

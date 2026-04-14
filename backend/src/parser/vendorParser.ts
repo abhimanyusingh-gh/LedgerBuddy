@@ -33,7 +33,7 @@ export function resolveVendorName(text: string, explicitPattern: RegExp): string
   return pickLikelyVendorLine(lines);
 }
 
-export function extractExplicitVendor(lines: string[], explicitPattern: RegExp): string | undefined {
+function extractExplicitVendor(lines: string[], explicitPattern: RegExp): string | undefined {
   for (let index = 0; index < lines.length; index += 1) {
     const line = lines[index];
     const match = line.match(explicitPattern);
@@ -60,7 +60,7 @@ export function extractExplicitVendor(lines: string[], explicitPattern: RegExp):
   return undefined;
 }
 
-export function extractHotelVendor(lines: string[]): string | undefined {
+function extractHotelVendor(lines: string[]): string | undefined {
   for (const line of lines.slice(0, 20)) {
     const match = line.match(/hotel\s*details\s*[:\-]?\s*([A-Za-z0-9&'().\-\s]{2,})/i);
     if (!match?.[1]) {
@@ -82,7 +82,7 @@ export function extractHotelVendor(lines: string[]): string | undefined {
   return undefined;
 }
 
-export function pickLikelyVendorLine(lines: string[]): string | undefined {
+function pickLikelyVendorLine(lines: string[]): string | undefined {
   const scopedLines = lines.slice(0, 18);
 
   let bestCandidate: { value: string; score: number } | null = null;
@@ -152,7 +152,7 @@ export function pickLikelyVendorLine(lines: string[]): string | undefined {
   return bestCandidate.value;
 }
 
-export function sanitizeVendorCandidate(rawValue: string, options?: { allowSingleWord?: boolean; relaxed?: boolean }): string | undefined {
+function sanitizeVendorCandidate(rawValue: string, options?: { allowSingleWord?: boolean; relaxed?: boolean }): string | undefined {
   const normalized = rawValue
     .replace(vendorRefinementPattern, "")
     .replace(/^[^:]+:\s*/g, (prefix) => (blockedVendorPrefixPattern.test(prefix) ? "" : prefix))

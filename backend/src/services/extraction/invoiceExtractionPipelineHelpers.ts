@@ -136,7 +136,7 @@ export function formatConfidence(value: number): string {
   return clampProbability(value).toFixed(4);
 }
 
-export function selectDateProvenanceBlock(
+function selectDateProvenanceBlock(
   field: "invoiceDate" | "dueDate",
   value: string,
   blocks: OcrBlock[]
@@ -188,7 +188,7 @@ export function selectDateProvenanceBlock(
   return field === "dueDate" ? matches[matches.length - 1] : matches[0];
 }
 
-export function selectInvoiceNumberProvenanceBlock(
+function selectInvoiceNumberProvenanceBlock(
   value: string | undefined,
   blocks: OcrBlock[]
 ): { block: OcrBlock; index: number } | undefined {
@@ -234,7 +234,7 @@ export function buildBlocksText(blocks: OcrBlock[]): string {
     .join("\n");
 }
 
-export function isNearDuplicateText(left: string, right: string): boolean {
+function isNearDuplicateText(left: string, right: string): boolean {
   const normalize = (value: string) =>
     value
       .toLowerCase()

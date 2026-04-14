@@ -19,8 +19,6 @@ import {
 
 export {
   classifyOcrRecoveryStrategy,
-  findPreferredTotalAmountBlockForStrategy,
-  findPreferredVendorBlockForStrategy,
   recoverParsedFromOcr
 };
 

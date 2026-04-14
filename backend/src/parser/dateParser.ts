@@ -37,7 +37,7 @@ export function normalizeDate(input: string, options?: { preferDayFirst?: boolea
   return formatDayFirstDate(dayFirst);
 }
 
-export function formatDayFirstDate(dayFirst: RegExpMatchArray): string {
+function formatDayFirstDate(dayFirst: RegExpMatchArray): string {
   const day = dayFirst[1].padStart(2, "0");
   const month = dayFirst[2].padStart(2, "0");
   const rawYear = dayFirst[3];
@@ -45,7 +45,7 @@ export function formatDayFirstDate(dayFirst: RegExpMatchArray): string {
   return `${year}-${month}-${day}`;
 }
 
-export function monthNumber(value: string): string | undefined {
+function monthNumber(value: string): string | undefined {
   const months: Record<string, string> = {
     jan: "01",
     january: "01",

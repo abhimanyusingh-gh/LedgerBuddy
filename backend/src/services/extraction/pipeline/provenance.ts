@@ -19,7 +19,7 @@ const LINE_ITEM_FIELDS = [
   "igstMinor"
 ] as const satisfies readonly LineItemField[];
 
-export function normalizeBlockIndices(value: unknown): Record<string, number> | undefined {
+function normalizeBlockIndices(value: unknown): Record<string, number> | undefined {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     return undefined;
   }

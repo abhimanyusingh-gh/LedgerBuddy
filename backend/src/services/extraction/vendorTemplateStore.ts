@@ -1,5 +1,4 @@
 import { VendorTemplateModel } from "../../models/VendorTemplate.js";
-import type { ParsedInvoiceData } from "../../types/invoice.js";
 
 export interface VendorTemplateSnapshot {
   tenantId: string;
@@ -72,46 +71,4 @@ export class InMemoryVendorTemplateStore implements VendorTemplateStore {
   async saveOrUpdate(template: VendorTemplateSnapshot): Promise<void> {
     this.templates.set(`${template.tenantId}|${template.fingerprintKey}`, template);
   }
-}
-
-export function templateFromParsed(
-  tenantId: string,
-  fingerprintKey: string,
-  layoutSignature: string,
-  parsed: ParsedInvoiceData,
-  confidenceScore: number
-): VendorTemplateSnapshot | undefined {
-  if (!parsed.vendorName || parsed.vendorName.trim().length === 0) {
-    return undefined;
-  }
-
-  const normalizedVendor = parsed.vendorName.trim();
-  const invoicePrefix = buildInvoicePrefix(parsed.invoiceNumber);
-  return {
-    tenantId,
-    fingerprintKey,
-    layoutSignature,
-    vendorName: normalizedVendor,
-    currency: parsed.currency,
-    invoicePrefix,
-    confidenceScore
-  };
-}
-
-const INVOICE_PREFIX_REGEX = /^[A-Z]+/i;
-function buildInvoicePrefix(invoiceNumber?: string): string | undefined {
-  if (!invoiceNumber) {
-    return undefined;
-  }
-
-  const normalized = invoiceNumber.trim();
-  if (normalized.length < 3) {
-    return undefined;
-  }
-
-  const prefix = normalized.match(INVOICE_PREFIX_REGEX)?.[0];
-  if (prefix && prefix.length >= 2) {
-    return prefix.toUpperCase();
-  }
-  return undefined;
 }

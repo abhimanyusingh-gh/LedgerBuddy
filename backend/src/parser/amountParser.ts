@@ -1,4 +1,4 @@
-export interface AmountCandidate {
+interface AmountCandidate {
   amount: number;
   score: number;
   lineIndex: number;
@@ -25,7 +25,7 @@ export function extractTotalAmount(text: string): number | undefined {
   return pickBestFallbackAmount(lines);
 }
 
-export function splitLines(text: string): string[] {
+function splitLines(text: string): string[] {
   return text
     .replace(/\r/g, "\n")
     .split(/\n+/)
@@ -159,7 +159,7 @@ function pickBestAmountCandidate(candidates: AmountCandidate[]): AmountCandidate
   })[0];
 }
 
-export function extractAmountValuesFromLine(line: string): number[] {
+function extractAmountValuesFromLine(line: string): number[] {
   const normalized = line.replace(/\u00A0/g, " ").replace(/\s+/g, " ");
   const rawTokens = normalized.match(amountTokenPattern) ?? [];
   const tokens = rawTokens.flatMap(splitConcatenatedAmountToken);
@@ -172,7 +172,7 @@ export function extractAmountValuesFromLine(line: string): number[] {
   return values;
 }
 
-export function splitConcatenatedAmountToken(token: string): string[] {
+function splitConcatenatedAmountToken(token: string): string[] {
   const compact = token.replace(/\s+/g, "");
 
   if (/^\d+\.\d{2}(?:\d+\.\d{2})+$/.test(compact)) {
@@ -295,7 +295,7 @@ function recoverOCRLeadingDigitAmount(token: string, parsedMajor: number): numbe
   return Number(repairedMajor.toFixed(2));
 }
 
-export function scoreAmountMagnitude(amount: number): number {
+function scoreAmountMagnitude(amount: number): number {
   let score = 0;
 
   if (!Number.isInteger(amount)) {
