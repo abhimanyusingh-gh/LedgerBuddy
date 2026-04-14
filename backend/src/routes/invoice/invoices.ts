@@ -7,6 +7,7 @@ import { Readable } from "node:stream";
 import { GetObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import {
   InvoiceUpdateError,
+  retriggerTdsAndTcs,
   type InvoiceService,
   type UpdateParsedFieldInput
 } from "@/services/invoice/invoiceService.js";
@@ -18,9 +19,6 @@ import { ViewerScopeModel } from "@/models/integration/ViewerScope.js";
 import { InvoiceModel } from "@/models/invoice/Invoice.js";
 import { VendorMasterService } from "@/services/compliance/VendorMasterService.js";
 import { GlCodeSuggestionService } from "@/services/compliance/GlCodeSuggestionService.js";
-import { TdsCalculationService } from "@/services/compliance/TdsCalculationService.js";
-import { GlCodeMasterModel } from "@/models/compliance/GlCodeMaster.js";
-import { TenantTcsConfigModel } from "@/models/integration/TenantTcsConfig.js";
 import { requireAuth } from "@/auth/requireAuth.js";
 import { logger } from "@/utils/logger.js";
 import { isRecord, isString, validateDateRange } from "@/utils/validation.js";
@@ -158,40 +156,8 @@ export function createInvoiceRouter(invoiceService: InvoiceService, fileStore?: 
             }
             (compliance as Record<string, unknown>).glCode = { code: req.body.glCode, name: glName, source: "manual", confidence: 100 };
 
-            try {
-              const parsed = invoice.toObject().parsed ?? {};
-              const tdsService = new TdsCalculationService();
-              const glDoc = await GlCodeMasterModel.findOne({ tenantId: authContext.tenantId, code: req.body.glCode, isActive: true }).lean();
-              const glCategory = glDoc?.category ?? req.body.glCode;
-              const tdsResult = await tdsService.computeTds(parsed, authContext.tenantId, glCategory);
-              (compliance as Record<string, unknown>).tds = tdsResult.tds;
-              const existingSignals = ((compliance as Record<string, unknown>).riskSignals as Array<Record<string, unknown>>) ?? [];
-              const nonTdsSignals = existingSignals.filter(s => !String(s.code).startsWith("TDS_"));
-              (compliance as Record<string, unknown>).riskSignals = [...nonTdsSignals, ...tdsResult.riskSignals];
-            } catch (error) {
-              logger.warn("compliance.gl.retrigger.tds.failed", {
-                invoiceId: req.params.id, tenantId: authContext.tenantId,
-                error: error instanceof Error ? error.message : String(error)
-              });
-            }
-
-            try {
-              const totalAmountMinor = invoice.parsed?.totalAmountMinor;
-              const tcsConfig = await TenantTcsConfigModel.findOne({ tenantId: authContext.tenantId }).lean();
-              if (tcsConfig?.enabled && tcsConfig.ratePercent > 0 && totalAmountMinor && totalAmountMinor > 0) {
-                const tcsAmount = Math.floor(totalAmountMinor * tcsConfig.ratePercent / 100);
-                (compliance as Record<string, unknown>).tcs = {
-                  rate: tcsConfig.ratePercent,
-                  amountMinor: tcsAmount,
-                  source: "configured"
-                };
-              }
-            } catch (error) {
-              logger.warn("compliance.gl.retrigger.tcs.failed", {
-                invoiceId: req.params.id, tenantId: authContext.tenantId,
-                error: error instanceof Error ? error.message : String(error)
-              });
-            }
+            const parsed = invoice.toObject().parsed ?? {};
+            await retriggerTdsAndTcs(compliance, parsed, authContext.tenantId, req.body.glCode, req.params.id);
           }
         }
 

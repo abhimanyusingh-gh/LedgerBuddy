@@ -463,39 +463,7 @@ export class InvoiceService {
       confidence: 100
     };
 
-    const tdsService = new TdsCalculationService();
-    try {
-      const glDoc = await GlCodeMasterModel.findOne({ tenantId, code: newGlCode, isActive: true }).lean();
-      const glCategory = glDoc?.category ?? newGlCode;
-      const tdsResult = await tdsService.computeTds(parsed, tenantId, glCategory);
-      (compliance as Record<string, unknown>).tds = tdsResult.tds;
-
-      const existingSignals = ((compliance as Record<string, unknown>).riskSignals as ComplianceRiskSignal[]) ?? [];
-      const nonTdsSignals = existingSignals.filter(s => !s.code.startsWith("TDS_"));
-      (compliance as Record<string, unknown>).riskSignals = [...nonTdsSignals, ...tdsResult.riskSignals];
-    } catch (error) {
-      logger.warn("compliance.retrigger.tds.failed", {
-        invoiceId, tenantId,
-        error: error instanceof Error ? error.message : String(error)
-      });
-    }
-
-    try {
-      const tcsConfig = await TenantTcsConfigModel.findOne({ tenantId }).lean();
-      if (tcsConfig?.enabled && tcsConfig.ratePercent > 0 && parsed.totalAmountMinor && parsed.totalAmountMinor > 0) {
-        const tcsAmount = Math.floor(parsed.totalAmountMinor * tcsConfig.ratePercent / 100);
-        (compliance as Record<string, unknown>).tcs = {
-          rate: tcsConfig.ratePercent,
-          amountMinor: tcsAmount,
-          source: "configured"
-        };
-      }
-    } catch (error) {
-      logger.warn("compliance.retrigger.tcs.failed", {
-        invoiceId, tenantId,
-        error: error instanceof Error ? error.message : String(error)
-      });
-    }
+    await retriggerTdsAndTcs(compliance, parsed, tenantId, newGlCode, invoiceId);
 
     invoice.set("compliance", compliance);
     await invoice.save();
@@ -505,6 +473,53 @@ export class InvoiceService {
     });
 
     return sanitizeForApi(invoice.toObject());
+  }
+}
+
+/**
+ * Shared helper: recompute TDS and TCS on a compliance object after a GL code
+ * change. Mutates `compliance` in place. Used by both the PATCH inline handler
+ * and the dedicated retriggerCompliance service method.
+ */
+export async function retriggerTdsAndTcs(
+  compliance: Record<string, unknown>,
+  parsed: ParsedInvoiceData,
+  tenantId: string,
+  glCode: string,
+  invoiceId: string
+): Promise<void> {
+  const tdsService = new TdsCalculationService();
+  try {
+    const glDoc = await GlCodeMasterModel.findOne({ tenantId, code: glCode, isActive: true }).lean();
+    const glCategory = glDoc?.category ?? glCode;
+    const tdsResult = await tdsService.computeTds(parsed, tenantId, glCategory);
+    compliance.tds = tdsResult.tds;
+
+    const existingSignals = (compliance.riskSignals as ComplianceRiskSignal[]) ?? [];
+    const nonTdsSignals = existingSignals.filter(s => !s.code.startsWith("TDS_"));
+    compliance.riskSignals = [...nonTdsSignals, ...tdsResult.riskSignals];
+  } catch (error) {
+    logger.warn("compliance.retrigger.tds.failed", {
+      invoiceId, tenantId,
+      error: error instanceof Error ? error.message : String(error)
+    });
+  }
+
+  try {
+    const tcsConfig = await TenantTcsConfigModel.findOne({ tenantId }).lean();
+    if (tcsConfig?.enabled && tcsConfig.ratePercent > 0 && parsed.totalAmountMinor && parsed.totalAmountMinor > 0) {
+      const tcsAmount = Math.floor(parsed.totalAmountMinor * tcsConfig.ratePercent / 100);
+      compliance.tcs = {
+        rate: tcsConfig.ratePercent,
+        amountMinor: tcsAmount,
+        source: "configured"
+      };
+    }
+  } catch (error) {
+    logger.warn("compliance.retrigger.tcs.failed", {
+      invoiceId, tenantId,
+      error: error instanceof Error ? error.message : String(error)
+    });
   }
 }
 

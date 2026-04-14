@@ -4,7 +4,7 @@ import { currencyBySymbol } from "@/ai/parsers/invoiceParser.js";
 /**
  * Canonical month-name-to-number map, shared across date parsing utilities.
  */
-function resolveMonthNumber(value: string): string | undefined {
+export function resolveMonthNumber(value: string): string | undefined {
   const months: Record<string, string> = {
     jan: "01",
     january: "01",
