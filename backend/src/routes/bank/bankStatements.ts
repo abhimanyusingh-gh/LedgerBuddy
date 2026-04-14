@@ -1,7 +1,7 @@
 import { Router } from "express";
 import multer from "multer";
 import { BankStatementModel } from "@/models/bank/BankStatement.js";
-import { BankTransactionModel } from "@/models/bank/BankTransaction.js";
+import { BankTransactionModel, BANK_TRANSACTION_MATCH_STATUS, type BankTransactionMatchStatus } from "@/models/bank/BankTransaction.js";
 import { BankStatementParser } from "@/ai/extractors/bank/BankStatementParser.js";
 import { BankStatementParseProgress } from "@/ai/extractors/bank/BankStatementParseProgress.js";
 import { ReconciliationService } from "@/services/bank/ReconciliationService.js";
@@ -139,6 +139,55 @@ export function createBankStatementsRouter(
       ]);
 
       res.json({ items, total, page, limit });
+    } catch (error) { next(error); }
+  });
+
+  router.get("/bank-statements/:id/matches", async (req, res, next) => {
+    try {
+      const tenantId = req.authContext!.tenantId;
+      const statement = await BankStatementModel.findOne({ _id: req.params.id, tenantId }).lean();
+      if (!statement) { res.status(404).json({ message: "Bank statement not found." }); return; }
+      const transactions = await BankTransactionModel.find({ tenantId, statementId: req.params.id }).sort({ date: 1 }).lean();
+      const invoiceIds = [...new Set(transactions.map((t) => t.matchedInvoiceId).filter((id): id is string => !!id))];
+      const invoiceMap = new Map<string, { _id: string; invoiceNumber: string | null; vendorName: string | null; totalAmountMinor: number | null; invoiceDate: string | null; status: string }>();
+      if (invoiceIds.length > 0) {
+        const invoices = await InvoiceModel.find(
+          { _id: { $in: invoiceIds }, tenantId },
+          { "parsed.invoiceNumber": 1, "parsed.vendorName": 1, "parsed.totalAmountMinor": 1, "parsed.invoiceDate": 1, status: 1 }
+        ).lean();
+        for (const inv of invoices) {
+          const parsed = inv.parsed as Record<string, unknown> | undefined;
+          invoiceMap.set(String(inv._id), {
+            _id: String(inv._id),
+            invoiceNumber: (parsed?.invoiceNumber as string | null) ?? null,
+            vendorName: (parsed?.vendorName as string | null) ?? null,
+            totalAmountMinor: (parsed?.totalAmountMinor as number | null) ?? null,
+            invoiceDate: (parsed?.invoiceDate as string | null) ?? null,
+            status: inv.status as string
+          });
+        }
+      }
+      let matched = 0, suggested = 0, unmatched = 0;
+      const items = transactions.map((t) => {
+        const status = (t.matchStatus ?? BANK_TRANSACTION_MATCH_STATUS.UNMATCHED) as BankTransactionMatchStatus;
+        if (status === BANK_TRANSACTION_MATCH_STATUS.MATCHED || status === BANK_TRANSACTION_MATCH_STATUS.MANUAL) matched++;
+        else if (status === BANK_TRANSACTION_MATCH_STATUS.SUGGESTED) suggested++;
+        else unmatched++;
+        return {
+          _id: String(t._id),
+          date: t.date,
+          description: t.description,
+          reference: t.reference ?? null,
+          debitMinor: t.debitMinor ?? null,
+          creditMinor: t.creditMinor ?? null,
+          balanceMinor: t.balanceMinor ?? null,
+          matchStatus: status,
+          matchConfidence: t.matchConfidence ?? null,
+          matchedInvoiceId: t.matchedInvoiceId ?? null,
+          invoice: t.matchedInvoiceId ? (invoiceMap.get(t.matchedInvoiceId) ?? null) : null
+        };
+      });
+      res.json({ items, summary: { totalTransactions: transactions.length, matched, suggested, unmatched } });
     } catch (error) { next(error); }
   });
 
