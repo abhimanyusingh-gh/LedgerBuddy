@@ -26,7 +26,7 @@ export class MsmeTrackingService {
     let paymentDeadline: Date | null = null;
 
     if (udyamNumber && UDYAM_FORMAT.test(udyamNumber.toUpperCase())) {
-      classification = this.classifyFromUdyam(udyamNumber);
+      classification = "small";
       await VendorMasterModel.updateOne(
         { tenantId, vendorFingerprint },
         { $set: { "msme.udyamNumber": udyamNumber.toUpperCase(), "msme.classification": classification, "msme.verifiedAt": new Date() } }
@@ -74,9 +74,5 @@ export class MsmeTrackingService {
       msme: { udyamNumber: udyamNumber?.toUpperCase() ?? null, classification, paymentDeadline },
       riskSignals
     };
-  }
-
-  private classifyFromUdyam(_udyamNumber: string): "micro" | "small" | "medium" {
-    return "small";
   }
 }
