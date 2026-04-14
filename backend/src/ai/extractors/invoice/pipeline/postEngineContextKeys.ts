@@ -1,0 +1,15 @@
+export const POST_ENGINE_CTX = {
+  SLM_OUTPUT: "invoice.slmOutput",
+  MERGED_PARSED: "invoice.mergedParsed",
+  RECOVERED_PARSED: "invoice.recoveredParsed",
+  RECOVERY_STRATEGY: "invoice.recoveryStrategy",
+  VALIDATION_ISSUES: "invoice.validationIssues",
+  FIELD_CONFIDENCE: "invoice.fieldConfidence",
+  FIELD_PROVENANCE: "invoice.fieldProvenance",
+  COMPLIANCE: "invoice.compliance",
+  CONFIDENCE_ASSESSMENT: "invoice.confidenceAssessment",
+  EXTRACTION_DATA: "invoice.extractionData",
+  LINE_ITEM_PROVENANCE: "invoice.lineItemProvenance",
+  CLASSIFICATION: "invoice.classification",
+  FINAL_RESULT: "invoice.finalResult",
+} as const;
