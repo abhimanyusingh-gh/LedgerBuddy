@@ -15,7 +15,7 @@ import type { RankedOcrTextCandidate } from "../stages/ocrTextCandidates.js";
 import type { DetectedInvoiceLanguage } from "./languageDetection.js";
 import type { VendorTemplateSnapshot } from "./learning/vendorTemplateStore.js";
 import { validateInvoiceFields } from "./deterministicValidation.js";
-import { parseLlamaExtractFields } from "@/ai/ocr/adapters/LlamaExtractAdapter.js";
+import { parseLlamaExtractFields } from "./adapters/LlamaExtractAdapter.js";
 import { sanitizeInvoiceExtraction } from "./InvoiceExtractionSanitizer.js";
 
 export interface InvoiceSlmOutput {
