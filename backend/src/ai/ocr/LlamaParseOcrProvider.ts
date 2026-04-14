@@ -318,7 +318,11 @@ async function downloadScreenshots(
           mimeType,
           dataUrl: `data:${mimeType};base64,${buffer.toString("base64")}`,
         });
-      } catch {
+      } catch (error) {
+        logger.warn("llamaparse.screenshot.download.failed", {
+          url: img.presigned_url,
+          error: error instanceof Error ? error.message : String(error),
+        });
       }
     })
   );
