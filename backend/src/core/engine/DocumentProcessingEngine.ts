@@ -47,6 +47,9 @@ export class DocumentProcessingEngine<TOutput> {
       for (const field of ocrResult.fields) {
         fieldsAsRecord[field.key] = field.value;
       }
+      if (ocrResult.extractedLineItems && ocrResult.extractedLineItems.length > 0) {
+        fieldsAsRecord["line_items"] = ocrResult.extractedLineItems;
+      }
       const output = this.definition.parseOutput(fieldsAsRecord);
       const validationResult = this.runValidation(output, processingIssues);
       return {

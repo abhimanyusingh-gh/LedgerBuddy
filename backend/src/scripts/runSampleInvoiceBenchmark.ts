@@ -328,6 +328,7 @@ async function run(): Promise<void> {
     baseUrl: slmBaseUrl,
     timeoutMs: 240_000
   });
+  const llamaExtractEnabled = ocrChoice === "llamaparse" && process.env.LLAMA_PARSE_EXTRACT_ENABLED === "true";
   const pipeline = new InvoiceExtractionPipeline(
     {
       ocrProvider,
@@ -337,7 +338,8 @@ async function run(): Promise<void> {
     },
     {
       ocrHighConfidenceThreshold: 0.88,
-      llmAssistConfidenceThreshold: 85
+      llmAssistConfidenceThreshold: 85,
+      llamaExtractEnabled
     }
   );
 
