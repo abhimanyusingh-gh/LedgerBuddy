@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 SLM_PID_FILE="$ROOT_DIR/.local-run/slm.pid"
 SLM_LOG_FILE="$ROOT_DIR/.local-run/slm.log"
 SLM_HEALTH_URL="http://127.0.0.1:8300/health"
@@ -30,11 +30,11 @@ echo "Starting SLM: engine=$engine  pipeline=$pipeline  multi_step=$multi_step"
 SLM_ENGINE="$engine" \
 SLM_EXTRACTION_PIPELINE="$pipeline" \
 SLM_MULTI_STEP_EXTRACTION="$multi_step" \
-"$PYTHON_BIN" scripts/start-detached.py \
+"$PYTHON_BIN" dev/scripts/start-detached.py \
   --pid-file "$SLM_PID_FILE" \
   --log-file "$SLM_LOG_FILE" \
   --cwd "$ROOT_DIR" \
-  -- "$PYTHON_BIN" -m uvicorn app.api:app --app-dir slm --host 0.0.0.0 --port 8300
+  -- "$PYTHON_BIN" -m uvicorn app.api:app --app-dir ai/slm --host 0.0.0.0 --port 8300
 
 echo "SLM started (PID $(cat "$SLM_PID_FILE"))"
 printf "Waiting for health"

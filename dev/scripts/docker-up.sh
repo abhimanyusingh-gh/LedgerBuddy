@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT_DIR"
 
 if docker compose version >/dev/null 2>&1; then
@@ -25,7 +25,7 @@ DEFAULT_LOCAL_MANIFEST_PATH="backend/runtime-manifest.local.demo.json"
 APP_MANIFEST_PATH_VALUE="${APP_MANIFEST_PATH:-}"
 LOCAL_DEMO_SEED_VALUE="${LOCAL_DEMO_SEED:-}"
 AUTH_AUTO_PROVISION_USERS_VALUE="${AUTH_AUTO_PROVISION_USERS:-}"
-LOCAL_DEMO_CONFIG_PATH_VALUE="${LOCAL_DEMO_CONFIG_PATH:-config/local-demo-users.json}"
+LOCAL_DEMO_CONFIG_PATH_VALUE="${LOCAL_DEMO_CONFIG_PATH:-dev/config/local-demo-users.json}"
 
 RUN_DIR="$ROOT_DIR/.local-run"
 OCR_PID_FILE="$RUN_DIR/ocr.pid"
@@ -115,8 +115,8 @@ ensure_venv_ml() {
   if [[ "$needs_deps" == "true" ]]; then
     echo "Installing Python dependencies into .venv-ml..." >&2
     "$venv_dir/bin/pip" install --quiet --upgrade pip
-    "$venv_dir/bin/pip" install --quiet -r ocr/requirements.txt
-    "$venv_dir/bin/pip" install --quiet -r slm/requirements.txt
+    "$venv_dir/bin/pip" install --quiet -r ai/ocr/requirements.txt
+    "$venv_dir/bin/pip" install --quiet -r ai/slm/requirements.txt
     echo "Python dependencies installed." >&2
   fi
 
@@ -259,7 +259,7 @@ start_local_service_if_needed() {
 
   echo "Starting $name service"
   local pid
-  pid="$("$PYTHON_BIN" scripts/start-detached.py --pid-file "$pid_file" --log-file "$log_file" --cwd "$ROOT_DIR" -- "$@")"
+  pid="$("$PYTHON_BIN" dev/scripts/start-detached.py --pid-file "$pid_file" --log-file "$log_file" --cwd "$ROOT_DIR" -- "$@")"
   if [[ -n "$pid" ]]; then
     echo "$name started with pid $pid"
   fi
@@ -300,7 +300,7 @@ if [[ "$ENV_MODE" == "local" || "$ENV_MODE" == "dev" ]]; then
     fi
   fi
   if [[ "$INVOICE_INBOX_PATH" == "$DEFAULT_DEMO_INBOX_PATH" ]]; then
-    prepare_local_demo_inbox "$ROOT_DIR/sample-invoices/inbox" "$INVOICE_INBOX_PATH"
+    prepare_local_demo_inbox "$ROOT_DIR/dev/sample-invoices/inbox" "$INVOICE_INBOX_PATH"
   fi
 
   if is_local_ocr_engine || is_local_slm_engine; then
@@ -317,7 +317,7 @@ if [[ "$ENV_MODE" == "local" || "$ENV_MODE" == "dev" ]]; then
       "$OCR_HEALTH_URL" \
       "$OCR_PID_FILE" \
       "$OCR_LOG_FILE" \
-      "$PYTHON_BIN" -m uvicorn app.api:app --app-dir ocr --host 0.0.0.0 --port 8200
+      "$PYTHON_BIN" -m uvicorn app.api:app --app-dir ai/ocr --host 0.0.0.0 --port 8200
 
     detected_ocr_model="$(curl -fsS http://localhost:8200/v1/models 2>/dev/null \
       | "$PYTHON_BIN" -c "import sys,json; d=json.load(sys.stdin); print(d['data'][0]['id'] if d.get('data') else '')" 2>/dev/null || true)"
@@ -339,7 +339,7 @@ if [[ "$ENV_MODE" == "local" || "$ENV_MODE" == "dev" ]]; then
       "$SLM_HEALTH_URL" \
       "$SLM_PID_FILE" \
       "$SLM_LOG_FILE" \
-      "$PYTHON_BIN" -m uvicorn app.api:app --app-dir slm --host 0.0.0.0 --port 8300
+      "$PYTHON_BIN" -m uvicorn app.api:app --app-dir ai/slm --host 0.0.0.0 --port 8300
   fi
 fi
 

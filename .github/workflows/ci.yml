@@ -135,13 +135,13 @@ jobs:
       - name: Install dependencies
         run: |
           pip install --upgrade pip
-          pip install -r ocr/requirements.base.txt
-          pip install -r ocr/requirements.prod.txt
+          pip install -r ai/ocr/requirements.base.txt
+          pip install -r ai/ocr/requirements.prod.txt
       - name: Syntax check all Python files
-        run: find ocr/app -name '*.py' -exec python -m py_compile {} +
+        run: find ai/ocr/app -name '*.py' -exec python -m py_compile {} +
       - name: Verify prod_http provider imports
         run: |
-          cd ocr
+          cd ai/ocr
           python -c "from app.providers.http.provider import ProdHttpOCRProvider; print('OCR prod_http OK')"
           python -c "from app.engine import estimate_confidence, parse_data_url; print('OCR engine OK')"
           python -c "from app.schemas import OcrDocumentRequest; print('OCR schemas OK')"
@@ -160,13 +160,13 @@ jobs:
       - name: Install dependencies
         run: |
           pip install --upgrade pip
-          pip install -r slm/requirements.base.txt
-          pip install -r slm/requirements.prod.txt
+          pip install -r ai/slm/requirements.base.txt
+          pip install -r ai/slm/requirements.prod.txt
       - name: Syntax check all Python files
-        run: find slm/app -name '*.py' -exec python -m py_compile {} +
+        run: find ai/slm/app -name '*.py' -exec python -m py_compile {} +
       - name: Verify prod_http provider imports
         run: |
-          cd slm
+          cd ai/slm
           python -c "from app.providers.http.provider import ProdHttpLLMProvider; print('SLM prod_http OK')"
           python -c "from app.engine import select_with_fallback; print('SLM engine OK')"
           python -c "from app.schemas import VerifyInvoiceRequest, VerifyInvoiceResponse; print('SLM schemas OK')"
@@ -183,9 +183,9 @@ jobs:
           - service: frontend
             dockerfile: frontend/Dockerfile
           - service: ocr
-            dockerfile: ocr/Dockerfile
+            dockerfile: ai/ocr/Dockerfile
           - service: slm
-            dockerfile: slm/Dockerfile
+            dockerfile: ai/slm/Dockerfile
     steps:
       - uses: actions/checkout@v4
       - uses: docker/setup-buildx-action@v3

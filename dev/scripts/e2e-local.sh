@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT_DIR"
 
 if docker compose version >/dev/null 2>&1; then
@@ -14,7 +14,7 @@ else
 fi
 
 E2E_INBOX_DIR="${E2E_INBOX_DIR:-}"
-SOURCE_INBOX_DIR="${SOURCE_INBOX_DIR:-$ROOT_DIR/sample-invoices/inbox}"
+SOURCE_INBOX_DIR="${SOURCE_INBOX_DIR:-$ROOT_DIR/dev/sample-invoices/inbox}"
 PINNED_SLM_MODEL_ID="mlx-community/DeepSeek-R1-Distill-Qwen-14B-4bit"
 E2E_API_BASE_URL="${E2E_API_BASE_URL:-http://127.0.0.1:4100}"
 E2E_FRONTEND_BASE_URL="${E2E_FRONTEND_BASE_URL:-http://127.0.0.1:5177}"
@@ -197,7 +197,7 @@ start_local_service_if_needed() {
   fi
 
   echo "Starting $name service"
-  "$PYTHON_BIN" scripts/start-detached.py --pid-file "$pid_file" --log-file "$log_file" --cwd "$ROOT_DIR" -- "$@" >/dev/null
+  "$PYTHON_BIN" dev/scripts/start-detached.py --pid-file "$pid_file" --log-file "$log_file" --cwd "$ROOT_DIR" -- "$@" >/dev/null
   wait_for_model_ready "$health_url" "$name" 1800 "$pid_file" "$log_file"
 }
 
@@ -213,14 +213,14 @@ start_local_service_if_needed \
   "$E2E_OCR_HEALTH_URL" \
   "$OCR_PID_FILE" \
   "$OCR_LOG_FILE" \
-  "$PYTHON_BIN" -m uvicorn app.api:app --app-dir ocr --host 0.0.0.0 --port 8200
+  "$PYTHON_BIN" -m uvicorn app.api:app --app-dir ai/ocr --host 0.0.0.0 --port 8200
 
 start_local_service_if_needed \
   "SLM" \
   "$E2E_SLM_HEALTH_URL" \
   "$SLM_PID_FILE" \
   "$SLM_LOG_FILE" \
-  "$PYTHON_BIN" -m uvicorn app.api:app --app-dir slm --host 0.0.0.0 --port 8300
+  "$PYTHON_BIN" -m uvicorn app.api:app --app-dir ai/slm --host 0.0.0.0 --port 8300
 
 INVOICE_INBOX_PATH="$E2E_INBOX_DIR" ENV=local \
   "${COMPOSE_CMD[@]}" up -d --build --remove-orphans \

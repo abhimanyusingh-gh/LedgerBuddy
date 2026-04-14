@@ -59,7 +59,7 @@ services:
       AUTH_AUTO_PROVISION_USERS: ${AUTH_AUTO_PROVISION_USERS:-true}
       PLATFORM_ADMIN_EMAILS: ${PLATFORM_ADMIN_EMAILS:-platform-admin@local.test}
       LOCAL_DEMO_SEED: ${LOCAL_DEMO_SEED:-true}
-      LOCAL_DEMO_CONFIG_PATH: ${LOCAL_DEMO_CONFIG_PATH:-config/local-demo-users.json}
+      LOCAL_DEMO_CONFIG_PATH: ${LOCAL_DEMO_CONFIG_PATH:-dev/config/local-demo-users.json}
       INGESTION_SOURCES: ${INGESTION_SOURCES:-folder}
       FOLDER_SOURCE_KEY: local-folder
       FOLDER_SOURCE_PATH: /app/sample-invoices/inbox
@@ -137,7 +137,7 @@ services:
       INVITE_BASE_URL: ${INVITE_BASE_URL:-http://localhost:5177}
       REDIS_URL: ${REDIS_URL:-redis://redis:6379}
     volumes:
-      - ${INVOICE_INBOX_PATH:-./sample-invoices/inbox}:/app/sample-invoices/inbox:ro
+      - ${INVOICE_INBOX_PATH:-./dev/sample-invoices/inbox}:/app/sample-invoices/inbox:ro
       - ./.local-run/artifacts:/app/.local-run/artifacts
 
   redis:
@@ -220,7 +220,7 @@ services:
       MONGO_INITDB_ROOT_PASSWORD: billforge_root_pass
     volumes:
       - mongo_data:/data/db
-      - ./mongo/mongo-init.js:/docker-entrypoint-initdb.d/01-create-app-user.js:ro
+      - ./infra/mongo/mongo-init.js:/docker-entrypoint-initdb.d/01-create-app-user.js:ro
     deploy:
       resources:
         limits:
@@ -259,7 +259,7 @@ services:
   mailhog-oauth:
     build:
       context: .
-      dockerfile: mailhog-oauth-wrapper/Dockerfile
+      dockerfile: infra/mailhog/Dockerfile
     container_name: billforge-mailhog-oauth
     restart: unless-stopped
     depends_on:
@@ -306,7 +306,7 @@ services:
       KC_DB: dev-file
       KC_LOG_LEVEL: ${KC_LOG_LEVEL:-info}
     volumes:
-      - ./keycloak/realm-config.json:/opt/keycloak/data/import/realm-config.json:ro
+      - ./infra/keycloak/realm-config.json:/opt/keycloak/data/import/realm-config.json:ro
       - keycloak_data:/opt/keycloak/data
     healthcheck:
       test: ["CMD-SHELL", "exec 3<>/dev/tcp/localhost/9000 && echo -e 'GET /health/ready HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n' >&3 && timeout 2 cat <&3 | head -1 | grep -q 200"]
@@ -318,7 +318,7 @@ services:
   ocr:
     build:
       context: .
-      dockerfile: ocr/Dockerfile
+      dockerfile: ai/ocr/Dockerfile
     container_name: billforge-ocr
     restart: unless-stopped
     ports:
@@ -344,7 +344,7 @@ services:
   slm:
     build:
       context: .
-      dockerfile: slm/Dockerfile
+      dockerfile: ai/slm/Dockerfile
     container_name: billforge-slm
     restart: unless-stopped
     ports:

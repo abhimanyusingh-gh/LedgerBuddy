@@ -9,9 +9,9 @@ import time
 import urllib.request
 
 DEFAULT_SAMPLES = [
-  ("sample-invoices/inbox/invoice2data__AmazonWebServices.pdf", "application/pdf"),
-  ("sample-invoices/inbox/invoice2data__AmazonWebServices.png", "image/png"),
-  ("sample-invoices/inbox/invoice_dataset_model_3__FACTU2015010038.jpg", "image/jpeg")
+  ("dev/sample-invoices/inbox/invoice2data__AmazonWebServices.pdf", "application/pdf"),
+  ("dev/sample-invoices/inbox/invoice2data__AmazonWebServices.png", "image/png"),
+  ("dev/sample-invoices/inbox/invoice_dataset_model_3__FACTU2015010038.jpg", "image/jpeg")
 ]
 
 

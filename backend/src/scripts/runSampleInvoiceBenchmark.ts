@@ -310,8 +310,8 @@ async function run(): Promise<void> {
   const scriptDir = dirname(fileURLToPath(import.meta.url));
   const backendRoot = resolve(scriptDir, "../..");
   const projectRoot = resolve(backendRoot, "..");
-  const samplesDir = argValue("--samples-dir", join(projectRoot, "sample-invoices/inbox"));
-  const specPath = argValue("--spec", join(projectRoot, "sample-invoices/ground-truth.json"));
+  const samplesDir = argValue("--samples-dir", join(projectRoot, "dev/sample-invoices/inbox"));
+  const specPath = argValue("--spec", join(projectRoot, "dev/sample-invoices/ground-truth.json"));
   const outputPath = argValue("--output", join(projectRoot, ".local-run/benchmark/latest-results.json"));
 
   const ocrChoice = argValue("--ocr", "deepseek");

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT_DIR"
 
 if docker compose version >/dev/null 2>&1; then
@@ -167,7 +167,7 @@ start_local_service_if_needed() {
   fi
 
   echo "Starting $name service"
-  "$PYTHON_BIN" scripts/start-detached.py --pid-file "$pid_file" --log-file "$log_file" --cwd "$ROOT_DIR" -- "$@" >/dev/null
+  "$PYTHON_BIN" dev/scripts/start-detached.py --pid-file "$pid_file" --log-file "$log_file" --cwd "$ROOT_DIR" -- "$@" >/dev/null
   wait_for_model_ready "$health_url" "$name" 1800 "$pid_file" "$log_file"
 }
 
@@ -182,14 +182,14 @@ start_local_service_if_needed \
   "$E2E_OCR_HEALTH_URL" \
   "$OCR_PID_FILE" \
   "$OCR_LOG_FILE" \
-  "$PYTHON_BIN" -m uvicorn app.api:app --app-dir ocr --host 0.0.0.0 --port 8200
+  "$PYTHON_BIN" -m uvicorn app.api:app --app-dir ai/ocr --host 0.0.0.0 --port 8200
 
 start_local_service_if_needed \
   "SLM" \
   "$E2E_SLM_HEALTH_URL" \
   "$SLM_PID_FILE" \
   "$SLM_LOG_FILE" \
-  "$PYTHON_BIN" -m uvicorn app.api:app --app-dir slm --host 0.0.0.0 --port 8300
+  "$PYTHON_BIN" -m uvicorn app.api:app --app-dir ai/slm --host 0.0.0.0 --port 8300
 
 ENV=local \
 APP_MANIFEST_PATH=runtime-manifest.e2e.email-oauth.json \

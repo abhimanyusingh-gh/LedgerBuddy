@@ -7,7 +7,7 @@ set -euo pipefail
 #
 # Prerequisites: the full stack must already be running (yarn docker:up).
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT_DIR"
 
 if docker compose version >/dev/null 2>&1; then
@@ -46,7 +46,7 @@ ensure_native_service() {
     echo "Error: Python venv not found at $PYTHON_BIN. Run yarn docker:up first." >&2
     return 1
   fi
-  "$PYTHON_BIN" scripts/start-detached.py \
+  "$PYTHON_BIN" dev/scripts/start-detached.py \
     --pid-file "$pid_file" --log-file "$RUN_DIR/${name,,}.log" --cwd "$ROOT_DIR" -- \
     "$PYTHON_BIN" -m uvicorn app.api:app --app-dir "$app_dir" --host 0.0.0.0 --port "$port" >/dev/null 2>&1
   local timeout=120 elapsed=0
@@ -62,8 +62,8 @@ ensure_native_service() {
 }
 
 mkdir -p "$RUN_DIR"
-ensure_native_service "OCR" "$OCR_HEALTH_URL" "$RUN_DIR/ocr.pid" 8200 ocr
-ensure_native_service "SLM" "$SLM_HEALTH_URL" "$RUN_DIR/slm.pid" 8300 slm
+ensure_native_service "OCR" "$OCR_HEALTH_URL" "$RUN_DIR/ocr.pid" 8200 ai/ocr
+ensure_native_service "SLM" "$SLM_HEALTH_URL" "$RUN_DIR/slm.pid" 8300 ai/slm
 
 # Build all images with no cache (backend, frontend, OCR proxy, SLM proxy)
 echo "Building images (no cache)..."
