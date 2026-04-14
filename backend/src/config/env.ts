@@ -1,7 +1,7 @@
 import dotenv from "dotenv";
 import { z } from "zod";
 
-dotenv.config();
+dotenv.config({ quiet: true });
 
 const APP_ENVIRONMENTS = ["local", "stg", "prod"] as const;
 type AppEnvironment = (typeof APP_ENVIRONMENTS)[number];
