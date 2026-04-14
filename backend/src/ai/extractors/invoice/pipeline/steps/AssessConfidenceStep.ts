@@ -8,7 +8,7 @@ import { POST_ENGINE_CTX } from "../postEngineContextKeys.js";
  * Stage 14: Assesses overall extraction confidence, applying risk signal penalties
  * from compliance enrichment. Wraps `assessInvoiceConfidence()`.
  */
-export class AssessConfidenceStage implements PipelineStage {
+export class AssessConfidenceStep implements PipelineStage {
   readonly name = "assess-confidence";
 
   async execute(ctx: PipelineContext): Promise<StageResult> {

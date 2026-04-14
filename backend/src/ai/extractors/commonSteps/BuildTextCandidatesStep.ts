@@ -2,10 +2,10 @@ import type { PipelineStage, StageResult } from "@/core/pipeline/PipelineStage.j
 import type { PipelineContext } from "@/core/pipeline/PipelineContext.js";
 import type { OcrResult, OcrBlock } from "@/core/interfaces/OcrProvider.js";
 import type { EnhancedOcrResult } from "@/ai/ocr/ocrPostProcessor.js";
-import { buildRankedOcrTextCandidates } from "../../stages/ocrTextCandidates.js";
-import { INVOICE_CTX } from "../contextKeys.js";
+import { buildRankedOcrTextCandidates } from "../stages/ocrTextCandidates.js";
+import { INVOICE_CTX } from "../invoice/pipeline/contextKeys.js";
 
-export class BuildTextCandidatesStage implements PipelineStage {
+export class BuildTextCandidatesStep implements PipelineStage {
   readonly name = "build-text-candidates";
 
   constructor(private enableKeyValueGrounding: boolean) {}

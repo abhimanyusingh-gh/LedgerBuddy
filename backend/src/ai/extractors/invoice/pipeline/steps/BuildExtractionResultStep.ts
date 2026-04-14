@@ -12,7 +12,7 @@ import type { ConfidenceAssessment } from "@/services/invoice/confidenceAssessme
 import type { InvoiceSlmOutput } from "../../InvoiceDocumentDefinition.js";
 import type { OcrRecoveryStrategy } from "../../stages/lineItemRecovery.js";
 import { EXTRACTION_SOURCE, type ExtractionSource } from "@/core/engine/extractionSource.js";
-import { uniqueIssues } from "../../stages/fieldParsingUtils.js";
+import { uniqueIssues } from "../../../stages/fieldParsingUtils.js";
 import { POST_ENGINE_CTX } from "../postEngineContextKeys.js";
 import type { PipelineExtractionResult } from "../../InvoiceExtractionPipeline.js";
 
@@ -25,7 +25,7 @@ const OCR_RECOVERY_STRATEGY_SOURCE: Record<OcrRecoveryStrategy, ExtractionSource
 /**
  * Stage 16: Assembles the final PipelineExtractionResult from all context store values.
  */
-export class BuildExtractionResultStage implements PipelineStage {
+export class BuildExtractionResultStep implements PipelineStage {
   readonly name = "build-extraction-result";
 
   async execute(ctx: PipelineContext): Promise<StageResult> {

@@ -1,4 +1,4 @@
-import { clampProbability } from "./stages/fieldParsingUtils.js";
+import { clampProbability } from "../stages/fieldParsingUtils.js";
 
 interface ScriptLanguageCandidate {
   code: string;

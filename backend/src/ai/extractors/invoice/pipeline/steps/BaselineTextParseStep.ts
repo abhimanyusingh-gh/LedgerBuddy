@@ -10,7 +10,7 @@ interface LanguageResolution {
   resolved: { code: string };
 }
 
-export class BaselineTextParseStage implements PipelineStage {
+export class BaselineTextParseStep implements PipelineStage {
   readonly name = "baseline-text-parse";
 
   constructor(private template?: VendorTemplateSnapshot) {}

@@ -7,7 +7,7 @@ import { POST_ENGINE_CTX } from "../postEngineContextKeys.js";
  * Stage 11: Runs deterministic field validation on the recovered parsed data.
  * Stores validation issues and appends them to pipeline issues if invalid.
  */
-export class ValidateFieldsStage implements PipelineStage {
+export class ValidateFieldsStep implements PipelineStage {
   readonly name = "validate-fields";
 
   async execute(ctx: PipelineContext): Promise<StageResult> {

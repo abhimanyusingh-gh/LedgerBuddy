@@ -18,7 +18,7 @@ import { POST_ENGINE_CTX } from "../postEngineContextKeys.js";
  * Stage 10: Recovers header fields, GST summary, totals, and line items from OCR blocks.
  * Equivalent to the private `recoverOcrFields()` in InvoiceExtractionPipeline.
  */
-export class RecoverOcrFieldsStage implements PipelineStage {
+export class RecoverOcrFieldsStep implements PipelineStage {
   readonly name = "recover-ocr-fields";
 
   async execute(ctx: PipelineContext): Promise<StageResult> {

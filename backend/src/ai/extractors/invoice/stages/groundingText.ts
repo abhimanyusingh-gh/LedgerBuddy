@@ -2,7 +2,7 @@ import type { OcrBlock } from "@/core/interfaces/OcrProvider.js";
 import type { ParsedInvoiceData } from "@/types/invoice.js";
 import { parseAmountToken } from "@/ai/parsers/invoiceParser.js";
 import { looksLikeAddress } from "./fieldCandidates.js";
-import { normalizeDateToken, buildDateTerms, detectExplicitCurrency } from "./fieldParsingUtils.js";
+import { normalizeDateToken, buildDateTerms, detectExplicitCurrency } from "../../stages/fieldParsingUtils.js";
 
 export const DEFAULT_FIELD_LABEL_PATTERNS: Record<string, RegExp> = {
   invoiceNumber: /^((?:pro(?:forma|perma)?|performa)\s+invoice\s*(?:number|no\.?|#)?|invoice\s*(?:number|no\.?|#)|bill\s*(?:number|no\.?|#)|inv\s*(?:no\.?|#))$/i,

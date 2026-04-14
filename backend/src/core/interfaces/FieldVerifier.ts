@@ -7,7 +7,7 @@ import type {
   InvoiceLineItemProvenance,
   ParsedInvoiceData
 } from "@/types/invoice.js";
-import type { MergedBlock, NormalizedAmount, NormalizedCurrency, NormalizedDate, OcrLine, OcrTable } from "@/ai/ocr/ocrPostProcessor.js";
+import type { MergedBlock, OcrLine } from "@/ai/ocr/ocrPostProcessor.js";
 
 export type FieldVerificationMode = "strict" | "relaxed";
 
@@ -42,10 +42,6 @@ export interface FieldVerifierInput {
     ocrCandidateScores?: Array<{ id: string; score: number }>;
     mergedBlocks?: MergedBlock[];
     structuredLines?: OcrLine[];
-    structuredTables?: OcrTable[];
-    normalizedAmounts?: NormalizedAmount[];
-    normalizedDates?: NormalizedDate[];
-    normalizedCurrencies?: NormalizedCurrency[];
   };
 }
 

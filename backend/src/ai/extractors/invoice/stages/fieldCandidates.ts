@@ -2,7 +2,7 @@ import type { OcrBlock } from "@/core/interfaces/OcrProvider.js";
 import type { ParsedInvoiceData } from "@/types/invoice.js";
 import type { VendorTemplateSnapshot } from "../learning/vendorTemplateStore.js";
 import { currencyBySymbol, parseAmountToken } from "@/ai/parsers/invoiceParser.js";
-import { buildDateTerms } from "./fieldParsingUtils.js";
+import { buildDateTerms } from "../../stages/fieldParsingUtils.js";
 
 const ADDRESS_RE = /\b(address|warehouse|village|road|street|taluk|district|postal|zip)\b/i;
 const WEAK_VENDOR_RE =

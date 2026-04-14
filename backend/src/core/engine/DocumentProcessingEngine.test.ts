@@ -5,9 +5,9 @@ import type { ChunkableDocumentDefinition, DocumentDefinition, SinglePassDocumen
 import { DOC_TYPE } from "./DocumentDefinition.ts";
 import type { ProcessingContext, ValidationResult } from "./types.ts";
 import { DocumentProcessingError } from "./types.ts";
-import * as nativePdfText from "../../ai/extractors/invoice/stages/nativePdfText.ts";
+import * as nativePdfText from "../../ai/extractors/stages/nativePdfText.ts";
 
-jest.mock("../../ai/extractors/invoice/stages/nativePdfText.ts");
+jest.mock("../../ai/extractors/stages/nativePdfText.ts");
 
 function makeNativePdfText(text: string) {
   (nativePdfText.extractNativePdfText as jest.Mock).mockReturnValue(text);

@@ -8,7 +8,7 @@ import { POST_ENGINE_CTX } from "../postEngineContextKeys.js";
  * Stage 13: Enriches the parsed data with compliance information (TDS, PAN, risk signals).
  * Only executes if a ComplianceEnricher was provided. Mirrors `runCompliance()` in the pipeline.
  */
-export class EnrichComplianceStage implements PipelineStage {
+export class EnrichComplianceStep implements PipelineStage {
   readonly name = "enrich-compliance";
 
   constructor(private readonly complianceEnricher?: ComplianceEnricher) {}

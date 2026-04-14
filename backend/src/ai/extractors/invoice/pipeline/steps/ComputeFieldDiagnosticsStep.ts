@@ -10,7 +10,7 @@ import { POST_ENGINE_CTX } from "../postEngineContextKeys.js";
  * Stage 12: Computes per-field confidence scores and provenance via OCR block grounding.
  * Wraps `addFieldDiagnosticsToMetadata()` from FieldConfidenceScorer.
  */
-export class ComputeFieldDiagnosticsStage implements PipelineStage {
+export class ComputeFieldDiagnosticsStep implements PipelineStage {
   readonly name = "compute-field-diagnostics";
 
   async execute(ctx: PipelineContext): Promise<StageResult> {

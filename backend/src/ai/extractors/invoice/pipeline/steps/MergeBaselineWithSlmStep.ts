@@ -2,14 +2,14 @@ import type { PipelineContext, PipelineStage, StageResult } from "@/core/pipelin
 import type { InvoiceSlmOutput } from "../../InvoiceDocumentDefinition.js";
 import type { ParsedInvoiceData } from "@/types/invoice.js";
 import { sanitizeInvoiceExtraction } from "../../InvoiceExtractionSanitizer.js";
-import { uniqueIssues } from "../../stages/fieldParsingUtils.js";
+import { uniqueIssues } from "../../../stages/fieldParsingUtils.js";
 import { POST_ENGINE_CTX } from "../postEngineContextKeys.js";
 
 /**
  * Stage 9: Merges the baseline (heuristic) parsed data with SLM output.
  * Equivalent to the private `mergeParsedInvoiceData()` in InvoiceExtractionPipeline.
  */
-export class MergeBaselineWithSlmStage implements PipelineStage {
+export class MergeBaselineWithSlmStep implements PipelineStage {
   readonly name = "merge-baseline-with-slm";
 
   async execute(ctx: PipelineContext): Promise<StageResult> {

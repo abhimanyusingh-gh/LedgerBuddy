@@ -9,7 +9,7 @@ interface ValidationParams {
   referenceDate?: Date;
 }
 
-export class SetValidationContextStage implements PipelineStage {
+export class SetValidationContextStep implements PipelineStage {
   readonly name = "set-validation-context";
 
   constructor(

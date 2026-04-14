@@ -13,7 +13,7 @@ import { POST_ENGINE_CTX } from "../postEngineContextKeys.js";
  * Stage 15: Resolves line-item provenance via OCR block matching, collects
  * line-item confidence, and merges classification with compliance TDS section.
  */
-export class ResolveProvenanceStage implements PipelineStage {
+export class ResolveProvenanceStep implements PipelineStage {
   readonly name = "resolve-provenance";
 
   async execute(ctx: PipelineContext): Promise<StageResult> {

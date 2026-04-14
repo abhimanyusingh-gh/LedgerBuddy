@@ -9,7 +9,7 @@ import { INVOICE_CTX } from "../contextKeys.js";
  * stages (baseline parse, augment prompt, set validation context) are unnecessary.
  * This stage halts the pipeline in that case.
  */
-export class CheckExtractFieldsGateStage implements PipelineStage {
+export class CheckExtractFieldsGateStep implements PipelineStage {
   readonly name = "check-extract-fields-gate";
 
   constructor(private readonly llamaExtractEnabled: boolean) {}

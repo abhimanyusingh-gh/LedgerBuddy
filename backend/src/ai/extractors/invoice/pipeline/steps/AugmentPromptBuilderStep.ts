@@ -4,7 +4,7 @@ import type { OcrBlock, OcrPageImage } from "@/core/interfaces/OcrProvider.js";
 import type { InvoiceDocumentDefinition } from "../../InvoiceDocumentDefinition.js";
 import { INVOICE_CTX } from "../contextKeys.js";
 
-export class AugmentPromptBuilderStage implements PipelineStage {
+export class AugmentPromptBuilderStep implements PipelineStage {
   readonly name = "augment-prompt-builder";
 
   constructor(private definition: InvoiceDocumentDefinition) {}

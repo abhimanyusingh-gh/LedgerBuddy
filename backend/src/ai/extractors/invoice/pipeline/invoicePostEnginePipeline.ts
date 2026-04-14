@@ -4,14 +4,14 @@ import type { ComplianceEnricher } from "@/services/compliance/ComplianceEnriche
 import type { PipelineExtractionResult } from "../InvoiceExtractionPipeline.js";
 import { POST_ENGINE_CTX } from "./postEngineContextKeys.js";
 
-import { MergeBaselineWithSlmStage } from "./stages/MergeBaselineWithSlmStage.js";
-import { RecoverOcrFieldsStage } from "./stages/RecoverOcrFieldsStage.js";
-import { ValidateFieldsStage } from "./stages/ValidateFieldsStage.js";
-import { ComputeFieldDiagnosticsStage } from "./stages/ComputeFieldDiagnosticsStage.js";
-import { EnrichComplianceStage } from "./stages/EnrichComplianceStage.js";
-import { AssessConfidenceStage } from "./stages/AssessConfidenceStage.js";
-import { ResolveProvenanceStage } from "./stages/ResolveProvenanceStage.js";
-import { BuildExtractionResultStage } from "./stages/BuildExtractionResultStage.js";
+import { MergeBaselineWithSlmStep } from "./steps/MergeBaselineWithSlmStep.js";
+import { RecoverOcrFieldsStep } from "./steps/RecoverOcrFieldsStep.js";
+import { ValidateFieldsStep } from "./steps/ValidateFieldsStep.js";
+import { ComputeFieldDiagnosticsStep } from "./steps/ComputeFieldDiagnosticsStep.js";
+import { EnrichComplianceStep } from "./steps/EnrichComplianceStep.js";
+import { AssessConfidenceStep } from "./steps/AssessConfidenceStep.js";
+import { ResolveProvenanceStep } from "./steps/ResolveProvenanceStep.js";
+import { BuildExtractionResultStep } from "./steps/BuildExtractionResultStep.js";
 
 export interface PostEnginePipelineDeps {
   complianceEnricher?: ComplianceEnricher;
@@ -42,14 +42,14 @@ export function createInvoicePostEnginePipeline(
   );
 
   pipeline
-    .add(new MergeBaselineWithSlmStage())          // Stage 9
-    .add(new RecoverOcrFieldsStage())               // Stage 10
-    .add(new ValidateFieldsStage())                 // Stage 11
-    .add(new ComputeFieldDiagnosticsStage())        // Stage 12
-    .add(new EnrichComplianceStage(deps.complianceEnricher)) // Stage 13
-    .add(new AssessConfidenceStage())               // Stage 14
-    .add(new ResolveProvenanceStage())              // Stage 15
-    .add(new BuildExtractionResultStage());         // Stage 16
+    .add(new MergeBaselineWithSlmStep())          // Stage 9
+    .add(new RecoverOcrFieldsStep())               // Stage 10
+    .add(new ValidateFieldsStep())                 // Stage 11
+    .add(new ComputeFieldDiagnosticsStep())        // Stage 12
+    .add(new EnrichComplianceStep(deps.complianceEnricher)) // Stage 13
+    .add(new AssessConfidenceStep())               // Stage 14
+    .add(new ResolveProvenanceStep())              // Stage 15
+    .add(new BuildExtractionResultStep());         // Stage 16
 
   return pipeline;
 }

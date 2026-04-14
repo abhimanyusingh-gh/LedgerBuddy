@@ -24,7 +24,7 @@ import { INVOICE_CTX } from "./pipeline/contextKeys.js";
 import { POST_ENGINE_CTX } from "./pipeline/postEngineContextKeys.js";
 import { buildInvoiceAfterOcrPipeline } from "./pipeline/invoiceAfterOcrPipeline.js";
 import { createInvoicePostEnginePipeline } from "./pipeline/invoicePostEnginePipeline.js";
-import type { RankedOcrTextCandidate } from "./stages/ocrTextCandidates.js";
+import type { RankedOcrTextCandidate } from "../stages/ocrTextCandidates.js";
 import * as fs from "fs/promises";
 import * as path from "path";
 
@@ -62,7 +62,7 @@ export interface PipelineExtractionResult {
   compliance?: InvoiceCompliance;
   extraction?: InvoiceExtractionData;
 }
-import { clampProbability, formatConfidence, uniqueIssues } from "./stages/fieldParsingUtils.js";
+import { clampProbability, formatConfidence, uniqueIssues } from "../stages/fieldParsingUtils.js";
 import { computeVendorFingerprint } from "./learning/vendorFingerprint.js";
 import { DocumentProcessingEngine } from "@/core/engine/DocumentProcessingEngine.js";
 import {
