@@ -1,11 +1,9 @@
+import { PAN_FORMAT, derivePanCategory } from "@/constants/indianCompliance.js";
 import { TdsRateTableModel } from "@/models/compliance/TdsRateTable.js";
 import { TdsSectionMappingModel } from "@/models/compliance/TdsSectionMapping.js";
 import { TenantComplianceConfigModel } from "@/models/integration/TenantComplianceConfig.js";
 import type { ComplianceTdsResult, ComplianceRiskSignal, ParsedInvoiceData } from "@/types/invoice.js";
 import { TDS_CONFIDENCE, type TdsConfidence } from "@/types/invoice.js";
-
-const PAN_FORMAT = /^[A-Z]{5}[0-9]{4}[A-Z]$/;
-const VALID_PAN_CATEGORIES = new Set(["C", "P", "H", "F", "T", "A", "B", "L", "J", "G"]);
 
 interface TdsDetectionResult {
   section: string | null;
@@ -26,8 +24,7 @@ interface TdsCalculationResult {
 export class TdsCalculationService {
   getPanCategory(pan: string | null | undefined): string | null {
     if (!pan || !PAN_FORMAT.test(pan.toUpperCase())) return null;
-    const code = pan.charAt(3).toUpperCase();
-    return VALID_PAN_CATEGORIES.has(code) ? code : null;
+    return derivePanCategory(pan);
   }
 
   async detectSection(

@@ -1,10 +1,5 @@
+import { ADDRESS_SIGNAL_PATTERN, PAN_FORMAT, GSTIN_FORMAT, extractPanFromGstin } from "@/constants/indianCompliance.js";
 import type { ParsedInvoiceData } from "@/types/invoice.js";
-
-const ADDRESS_SIGNAL_PATTERN =
-  /\b(address|warehouse|village|road|street|avenue|taluk|district|state|country|postal|pin|zipcode)\b/i;
-
-const PAN_FORMAT_PATTERN = /^[A-Z]{5}[0-9]{4}[A-Z]$/;
-const GSTIN_FORMAT_PATTERN = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][0-9A-Z]Z[0-9A-Z]$/;
 
 interface DeterministicValidationInput {
   parsed: ParsedInvoiceData;
@@ -98,17 +93,17 @@ export function validateInvoiceFields(input: DeterministicValidationInput): Dete
   }
 
   const pan = parsed.pan;
-  if (pan && !PAN_FORMAT_PATTERN.test(pan)) {
+  if (pan && !PAN_FORMAT.test(pan)) {
     issues.push("PAN_FORMAT_INVALID: Extracted PAN does not match expected format.");
   }
 
   const gstin = parsed.gst?.gstin;
-  if (gstin && !GSTIN_FORMAT_PATTERN.test(gstin)) {
+  if (gstin && !GSTIN_FORMAT.test(gstin)) {
     issues.push("GSTIN_FORMAT_INVALID: Extracted GSTIN does not match expected 15-character format.");
   }
 
-  if (pan && gstin && PAN_FORMAT_PATTERN.test(pan) && GSTIN_FORMAT_PATTERN.test(gstin)) {
-    const panFromGstin = gstin.substring(2, 12);
+  if (pan && gstin && PAN_FORMAT.test(pan) && GSTIN_FORMAT.test(gstin)) {
+    const panFromGstin = extractPanFromGstin(gstin);
     if (panFromGstin !== pan) {
       issues.push("PAN_GSTIN_MISMATCH: PAN does not match characters 3-12 of GSTIN.");
     }

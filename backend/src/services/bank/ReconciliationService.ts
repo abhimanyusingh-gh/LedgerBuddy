@@ -14,8 +14,6 @@ interface MatchCandidate {
   score: number;
 }
 
-const GSTIN_REGEX = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
-
 function wordOverlap(a: string, b: string): number {
   const wordsA = new Set(a.toLowerCase().split(/\s+/).filter(w => w.length > 2));
   const wordsB = new Set(b.toLowerCase().split(/\s+/).filter(w => w.length > 2));
