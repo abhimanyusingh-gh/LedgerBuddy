@@ -1,7 +1,7 @@
 import type { ParsedInvoiceData } from "@/types/invoice.js";
 import type { ConfidenceTone, RiskFlag } from "@/types/confidence.js";
 import { minorUnitsToMajorString, toMinorUnits } from "@/utils/currency.js";
-import { clamp } from "@/utils/math.js";
+import { clamp, normalizeConfidence } from "@/utils/math.js";
 
 interface ConfidenceInput {
   ocrConfidence?: number;
@@ -31,7 +31,9 @@ const REQUIRED_FIELDS: Array<keyof ParsedInvoiceData> = [
 ];
 
 export function assessInvoiceConfidence(input: ConfidenceInput): ConfidenceAssessment {
-  const normalizedOcr = normalizeConfidence(input.ocrConfidence);
+  const normalizedOcr = input.ocrConfidence !== undefined && !Number.isNaN(input.ocrConfidence)
+    ? normalizeConfidence(input.ocrConfidence)
+    : 0.6;
   const ocrScore = normalizedOcr * 100;
   const completenessScore = scoreCompleteness(input.parsed);
 
@@ -67,18 +69,6 @@ export function getConfidenceTone(score: number): ConfidenceTone {
   }
 
   return "red";
-}
-
-function normalizeConfidence(value?: number): number {
-  if (value === undefined || Number.isNaN(value)) {
-    return 0.6;
-  }
-
-  if (value > 1) {
-    return clamp(value / 100, 0, 1);
-  }
-
-  return clamp(value, 0, 1);
 }
 
 function scoreCompleteness(parsed: ParsedInvoiceData): number {

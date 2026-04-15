@@ -1,4 +1,4 @@
-import { clampProbability, clamp } from "@/utils/math.js";
+import { clampProbability, clamp, normalizeConfidence } from "@/utils/math.js";
 
 describe("clampProbability", () => {
   it("returns 0 for NaN", () => {
@@ -59,5 +59,43 @@ describe("clamp", () => {
     expect(clamp(-15, -10, -5)).toBe(-10);
     expect(clamp(-3, -10, -5)).toBe(-5);
     expect(clamp(-7, -10, -5)).toBe(-7);
+  });
+});
+
+describe("normalizeConfidence", () => {
+  it("returns value in [0,1] as-is with 4-decimal precision", () => {
+    expect(normalizeConfidence(0.85)).toBe(0.85);
+    expect(normalizeConfidence(0.12345)).toBe(0.1235);
+    expect(normalizeConfidence(1)).toBe(1);
+  });
+
+  it("divides values > 1 by 100", () => {
+    expect(normalizeConfidence(85)).toBe(0.85);
+    expect(normalizeConfidence(100)).toBe(1);
+    expect(normalizeConfidence(42.5)).toBe(0.425);
+  });
+
+  it("returns 0 for value = 0", () => {
+    expect(normalizeConfidence(0)).toBe(0);
+  });
+
+  it("returns 0 for NaN", () => {
+    expect(normalizeConfidence(NaN)).toBe(0);
+  });
+
+  it("returns 0 for Infinity", () => {
+    expect(normalizeConfidence(Infinity)).toBe(0);
+  });
+
+  it("returns 0 for -Infinity", () => {
+    expect(normalizeConfidence(-Infinity)).toBe(0);
+  });
+
+  it("clamps negative values to 0", () => {
+    expect(normalizeConfidence(-0.5)).toBe(0);
+  });
+
+  it("clamps percentage values > 100 to 1", () => {
+    expect(normalizeConfidence(150)).toBe(1);
   });
 });

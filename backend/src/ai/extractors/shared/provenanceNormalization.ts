@@ -1,6 +1,6 @@
 import type { InvoiceFieldKey, InvoiceFieldProvenance } from "@/types/invoice.js";
 import { normalizeBoxTuple } from "@/services/ingestion/box.js";
-import { clampProbability } from "@/utils/math.js";
+import { normalizeConfidence } from "@/utils/math.js";
 
 export function normalizeProvenanceEntry(value: unknown): InvoiceFieldProvenance | undefined {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
@@ -25,7 +25,7 @@ export function normalizeProvenanceEntry(value: unknown): InvoiceFieldProvenance
     ...(bboxModel ? { bboxModel } : {}),
     ...(Number.isInteger(blockIndexCandidate) && blockIndexCandidate >= 0 ? { blockIndex: blockIndexCandidate } : {}),
     ...(Number.isFinite(confidenceCandidate)
-      ? { confidence: Number(clampProbability(confidenceCandidate > 1 ? confidenceCandidate / 100 : confidenceCandidate).toFixed(4)) }
+      ? { confidence: normalizeConfidence(confidenceCandidate) }
       : {})
   };
 }

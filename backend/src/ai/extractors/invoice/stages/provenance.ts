@@ -1,7 +1,7 @@
 import type { OcrBlock } from "@/core/interfaces/OcrProvider.js";
 import { PROVENANCE_SOURCE } from "@/types/invoice.js";
 import type { InvoiceExtractionData, InvoiceFieldKey, InvoiceFieldProvenance, InvoiceLineItemProvenance, ParsedInvoiceData } from "@/types/invoice.js";
-import { clampProbability } from "@/utils/math.js";
+import { normalizeConfidence } from "@/utils/math.js";
 import { findBlockByAmountValue } from "@/ai/extractors/invoice/stages/groundingAmounts.js";
 import { normalizeBoxTuple, type Box4 } from "@/services/ingestion/box.js";
 import { normalizeProvenanceEntry } from "@/ai/extractors/shared/provenanceNormalization.js";
@@ -47,8 +47,7 @@ export function normalizeFieldConfidence(value: unknown): Partial<Record<Invoice
     if (!Number.isFinite(parsed)) {
       continue;
     }
-    const normalized = parsed > 1 ? parsed / 100 : parsed;
-    output[field as InvoiceFieldKey] = Number(clampProbability(normalized).toFixed(4));
+    output[field as InvoiceFieldKey] = normalizeConfidence(parsed);
   }
   return Object.keys(output).length > 0 ? output : undefined;
 }
@@ -228,9 +227,7 @@ export function collectLineItemConfidence(lineItems: InvoiceLineItemProvenance[]
       if (typeof provenance.confidence !== "number" || !Number.isFinite(provenance.confidence)) {
         continue;
       }
-      output[`lineItems.${lineItem.index}.${fieldName}`] = Number(
-        clampProbability(provenance.confidence > 1 ? provenance.confidence / 100 : provenance.confidence).toFixed(4)
-      );
+      output[`lineItems.${lineItem.index}.${fieldName}`] = normalizeConfidence(provenance.confidence);
     }
   }
   return output;

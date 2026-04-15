@@ -2,6 +2,7 @@ import type { OcrBlock } from "@/core/interfaces/OcrProvider.js";
 import { PROVENANCE_SOURCE } from "@/types/invoice.js";
 import type { InvoiceFieldKey, InvoiceFieldProvenance, ParsedInvoiceData, ProvenanceSource } from "@/types/invoice.js";
 import { clampProbability } from "@/ai/extractors/stages/fieldParsingUtils.js";
+import { normalizeConfidence } from "@/utils/math.js";
 import {
   DEFAULT_FIELD_LABEL_PATTERNS,
   findBlockByLabelProximity,
@@ -47,8 +48,7 @@ function resolveFieldConfidence(
 ): number {
   const slmConfidence = verifierFieldConfidence?.[field];
   if (typeof slmConfidence === "number" && Number.isFinite(slmConfidence)) {
-    const normalized = slmConfidence > 1 ? slmConfidence / 100 : slmConfidence;
-    return Number(clampProbability(normalized).toFixed(4));
+    return normalizeConfidence(slmConfidence);
   }
 
   const extractConfidence = verifierFieldProvenance?.[field]?.confidence;

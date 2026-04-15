@@ -1,6 +1,7 @@
 import type { InvoiceExtractionData, InvoiceFieldProvenance, InvoiceLineItemProvenance, InvoiceFieldKey } from "@/types/invoice.js";
 import type { ExtractionSource } from "@/core/engine/extractionSource.js";
 import { normalizeBoxTuple } from "@/services/ingestion/box.js";
+import { normalizeConfidence } from "@/utils/math.js";
 
 const EXTRACTION_KEY_DOT_TOKEN = "__dot__";
 
@@ -50,7 +51,7 @@ export function parseFieldProvenance(value: string | undefined): Record<string, 
         ? { blockIndex: Math.max(0, Math.round(candidate.blockIndex)) }
         : {}),
       ...(typeof candidate.confidence === "number" && Number.isFinite(candidate.confidence)
-        ? { confidence: Number(Math.max(0, Math.min(1, candidate.confidence > 1 ? candidate.confidence / 100 : candidate.confidence)).toFixed(4)) }
+        ? { confidence: normalizeConfidence(candidate.confidence) }
         : {})
     };
   }
@@ -88,7 +89,7 @@ export function sanitizeFieldProvenanceRecord(
         ? { blockIndex: Math.max(0, Math.round(candidate.blockIndex)) }
         : {}),
       ...(Number.isFinite(confidence)
-        ? { confidence: Number(Math.max(0, Math.min(1, confidence > 1 ? confidence / 100 : confidence)).toFixed(4)) }
+        ? { confidence: normalizeConfidence(confidence) }
         : {})
     };
   }
@@ -154,8 +155,7 @@ export function normalizeExtractionData(value: InvoiceExtractionData | undefined
       if (!Number.isFinite(parsed)) {
         continue;
       }
-      const normalized = parsed > 1 ? parsed / 100 : parsed;
-      fieldConfidence[encodeExtractionFieldKey(field) as InvoiceFieldKey] = Number(Math.max(0, Math.min(1, normalized)).toFixed(4));
+      fieldConfidence[encodeExtractionFieldKey(field) as InvoiceFieldKey] = normalizeConfidence(parsed);
     }
   }
 
