@@ -2,10 +2,11 @@ import { Router } from "express";
 import { getAuth } from "@/types/auth.js";
 import { requireAuth } from "@/auth/requireAuth.js";
 import { requireCap } from "@/auth/requireCapability.js";
-import { ExtractionMappingModel } from "@/models/invoice/ExtractionMapping.js";
+import { ExtractionMappingModel, EXTRACTION_MAPPING_MATCH_TYPE, EXTRACTION_MAPPING_SOURCE } from "@/models/invoice/ExtractionMapping.js";
+import type { ExtractionMappingMatchType } from "@/models/invoice/ExtractionMapping.js";
 import { toValidObjectId } from "@/utils/validation.js";
 
-const VALID_MATCH_TYPES = ["gstin", "vendorNameFuzzy"] as const;
+const VALID_MATCH_TYPES = Object.values(EXTRACTION_MAPPING_MATCH_TYPE);
 
 export function createExtractionMappingsRouter() {
   const router = Router();
@@ -19,7 +20,7 @@ export function createExtractionMappingsRouter() {
       const skip = (page - 1) * limit;
 
       const query: Record<string, unknown> = { tenantId };
-      if (typeof req.query.matchType === "string" && VALID_MATCH_TYPES.includes(req.query.matchType as typeof VALID_MATCH_TYPES[number])) {
+      if (typeof req.query.matchType === "string" && (VALID_MATCH_TYPES as readonly string[]).includes(req.query.matchType)) {
         query.matchType = req.query.matchType;
       }
 
@@ -37,7 +38,7 @@ export function createExtractionMappingsRouter() {
       const tenantId = getAuth(req).tenantId;
       const { matchType, matchKey, canonicalVendorName, fieldOverrides } = req.body ?? {};
 
-      if (!VALID_MATCH_TYPES.includes(matchType)) {
+      if (!(VALID_MATCH_TYPES as readonly string[]).includes(matchType)) {
         res.status(400).json({ message: "matchType must be 'gstin' or 'vendorNameFuzzy'." });
         return;
       }
@@ -60,7 +61,7 @@ export function createExtractionMappingsRouter() {
         canonicalVendorName: typeof canonicalVendorName === "string" ? canonicalVendorName.trim() || undefined : undefined,
         fieldOverrides: fieldOverrides && typeof fieldOverrides === "object" ? fieldOverrides : undefined,
         createdBy,
-        source: "manual"
+        source: EXTRACTION_MAPPING_SOURCE.MANUAL
       });
 
       res.status(201).json(doc.toObject());

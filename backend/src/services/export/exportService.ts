@@ -5,6 +5,7 @@ import { ExportBatchModel } from "@/models/invoice/ExportBatch.js";
 import { InvoiceModel } from "@/models/invoice/Invoice.js";
 import { logger } from "@/utils/logger.js";
 import { EXPORT_SAVE_CONCURRENCY } from "@/constants.js";
+import { INVOICE_STATUS } from "@/types/invoice.js";
 
 interface ExportRequest {
   ids?: string[];
@@ -29,7 +30,7 @@ export class ExportService {
       requestedIds: request.ids?.length ?? 0
     });
     const query: Record<string, unknown> = {
-      status: "APPROVED",
+      status: INVOICE_STATUS.APPROVED,
       tenantId: request.tenantId
     };
 
@@ -81,7 +82,7 @@ export class ExportService {
 
       const update: Record<string, unknown> = {};
       if (result.success) {
-        update.status = "EXPORTED";
+        update.status = INVOICE_STATUS.EXPORTED;
         update.export = {
           system: this.exporter.system,
           batchId,
@@ -128,7 +129,7 @@ export class ExportService {
     }
 
     const query: Record<string, unknown> = {
-      status: "APPROVED",
+      status: INVOICE_STATUS.APPROVED,
       tenantId: request.tenantId
     };
     if (request.ids && request.ids.length > 0) {
@@ -147,7 +148,7 @@ export class ExportService {
         alreadyExportedCount = await InvoiceModel.countDocuments({
           _id: { $in: missingIds.map((id) => new Types.ObjectId(id)) },
           tenantId: request.tenantId,
-          status: "EXPORTED"
+          status: INVOICE_STATUS.EXPORTED
         });
       }
     }
@@ -210,7 +211,7 @@ export class ExportService {
         updateOne: {
           filter: { _id: invoice._id },
           update: {
-            status: "EXPORTED",
+            status: INVOICE_STATUS.EXPORTED,
             export: {
               system: this.exporter.system,
               batchId,

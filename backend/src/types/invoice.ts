@@ -1,5 +1,16 @@
 import type { ExtractionSource } from "@/core/engine/extractionSource.js";
 
+export const INVOICE_STATUS = {
+  PENDING: "PENDING",
+  PARSED: "PARSED",
+  NEEDS_REVIEW: "NEEDS_REVIEW",
+  AWAITING_APPROVAL: "AWAITING_APPROVAL",
+  FAILED_OCR: "FAILED_OCR",
+  FAILED_PARSE: "FAILED_PARSE",
+  APPROVED: "APPROVED",
+  EXPORTED: "EXPORTED",
+} as const;
+
 export const INVOICE_FIELD_KEY = {
   INVOICE_NUMBER: "invoiceNumber",
   VENDOR_NAME: "vendorName",
@@ -22,18 +33,9 @@ export const INVOICE_FIELD_KEY = {
 
 export type InvoiceFieldKey = (typeof INVOICE_FIELD_KEY)[keyof typeof INVOICE_FIELD_KEY];
 
-export const InvoiceStatuses = [
-  "PENDING",
-  "PARSED",
-  "NEEDS_REVIEW",
-  "AWAITING_APPROVAL",
-  "FAILED_OCR",
-  "FAILED_PARSE",
-  "APPROVED",
-  "EXPORTED"
-] as const;
+export const InvoiceStatuses = Object.values(INVOICE_STATUS);
 
-export type InvoiceStatus = (typeof InvoiceStatuses)[number];
+export type InvoiceStatus = (typeof INVOICE_STATUS)[keyof typeof INVOICE_STATUS];
 
 export interface GstBreakdown {
   gstin?: string;
@@ -59,8 +61,109 @@ export interface InvoiceLineItem {
 
 export type BoundingBox = [number, number, number, number];
 
+export const PROVENANCE_SOURCE = {
+  SLM: "slm",
+  HEURISTIC: "heuristic",
+  TEMPLATE: "template",
+} as const;
+
+export type ProvenanceSource = (typeof PROVENANCE_SOURCE)[keyof typeof PROVENANCE_SOURCE];
+
+export const PAN_SOURCE = {
+  EXTRACTED: "extracted",
+  VENDOR_MASTER: "vendor-master",
+  MANUAL: "manual",
+} as const;
+
+export type PanSource = (typeof PAN_SOURCE)[keyof typeof PAN_SOURCE];
+
+export const PAN_VALIDATION_LEVEL = {
+  L1: "L1",
+  L2: "L2",
+  L3: "L3",
+} as const;
+
+export type PanValidationLevel = (typeof PAN_VALIDATION_LEVEL)[keyof typeof PAN_VALIDATION_LEVEL];
+
+export const PAN_VALIDATION_RESULT = {
+  VALID: "valid",
+  FORMAT_INVALID: "format-invalid",
+  GSTIN_MISMATCH: "gstin-mismatch",
+  STRUCK_OFF: "struck-off",
+} as const;
+
+export type PanValidationResult = (typeof PAN_VALIDATION_RESULT)[keyof typeof PAN_VALIDATION_RESULT];
+
+export const TDS_SOURCE = {
+  AUTO: "auto",
+  MANUAL: "manual",
+} as const;
+
+export type TdsSource = (typeof TDS_SOURCE)[keyof typeof TDS_SOURCE];
+
+export const TDS_CONFIDENCE = {
+  HIGH: "high",
+  MEDIUM: "medium",
+  LOW: "low",
+} as const;
+
+export type TdsConfidence = (typeof TDS_CONFIDENCE)[keyof typeof TDS_CONFIDENCE];
+
+export const GL_CODE_SOURCE = {
+  VENDOR_DEFAULT: "vendor-default",
+  DESCRIPTION_MATCH: "description-match",
+  SLM_CLASSIFICATION: "slm-classification",
+  CATEGORY_DEFAULT: "category-default",
+  MANUAL: "manual",
+} as const;
+
+export type GlCodeSource = (typeof GL_CODE_SOURCE)[keyof typeof GL_CODE_SOURCE];
+
+export const COST_CENTER_SOURCE = {
+  VENDOR_DEFAULT: "vendor-default",
+  GL_LINKED: "gl-linked",
+  MANUAL: "manual",
+} as const;
+
+export type CostCenterSource = (typeof COST_CENTER_SOURCE)[keyof typeof COST_CENTER_SOURCE];
+
+export const MSME_CLASSIFICATION = {
+  MICRO: "micro",
+  SMALL: "small",
+  MEDIUM: "medium",
+} as const;
+
+export type MsmeClassification = (typeof MSME_CLASSIFICATION)[keyof typeof MSME_CLASSIFICATION];
+
+export const TCS_SOURCE = {
+  EXTRACTED: "extracted",
+  CONFIGURED: "configured",
+  MANUAL: "manual",
+} as const;
+
+export type TcsSource = (typeof TCS_SOURCE)[keyof typeof TCS_SOURCE];
+
+export const RISK_SIGNAL_CATEGORY = {
+  FINANCIAL: "financial",
+  COMPLIANCE: "compliance",
+  FRAUD: "fraud",
+  DATA_QUALITY: "data-quality",
+} as const;
+
+export const RISK_SIGNAL_SEVERITY = {
+  INFO: "info",
+  WARNING: "warning",
+  CRITICAL: "critical",
+} as const;
+
+export const RISK_SIGNAL_STATUS = {
+  OPEN: "open",
+  DISMISSED: "dismissed",
+  ACTED_ON: "acted-on",
+} as const;
+
 export interface InvoiceFieldProvenance {
-  source?: string;
+  source?: ProvenanceSource | string;
   page?: number;
   bbox?: BoundingBox;
   bboxNormalized?: BoundingBox;
@@ -142,9 +245,9 @@ export interface ParsedInvoiceData {
 
 export interface CompliancePanResult {
   value: string | null;
-  source: "extracted" | "vendor-master" | "manual";
-  validationLevel: "L1" | "L2" | "L3" | null;
-  validationResult: "valid" | "format-invalid" | "gstin-mismatch" | "struck-off" | null;
+  source: PanSource;
+  validationLevel: PanValidationLevel | null;
+  validationResult: PanValidationResult | null;
   gstinCrossRef: boolean;
 }
 
@@ -153,14 +256,14 @@ export interface ComplianceTdsResult {
   rate: number | null;
   amountMinor: number | null;
   netPayableMinor: number | null;
-  source: "auto" | "manual";
-  confidence: "high" | "medium" | "low";
+  source: TdsSource;
+  confidence: TdsConfidence;
 }
 
 export interface ComplianceGlCodeResult {
   code: string | null;
   name: string | null;
-  source: "vendor-default" | "description-match" | "slm-classification" | "category-default" | "manual";
+  source: GlCodeSource;
   confidence: number | null;
   suggestedAlternatives?: Array<{ code: string; name: string; score: number }>;
 }
@@ -168,7 +271,7 @@ export interface ComplianceGlCodeResult {
 export interface ComplianceCostCenterResult {
   code: string | null;
   name: string | null;
-  source: "vendor-default" | "gl-linked" | "manual";
+  source: CostCenterSource;
   confidence: number | null;
 }
 
@@ -179,14 +282,14 @@ export interface ComplianceIrnResult {
 
 export interface ComplianceMsmeResult {
   udyamNumber: string | null;
-  classification: "micro" | "small" | "medium" | null;
+  classification: MsmeClassification | null;
   paymentDeadline: Date | null;
 }
 
 export interface ComplianceTcsResult {
   rate: number | null;
   amountMinor: number | null;
-  source: "extracted" | "configured" | "manual";
+  source: TcsSource;
 }
 
 export interface ComplianceVendorBankResult {
@@ -197,9 +300,9 @@ export interface ComplianceVendorBankResult {
   verifiedChange: boolean;
 }
 
-export type RiskSignalCategory = "financial" | "compliance" | "fraud" | "data-quality";
-export type RiskSignalSeverity = "info" | "warning" | "critical";
-export type RiskSignalStatus = "open" | "dismissed" | "acted-on";
+export type RiskSignalCategory = (typeof RISK_SIGNAL_CATEGORY)[keyof typeof RISK_SIGNAL_CATEGORY];
+export type RiskSignalSeverity = (typeof RISK_SIGNAL_SEVERITY)[keyof typeof RISK_SIGNAL_SEVERITY];
+export type RiskSignalStatus = (typeof RISK_SIGNAL_STATUS)[keyof typeof RISK_SIGNAL_STATUS];
 
 export interface ComplianceRiskSignal {
   code: string;

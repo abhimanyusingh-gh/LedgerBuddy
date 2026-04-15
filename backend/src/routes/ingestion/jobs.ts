@@ -8,6 +8,8 @@ import type { FileStore } from "@/core/interfaces/FileStore.js";
 import { InvoiceModel } from "@/models/invoice/Invoice.js";
 import { logger } from "@/utils/logger.js";
 import { requireAuth } from "@/auth/requireAuth.js";
+import { INVOICE_STATUS } from "@/types/invoice.js";
+import { INGESTION_SOURCE_TYPE } from "@/core/interfaces/IngestionSource.js";
 import { requireCap } from "@/auth/requireCapability.js";
 import { IngestionJobOrchestrator } from "@/services/ingestion/IngestionJobOrchestrator.js";
 import { MAX_UPLOAD_FILE_COUNT, MAX_UPLOAD_FILE_SIZE_BYTES } from "@/constants.js";
@@ -144,13 +146,13 @@ export function createJobsRouter(
           await InvoiceModel.create({
             tenantId: context.tenantId,
             workloadTier: "standard",
-            sourceType: "s3-upload",
+            sourceType: INGESTION_SOURCE_TYPE.S3_UPLOAD,
             sourceKey: `s3-upload-${context.tenantId}`,
             sourceDocumentId: key,
             attachmentName: file.originalname,
             mimeType: file.mimetype,
             receivedAt: new Date(),
-            status: "PENDING",
+            status: INVOICE_STATUS.PENDING,
             contentHash,
             metadata: { uploadKey: key, systemFileName: systemName }
           });

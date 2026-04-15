@@ -4,6 +4,7 @@ import { InvoiceModel } from "@/models/invoice/Invoice.js";
 import { VendorMasterModel } from "@/models/compliance/VendorMaster.js";
 import { requireAuth } from "@/auth/requireAuth.js";
 import { requireCap } from "@/auth/requireCapability.js";
+import { TDS_SOURCE } from "@/types/invoice.js";
 
 export function createComplianceAnalyticsRouter() {
   const router = Router();
@@ -55,8 +56,8 @@ export function createComplianceAnalyticsRouter() {
 
       const tdsTotalMinor = tdsAgg.reduce((sum: number, s: { totalAmountMinor: number }) => sum + s.totalAmountMinor, 0);
 
-      const tdsManualCount = await InvoiceModel.countDocuments({ ...baseQuery, "compliance.tds.source": "manual" });
-      const tdsAutoCount = await InvoiceModel.countDocuments({ ...baseQuery, "compliance.tds.source": "auto", "compliance.tds.section": { $ne: null } });
+      const tdsManualCount = await InvoiceModel.countDocuments({ ...baseQuery, "compliance.tds.source": TDS_SOURCE.MANUAL });
+      const tdsAutoCount = await InvoiceModel.countDocuments({ ...baseQuery, "compliance.tds.source": TDS_SOURCE.AUTO, "compliance.tds.section": { $ne: null } });
       const overrideRate = tdsAutoCount + tdsManualCount > 0 ? Math.round((tdsManualCount / (tdsAutoCount + tdsManualCount)) * 100) : 0;
 
       res.json({

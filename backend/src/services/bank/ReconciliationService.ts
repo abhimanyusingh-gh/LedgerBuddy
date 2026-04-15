@@ -1,5 +1,6 @@
 import { InvoiceModel } from "@/models/invoice/Invoice.js";
-import { BankTransactionModel, type BankTransaction } from "@/models/bank/BankTransaction.js";
+import { INVOICE_STATUS } from "@/types/invoice.js";
+import { BankTransactionModel, BANK_TRANSACTION_MATCH_STATUS, type BankTransaction } from "@/models/bank/BankTransaction.js";
 import { TenantTcsConfigModel } from "@/models/integration/TenantTcsConfig.js";
 import { logger } from "@/utils/logger.js";
 import { isRecord } from "@/utils/validation.js";
@@ -106,7 +107,7 @@ export class ReconciliationService {
 
     const invoiceQuery: Record<string, unknown> = {
       tenantId,
-      status: { $nin: ["EXPORTED"] },
+      status: { $nin: [INVOICE_STATUS.EXPORTED] },
       "parsed.totalAmountMinor": { $gte: globalMin, $lte: globalMax }
     };
 
@@ -235,7 +236,7 @@ export class ReconciliationService {
     await this.applyMatch(tenantId, transactionId, invoiceId, 100);
     await BankTransactionModel.updateOne(
       { _id: transactionId },
-      { $set: { matchStatus: "manual" } }
+      { $set: { matchStatus: BANK_TRANSACTION_MATCH_STATUS.MANUAL } }
     );
   }
 

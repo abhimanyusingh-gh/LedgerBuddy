@@ -11,6 +11,7 @@ import {
 import {
   classifyOcrRecoveryStrategy,
   recoverLineItemsFromOcr,
+  type OcrRecoveryStrategy,
 } from "@/ai/extractors/invoice/stages/lineItemRecovery.js";
 import { POST_ENGINE_CTX } from "@/ai/extractors/invoice/pipeline/postEngineContextKeys.js";
 
@@ -40,7 +41,7 @@ function recoverOcrFields(
   parsed: ParsedInvoiceData,
   ocrBlocks: OcrBlock[],
   ocrText: string,
-  strategy: string,
+  strategy: OcrRecoveryStrategy,
 ): ParsedInvoiceData {
   const next = recoverHeaderFieldsFromOcr(parsed, ocrBlocks, ocrText);
   const normalized = normalizeParsedAgainstOcrText(next, ocrText, ocrBlocks);
@@ -89,7 +90,7 @@ function recoverOcrFields(
   }
 
   const recoveredLineItems = recoverLineItemsFromOcr(
-    normalized.lineItems, ocrBlocks, strategy as Parameters<typeof recoverLineItemsFromOcr>[2], normalized.totalAmountMinor,
+    normalized.lineItems, ocrBlocks, strategy, normalized.totalAmountMinor,
   );
   if (recoveredLineItems && recoveredLineItems.length > 0) {
     normalized.lineItems = recoveredLineItems;

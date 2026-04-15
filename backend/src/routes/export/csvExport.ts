@@ -4,6 +4,7 @@ import { InvoiceModel } from "@/models/invoice/Invoice.js";
 import { generateCsvExport } from "@/services/export/csvExporter.js";
 import { requireAuth } from "@/auth/requireAuth.js";
 import { requireCap } from "@/auth/requireCapability.js";
+import { INVOICE_STATUS } from "@/types/invoice.js";
 
 export function createCsvExportRouter() {
   const router = Router();
@@ -15,7 +16,7 @@ export function createCsvExportRouter() {
       const ids = Array.isArray(req.body?.ids) ? req.body.ids : undefined;
       const columns = Array.isArray(req.body?.columns) ? req.body.columns : undefined;
 
-      const query: Record<string, unknown> = { tenantId, status: "APPROVED" };
+      const query: Record<string, unknown> = { tenantId, status: INVOICE_STATUS.APPROVED };
       if (ids && ids.length > 0) query._id = { $in: ids };
 
       const invoices = await InvoiceModel.find(query).lean();

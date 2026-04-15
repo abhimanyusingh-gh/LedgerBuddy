@@ -19,10 +19,13 @@ export interface ProcessingContext {
 
 export type ChunkingStrategy = "none" | "page-based" | "sliding-window";
 
+export const ENGINE_STRATEGY = {
+  LLAMA_EXTRACT: "llamaextract",
+  SLM: "slm",
+  SLM_CHUNKED: "slm-chunked",
+} as const;
 
-export interface ExtractionSource {
-  strategy: "llamaextract" | "slm" | "slm-chunked";
-}
+export type EngineStrategy = (typeof ENGINE_STRATEGY)[keyof typeof ENGINE_STRATEGY];
 
 export interface ProcessingResult<TOutput> {
   output: TOutput;
@@ -32,15 +35,22 @@ export interface ProcessingResult<TOutput> {
   ocrConfidence?: number;
   ocrTokens: number;
   slmTokens: number;
-  strategy: ExtractionSource["strategy"];
+  strategy: EngineStrategy;
   validationResult: ValidationResult;
   processingIssues: string[];
 }
 
-export class DocumentProcessingError extends Error {
-  readonly code: "FAILED_OCR" | "FAILED_PARSE";
+export const PIPELINE_ERROR_CODE = {
+  FAILED_OCR: "FAILED_OCR",
+  FAILED_PARSE: "FAILED_PARSE",
+} as const;
 
-  constructor(code: "FAILED_OCR" | "FAILED_PARSE", message: string) {
+export type PipelineErrorCode = (typeof PIPELINE_ERROR_CODE)[keyof typeof PIPELINE_ERROR_CODE];
+
+export class DocumentProcessingError extends Error {
+  readonly code: PipelineErrorCode;
+
+  constructor(code: PipelineErrorCode, message: string) {
     super(message);
     this.name = "DocumentProcessingError";
     this.code = code;

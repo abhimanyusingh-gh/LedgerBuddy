@@ -1,4 +1,5 @@
 import { InvoiceModel } from "@/models/invoice/Invoice.js";
+import { INVOICE_STATUS } from "@/types/invoice.js";
 import type { ComplianceRiskSignal } from "@/types/invoice.js";
 
 export class DuplicateInvoiceDetector {
@@ -14,7 +15,7 @@ export class DuplicateInvoiceDetector {
       tenantId,
       "parsed.vendorName": vendorName,
       "parsed.invoiceNumber": invoiceNumber,
-      status: { $ne: "PENDING" }
+      status: { $ne: INVOICE_STATUS.PENDING }
     }).lean();
 
     if (!existing) return [];

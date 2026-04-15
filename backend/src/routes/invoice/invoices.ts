@@ -13,6 +13,8 @@ import {
 } from "@/services/invoice/invoiceService.js";
 import { env } from "@/config/env.js";
 import { loadRuntimeManifest, type FolderSourceManifest } from "@/core/runtimeManifest.js";
+import { INVOICE_STATUS, GL_CODE_SOURCE, TDS_SOURCE, RISK_SIGNAL_STATUS } from "@/types/invoice.js";
+import { INGESTION_SOURCE_TYPE } from "@/core/interfaces/IngestionSource.js";
 import type { FileStore } from "@/core/interfaces/FileStore.js";
 import { requireCap, resolveCapabilities } from "@/auth/requireCapability.js";
 import { ViewerScopeModel } from "@/models/integration/ViewerScope.js";
@@ -68,7 +70,7 @@ export function createInvoiceRouter(invoiceService: InvoiceService, fileStore?: 
   function findFolderSource(invoice: { sourceKey: string; tenantId: string; workloadTier: string }) {
     return runtimeManifest.sources.find(
       (s): s is FolderSourceManifest =>
-        s.type === "folder" && s.key === invoice.sourceKey &&
+        s.type === INGESTION_SOURCE_TYPE.FOLDER && s.key === invoice.sourceKey &&
         s.tenantId === invoice.tenantId && s.workloadTier === invoice.workloadTier
     );
   }
@@ -140,13 +142,13 @@ export function createInvoiceRouter(invoiceService: InvoiceService, fileStore?: 
       if (hasComplianceOverride) {
         const invoice = await InvoiceModel.findOne({ _id: req.params.id, tenantId: authContext.tenantId });
         if (!invoice) { res.status(404).json({ message: "Invoice not found." }); return; }
-        if (invoice.status === "EXPORTED") { res.status(403).json({ message: "Cannot modify an exported invoice." }); return; }
+        if (invoice.status === INVOICE_STATUS.EXPORTED) { res.status(403).json({ message: "Cannot modify an exported invoice." }); return; }
 
         const compliance = (invoice as unknown as Record<string, unknown>).compliance as Record<string, unknown> | undefined ?? {};
 
         if (typeof req.body.glCode === "string") {
           if (req.body.glCode.trim() === "") {
-            (compliance as Record<string, unknown>).glCode = { code: null, name: null, source: "manual", confidence: null };
+            (compliance as Record<string, unknown>).glCode = { code: null, name: null, source: GL_CODE_SOURCE.MANUAL, confidence: null };
           } else {
             const glName = typeof req.body.glName === "string" && req.body.glName.trim() ? req.body.glName.trim() : req.body.glCode;
             const glService = new GlCodeSuggestionService();
@@ -154,7 +156,7 @@ export function createInvoiceRouter(invoiceService: InvoiceService, fileStore?: 
             if (fingerprint) {
               await glService.recordUsage(authContext.tenantId, fingerprint, req.body.glCode, glName);
             }
-            (compliance as Record<string, unknown>).glCode = { code: req.body.glCode, name: glName, source: "manual", confidence: 100 };
+            (compliance as Record<string, unknown>).glCode = { code: req.body.glCode, name: glName, source: GL_CODE_SOURCE.MANUAL, confidence: 100 };
 
             const parsed = invoice.toObject().parsed ?? {};
             await retriggerTdsAndTcs(compliance, parsed, authContext.tenantId, req.body.glCode, req.params.id);
@@ -163,7 +165,7 @@ export function createInvoiceRouter(invoiceService: InvoiceService, fileStore?: 
 
         if (typeof req.body.tdsSection === "string") {
           const existingTds = (compliance as Record<string, unknown>).tds as Record<string, unknown> | undefined;
-          (compliance as Record<string, unknown>).tds = { ...existingTds, section: req.body.tdsSection, source: "manual" };
+          (compliance as Record<string, unknown>).tds = { ...existingTds, section: req.body.tdsSection, source: TDS_SOURCE.MANUAL };
         }
 
         if (req.body.vendorBankVerified === true) {
@@ -175,7 +177,7 @@ export function createInvoiceRouter(invoiceService: InvoiceService, fileStore?: 
           const signals = ((compliance as Record<string, unknown>).riskSignals as Array<Record<string, unknown>>) ?? [];
           const bankSignal = signals.find(s => s.code === "VENDOR_BANK_CHANGED");
           if (bankSignal) {
-            bankSignal.status = "acted-on";
+            bankSignal.status = RISK_SIGNAL_STATUS.ACTED_ON;
             bankSignal.resolvedBy = authContext.userId;
             bankSignal.resolvedAt = new Date();
           }
@@ -183,9 +185,9 @@ export function createInvoiceRouter(invoiceService: InvoiceService, fileStore?: 
 
         if (typeof req.body.dismissRiskSignal === "string") {
           const signals = ((compliance as Record<string, unknown>).riskSignals as Array<Record<string, unknown>>) ?? [];
-          const target = signals.find(s => s.code === req.body.dismissRiskSignal && s.status === "open");
+          const target = signals.find(s => s.code === req.body.dismissRiskSignal && s.status === RISK_SIGNAL_STATUS.OPEN);
           if (target) {
-            target.status = "dismissed";
+            target.status = RISK_SIGNAL_STATUS.DISMISSED;
             target.resolvedBy = authContext.userId;
             target.resolvedAt = new Date();
           }
@@ -227,7 +229,7 @@ export function createInvoiceRouter(invoiceService: InvoiceService, fileStore?: 
   router.get("/invoices/:id/document", wrap(async (req, res, next) => {
     const invoice = await invoiceService.getInvoiceById(req.params.id, getAuth(req).tenantId);
     if (!invoice) { res.status(404).json({ message: "Invoice not found" }); return; }
-    if (invoice.sourceType !== "folder") { res.status(404).json({ message: "Original document is unavailable for this ingestion source." }); return; }
+    if (invoice.sourceType !== INGESTION_SOURCE_TYPE.FOLDER) { res.status(404).json({ message: "Original document is unavailable for this ingestion source." }); return; }
 
     const folderSource = findFolderSource(invoice);
     if (!folderSource) { res.status(404).json({ message: "Folder source configuration not found for this invoice." }); return; }
@@ -250,7 +252,7 @@ export function createInvoiceRouter(invoiceService: InvoiceService, fileStore?: 
 
     if (previewPath) { await sendStoredImage(res, previewPath, "Preview image", next); return; }
 
-    if (invoice.sourceType === "s3-upload" && fileStore) {
+    if (invoice.sourceType === INGESTION_SOURCE_TYPE.S3_UPLOAD && fileStore) {
       const uploadKey = invoice.metadata?.uploadKey;
       if (typeof uploadKey === "string" && uploadKey.length > 0) {
         try {
@@ -267,7 +269,7 @@ export function createInvoiceRouter(invoiceService: InvoiceService, fileStore?: 
       }
     }
 
-    if (invoice.sourceType === "folder" && invoice.mimeType.startsWith("image/")) {
+    if (invoice.sourceType === INGESTION_SOURCE_TYPE.FOLDER && invoice.mimeType.startsWith("image/")) {
       const folderSource = findFolderSource(invoice);
       if (folderSource) {
         const imagePath = resolveSourceDocumentPath(folderSource.folderPath, invoice.sourceDocumentId);

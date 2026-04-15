@@ -1,5 +1,6 @@
 import { randomBytes, scryptSync } from "node:crypto";
 import { InvoiceModel } from "@/models/invoice/Invoice.js";
+import { INVOICE_STATUS } from "@/types/invoice.js";
 import { TenantIntegrationModel } from "@/models/integration/TenantIntegration.js";
 import { TenantModel } from "@/models/core/Tenant.js";
 import { UserModel } from "@/models/core/User.js";
@@ -142,27 +143,27 @@ export class PlatformAdminService {
             totalDocuments: { $sum: 1 },
             parsedDocuments: {
               $sum: {
-                $cond: [{ $eq: ["$status", "PARSED"] }, 1, 0]
+                $cond: [{ $eq: ["$status", INVOICE_STATUS.PARSED] }, 1, 0]
               }
             },
             approvedDocuments: {
               $sum: {
-                $cond: [{ $eq: ["$status", "APPROVED"] }, 1, 0]
+                $cond: [{ $eq: ["$status", INVOICE_STATUS.APPROVED] }, 1, 0]
               }
             },
             exportedDocuments: {
               $sum: {
-                $cond: [{ $eq: ["$status", "EXPORTED"] }, 1, 0]
+                $cond: [{ $eq: ["$status", INVOICE_STATUS.EXPORTED] }, 1, 0]
               }
             },
             needsReviewDocuments: {
               $sum: {
-                $cond: [{ $eq: ["$status", "NEEDS_REVIEW"] }, 1, 0]
+                $cond: [{ $eq: ["$status", INVOICE_STATUS.NEEDS_REVIEW] }, 1, 0]
               }
             },
             failedDocuments: {
               $sum: {
-                $cond: [{ $in: ["$status", ["FAILED_OCR", "FAILED_PARSE"]] }, 1, 0]
+                $cond: [{ $in: ["$status", [INVOICE_STATUS.FAILED_OCR, INVOICE_STATUS.FAILED_PARSE]] }, 1, 0]
               }
             },
             lastIngestedAt: { $max: "$createdAt" },

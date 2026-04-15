@@ -32,10 +32,12 @@ export interface ExtractedField {
   confidence?: number;
 }
 
+export type OcrProviderType = "auto" | "deepseek" | "mock" | "llamaparse" | "native-pdf" | "apple_vision";
+
 export interface OcrResult {
   text: string;
   confidence?: number;
-  provider: string;
+  provider: OcrProviderType | string;
   blocks?: OcrBlock[];
   pageImages?: OcrPageImage[];
   tokenUsage?: TokenUsage;

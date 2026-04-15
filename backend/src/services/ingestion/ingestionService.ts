@@ -1,4 +1,4 @@
-import type { IngestionSource, IngestedFile } from "@/core/interfaces/IngestionSource.js";
+import { INGESTION_SOURCE_TYPE, type IngestionSource, type IngestedFile } from "@/core/interfaces/IngestionSource.js";
 import type { FileStore } from "@/core/interfaces/FileStore.js";
 import type { OcrBlock, OcrProvider } from "@/core/interfaces/OcrProvider.js";
 import { CheckpointModel } from "@/models/core/Checkpoint.js";
@@ -7,6 +7,8 @@ import { logger } from "@/utils/logger.js";
 import { env } from "@/config/env.js";
 import { normalizeInvoiceMimeType } from "@/utils/mime.js";
 import type { WorkloadTier } from "@/types/tenant.js";
+import { INVOICE_STATUS } from "@/types/invoice.js";
+import { PIPELINE_ERROR_CODE } from "@/core/engine/types.js";
 import { TenantModel } from "@/models/core/Tenant.js";
 import { S3UploadIngestionSource } from "@/sources/S3UploadIngestionSource.js";
 import { InvoiceExtractionPipeline, ExtractionPipelineError } from "@/ai/extractors/invoice/InvoiceExtractionPipeline.js";
@@ -111,7 +113,7 @@ export class IngestionService {
     if (runtimeTenantId.length > 0) {
       const tenantDoc = await TenantModel.findById(runtimeTenantId).select({ mode: 1 }).lean();
       if (tenantDoc?.mode === "live") {
-        tenantScopedSources = tenantScopedSources.filter((s) => s.type !== "folder");
+        tenantScopedSources = tenantScopedSources.filter((s) => s.type !== INGESTION_SOURCE_TYPE.FOLDER);
       }
     }
 
@@ -221,7 +223,7 @@ export class IngestionService {
     files: IngestedFile[],
     effectiveTenantId: string
   ): Promise<IngestedFile[]> {
-    if (files.length === 0 || (source.type !== "folder" && source.type !== "s3-upload")) {
+    if (files.length === 0 || (source.type !== INGESTION_SOURCE_TYPE.FOLDER && source.type !== INGESTION_SOURCE_TYPE.S3_UPLOAD)) {
       return files;
     }
 
@@ -230,7 +232,7 @@ export class IngestionService {
       tenantId: effectiveTenantId,
       sourceKey: source.key,
       sourceDocumentId: { $in: files.map((file) => file.sourceDocumentId) },
-      status: { $ne: "PENDING" }
+      status: { $ne: INVOICE_STATUS.PENDING }
     })
       .select({ sourceDocumentId: 1, _id: 0 })
       .lean();
@@ -245,7 +247,7 @@ export class IngestionService {
   }
 
   private async processFile(file: IngestedFile): Promise<{ result: "created" | "duplicate" | "failed"; systemAlert?: string }> {
-    const gmailMessageId = file.sourceType === "email" && file.metadata?.messageId
+    const gmailMessageId = file.sourceType === INGESTION_SOURCE_TYPE.EMAIL && file.metadata?.messageId
       ? String(file.metadata.messageId).trim()
       : undefined;
 
@@ -257,14 +259,14 @@ export class IngestionService {
     const pendingDoc = await InvoiceModel.findOne({
       tenantId: file.tenantId,
       sourceDocumentId: file.sourceDocumentId,
-      status: "PENDING"
+      status: INVOICE_STATUS.PENDING
     }).select({ contentHash: 1 }).lean();
     const contentDuplicate = pendingDoc?.contentHash
       ? await InvoiceModel.findOne({
           tenantId: file.tenantId,
           contentHash: pendingDoc.contentHash,
           sourceDocumentId: { $ne: file.sourceDocumentId },
-          status: { $ne: "PENDING" }
+          status: { $ne: INVOICE_STATUS.PENDING }
         }).select({ _id: 1, attachmentName: 1 }).lean()
       : null;
 
@@ -306,7 +308,7 @@ export class IngestionService {
           ? "AI processing is rate-limited. Please wait a moment before retrying."
           : undefined;
 
-      const result = successData.status === "PARSED" || successData.status === "NEEDS_REVIEW" ? "created" : "failed";
+      const result = successData.status === INVOICE_STATUS.PARSED || successData.status === INVOICE_STATUS.NEEDS_REVIEW ? "created" : "failed";
       return { result, systemAlert };
     } catch (error) {
       if (isDuplicateKeyError(error)) {
@@ -328,7 +330,7 @@ export class IngestionService {
     failureData: Record<string, unknown>,
     originalError: unknown
   ): Promise<void> {
-    if (originalError instanceof ExtractionPipelineError && originalError.code === "FAILED_OCR") {
+    if (originalError instanceof ExtractionPipelineError && originalError.code === PIPELINE_ERROR_CODE.FAILED_OCR) {
       await upsertFromPending(file, failureData);
       return;
     }

@@ -1,6 +1,7 @@
 import type { InvoiceDocument } from "@/models/invoice/Invoice.js";
 import { minorUnitsToMajorString } from "@/utils/currency.js";
 import { isRecord } from "@/utils/validation.js";
+import { INVOICE_STATUS } from "@/types/invoice.js";
 
 const DEFAULT_COLUMNS = [
   "invoiceNumber", "vendorName", "invoiceDate", "dueDate",
@@ -26,7 +27,7 @@ export function generateCsvExport(
   const rows: string[] = [];
 
   for (const inv of invoices) {
-    if (inv.status !== "APPROVED" && inv.status !== "EXPORTED") {
+    if (inv.status !== INVOICE_STATUS.APPROVED && inv.status !== INVOICE_STATUS.EXPORTED) {
       skippedCount++;
       continue;
     }

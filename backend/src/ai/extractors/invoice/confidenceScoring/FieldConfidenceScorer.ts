@@ -1,5 +1,6 @@
 import type { OcrBlock } from "@/core/interfaces/OcrProvider.js";
-import type { InvoiceFieldKey, InvoiceFieldProvenance, ParsedInvoiceData } from "@/types/invoice.js";
+import { PROVENANCE_SOURCE } from "@/types/invoice.js";
+import type { InvoiceFieldKey, InvoiceFieldProvenance, ParsedInvoiceData, ProvenanceSource } from "@/types/invoice.js";
 import { clampProbability } from "@/ai/extractors/stages/fieldParsingUtils.js";
 import {
   blockMatchesFieldValue,
@@ -160,13 +161,13 @@ export function addFieldDiagnosticsToMetadata(params: {
       fieldConfidence[field] = Number(finalConfidence.toFixed(4));
     }
 
-    const provenanceSource = changedByVerifier.has(field)
-      ? "slm"
+    const provenanceSource: ProvenanceSource = changedByVerifier.has(field)
+      ? PROVENANCE_SOURCE.SLM
       : params.templateAppliedFields.has(field)
-        ? "template"
+        ? PROVENANCE_SOURCE.TEMPLATE
         : params.source.includes("template")
-          ? "template"
-          : "heuristic";
+          ? PROVENANCE_SOURCE.TEMPLATE
+          : PROVENANCE_SOURCE.HEURISTIC;
     const slmProvenance = params.verifierFieldProvenance?.[field];
     if (slmProvenance) {
       const provenanceBlock =

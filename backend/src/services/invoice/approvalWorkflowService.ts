@@ -4,6 +4,7 @@ import { TenantAssignableRoles, TenantUserRoleModel, normalizeTenantRole } from 
 import { HttpError } from "@/errors/HttpError.js";
 import { logger } from "@/utils/logger.js";
 import type { AuthenticatedRequestContext } from "@/types/auth.js";
+import { INVOICE_STATUS } from "@/types/invoice.js";
 
 interface WorkflowStep {
   order: number;
@@ -103,9 +104,9 @@ export class ApprovalWorkflowService {
 
     if (config.enabled === false) {
       const result = await InvoiceModel.updateMany(
-        { tenantId, status: "AWAITING_APPROVAL" },
+        { tenantId, status: INVOICE_STATUS.AWAITING_APPROVAL },
         {
-          $set: { status: "NEEDS_REVIEW" },
+          $set: { status: INVOICE_STATUS.NEEDS_REVIEW },
           $unset: { workflowState: "" },
           $push: { processingIssues: "Approval workflow disabled — returned to review." }
         }
@@ -216,7 +217,7 @@ export class ApprovalWorkflowService {
 
     const invoice = await InvoiceModel.findOne({ _id: invoiceId, tenantId });
     if (!invoice) return false;
-    if (invoice.status !== "PARSED" && invoice.status !== "NEEDS_REVIEW") return false;
+    if (invoice.status !== INVOICE_STATUS.PARSED && invoice.status !== INVOICE_STATUS.NEEDS_REVIEW) return false;
 
     const firstStep = workflow.steps.find((s) => s.order === 1);
     if (!firstStep) return false;
@@ -227,7 +228,7 @@ export class ApprovalWorkflowService {
       return false;
     }
 
-    invoice.status = "AWAITING_APPROVAL";
+    invoice.status = INVOICE_STATUS.AWAITING_APPROVAL;
     invoice.set("workflowState", {
       workflowId: String(workflow._id),
       currentStep: skipFirst ? 2 : 1,
@@ -244,7 +245,7 @@ export class ApprovalWorkflowService {
     if (!invoice) {
       throw new HttpError("Invoice not found.", 404, "invoice_not_found");
     }
-    if (invoice.status !== "AWAITING_APPROVAL") {
+    if (invoice.status !== INVOICE_STATUS.AWAITING_APPROVAL) {
       throw new HttpError("Invoice is not awaiting approval.", 400, "invoice_not_awaiting");
     }
 
@@ -331,7 +332,7 @@ export class ApprovalWorkflowService {
     if (nextStep > maxStep) {
       workflowState.currentStep = 0;
       workflowState.status = WORKFLOW_STATUS.APPROVED;
-      invoice.status = "APPROVED";
+      invoice.status = INVOICE_STATUS.APPROVED;
       invoice.set("approval", {
         approvedBy: authContext.email,
         approvedAt: new Date(),
@@ -356,7 +357,7 @@ export class ApprovalWorkflowService {
     if (!invoice) {
       throw new HttpError("Invoice not found.", 404, "invoice_not_found");
     }
-    if (invoice.status !== "AWAITING_APPROVAL") {
+    if (invoice.status !== INVOICE_STATUS.AWAITING_APPROVAL) {
       throw new HttpError("Invoice is not awaiting approval.", 400, "invoice_not_awaiting");
     }
 
@@ -391,7 +392,7 @@ export class ApprovalWorkflowService {
     });
     workflowState.status = WORKFLOW_STATUS.REJECTED;
 
-    invoice.status = "NEEDS_REVIEW";
+    invoice.status = INVOICE_STATUS.NEEDS_REVIEW;
     invoice.set("workflowState", workflowState);
     invoice.processingIssues.push(`Rejected at step ${workflowState.currentStep} by ${authContext.email}: ${reason}`);
     await invoice.save();
@@ -399,12 +400,12 @@ export class ApprovalWorkflowService {
 
   async resetWorkflowOnEdit(invoiceId: string, tenantId: string): Promise<void> {
     const invoice = await InvoiceModel.findOne({ _id: invoiceId, tenantId });
-    if (!invoice || invoice.status !== "AWAITING_APPROVAL") return;
+    if (!invoice || invoice.status !== INVOICE_STATUS.AWAITING_APPROVAL) return;
 
     const workflowState = invoice.get("workflowState") as WorkflowStateData | undefined;
     if (!workflowState || workflowState.status !== WORKFLOW_STATUS.IN_PROGRESS) return;
 
-    invoice.status = "NEEDS_REVIEW";
+    invoice.status = INVOICE_STATUS.NEEDS_REVIEW;
     invoice.set("workflowState", undefined);
     invoice.processingIssues.push("Approval workflow reset — parsed fields modified.");
     await invoice.save();

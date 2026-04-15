@@ -3,7 +3,7 @@ import type { ParsedInvoiceData } from "@/types/invoice.js";
 import type { OcrBlock, OcrPageImage, OcrProvider, OcrResult } from "@/core/interfaces/OcrProvider.js";
 import type { ChunkableDocumentDefinition, DocumentDefinition } from "@/core/engine/DocumentDefinition.js";
 import type { DocumentDefinitionCanChunk, ProcessingContext, ProcessingResult, ValidationResult } from "@/core/engine/types.js";
-import { DocumentProcessingError } from "@/core/engine/types.js";
+import { DocumentProcessingError, ENGINE_STRATEGY, PIPELINE_ERROR_CODE } from "@/core/engine/types.js";
 
 import { extractNativePdfText } from "@/ai/extractors/stages/nativePdfText.js";
 import { logger } from "@/utils/logger.js";
@@ -71,7 +71,7 @@ export class DocumentProcessingEngine<TOutput> {
         ocrConfidence,
         ocrTokens,
         slmTokens: 0,
-        strategy: "llamaextract",
+        strategy: ENGINE_STRATEGY.LLAMA_EXTRACT,
         validationResult,
         processingIssues
       };
@@ -96,7 +96,7 @@ export class DocumentProcessingEngine<TOutput> {
       ocrConfidence,
       ocrTokens,
       slmTokens,
-      strategy: "slm",
+      strategy: ENGINE_STRATEGY.SLM,
       validationResult,
       processingIssues
     };
@@ -135,7 +135,7 @@ export class DocumentProcessingEngine<TOutput> {
     }
 
     if (!this.ocrProvider) {
-      throw new DocumentProcessingError("FAILED_OCR", "No OCR provider available.");
+      throw new DocumentProcessingError(PIPELINE_ERROR_CODE.FAILED_OCR, "No OCR provider available.");
     }
 
     let ocrResult: OcrResult;
@@ -143,12 +143,12 @@ export class DocumentProcessingEngine<TOutput> {
       ocrResult = await this.ocrProvider.extractText(ctx.fileBuffer, ctx.mimeType, ctx.ocrLanguageHint ? { languageHint: ctx.ocrLanguageHint } : undefined);
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
-      throw new DocumentProcessingError("FAILED_OCR", `OCR extraction failed: ${msg}`);
+      throw new DocumentProcessingError(PIPELINE_ERROR_CODE.FAILED_OCR, `OCR extraction failed: ${msg}`);
     }
 
     const text = ocrResult.text?.trim() ?? "";
     if (!text) {
-      throw new DocumentProcessingError("FAILED_OCR", "Empty OCR");
+      throw new DocumentProcessingError(PIPELINE_ERROR_CODE.FAILED_OCR, "Empty OCR");
     }
 
     const ocrTokens = ocrResult.tokenUsage?.totalTokens ?? 0;
@@ -235,7 +235,7 @@ export class DocumentProcessingEngine<TOutput> {
       ocrConfidence,
       ocrTokens,
       slmTokens: 0,
-      strategy: "slm-chunked",
+      strategy: ENGINE_STRATEGY.SLM_CHUNKED,
       validationResult,
       processingIssues
     };

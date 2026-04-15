@@ -5,10 +5,21 @@ import type { WorkloadTier } from "@/types/tenant.js";
 import { createDefaultManifest, deepMerge, resolveRuntimeManifestPath, resolveSource } from "@/core/runtimeManifestConfig.js";
 import { runtimeManifestSchema, type RuntimeManifestInput, type RuntimeSourceInput } from "@/core/runtimeManifestSchema.js";
 
+import type { IngestionSourceType } from "@/core/interfaces/IngestionSource.js";
+
 type OcrProviderType = "auto" | "deepseek" | "mock" | "llamaparse";
 type VerifierProviderType = "none" | "http";
 type FileStoreProviderType = "s3";
-type SourceType = "email" | "folder";
+type SourceType = Extract<IngestionSourceType, "email" | "folder">;
+
+export const LLAMA_PARSE_TIER = {
+  FAST: "fast",
+  COST_EFFECTIVE: "cost_effective",
+  AGENTIC: "agentic",
+} as const;
+
+export type LlamaParseTier = (typeof LLAMA_PARSE_TIER)[keyof typeof LLAMA_PARSE_TIER];
+
 
 interface SourceBaseManifest {
   type: SourceType;
@@ -73,7 +84,7 @@ export interface RuntimeManifest {
     };
     llamaparse: {
       apiKey: string;
-      tier: string;
+      tier: LlamaParseTier;
     };
   };
   verifier: {

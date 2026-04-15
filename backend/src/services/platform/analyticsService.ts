@@ -1,4 +1,5 @@
 import { InvoiceModel } from "@/models/invoice/Invoice.js";
+import { INVOICE_STATUS } from "@/types/invoice.js";
 
 interface DailyStat {
   date: string;
@@ -48,17 +49,17 @@ export async function getOverview(tenantId: string, from: Date, to: Date, approv
           {
             $facet: {
               total: [{ $count: "n" }],
-              approved: [{ $match: { status: { $in: ["APPROVED", "EXPORTED"] }, ...approverFilter } }, { $count: "n" }],
+              approved: [{ $match: { status: { $in: [INVOICE_STATUS.APPROVED, INVOICE_STATUS.EXPORTED] }, ...approverFilter } }, { $count: "n" }],
               approvedAmount: [
-                { $match: { status: { $in: ["APPROVED", "EXPORTED"] }, ...approverFilter } },
+                { $match: { status: { $in: [INVOICE_STATUS.APPROVED, INVOICE_STATUS.EXPORTED] }, ...approverFilter } },
                 { $group: { _id: null, total: { $sum: "$parsed.totalAmountMinor" } } }
               ],
               pendingAmount: [
-                { $match: { status: { $in: ["PARSED", "NEEDS_REVIEW"] } } },
+                { $match: { status: { $in: [INVOICE_STATUS.PARSED, INVOICE_STATUS.NEEDS_REVIEW] } } },
                 { $group: { _id: null, total: { $sum: "$parsed.totalAmountMinor" } } }
               ],
-              exported: [{ $match: { status: "EXPORTED", ...approverFilter } }, { $count: "n" }],
-              needsReview: [{ $match: { status: "NEEDS_REVIEW" } }, { $count: "n" }]
+              exported: [{ $match: { status: INVOICE_STATUS.EXPORTED, ...approverFilter } }, { $count: "n" }],
+              needsReview: [{ $match: { status: INVOICE_STATUS.NEEDS_REVIEW } }, { $count: "n" }]
             }
           }
         ],
@@ -123,7 +124,7 @@ export async function getOverview(tenantId: string, from: Date, to: Date, approv
 
       InvoiceModel.aggregate(
         [
-          { $match: { tenantId, status: { $in: ["APPROVED", "EXPORTED"] }, "approval.approvedAt": { $gte: from, $lte: to }, ...approverFilter } },
+          { $match: { tenantId, status: { $in: [INVOICE_STATUS.APPROVED, INVOICE_STATUS.EXPORTED] }, "approval.approvedAt": { $gte: from, $lte: to }, ...approverFilter } },
           { $project: { "parsed.vendorName": 1, "parsed.totalAmountMinor": 1 } },
           {
             $group: {
@@ -140,7 +141,7 @@ export async function getOverview(tenantId: string, from: Date, to: Date, approv
 
       InvoiceModel.aggregate(
         [
-          { $match: { tenantId, status: { $in: ["PARSED", "NEEDS_REVIEW"] }, createdAt: { $gte: from, $lte: to } } },
+          { $match: { tenantId, status: { $in: [INVOICE_STATUS.PARSED, INVOICE_STATUS.NEEDS_REVIEW] }, createdAt: { $gte: from, $lte: to } } },
           { $project: { "parsed.vendorName": 1, "parsed.totalAmountMinor": 1 } },
           {
             $group: {

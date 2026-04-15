@@ -1,6 +1,7 @@
 import { Types } from "mongoose";
 import { InvoiceModel } from "@/models/invoice/Invoice.js";
 import { env } from "@/config/env.js";
+import { INVOICE_STATUS, GL_CODE_SOURCE, TCS_SOURCE, RISK_SIGNAL_STATUS, RISK_SIGNAL_SEVERITY } from "@/types/invoice.js";
 import type { GstBreakdown, ParsedInvoiceData, ComplianceRiskSignal } from "@/types/invoice.js";
 import { assessInvoiceConfidence } from "@/services/invoice/confidenceAssessment.js";
 import { toMinorUnits } from "@/utils/currency.js";
@@ -127,15 +128,15 @@ export class InvoiceService {
         {
           $facet: {
             totalAll: [{ $count: "n" }],
-            approved: [{ $match: { status: "APPROVED" } }, { $count: "n" }],
-            pending: [{ $match: { status: { $in: ["PARSED", "NEEDS_REVIEW"] } } }, { $count: "n" }],
-            failed: [{ $match: { status: { $in: ["FAILED_OCR", "FAILED_PARSE"] } } }, { $count: "n" }],
-            needsReview: [{ $match: { status: "NEEDS_REVIEW" } }, { $count: "n" }],
-            parsed: [{ $match: { status: "PARSED" } }, { $count: "n" }],
-            awaitingApproval: [{ $match: { status: "AWAITING_APPROVAL" } }, { $count: "n" }],
-            failedOcr: [{ $match: { status: "FAILED_OCR" } }, { $count: "n" }],
-            failedParse: [{ $match: { status: "FAILED_PARSE" } }, { $count: "n" }],
-            exported: [{ $match: { status: "EXPORTED" } }, { $count: "n" }],
+            approved: [{ $match: { status: INVOICE_STATUS.APPROVED } }, { $count: "n" }],
+            pending: [{ $match: { status: { $in: [INVOICE_STATUS.PARSED, INVOICE_STATUS.NEEDS_REVIEW] } } }, { $count: "n" }],
+            failed: [{ $match: { status: { $in: [INVOICE_STATUS.FAILED_OCR, INVOICE_STATUS.FAILED_PARSE] } } }, { $count: "n" }],
+            needsReview: [{ $match: { status: INVOICE_STATUS.NEEDS_REVIEW } }, { $count: "n" }],
+            parsed: [{ $match: { status: INVOICE_STATUS.PARSED } }, { $count: "n" }],
+            awaitingApproval: [{ $match: { status: INVOICE_STATUS.AWAITING_APPROVAL } }, { $count: "n" }],
+            failedOcr: [{ $match: { status: INVOICE_STATUS.FAILED_OCR } }, { $count: "n" }],
+            failedParse: [{ $match: { status: INVOICE_STATUS.FAILED_PARSE } }, { $count: "n" }],
+            exported: [{ $match: { status: INVOICE_STATUS.EXPORTED } }, { $count: "n" }],
             ...(params.status ? { filtered: [{ $match: { status: query.status } }, { $count: "n" }] } : {}),
             duplicateHashes: [
               { $match: { tenantId: params.tenantId, contentHash: { $ne: null } } },
@@ -160,10 +161,10 @@ export class InvoiceService {
         const compliance = (item as Record<string, unknown>).compliance as Record<string, unknown> | undefined;
         if (compliance) {
           const riskSignals = compliance.riskSignals as Array<{ severity: string; status: string }> | undefined;
-          const openSignals = riskSignals?.filter(s => s.status === "open") ?? [];
+          const openSignals = riskSignals?.filter(s => s.status === RISK_SIGNAL_STATUS.OPEN) ?? [];
           const maxSev = openSignals.reduce((m: string | null, s) => {
-            if (s.severity === "critical") return "critical";
-            if (s.severity === "warning" && m !== "critical") return "warning";
+            if (s.severity === RISK_SIGNAL_SEVERITY.CRITICAL) return RISK_SIGNAL_SEVERITY.CRITICAL;
+            if (s.severity === RISK_SIGNAL_SEVERITY.WARNING && m !== RISK_SIGNAL_SEVERITY.CRITICAL) return RISK_SIGNAL_SEVERITY.WARNING;
             return m ?? s.severity;
           }, null as string | null);
 
@@ -203,10 +204,10 @@ export class InvoiceService {
 
     const now = new Date();
     const result = await InvoiceModel.updateMany(
-      { _id: { $in: validIds }, tenantId: authContext.tenantId, status: { $in: ["PARSED", "NEEDS_REVIEW"] } },
+      { _id: { $in: validIds }, tenantId: authContext.tenantId, status: { $in: [INVOICE_STATUS.PARSED, INVOICE_STATUS.NEEDS_REVIEW] } },
       {
         $set: {
-          status: "APPROVED",
+          status: INVOICE_STATUS.APPROVED,
           approval: { approvedBy, approvedAt: now, userId: authContext.userId, email: authContext.email, role: authContext.role }
         },
         $push: { processingIssues: { $each: [`Approved: ${now.toISOString()} by ${authContext.email} (${authContext.userId})`] } }
@@ -223,14 +224,14 @@ export class InvoiceService {
       const invoice = await InvoiceModel.findOne({ _id: id, tenantId: authContext.tenantId }).lean();
       if (!invoice) continue;
 
-      if (invoice.status === "PARSED" || invoice.status === "NEEDS_REVIEW") {
+      if (invoice.status === INVOICE_STATUS.PARSED || invoice.status === INVOICE_STATUS.NEEDS_REVIEW) {
         const initiated = await this.workflowService!.initiateWorkflow(invoiceId, authContext.tenantId);
         if (!initiated) {
           const now = new Date();
           await InvoiceModel.updateOne(
-            { _id: id, tenantId: authContext.tenantId, status: { $in: ["PARSED", "NEEDS_REVIEW"] } },
+            { _id: id, tenantId: authContext.tenantId, status: { $in: [INVOICE_STATUS.PARSED, INVOICE_STATUS.NEEDS_REVIEW] } },
             {
-              $set: { status: "APPROVED", approval: { approvedBy: authContext.email, approvedAt: now, userId: authContext.userId, email: authContext.email, role: authContext.role } },
+              $set: { status: INVOICE_STATUS.APPROVED, approval: { approvedBy: authContext.email, approvedAt: now, userId: authContext.userId, email: authContext.email, role: authContext.role } },
               $push: { processingIssues: `Approved: ${now.toISOString()} by ${authContext.email} (${authContext.userId})` }
             }
           );
@@ -247,7 +248,7 @@ export class InvoiceService {
         continue;
       }
 
-      if (invoice.status === "AWAITING_APPROVAL") {
+      if (invoice.status === INVOICE_STATUS.AWAITING_APPROVAL) {
         try {
           const result = await this.workflowService!.approveStep(invoiceId, authContext);
           if (result.advanced) advanced++;
@@ -266,8 +267,8 @@ export class InvoiceService {
 
     const now = new Date();
     const result = await InvoiceModel.updateMany(
-      { _id: { $in: validIds }, tenantId: authContext.tenantId, status: { $in: ["PENDING", "FAILED_OCR", "FAILED_PARSE", "NEEDS_REVIEW", "PARSED"] } },
-      { $set: { status: "PENDING" }, $push: { processingIssues: { $each: [`Retry requested: ${now.toISOString()} by ${authContext.email}`] } } }
+      { _id: { $in: validIds }, tenantId: authContext.tenantId, status: { $in: [INVOICE_STATUS.PENDING, INVOICE_STATUS.FAILED_OCR, INVOICE_STATUS.FAILED_PARSE, INVOICE_STATUS.NEEDS_REVIEW, INVOICE_STATUS.PARSED] } },
+      { $set: { status: INVOICE_STATUS.PENDING }, $push: { processingIssues: { $each: [`Retry requested: ${now.toISOString()} by ${authContext.email}`] } } }
     );
     return result.modifiedCount;
   }
@@ -276,7 +277,7 @@ export class InvoiceService {
     const validIds = ids.filter((id) => Types.ObjectId.isValid(id)).map((id) => new Types.ObjectId(id));
     if (validIds.length === 0) return 0;
 
-    const filter = { _id: { $in: validIds }, tenantId: authContext.tenantId, status: { $ne: "EXPORTED" } };
+    const filter = { _id: { $in: validIds }, tenantId: authContext.tenantId, status: { $ne: INVOICE_STATUS.EXPORTED } };
 
     let storageKeys: string[] = [];
     if (this.fileStore) {
@@ -313,7 +314,7 @@ export class InvoiceService {
 
     const invoice = await InvoiceModel.findOne({ _id: id, tenantId });
     if (!invoice) throw new InvoiceUpdateError("Invoice not found.", 404);
-    if (invoice.status === "EXPORTED") throw new InvoiceUpdateError("Cannot modify an exported invoice.", 403);
+    if (invoice.status === INVOICE_STATUS.EXPORTED) throw new InvoiceUpdateError("Cannot modify an exported invoice.", 403);
 
     const currentParsed = sanitizeParsedData(invoice.toObject().parsed);
     const nextParsed = { ...currentParsed };
@@ -417,11 +418,11 @@ export class InvoiceService {
     invoice.set("riskFlags", confidence.riskFlags);
     invoice.set("riskMessages", confidence.riskMessages);
 
-    if (invoice.status === "AWAITING_APPROVAL") {
-      invoice.status = "NEEDS_REVIEW";
+    if (invoice.status === INVOICE_STATUS.AWAITING_APPROVAL) {
+      invoice.status = INVOICE_STATUS.NEEDS_REVIEW;
       invoice.set("workflowState", undefined);
-    } else if (invoice.status !== "APPROVED") {
-      invoice.status = isCompleteParsedData(nextParsed) && confidence.riskFlags.length === 0 ? "PARSED" : "NEEDS_REVIEW";
+    } else if (invoice.status !== INVOICE_STATUS.APPROVED) {
+      invoice.status = isCompleteParsedData(nextParsed) && confidence.riskFlags.length === 0 ? INVOICE_STATUS.PARSED : INVOICE_STATUS.NEEDS_REVIEW;
     }
 
     invoice.set("processingIssues", [
@@ -440,7 +441,7 @@ export class InvoiceService {
 
     const invoice = await InvoiceModel.findOne({ _id: id, tenantId });
     if (!invoice) throw new InvoiceUpdateError("Invoice not found.", 404);
-    if (invoice.status === "EXPORTED") throw new InvoiceUpdateError("Cannot modify an exported invoice.", 403);
+    if (invoice.status === INVOICE_STATUS.EXPORTED) throw new InvoiceUpdateError("Cannot modify an exported invoice.", 403);
 
     invoice.attachmentName = trimmed;
     await invoice.save();
@@ -452,7 +453,7 @@ export class InvoiceService {
 
     const invoice = await InvoiceModel.findOne({ _id: invoiceId, tenantId });
     if (!invoice) throw new InvoiceUpdateError("Invoice not found.", 404);
-    if (invoice.status === "EXPORTED") throw new InvoiceUpdateError("Cannot retrigger compliance on an exported invoice.", 403);
+    if (invoice.status === INVOICE_STATUS.EXPORTED) throw new InvoiceUpdateError("Cannot retrigger compliance on an exported invoice.", 403);
 
     const parsed = sanitizeParsedData(invoice.toObject().parsed);
     const invoiceObj = invoice.toObject() as Record<string, unknown>;
@@ -461,7 +462,7 @@ export class InvoiceService {
     (compliance as Record<string, unknown>).glCode = {
       code: newGlCode,
       name: newGlName,
-      source: "manual",
+      source: GL_CODE_SOURCE.MANUAL,
       confidence: 100
     };
 
@@ -514,7 +515,7 @@ export async function retriggerTdsAndTcs(
       compliance.tcs = {
         rate: tcsConfig.ratePercent,
         amountMinor: tcsAmount,
-        source: "configured"
+        source: TCS_SOURCE.CONFIGURED
       };
     }
   } catch (error) {

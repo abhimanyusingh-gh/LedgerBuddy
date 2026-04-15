@@ -70,8 +70,7 @@ import {
   type InvoiceSlmOutput,
 } from "@/ai/extractors/invoice/InvoiceDocumentDefinition.js";
 import { EXTRACTION_SOURCE, type ExtractionSource } from "@/core/engine/extractionSource.js";
-
-type PipelineErrorCode = "FAILED_OCR" | "FAILED_PARSE";
+import { ENGINE_STRATEGY, PIPELINE_ERROR_CODE, type PipelineErrorCode } from "@/core/engine/types.js";
 
 interface ExtractionPipelineInput {
   tenantId: string;
@@ -237,13 +236,13 @@ export class InvoiceExtractionPipeline {
       );
     } catch (error) {
       if (error instanceof Error && error.message.includes("Empty OCR")) {
-        throw new ExtractionPipelineError("FAILED_OCR", "Empty OCR");
+        throw new ExtractionPipelineError(PIPELINE_ERROR_CODE.FAILED_OCR, "Empty OCR");
       }
       throw error;
     }
 
     if (!engineResult) {
-      throw new ExtractionPipelineError("FAILED_OCR", "Engine returned no result.");
+      throw new ExtractionPipelineError(PIPELINE_ERROR_CODE.FAILED_OCR, "Engine returned no result.");
     }
 
     // Read values populated by afterOcr pipeline stages from the shared context
@@ -257,7 +256,7 @@ export class InvoiceExtractionPipeline {
     const ocrTokens = pipelineCtx.store.get<number>(INVOICE_CTX.OCR_TOKENS) ?? 0;
 
     // Handle LlamaExtract early return path (bypass post-engine pipeline)
-    if (engineResult.strategy === "llamaextract") {
+    if (engineResult.strategy === ENGINE_STRATEGY.LLAMA_EXTRACT) {
       const slmOutput = engineResult.output;
       const parsed = slmOutput.parsed;
       const fieldProvenance = slmOutput.fieldProvenance ?? {};
