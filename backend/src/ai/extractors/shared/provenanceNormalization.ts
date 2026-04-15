@@ -2,7 +2,7 @@ import type { InvoiceFieldKey, InvoiceFieldProvenance } from "@/types/invoice.js
 import { normalizeBoxTuple } from "@/services/ingestion/box.js";
 import { clampProbability } from "@/utils/math.js";
 
-function normalizeProvenanceEntry(value: unknown): InvoiceFieldProvenance | undefined {
+export function normalizeProvenanceEntry(value: unknown): InvoiceFieldProvenance | undefined {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     return undefined;
   }
@@ -30,7 +30,7 @@ function normalizeProvenanceEntry(value: unknown): InvoiceFieldProvenance | unde
   };
 }
 
-export function normalizeVerifierFieldProvenance(value: unknown): Partial<Record<InvoiceFieldKey, InvoiceFieldProvenance>> | undefined {
+export function normalizeFieldProvenance(value: unknown): Partial<Record<InvoiceFieldKey, InvoiceFieldProvenance>> | undefined {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     return undefined;
   }
@@ -42,8 +42,4 @@ export function normalizeVerifierFieldProvenance(value: unknown): Partial<Record
     }
   }
   return Object.keys(output).length > 0 ? output : undefined;
-}
-
-export function normalizeVerifierSingleProvenance(value: unknown): InvoiceFieldProvenance | undefined {
-  return normalizeProvenanceEntry(value);
 }

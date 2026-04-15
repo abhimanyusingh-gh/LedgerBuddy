@@ -5,7 +5,7 @@ import type {
   InvoiceVerifierContract,
   ParsedInvoiceData
 } from "@/types/invoice.js";
-import { normalizeVerifierFieldProvenance, normalizeVerifierSingleProvenance } from "@/ai/verifiers/VerifierProvenanceNormalizer.js";
+import { normalizeFieldProvenance, normalizeProvenanceEntry } from "@/ai/extractors/shared/provenanceNormalization.js";
 import { isRecord } from "@/utils/validation.js";
 
 export function parseVerifierParsedResponse(value: unknown): ParsedInvoiceData | undefined {
@@ -133,7 +133,7 @@ export function normalizeVerifierContract(value: unknown): InvoiceVerifierContra
           return undefined;
         }
         const description = typeof entry.description === "string" && entry.description.trim() ? entry.description.trim() : undefined;
-        const provenance = normalizeVerifierSingleProvenance(entry.provenance);
+        const provenance = normalizeProvenanceEntry(entry.provenance);
         return {
           ...(description ? { description } : {}),
           amountMinor: amount,
@@ -209,7 +209,7 @@ export function parsedFromVerifierContract(contract: InvoiceVerifierContract): P
 export function fieldProvenanceFromVerifierContract(
   contract: InvoiceVerifierContract
 ): Partial<Record<InvoiceFieldKey, InvoiceFieldProvenance>> | undefined {
-  return normalizeVerifierFieldProvenance({
+  return normalizeFieldProvenance({
     invoiceNumber: contract.invoiceNumber?.provenance,
     vendorName: contract.vendorNameContains?.provenance,
     invoiceDate: contract.invoiceDate?.provenance,

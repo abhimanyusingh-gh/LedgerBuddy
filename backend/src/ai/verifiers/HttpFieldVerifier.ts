@@ -3,9 +3,9 @@ import type { FieldVerifier, FieldVerifierInput, FieldVerifierResult } from "@/c
 import {
   normalizeClassification,
   normalizeFieldConfidence,
-  normalizeFieldProvenance,
   normalizeLineItemProvenance
 } from "@/ai/extractors/invoice/stages/provenance.js";
+import { normalizeFieldProvenance } from "@/ai/extractors/shared/provenanceNormalization.js";
 import {
   fieldProvenanceFromVerifierContract,
   lineItemProvenanceFromVerifierContract,

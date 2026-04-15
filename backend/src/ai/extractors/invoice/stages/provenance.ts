@@ -4,6 +4,9 @@ import type { InvoiceExtractionData, InvoiceFieldKey, InvoiceFieldProvenance, In
 import { clampProbability } from "@/utils/math.js";
 import { findBlockByAmountValue } from "@/ai/extractors/invoice/stages/groundingAmounts.js";
 import { normalizeBoxTuple, type Box4 } from "@/services/ingestion/box.js";
+import { normalizeProvenanceEntry } from "@/ai/extractors/shared/provenanceNormalization.js";
+
+export { normalizeFieldProvenance } from "@/ai/extractors/shared/provenanceNormalization.js";
 
 type LineItemField = "row" | "description" | "hsnSac" | "quantity" | "rate" | "amountMinor" | "taxRate" | "cgstMinor" | "sgstMinor" | "igstMinor";
 
@@ -46,20 +49,6 @@ export function normalizeFieldConfidence(value: unknown): Partial<Record<Invoice
     }
     const normalized = parsed > 1 ? parsed / 100 : parsed;
     output[field as InvoiceFieldKey] = Number(clampProbability(normalized).toFixed(4));
-  }
-  return Object.keys(output).length > 0 ? output : undefined;
-}
-
-export function normalizeFieldProvenance(value: unknown): Partial<Record<InvoiceFieldKey, InvoiceFieldProvenance>> | undefined {
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    return undefined;
-  }
-  const output: Partial<Record<InvoiceFieldKey, InvoiceFieldProvenance>> = {};
-  for (const [field, entry] of Object.entries(value)) {
-    const normalized = normalizeProvenanceEntry(entry);
-    if (normalized) {
-      output[field as InvoiceFieldKey] = normalized;
-    }
   }
   return Object.keys(output).length > 0 ? output : undefined;
 }
@@ -395,32 +384,3 @@ function averageConfidence(entries: InvoiceFieldProvenance[]): number | undefine
   const avg = values.reduce((sum, value) => sum + value, 0) / values.length;
   return Number(avg.toFixed(4));
 }
-
-function normalizeProvenanceEntry(value: unknown): InvoiceFieldProvenance | undefined {
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    return undefined;
-  }
-  const raw = value as Record<string, unknown>;
-  const bbox = normalizeBoxTuple(raw.bbox);
-  const bboxNormalized = normalizeBoxTuple(raw.bboxNormalized);
-  const bboxModel = normalizeBoxTuple(raw.bboxModel);
-  if (!bbox && !bboxNormalized && !bboxModel) {
-    return undefined;
-  }
-
-  const pageCandidate = Number(raw.page);
-  const blockIndexCandidate = Number(raw.blockIndex ?? raw.block_index);
-  const confidenceCandidate = Number(raw.confidence);
-  return {
-    ...(typeof raw.source === "string" && raw.source.trim().length > 0 ? { source: raw.source.trim() } : {}),
-    ...(Number.isFinite(pageCandidate) && pageCandidate > 0 ? { page: Math.round(pageCandidate) } : {}),
-    ...(bbox ? { bbox } : {}),
-    ...(bboxNormalized ? { bboxNormalized } : {}),
-    ...(bboxModel ? { bboxModel } : {}),
-    ...(Number.isInteger(blockIndexCandidate) && blockIndexCandidate >= 0 ? { blockIndex: blockIndexCandidate } : {}),
-    ...(Number.isFinite(confidenceCandidate)
-      ? { confidence: Number(clampProbability(confidenceCandidate > 1 ? confidenceCandidate / 100 : confidenceCandidate).toFixed(4)) }
-      : {})
-  };
-}
-
