@@ -38,7 +38,7 @@ provider "aws" {
 # S3 bucket module
 # ---------------------------------------------------------------------------
 module "test_bucket" {
-  source = "../modules/aws_s3_bucket"
+  source = "./modules/aws_s3_bucket"
 
   bucket_name        = "localstack-test-artifacts"
   force_destroy      = true
@@ -55,7 +55,7 @@ module "test_bucket" {
 # IAM instance profile module
 # ---------------------------------------------------------------------------
 module "test_iam_profile" {
-  source = "../modules/aws_iam_instance_profile"
+  source = "./modules/aws_iam_instance_profile"
 
   name        = "localstack-test-worker"
   policy_arns = [] # LocalStack free tier has limited managed-policy support
@@ -70,7 +70,7 @@ module "test_iam_profile" {
 # STS access role module
 # ---------------------------------------------------------------------------
 module "test_sts_role" {
-  source = "../modules/aws_sts_access_role"
+  source = "./modules/aws_sts_access_role"
 
   name             = "localstack-test-sts-role"
   trusted_services = ["ec2.amazonaws.com"]

@@ -9,11 +9,11 @@ data "aws_ami" "amazon_linux" {
 }
 
 # Module source strategy:
-# - Local copy-first: ../modules/<module_name>
+# - Local copy-first: ./modules/<module_name>
 # - Registry migration later is mechanical: replace only `source` values below.
 module "documentdb" {
   count  = var.provision_documentdb ? 1 : 0
-  source = "../modules/aws_documentdb_cluster"
+  source = "./modules/aws_documentdb_cluster"
 
   name                    = "${var.project_name}-docdb"
   vpc_id                  = var.vpc_id
@@ -38,7 +38,7 @@ module "documentdb" {
 
 module "artifact_bucket" {
   count  = var.provision_artifact_bucket ? 1 : 0
-  source = "../modules/aws_s3_bucket"
+  source = "./modules/aws_s3_bucket"
 
   bucket_name        = var.artifact_bucket_name
   force_destroy      = var.artifact_bucket_force_destroy
@@ -114,7 +114,7 @@ locals {
 
 module "auth_sts_role" {
   count  = local.sts_enabled ? 1 : 0
-  source = "../modules/aws_sts_access_role"
+  source = "./modules/aws_sts_access_role"
 
   name                     = "${var.project_name}-${var.environment}-auth-sts"
   trusted_services         = var.sts_trusted_services
@@ -125,7 +125,7 @@ module "auth_sts_role" {
 
 module "backend_sts_role" {
   count  = local.sts_enabled ? 1 : 0
-  source = "../modules/aws_sts_access_role"
+  source = "./modules/aws_sts_access_role"
 
   name                     = "${var.project_name}-${var.environment}-backend-sts"
   trusted_services         = var.sts_trusted_services
@@ -165,7 +165,7 @@ resource "aws_iam_policy" "worker_artifact_access" {
 }
 
 module "worker_iam" {
-  source = "../modules/aws_iam_instance_profile"
+  source = "./modules/aws_iam_instance_profile"
 
   name        = "${var.project_name}-worker"
   policy_arns = concat(["arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"], local.worker_policy_arns)
@@ -173,7 +173,7 @@ module "worker_iam" {
 }
 
 module "scheduled_service" {
-  source = "../modules/aws_scheduled_ec2_service"
+  source = "./modules/aws_scheduled_ec2_service"
 
   name                  = "${var.project_name}-worker"
   vpc_id                = var.vpc_id
