@@ -35,8 +35,20 @@ interface LlamaParseOcrProviderOptions {
   extractTargetPages?: string;
 }
 
-const DEFAULT_EXTRACT_SYSTEM_PROMPT =
-  "Extract all fields exactly as they appear on the invoice. For monetary amounts, return the numeric value only without currency symbols. For dates, use YYYY-MM-DD format. The total_amount must be the final grand total including all taxes. The vendor_name is the seller/supplier, not the buyer. If a field is not present, omit it rather than guessing. For Indian invoices, extract GSTIN, PAN, HSN/SAC codes, and all GST components separately.";
+const DEFAULT_EXTRACT_SYSTEM_PROMPT = [
+  "Extract all fields exactly as they appear on the invoice.",
+  "For monetary amounts, return the numeric value only without currency symbols.",
+  "For dates, use YYYY-MM-DD format.",
+  "The total_amount must be the final grand total including all taxes.",
+  "The vendor_name is the seller/supplier, not the buyer.",
+  "If a field is not present, omit it rather than guessing.",
+  "For Indian invoices, extract GSTIN, PAN, HSN/SAC codes, and all GST components separately.",
+  "CITATION PRECISION: For each field, cite ONLY the exact value text — not the label, not the surrounding context.",
+  "For example, for invoice_number cite only 'INV-123' not 'Invoice Number: INV-123'.",
+  "For dates, cite only the date value like '15 Mar 2026' not 'Invoice Date: 15 Mar 2026'.",
+  "For amounts, cite only the numeric value like '1,11,510.00' not 'Total: ₹1,11,510.00'.",
+  "This ensures bounding boxes tightly surround just the extracted value, not the entire label-value region.",
+].join(" ");
 
 export class LlamaParseOcrProvider implements OcrProvider {
   readonly name = "llamaparse";
