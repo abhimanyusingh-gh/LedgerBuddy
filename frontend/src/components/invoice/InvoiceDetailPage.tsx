@@ -43,7 +43,7 @@ export function InvoiceDetailPage({ invoiceId }: InvoiceDetailPageProps) {
 
   const highlights = getInvoiceSourceHighlights(invoice);
   const overlayMap = buildFieldOverlayUrlMap(invoice._id, highlights, getInvoiceFieldOverlayUrl);
-  const cropMap = buildFieldCropUrlMap(invoice._id, highlights, getInvoiceBlockCropUrl);
+  const cropMap = buildFieldCropUrlMap(invoice._id, highlights, getInvoiceBlockCropUrl, getInvoicePreviewUrl);
   const extractedRows = getExtractedFieldRows(invoice);
 
   const resolvePreviewUrl = (page: number) => getInvoicePreviewUrl(invoice._id, page);

@@ -40,7 +40,74 @@ describe("invoiceView", () => {
     ] as SourceHighlight[];
 
     const map = buildFieldCropUrlMap("invoice-1", highlights, (invoiceId, blockIndex) => `${invoiceId}:${blockIndex}`);
-    expect(map.invoiceNumber).toBe("invoice-1:2");
+    expect(map.invoiceNumber).toEqual({ type: "url", url: "invoice-1:2" });
+    expect(map.vendorName).toBeUndefined();
+  });
+
+  it("falls back to bbox crop when blockIndex is absent but bboxNormalized and page resolver exist", () => {
+    const highlights = [
+      {
+        fieldKey: "invoiceNumber",
+        label: "Invoice Number",
+        value: "INV-1",
+        source: "ocr",
+        page: 2,
+        bbox: [10, 10, 30, 30],
+        bboxNormalized: [0.1, 0.2, 0.5, 0.6] as [number, number, number, number]
+      }
+    ] as SourceHighlight[];
+
+    const map = buildFieldCropUrlMap(
+      "invoice-1",
+      highlights,
+      (invoiceId, blockIndex) => `${invoiceId}:${blockIndex}`,
+      (invoiceId, page) => `${invoiceId}/preview/${page}`
+    );
+    expect(map.invoiceNumber).toEqual({
+      type: "bbox",
+      pageImageUrl: "invoice-1/preview/2",
+      bboxNormalized: [0.1, 0.2, 0.5, 0.6]
+    });
+  });
+
+  it("prefers blockIndex crop over bbox crop when both are available", () => {
+    const highlights = [
+      {
+        fieldKey: "invoiceNumber",
+        label: "Invoice Number",
+        value: "INV-1",
+        source: "ocr",
+        page: 1,
+        bbox: [10, 10, 30, 30],
+        bboxNormalized: [0.1, 0.1, 0.3, 0.3],
+        blockIndex: 5,
+        cropPath: "/tmp/crop.png"
+      }
+    ] as SourceHighlight[];
+
+    const map = buildFieldCropUrlMap(
+      "invoice-1",
+      highlights,
+      (invoiceId, blockIndex) => `${invoiceId}:${blockIndex}`,
+      (invoiceId, page) => `${invoiceId}/preview/${page}`
+    );
+    expect(map.invoiceNumber).toEqual({ type: "url", url: "invoice-1:5" });
+  });
+
+  it("does not produce bbox crop when no page resolver is provided", () => {
+    const highlights = [
+      {
+        fieldKey: "vendorName",
+        label: "Vendor",
+        value: "Acme",
+        source: "ocr",
+        page: 1,
+        bbox: [10, 10, 30, 30],
+        bboxNormalized: [0.1, 0.1, 0.3, 0.3]
+      }
+    ] as SourceHighlight[];
+
+    const map = buildFieldCropUrlMap("invoice-1", highlights, (invoiceId, blockIndex) => `${invoiceId}:${blockIndex}`);
     expect(map.vendorName).toBeUndefined();
   });
 

@@ -11,6 +11,7 @@ import { CollapsibleSectionHeader } from "@/features/tenant-admin/CollapsibleSec
 import { formatInvoiceType } from "@/features/tenant-admin/invoiceViewHelpers";
 import type { SourceFieldKey } from "@/lib/invoice/sourceHighlights";
 import type { ExtractedFieldRow } from "@/lib/invoice/extractedFields";
+import type { CropSource } from "@/lib/invoice/invoiceView";
 
 const KEY_FIELD_KEYS = ["vendorName", "invoiceNumber", "invoiceDate", "dueDate", "totalAmountMinor", "currency"];
 
@@ -35,7 +36,7 @@ interface TenantInvoiceDetailPanelProps {
   tenantGlCodes: GlCode[];
   tenantTdsRates: TdsRate[];
   activeOverlayUrlByField: Partial<Record<SourceFieldKey, string>>;
-  activeCropUrlByField: Partial<Record<SourceFieldKey, string>>;
+  activeCropUrlByField: Partial<Record<SourceFieldKey, CropSource>>;
   resolvePreviewUrl: (page: number) => string;
   activeSourcePreviewExpanded: boolean;
   setActiveSourcePreviewExpanded: Dispatch<SetStateAction<boolean>>;

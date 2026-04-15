@@ -397,12 +397,12 @@ export function TenantInvoicesView({
 
   const activeCropUrlByField = useMemo(() => {
     if (!activeInvoice) return {};
-    return buildFieldCropUrlMap(activeInvoice._id, getInvoiceSourceHighlights(activeInvoice), getInvoiceBlockCropUrl);
+    return buildFieldCropUrlMap(activeInvoice._id, getInvoiceSourceHighlights(activeInvoice), getInvoiceBlockCropUrl, getInvoicePreviewUrl);
   }, [activeInvoice]);
 
   const popupCropUrlByField = useMemo(() => {
     if (!popupInvoice) return {};
-    return buildFieldCropUrlMap(popupInvoice._id, getInvoiceSourceHighlights(popupInvoice), getInvoiceBlockCropUrl);
+    return buildFieldCropUrlMap(popupInvoice._id, getInvoiceSourceHighlights(popupInvoice), getInvoiceBlockCropUrl, getInvoicePreviewUrl);
   }, [popupInvoice]);
 
   const popupOverlayUrlByField = useMemo(() => {

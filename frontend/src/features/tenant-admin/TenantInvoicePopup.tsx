@@ -9,6 +9,7 @@ import { TallyMappingTable } from "@/components/invoice/TallyMappingTable";
 import type { ExtractedFieldRow } from "@/lib/invoice/extractedFields";
 import type { SourceFieldKey } from "@/lib/invoice/sourceHighlights";
 import type { TallyMappingRow } from "@/lib/invoice/tallyMapping";
+import type { CropSource } from "@/lib/invoice/invoiceView";
 
 interface TenantInvoicePopupProps {
   invoice: Invoice;
@@ -26,7 +27,7 @@ interface TenantInvoicePopupProps {
   popupMappingExpanded: boolean;
   setPopupMappingExpanded: Dispatch<SetStateAction<boolean>>;
   popupOverlayUrlByField: Partial<Record<SourceFieldKey, string>>;
-  popupCropUrlByField: Partial<Record<SourceFieldKey, string>>;
+  popupCropUrlByField: Partial<Record<SourceFieldKey, CropSource>>;
   popupExtractedRows: ExtractedFieldRow[];
   popupTallyMappings: TallyMappingRow[];
   onClose: () => void;

@@ -1,7 +1,58 @@
-import { useState } from "react";
+import { useState, type CSSProperties } from "react";
 import type { ExtractedFieldRow } from "@/lib/invoice/extractedFields";
 import { formatOcrConfidenceLabel } from "@/lib/invoice/extractedFields";
 import { getConfidenceTone } from "@/lib/invoice/confidence";
+import type { CropSource } from "@/lib/invoice/invoiceView";
+
+const BBOX_CROP_HEIGHT = 28;
+
+function BboxCrop({
+  pageImageUrl,
+  bboxNormalized,
+  alt,
+  onError
+}: {
+  pageImageUrl: string;
+  bboxNormalized: [number, number, number, number];
+  alt: string;
+  onError: () => void;
+}) {
+  const [x1, y1, x2, y2] = bboxNormalized;
+  const bboxW = x2 - x1;
+  const bboxH = y2 - y1;
+  if (bboxW <= 0 || bboxH <= 0) return null;
+
+  const cropHeight = BBOX_CROP_HEIGHT;
+  const cropWidth = Math.round(cropHeight * (bboxW / bboxH));
+  const cappedWidth = Math.min(cropWidth, 200);
+
+  const containerStyle: CSSProperties = {
+    width: `${cappedWidth}px`,
+    height: `${cropHeight}px`,
+    overflow: "hidden",
+    position: "relative",
+    borderRadius: "0.2rem",
+    border: "1px solid rgba(16, 32, 25, 0.12)",
+    background: "#faf9f6"
+  };
+
+  const imgStyle: CSSProperties = {
+    position: "absolute",
+    width: `${100 / bboxW}%`,
+    height: `${100 / bboxH}%`,
+    left: `${-(x1 / bboxW) * 100}%`,
+    top: `${-(y1 / bboxH) * 100}%`,
+    maxWidth: "none"
+  };
+
+  return (
+    <div className="field-crop-inline" style={{ maxHeight: `${cropHeight}px` }}>
+      <div style={containerStyle}>
+        <img src={pageImageUrl} alt={alt} loading="lazy" style={imgStyle} onError={onError} />
+      </div>
+    </div>
+  );
+}
 
 function toIsoDateString(value: string): string {
   if (!value || /^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
@@ -15,7 +66,7 @@ function toIsoDateString(value: string): string {
 
 interface ExtractedFieldsTableProps {
   rows: ExtractedFieldRow[];
-  cropUrlByField?: Partial<Record<ExtractedFieldRow["fieldKey"], string>>;
+  cropUrlByField?: Partial<Record<ExtractedFieldRow["fieldKey"], CropSource>>;
   editable?: boolean;
   onSaveField?: (fieldKey: string, value: string) => Promise<void>;
 }
@@ -64,7 +115,7 @@ export function ExtractedFieldsTable({ rows, cropUrlByField, editable, onSaveFie
         </thead>
         <tbody>
           {rows.map((row) => {
-            const cropUrl = cropUrlByField?.[row.fieldKey];
+            const cropSource = cropUrlByField?.[row.fieldKey];
             const isEditing = editingField === row.fieldKey;
             const canEdit = editable && row.fieldKey !== "notes" && !!onSaveField;
             const cropFailed = failedCrops.has(row.fieldKey);
@@ -114,16 +165,25 @@ export function ExtractedFieldsTable({ rows, cropUrlByField, editable, onSaveFie
                   )}
                 </td>
                 <td>
-                  {cropUrl && !cropFailed ? (
-                    <div className="field-crop-inline">
-                      <img
-                        src={cropUrl}
+                  {cropSource && !cropFailed ? (
+                    cropSource.type === "url" ? (
+                      <div className="field-crop-inline">
+                        <img
+                          src={cropSource.url}
+                          alt={`Source crop for ${row.label}`}
+                          loading="lazy"
+                          className="field-crop-thumbnail"
+                          onError={() => setFailedCrops((prev) => new Set(prev).add(row.fieldKey))}
+                        />
+                      </div>
+                    ) : (
+                      <BboxCrop
+                        pageImageUrl={cropSource.pageImageUrl}
+                        bboxNormalized={cropSource.bboxNormalized}
                         alt={`Source crop for ${row.label}`}
-                        loading="lazy"
-                        className="field-crop-thumbnail"
                         onError={() => setFailedCrops((prev) => new Set(prev).add(row.fieldKey))}
                       />
-                    </div>
+                    )
                   ) : (
                     <div className="table-cell-scroll">
                       <span className="muted">{cropFailed ? "unavailable" : "-"}</span>
