@@ -1,4 +1,4 @@
-import { clampProbability } from "@/ai/extractors/stages/fieldParsingUtils.js";
+import { clampProbability } from "@/utils/math.js";
 import { DOCUMENT_MIME_TYPE, type DocumentMimeType } from "@/types/mime.js";
 
 interface ScriptLanguageCandidate {

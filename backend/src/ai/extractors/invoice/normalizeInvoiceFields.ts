@@ -1,5 +1,5 @@
 import type { ParsedInvoiceData } from "@/types/invoice.js";
-import { uniqueIssues } from "@/ai/extractors/stages/fieldParsingUtils.js";
+import { uniqueStrings } from "@/utils/text.js";
 
 export function normalizeInvoiceFields(parsed: ParsedInvoiceData | undefined): ParsedInvoiceData {
   if (!parsed) {
@@ -38,7 +38,7 @@ export function normalizeInvoiceFields(parsed: ParsedInvoiceData | undefined): P
     normalized.totalAmountMinor = parsed.totalAmountMinor;
   }
 
-  const notes = uniqueIssues(parsed.notes ?? []);
+  const notes = uniqueStrings(parsed.notes ?? []);
   if (notes.length > 0) {
     normalized.notes = notes;
   }

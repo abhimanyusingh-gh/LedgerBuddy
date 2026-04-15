@@ -1,4 +1,4 @@
-import { Schema, model, type InferSchemaType, type HydratedDocument } from "mongoose";
+import { Schema, model, type InferSchemaType } from "mongoose";
 
 const tdsRateEntrySchema = new Schema(
   {
@@ -25,7 +25,6 @@ const tenantComplianceConfigSchema = new Schema(
     panValidationLevel: { type: String, enum: ["format", "format_and_checksum", "disabled"], default: "disabled" },
     riskSignalsEnabled: { type: Boolean, default: false },
     activeRiskSignals: { type: [String], default: [] },
-    enabledSignals: { type: [String], default: [] },
     disabledSignals: { type: [String], default: [] },
     signalSeverityOverrides: { type: Map, of: String, default: {} },
     defaultTdsSection: { type: String, default: null },
@@ -61,7 +60,6 @@ const tenantComplianceConfigSchema = new Schema(
 tenantComplianceConfigSchema.index({ tenantId: 1 }, { unique: true });
 
 type TenantComplianceConfig = InferSchemaType<typeof tenantComplianceConfigSchema>;
-type TenantComplianceConfigDocument = HydratedDocument<TenantComplianceConfig>;
 
 export interface TenantComplianceConfigFields {
   tenantId: string;
@@ -82,7 +80,6 @@ export interface TenantComplianceConfigFields {
   panValidationLevel?: "format" | "format_and_checksum" | "disabled";
   riskSignalsEnabled?: boolean;
   activeRiskSignals?: string[];
-  enabledSignals?: string[];
   disabledSignals?: string[];
   signalSeverityOverrides?: Record<string, string>;
   defaultTdsSection?: string | null;

@@ -69,10 +69,18 @@ describe("normalizeConfidence", () => {
     expect(normalizeConfidence(1)).toBe(1);
   });
 
-  it("divides values > 1 by 100", () => {
+  it("treats values > 1 and <= 100 as percentages", () => {
     expect(normalizeConfidence(85)).toBe(0.85);
     expect(normalizeConfidence(100)).toBe(1);
     expect(normalizeConfidence(42.5)).toBe(0.425);
+    expect(normalizeConfidence(1.5)).toBe(0.015);
+    expect(normalizeConfidence(50)).toBe(0.5);
+  });
+
+  it("clamps values > 100 to 1", () => {
+    expect(normalizeConfidence(150)).toBe(1);
+    expect(normalizeConfidence(200)).toBe(1);
+    expect(normalizeConfidence(100.01)).toBe(1);
   });
 
   it("returns 0 for value = 0", () => {
@@ -93,9 +101,5 @@ describe("normalizeConfidence", () => {
 
   it("clamps negative values to 0", () => {
     expect(normalizeConfidence(-0.5)).toBe(0);
-  });
-
-  it("clamps percentage values > 100 to 1", () => {
-    expect(normalizeConfidence(150)).toBe(1);
   });
 });

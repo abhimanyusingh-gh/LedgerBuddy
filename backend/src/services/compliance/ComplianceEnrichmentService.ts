@@ -1,5 +1,6 @@
 import type { ParsedInvoiceData } from "@/types/invoice.js";
 import type { ComplianceRiskSignal } from "@/types/invoice.js";
+import type { UUID } from "@/types/uuid.js";
 import { createRiskSignal } from "@/services/compliance/riskSignalFactory.js";
 import type { TenantComplianceConfigFields } from "@/models/integration/TenantComplianceConfig.js";
 import { TenantTcsConfigModel } from "@/models/integration/TenantTcsConfig.js";
@@ -52,7 +53,7 @@ export class ComplianceEnrichmentService implements ComplianceEnricher {
 
   async enrich(
     invoice: ParsedInvoiceData,
-    tenantId: string,
+    tenantId: UUID,
     vendorFingerprint: string,
     context?: ComplianceEnrichContext
   ): Promise<ComplianceResult> {
@@ -377,7 +378,8 @@ export class ComplianceEnrichmentService implements ComplianceEnricher {
         tenantId,
         invoice.vendorName,
         invoice.invoiceNumber,
-        context?.contentHash
+        context?.contentHash,
+        context?.currentInvoiceId
       );
       riskSignals.push(...dupSignals);
     } catch (error) {

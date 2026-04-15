@@ -1,7 +1,7 @@
 import { UDYAM_FORMAT } from "@/constants/indianCompliance.js";
 import { VendorMasterModel } from "@/models/compliance/VendorMaster.js";
 import type { ComplianceRiskSignal } from "@/types/invoice.js";
-import { MSME_CLASSIFICATION, type MsmeClassification } from "@/types/invoice.js";
+import type { MsmeClassification } from "@/types/invoice.js";
 import { createRiskSignal } from "@/services/compliance/riskSignalFactory.js";
 const DEFAULT_MSME_PAYMENT_WARNING_DAYS = 30;
 const DEFAULT_MSME_PAYMENT_OVERDUE_DAYS = 45;
@@ -35,10 +35,11 @@ export class MsmeTrackingService {
     const overdueDays = tenantConfig?.msmePaymentOverdueDays ?? DEFAULT_MSME_PAYMENT_OVERDUE_DAYS;
 
     if (udyamNumber && UDYAM_FORMAT.test(udyamNumber.toUpperCase())) {
-      classification = MSME_CLASSIFICATION.SMALL;
+      const existingVendor = await VendorMasterModel.findOne({ tenantId, vendorFingerprint }).lean();
+      classification = (existingVendor?.msme?.classification as MsmeClassification | null) ?? null;
       await VendorMasterModel.updateOne(
         { tenantId, vendorFingerprint },
-        { $set: { "msme.udyamNumber": udyamNumber.toUpperCase(), "msme.classification": classification, "msme.verifiedAt": new Date() } }
+        { $set: { "msme.udyamNumber": udyamNumber.toUpperCase(), "msme.verifiedAt": new Date(), ...(classification ? { "msme.classification": classification } : {}) } }
       );
     } else {
       const vendor = await VendorMasterModel.findOne({ tenantId, vendorFingerprint }).lean();

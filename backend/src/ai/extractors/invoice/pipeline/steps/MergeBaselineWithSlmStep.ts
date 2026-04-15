@@ -2,7 +2,7 @@ import type { PipelineContext, PipelineStep, StepOutput } from "@/core/pipeline/
 import type { InvoiceSlmOutput } from "@/ai/extractors/invoice/InvoiceDocumentDefinition.js";
 import type { ParsedInvoiceData } from "@/types/invoice.js";
 import { normalizeInvoiceFields } from "@/ai/extractors/invoice/normalizeInvoiceFields.js";
-import { uniqueIssues } from "@/ai/extractors/stages/fieldParsingUtils.js";
+import { uniqueStrings } from "@/utils/text.js";
 import { POST_ENGINE_CTX } from "@/ai/extractors/invoice/pipeline/postEngineContextKeys.js";
 
 export class MergeBaselineWithSlmStep implements PipelineStep {
@@ -35,7 +35,7 @@ function mergeParsedInvoiceData(base: ParsedInvoiceData, override: ParsedInvoice
     merged.lineItems = baseNormalized.lineItems;
   }
 
-  const notes = uniqueIssues([...(baseNormalized.notes ?? []), ...(overrideNormalized.notes ?? [])]);
+  const notes = uniqueStrings([...(baseNormalized.notes ?? []), ...(overrideNormalized.notes ?? [])]);
   if (notes.length > 0) {
     merged.notes = notes;
   }

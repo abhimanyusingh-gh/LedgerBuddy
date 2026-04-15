@@ -1,4 +1,4 @@
-import { Schema, model, type InferSchemaType, type HydratedDocument } from "mongoose";
+import { Schema, model, type InferSchemaType } from "mongoose";
 
 const csvColumnSchema = new Schema(
   {
@@ -27,6 +27,5 @@ const tenantExportConfigSchema = new Schema(
 tenantExportConfigSchema.index({ tenantId: 1 }, { unique: true });
 
 type TenantExportConfig = InferSchemaType<typeof tenantExportConfigSchema>;
-type TenantExportConfigDocument = HydratedDocument<TenantExportConfig>;
 
 export const TenantExportConfigModel = model<TenantExportConfig>("TenantExportConfig", tenantExportConfigSchema);

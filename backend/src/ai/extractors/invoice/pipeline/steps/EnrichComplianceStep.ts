@@ -1,6 +1,7 @@
 import type { PipelineContext, PipelineStep, StepOutput } from "@/core/pipeline/index.js";
 import type { ParsedInvoiceData } from "@/types/invoice.js";
 import type { ComplianceEnricher } from "@/services/compliance/ComplianceEnricher.js";
+import { toUUID } from "@/types/uuid.js";
 import { logger } from "@/utils/logger.js";
 import { POST_ENGINE_CTX } from "@/ai/extractors/invoice/pipeline/postEngineContextKeys.js";
 
@@ -19,7 +20,7 @@ export class EnrichComplianceStep implements PipelineStep {
     }
 
     const parsed = ctx.store.require<ParsedInvoiceData>(POST_ENGINE_CTX.RECOVERED_PARSED);
-    const tenantId = ctx.input.tenantId;
+    const tenantId = toUUID(ctx.input.tenantId);
     const vendorFingerprint = ctx.metadata.vendorFingerprint ?? "";
     const contentHash = ctx.metadata.vendorContentHash ?? "";
 

@@ -2,9 +2,6 @@ import type { OcrBlock } from "@/core/interfaces/OcrProvider.js";
 import { currencyBySymbol } from "@/ai/parsers/invoiceParser.js";
 import { normalizeDate } from "@/ai/parsers/dateParser.js";
 import { clampProbability } from "@/utils/math.js";
-import { uniqueStrings } from "@/utils/text.js";
-
-export { clampProbability } from "@/utils/math.js";
 
 export function resolveMonthNumber(value: string): string | undefined {
   const months: Record<string, string> = {
@@ -81,10 +78,6 @@ export function detectExplicitCurrency(text: string, ocrBlocks: OcrBlock[] = [])
     return currencyBySymbol[symbolMatch[1]];
   }
   return undefined;
-}
-
-export function uniqueIssues(issues: string[]): string[] {
-  return uniqueStrings(issues);
 }
 
 export function formatConfidence(value: number): string {

@@ -34,7 +34,7 @@ export class ReconciliationService {
     const transactions = await BankTransactionModel.find({
       tenantId,
       statementId,
-      matchStatus: "unmatched",
+      matchStatus: BANK_TRANSACTION_MATCH_STATUS.UNMATCHED,
       debitMinor: { $gt: 0 }
     }).lean();
 
@@ -71,7 +71,7 @@ export class ReconciliationService {
       } else if (best.score >= suggestThreshold) {
         await BankTransactionModel.updateOne(
           { _id: txn._id },
-          { $set: { matchedInvoiceId: best.invoiceId, matchConfidence: best.score, matchStatus: "suggested" } }
+          { $set: { matchedInvoiceId: best.invoiceId, matchConfidence: best.score, matchStatus: BANK_TRANSACTION_MATCH_STATUS.SUGGESTED } }
         );
         suggested++;
       } else {
@@ -212,7 +212,7 @@ export class ReconciliationService {
   async applyMatch(tenantId: UUID, transactionId: string, invoiceId: string, confidence: number): Promise<void> {
     await BankTransactionModel.updateOne(
       { _id: transactionId },
-      { $set: { matchedInvoiceId: invoiceId, matchConfidence: confidence, matchStatus: "matched" } }
+      { $set: { matchedInvoiceId: invoiceId, matchConfidence: confidence, matchStatus: BANK_TRANSACTION_MATCH_STATUS.MATCHED } }
     );
 
     await InvoiceModel.updateOne(
@@ -256,7 +256,7 @@ export class ReconciliationService {
 
     await BankTransactionModel.updateOne(
       { _id: transactionId },
-      { $set: { matchedInvoiceId: null, matchConfidence: null, matchStatus: "unmatched" } }
+      { $set: { matchedInvoiceId: null, matchConfidence: null, matchStatus: BANK_TRANSACTION_MATCH_STATUS.UNMATCHED } }
     );
 
     if (invoiceId) {

@@ -14,7 +14,7 @@ import type { OcrRecoveryStrategy } from "@/ai/extractors/invoice/stages/lineIte
 import type { EngineStrategy } from "@/core/engine/types.js";
 import { ENGINE_STRATEGY } from "@/core/engine/types.js";
 import { EXTRACTION_SOURCE, type ExtractionSource } from "@/core/engine/extractionSource.js";
-import { uniqueIssues } from "@/ai/extractors/stages/fieldParsingUtils.js";
+import { uniqueStrings } from "@/utils/text.js";
 import { POST_ENGINE_CTX } from "@/ai/extractors/invoice/pipeline/postEngineContextKeys.js";
 import type { PipelineExtractionResult } from "@/ai/extractors/invoice/InvoiceExtractionPipeline.js";
 
@@ -75,7 +75,7 @@ export class BuildExtractionResultStep implements PipelineStep {
       attempts: [],
       ocrBlocks,
       ocrPageImages,
-      processingIssues: uniqueIssues(ctx.issues),
+      processingIssues: uniqueStrings(ctx.issues),
       metadata: ctx.metadata,
       ocrTokens,
       slmTokens: slm.tokens,
