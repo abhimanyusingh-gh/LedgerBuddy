@@ -77,10 +77,6 @@ interface ExtractionPipelineInput {
   attachmentName: string;
   fileBuffer: Buffer;
   mimeType: DocumentMimeType;
-  expectedMaxTotal: number;
-  expectedMaxDueDays: number;
-  autoSelectMin: number;
-  referenceDate?: Date;
 }
 
 interface ExtractionPipelineOptions {
@@ -178,10 +174,6 @@ export class InvoiceExtractionPipeline {
         fileBuffer: input.fileBuffer,
         sourceKey: input.sourceKey,
         attachmentName: input.attachmentName,
-        expectedMaxTotal: input.expectedMaxTotal,
-        expectedMaxDueDays: input.expectedMaxDueDays,
-        autoSelectMin: input.autoSelectMin,
-        referenceDate: input.referenceDate,
       },
       store: new ContextStore(),
       metadata,
@@ -212,9 +204,6 @@ export class InvoiceExtractionPipeline {
       definition,
       enableKeyValueGrounding: this.enableOcrKeyValueGrounding,
       template,
-      expectedMaxTotal: input.expectedMaxTotal,
-      expectedMaxDueDays: input.expectedMaxDueDays,
-      referenceDate: input.referenceDate,
       llamaExtractEnabled: this.llamaExtractEnabled,
     });
 

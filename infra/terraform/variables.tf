@@ -187,24 +187,6 @@ variable "ocr_provider" {
   default     = "deepseek"
 }
 
-variable "confidence_expected_max_total" {
-  type        = number
-  description = "Expected maximum total amount for a normal invoice. Higher totals are risk-flagged."
-  default     = 100000
-}
-
-variable "confidence_expected_max_due_days" {
-  type        = number
-  description = "Expected maximum invoice due duration in days."
-  default     = 90
-}
-
-variable "confidence_auto_select_min" {
-  type        = number
-  description = "Confidence score threshold used to auto-select invoices for approval."
-  default     = 91
-}
-
 variable "tally_endpoint" {
   type        = string
   description = "Tally HTTP integration endpoint."
@@ -249,9 +231,6 @@ variable "app_manifest" {
   type = object({
     ingestion_sources                = optional(string)
     ocr_provider                     = optional(string)
-    confidence_expected_max_total    = optional(number)
-    confidence_expected_max_due_days = optional(number)
-    confidence_auto_select_min       = optional(number)
     tally_endpoint                   = optional(string)
     tally_company                    = optional(string)
     tally_purchase_ledger            = optional(string)

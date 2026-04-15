@@ -424,7 +424,6 @@ export class InvoiceService {
       ocrConfidence: invoice.ocrConfidence ?? undefined,
       parsed: nextParsed,
       warnings: [],
-      autoSelectMin: env.CONFIDENCE_AUTO_SELECT_MIN,
       complianceRiskPenalty: 0
     });
 

@@ -164,9 +164,6 @@ const envSchema = z.object({
     .default("true")
     .transform((value) => value === "true"),
 
-  CONFIDENCE_EXPECTED_MAX_TOTAL: z.coerce.number().default(100000),
-  CONFIDENCE_EXPECTED_MAX_DUE_DAYS: z.coerce.number().default(90),
-  CONFIDENCE_AUTO_SELECT_MIN: z.coerce.number().default(91),
   LLM_ASSIST_CONFIDENCE_THRESHOLD: z.coerce.number().int().min(0).max(100).default(85),
   LEARNING_MODE: z.enum(["active", "assistive"]).default("assistive"),
 

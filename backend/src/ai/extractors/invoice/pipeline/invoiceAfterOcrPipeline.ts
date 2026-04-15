@@ -9,15 +9,11 @@ import { DetectLanguageStep } from "@/ai/extractors/commonSteps/DetectLanguageSt
 import { CheckExtractFieldsGateStep } from "@/ai/extractors/invoice/pipeline/steps/CheckExtractFieldsGateStep.js";
 import { BaselineTextParseStep } from "@/ai/extractors/invoice/pipeline/steps/BaselineTextParseStep.js";
 import { AugmentPromptBuilderStep } from "@/ai/extractors/invoice/pipeline/steps/AugmentPromptBuilderStep.js";
-import { SetValidationContextStep } from "@/ai/extractors/invoice/pipeline/steps/SetValidationContextStep.js";
 
 interface AfterOcrPipelineParams {
   definition: InvoiceDocumentDefinition;
   enableKeyValueGrounding: boolean;
   template?: VendorTemplateSnapshot;
-  expectedMaxTotal: number;
-  expectedMaxDueDays: number;
-  referenceDate?: Date;
   llamaExtractEnabled?: boolean;
 }
 
@@ -32,10 +28,5 @@ export function buildInvoiceAfterOcrPipeline(
     .add(new DetectLanguageStep())                                // Stage 5
     .add(new CheckExtractFieldsGateStep(params.llamaExtractEnabled ?? false)) // Gate
     .add(new BaselineTextParseStep(params.template))              // Stage 6
-    .add(new AugmentPromptBuilderStep(params.definition))         // Stage 7
-    .add(new SetValidationContextStep(params.definition, {        // Stage 8
-      expectedMaxTotal: params.expectedMaxTotal,
-      expectedMaxDueDays: params.expectedMaxDueDays,
-      referenceDate: params.referenceDate,
-    }));
+    .add(new AugmentPromptBuilderStep(params.definition));        // Stage 7
 }

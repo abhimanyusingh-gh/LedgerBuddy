@@ -376,10 +376,6 @@ async function run(): Promise<void> {
       attachmentName: file,
       fileBuffer,
       mimeType,
-      expectedMaxTotal: 1_000_000_000,
-      expectedMaxDueDays: 180,
-      autoSelectMin: 0.5,
-      referenceDate: new Date("2026-03-31T00:00:00Z")
     });
     const parsed = extraction.parseResult.parsed;
     const total = parsed.totalAmountMinor ?? null;

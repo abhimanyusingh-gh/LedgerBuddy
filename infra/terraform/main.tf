@@ -73,9 +73,6 @@ locals {
 
   manifest_ingestion_sources                = coalesce(try(var.app_manifest.ingestion_sources, null), var.ingestion_sources)
   manifest_ocr_provider                     = coalesce(try(var.app_manifest.ocr_provider, null), var.ocr_provider)
-  manifest_confidence_expected_max_total    = coalesce(try(var.app_manifest.confidence_expected_max_total, null), var.confidence_expected_max_total)
-  manifest_confidence_expected_max_due_days = coalesce(try(var.app_manifest.confidence_expected_max_due_days, null), var.confidence_expected_max_due_days)
-  manifest_confidence_auto_select_min       = coalesce(try(var.app_manifest.confidence_auto_select_min, null), var.confidence_auto_select_min)
   manifest_tally_endpoint                   = coalesce(try(var.app_manifest.tally_endpoint, null), var.tally_endpoint)
   manifest_tally_company                    = coalesce(try(var.app_manifest.tally_company, null), var.tally_company)
   manifest_tally_purchase_ledger            = coalesce(try(var.app_manifest.tally_purchase_ledger, null), var.tally_purchase_ledger)
@@ -95,9 +92,6 @@ locals {
       EMAIL_MAILBOX                    = var.email_mailbox
       EMAIL_FROM_FILTER                = var.email_from_filter
       OCR_PROVIDER                     = local.manifest_ocr_provider
-      CONFIDENCE_EXPECTED_MAX_TOTAL    = tostring(local.manifest_confidence_expected_max_total)
-      CONFIDENCE_EXPECTED_MAX_DUE_DAYS = tostring(local.manifest_confidence_expected_max_due_days)
-      CONFIDENCE_AUTO_SELECT_MIN       = tostring(local.manifest_confidence_auto_select_min)
       S3_FILE_STORE_BUCKET             = local.resolved_artifact_bucket_name
       S3_FILE_STORE_REGION             = var.aws_region
       S3_FILE_STORE_PREFIX             = local.artifact_bucket_prefix

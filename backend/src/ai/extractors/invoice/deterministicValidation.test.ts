@@ -11,9 +11,6 @@ describe("validateInvoiceFields", () => {
         invoiceDate: new Date("2026-02-01"),
         dueDate: new Date("2026-02-15")
       },
-      expectedMaxTotal: 50000,
-      expectedMaxDueDays: 60,
-      referenceDate: new Date("2026-02-20T00:00:00.000Z")
     });
 
     expect(result.valid).toBe(true);
@@ -27,8 +24,6 @@ describe("validateInvoiceFields", () => {
         currency: "USD",
         totalAmountMinor: 0
       },
-      expectedMaxTotal: 1000,
-      expectedMaxDueDays: 30
     });
 
     expect(result.valid).toBe(false);
@@ -37,7 +32,7 @@ describe("validateInvoiceFields", () => {
     expect(result.issues).toContain("Total amount is missing or invalid.");
   });
 
-  it("flags date inconsistencies and outlier totals", () => {
+  it("flags due date earlier than invoice date", () => {
     const result = validateInvoiceFields({
       parsed: {
         invoiceNumber: "INV-404",
@@ -47,12 +42,9 @@ describe("validateInvoiceFields", () => {
         invoiceDate: new Date("2026-04-20"),
         dueDate: new Date("2026-02-20")
       },
-      expectedMaxTotal: 100000,
-      expectedMaxDueDays: 15
     });
 
     expect(result.valid).toBe(false);
-    expect(result.issues).toContain("Total amount exceeds configured expected maximum.");
     expect(result.issues).toContain("Due date is earlier than invoice date.");
   });
 
@@ -68,8 +60,6 @@ describe("validateInvoiceFields", () => {
         "VAT: 50.00",
         "Grand Total: 10.123"
       ].join("\n"),
-      expectedMaxTotal: 100000,
-      expectedMaxDueDays: 90
     });
 
     expect(result.valid).toBe(false);

@@ -17,23 +17,6 @@ export interface PostEnginePipelineDeps {
   complianceEnricher?: ComplianceEnricher;
 }
 
-/**
- * Creates a composable pipeline for stages 9-16: all post-engine processing
- * that transforms the raw SLM output into a final PipelineExtractionResult.
- *
- * Prerequisites in the context store (set by pre-engine stages 1-8):
- * - "invoice.baselineParsed": ParsedInvoiceData (baseline heuristic parse)
- * - "invoice.ocrBlocks": OcrBlock[]
- * - "invoice.ocrPageImages": OcrPageImage[]
- * - "invoice.primaryText": string (primary OCR text candidate)
- * - "invoice.ocrConfidence": number
- * - "invoice.ocrTokens": number
- * - "invoice.ocrProviderName": string
- * - "invoice.fieldRegions": Record<string, OcrBlock[]>
- * - POST_ENGINE_CTX.SLM_OUTPUT: InvoiceSlmOutput
- *
- * Pipeline input must include: autoSelectMin
- */
 export function createInvoicePostEnginePipeline(
   deps: PostEnginePipelineDeps = {},
 ): ComposablePipeline<PipelineExtractionResult> {

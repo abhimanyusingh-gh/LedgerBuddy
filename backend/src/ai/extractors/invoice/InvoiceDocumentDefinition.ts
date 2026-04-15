@@ -53,22 +53,9 @@ interface InvoiceSlmContext {
   learningMode: string;
 }
 
-export interface InvoiceValidationContext {
-  expectedMaxTotal: number;
-  expectedMaxDueDays: number;
-  referenceDate?: Date;
-  ocrText: string;
-}
-
 export class InvoiceDocumentDefinition implements SinglePassDocumentDefinition<InvoiceSlmOutput> {
   readonly docType = DOC_TYPE.INVOICE;
   readonly extractionSchema: ExtractionSchema = LLAMA_EXTRACT_INVOICE_SCHEMA as ExtractionSchema;
-
-  private _validationContext: InvoiceValidationContext | null = null;
-
-  setValidationContext(ctx: InvoiceValidationContext): void {
-    this._validationContext = ctx;
-  }
 
   canChunk(): boolean {
     return false;
@@ -132,17 +119,7 @@ export class InvoiceDocumentDefinition implements SinglePassDocumentDefinition<I
   }
 
   validateOutput(output: InvoiceSlmOutput): ValidationResult {
-    if (!this._validationContext) {
-      return { valid: true, issues: [] };
-    }
-    const result = validateInvoiceFields({
-      parsed: output.parsed,
-      ocrText: this._validationContext.ocrText,
-      expectedMaxTotal: this._validationContext.expectedMaxTotal,
-      expectedMaxDueDays: this._validationContext.expectedMaxDueDays,
-      referenceDate: this._validationContext.referenceDate
-    });
-    return result;
+    return validateInvoiceFields({ parsed: output.parsed });
   }
 }
 

@@ -11,7 +11,6 @@ export class AssessConfidenceStep implements PipelineStep {
     const parsed = ctx.store.require<ParsedInvoiceData>(POST_ENGINE_CTX.RECOVERED_PARSED);
     const ocrConfidence = ctx.store.get<number>("invoice.ocrConfidence");
     const compliance = ctx.store.get<InvoiceCompliance>(POST_ENGINE_CTX.COMPLIANCE);
-    const autoSelectMin = (ctx.input as Record<string, unknown>).autoSelectMin as number ?? 0;
 
     const penalty = compliance?.riskSignals?.length
       ? RiskSignalEvaluator.sumPenalties(compliance.riskSignals)
@@ -21,7 +20,6 @@ export class AssessConfidenceStep implements PipelineStep {
       ocrConfidence,
       parsed,
       warnings: ctx.issues,
-      autoSelectMin,
       complianceRiskPenalty: penalty,
     });
 

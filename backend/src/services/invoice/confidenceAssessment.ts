@@ -2,11 +2,13 @@ import type { ParsedInvoiceData } from "@/types/invoice.js";
 import type { ConfidenceTone } from "@/types/confidence.js";
 import { clamp, normalizeConfidence } from "@/utils/math.js";
 
+const DEFAULT_AUTO_SELECT_MIN = 91;
+
 interface ConfidenceInput {
   ocrConfidence?: number;
   parsed: ParsedInvoiceData;
   warnings: string[];
-  autoSelectMin: number;
+  autoSelectMin?: number;
   complianceRiskPenalty?: number;
 }
 
@@ -45,7 +47,7 @@ export function assessInvoiceConfidence(input: ConfidenceInput): ConfidenceAsses
   return {
     score,
     tone,
-    autoSelectForApproval: score >= input.autoSelectMin,
+    autoSelectForApproval: score >= (input.autoSelectMin ?? DEFAULT_AUTO_SELECT_MIN),
   };
 }
 

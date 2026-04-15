@@ -283,9 +283,6 @@ export class IngestionService {
         attachmentName: file.attachmentName,
         fileBuffer: file.buffer,
         mimeType: normalizedMimeType,
-        expectedMaxTotal: env.CONFIDENCE_EXPECTED_MAX_TOTAL,
-        expectedMaxDueDays: env.CONFIDENCE_EXPECTED_MAX_DUE_DAYS,
-        autoSelectMin: env.CONFIDENCE_AUTO_SELECT_MIN
       });
 
       const ocrBlocks = extraction.ocrBlocks;

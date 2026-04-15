@@ -66,9 +66,6 @@ const defaultInput = {
   attachmentName: "invoice.pdf",
   fileBuffer: Buffer.from("sample-content"),
   mimeType: "application/pdf" as const,
-  expectedMaxTotal: 200_000,
-  expectedMaxDueDays: 90,
-  autoSelectMin: 85
 };
 
 describe("InvoiceExtractionPipeline", () => {

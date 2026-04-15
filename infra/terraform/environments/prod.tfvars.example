@@ -44,9 +44,6 @@ email_mailbox     = "INBOX"
 email_from_filter = ""
 
 ocr_provider = "deepseek"
-confidence_expected_max_total    = 100000
-confidence_expected_max_due_days = 90
-confidence_auto_select_min       = 91
 
 tally_endpoint        = "http://tally.internal:9000"
 tally_company         = "My Company Pvt Ltd"
