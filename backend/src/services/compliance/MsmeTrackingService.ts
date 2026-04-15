@@ -1,8 +1,7 @@
+import { UDYAM_FORMAT } from "@/constants/indianCompliance.js";
+import { VendorMasterModel } from "@/models/compliance/VendorMaster.js";
 import type { ComplianceRiskSignal } from "@/types/invoice.js";
 import { MSME_CLASSIFICATION, type MsmeClassification } from "@/types/invoice.js";
-import { VendorMasterModel } from "@/models/compliance/VendorMaster.js";
-
-const UDYAM_FORMAT = /^UDYAM-[A-Z]{2}-\d{2}-\d{7}$/;
 const MSME_PAYMENT_WARNING_DAYS = 30;
 const MSME_PAYMENT_OVERDUE_DAYS = 45;
 

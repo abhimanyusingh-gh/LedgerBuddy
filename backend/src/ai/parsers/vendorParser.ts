@@ -1,3 +1,5 @@
+import { ADDRESS_SIGNAL_PATTERN } from "@/constants/indianCompliance.js";
+
 const baseVendorPrefixes = ["vendor", "supplier", "sold\\s*by", "bill\\s*from", "from", "company", "merchant", "hotel\\s*details"];
 const vendorRefinementPattern = /^(?:vendor|supplier|sold\s*by|bill\s*from|from|company|merchant|fournisseur|vendeur|soci[ée]t[ée]|lieferant|anbieter|firma|leverancier|verkoper|bedrijf|proveedor|empresa|vendedor|fornitore|azienda|venditore)\s*[:\-]?\s*/i;
 const legalEntityPattern =
@@ -6,12 +8,10 @@ const genericVendorStopPattern =
   /\b(facture|factuur|invoice|receipt|payment|statement|description|charges|summary|account|customer|memo|quotation|bill)\b/i;
 const blockedVendorPrefixPattern =
   /^(guest\s*name|billing\s*address|shipping\s*address|warehouse\s*address|order\s*id|order\s*date|booking\s*id|payment\s*mode|invoice\s*date|due\s*date|date)\b/i;
-const addressSignalPattern =
-  /\b(address|warehouse|village|road|street|st\.|avenue|ave\.|taluk|district|state|country|india|karnataka|hobli|zip|zipcode|postal|pin|near)\b/i;
 const nonVendorSignalPattern =
   /\b(invoice|bill|date|total|tax|amount|qty|quantity|gst|vat|phone|email|mobile|bank|ifsc|swift|branch|guest|customer|booking|description|payment|receipt)\b/i;
 
-export const VENDOR_ADDRESS_SIGNAL_PATTERN = addressSignalPattern;
+export const VENDOR_ADDRESS_SIGNAL_PATTERN = ADDRESS_SIGNAL_PATTERN;
 export const VENDOR_NON_VENDOR_SIGNAL_PATTERN = nonVendorSignalPattern;
 
 export function resolveVendorName(text: string, explicitPattern: RegExp): string | undefined {
@@ -173,7 +173,7 @@ function sanitizeVendorCandidate(rawValue: string, options?: { allowSingleWord?:
   }
 
   if (!options?.relaxed) {
-    if (addressSignalPattern.test(normalized)) {
+    if (ADDRESS_SIGNAL_PATTERN.test(normalized)) {
       return undefined;
     }
 

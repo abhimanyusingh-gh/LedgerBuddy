@@ -1,7 +1,5 @@
+import { PAN_FORMAT, GSTIN_FORMAT, extractPanFromGstin } from "@/constants/indianCompliance.js";
 import type { CompliancePanResult, ComplianceRiskSignal } from "@/types/invoice.js";
-
-const PAN_FORMAT = /^[A-Z]{5}[0-9]{4}[A-Z]$/;
-const GSTIN_FORMAT = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][0-9A-Z]Z[0-9A-Z]$/;
 
 interface PanValidationResult {
   pan: CompliancePanResult;
@@ -14,7 +12,7 @@ export class PanValidationService {
 
     if (!pan) {
       if (gstin && GSTIN_FORMAT.test(gstin)) {
-        const derivedPan = gstin.substring(2, 12);
+        const derivedPan = extractPanFromGstin(gstin);
         if (PAN_FORMAT.test(derivedPan)) {
           return {
             pan: {
@@ -81,7 +79,7 @@ export class PanValidationService {
       };
     }
 
-    const panFromGstin = gstin.substring(2, 12);
+    const panFromGstin = extractPanFromGstin(gstin);
     const crossRefMatch = panFromGstin === upperPan;
 
     if (!crossRefMatch) {

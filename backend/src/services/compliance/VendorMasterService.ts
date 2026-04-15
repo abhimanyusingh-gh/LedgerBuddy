@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { derivePanCategory } from "@/constants/indianCompliance.js";
 import { VendorMasterModel, type VendorMasterDocument } from "@/models/compliance/VendorMaster.js";
 import type { ParsedInvoiceData } from "@/types/invoice.js";
 import { logger } from "@/utils/logger.js";
@@ -149,13 +150,6 @@ export class VendorMasterService {
 
 function hashAccountNumber(accountNumber: string): string {
   return createHash("sha256").update(accountNumber.trim()).digest("hex");
-}
-
-function derivePanCategory(pan: string): string | null {
-  if (pan.length < 4) return null;
-  const code = pan.charAt(3).toUpperCase();
-  const validCategories = new Set(["C", "P", "H", "F", "T", "A", "B", "L", "J", "G"]);
-  return validCategories.has(code) ? code : null;
 }
 
 function deriveBankName(ifsc: string): string {
