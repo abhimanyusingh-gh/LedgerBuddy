@@ -174,12 +174,13 @@ export function createBankStatementsRouter(
         ).lean();
         for (const inv of invoices) {
           const parsed = inv.parsed as Record<string, unknown> | undefined;
+          const rawDate = parsed?.invoiceDate;
           invoiceMap.set(String(inv._id), {
             _id: String(inv._id),
             invoiceNumber: (parsed?.invoiceNumber as string | null) ?? null,
             vendorName: (parsed?.vendorName as string | null) ?? null,
             totalAmountMinor: (parsed?.totalAmountMinor as number | null) ?? null,
-            invoiceDate: (parsed?.invoiceDate as string | null) ?? null,
+            invoiceDate: rawDate instanceof Date ? rawDate.toISOString().slice(0, 10) : null,
             status: inv.status as string
           });
         }
@@ -233,10 +234,10 @@ export function createBankStatementsRouter(
       }
 
       if (typeof req.query.dateFrom === "string" && req.query.dateFrom) {
-        query.date = { ...(query.date as Record<string, unknown> ?? {}), $gte: req.query.dateFrom };
+        query.date = { ...(query.date as Record<string, unknown> ?? {}), $gte: new Date(req.query.dateFrom) };
       }
       if (typeof req.query.dateTo === "string" && req.query.dateTo) {
-        query.date = { ...(query.date as Record<string, unknown> ?? {}), $lte: req.query.dateTo };
+        query.date = { ...(query.date as Record<string, unknown> ?? {}), $lte: new Date(req.query.dateTo) };
       }
 
       if (typeof req.query.search === "string" && req.query.search) {

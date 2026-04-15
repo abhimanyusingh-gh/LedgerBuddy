@@ -234,7 +234,7 @@ function buildVoucherInput(
     partyLedgerName: invoice.parsed?.vendorName ?? "Unknown Vendor",
     amountMinor: resolvedAmountMinor,
     currency: invoice.parsed?.currency ?? undefined,
-    date: formatTallyDate(invoice.parsed?.invoiceDate, invoice.receivedAt),
+    date: (invoice.parsed?.invoiceDate instanceof Date && !isNaN(invoice.parsed.invoiceDate.getTime())) ? invoice.parsed.invoiceDate : (invoice.receivedAt ?? new Date()),
     narration: buildNarration(invoice)
   };
 

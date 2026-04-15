@@ -51,9 +51,10 @@ export function createTcsConfigRouter() {
       }
 
       if (typeof effectiveFrom !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(effectiveFrom) || isNaN(Date.parse(effectiveFrom))) {
-        res.status(400).json({ message: "effectiveFrom must be a valid date string in YYYY-MM-DD format." });
+        res.status(400).json({ message: "effectiveFrom must be a valid date in YYYY-MM-DD format." });
         return;
       }
+      const effectiveFromDate = new Date(effectiveFrom);
 
       if (typeof enabled !== "boolean") {
         res.status(400).json({ message: "enabled must be a boolean." });
@@ -62,7 +63,7 @@ export function createTcsConfigRouter() {
 
       const existing = await TenantTcsConfigModel.findOne({ tenantId }).lean();
       const previousRate = existing?.ratePercent ?? 0;
-      const previousEffectiveFrom = existing?.effectiveFrom ?? effectiveFrom;
+      const previousEffectiveFrom = existing?.effectiveFrom ?? effectiveFromDate;
 
       const historyEntry = {
         previousRate,
@@ -77,7 +78,7 @@ export function createTcsConfigRouter() {
       const updated = await TenantTcsConfigModel.findOneAndUpdate(
         { tenantId },
         {
-          $set: { ratePercent, effectiveFrom, enabled, updatedBy: getAuth(req).email || getAuth(req).userId },
+          $set: { ratePercent, effectiveFrom: effectiveFromDate, enabled, updatedBy: getAuth(req).email || getAuth(req).userId },
           $push: { history: { $each: [historyEntry], $position: 0, $slice: 1000 } }
         },
         { new: true, upsert: true, setDefaultsOnInsert: true }

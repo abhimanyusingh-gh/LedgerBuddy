@@ -23,13 +23,11 @@ export function sanitizeInvoiceExtraction(parsed: ParsedInvoiceData | undefined)
   if (vendorName) {
     normalized.vendorName = vendorName;
   }
-  const invoiceDate = copyString(parsed.invoiceDate);
-  if (invoiceDate) {
-    normalized.invoiceDate = invoiceDate;
+  if (parsed.invoiceDate instanceof Date && !isNaN(parsed.invoiceDate.getTime())) {
+    normalized.invoiceDate = parsed.invoiceDate;
   }
-  const dueDate = copyString(parsed.dueDate);
-  if (dueDate) {
-    normalized.dueDate = dueDate;
+  if (parsed.dueDate instanceof Date && !isNaN(parsed.dueDate.getTime())) {
+    normalized.dueDate = parsed.dueDate;
   }
   const currency = copyString(parsed.currency);
   if (currency) {

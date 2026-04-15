@@ -128,8 +128,8 @@ export interface InvoiceExtractionData {
 export interface ParsedInvoiceData {
   invoiceNumber?: string;
   vendorName?: string;
-  invoiceDate?: string;
-  dueDate?: string;
+  invoiceDate?: Date;
+  dueDate?: Date;
   totalAmountMinor?: number;
   currency?: string;
   notes?: string[];

@@ -19,7 +19,7 @@ const bankTransactionSchema = new Schema(
   {
     tenantId: { type: String, required: true },
     statementId: { type: String, required: true },
-    date: { type: String, required: true },
+    date: { type: Date, required: true },
     description: { type: String, required: true },
     reference: { type: String, default: null },
     debitMinor: { type: Number, default: null },

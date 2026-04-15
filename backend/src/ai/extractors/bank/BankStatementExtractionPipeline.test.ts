@@ -69,7 +69,7 @@ describe("BankStatementExtractionPipeline", () => {
 
     expect(insertCall[0]).toMatchObject({
       tenantId: "t1",
-      date: "2026-01-10",
+      date: new Date("2026-01-10"),
       description: "Vendor Payment",
       debitMinor: 5000000,
       creditMinor: null,
@@ -78,7 +78,7 @@ describe("BankStatementExtractionPipeline", () => {
 
     expect(insertCall[1]).toMatchObject({
       tenantId: "t1",
-      date: "2026-01-11",
+      date: new Date("2026-01-11"),
       description: "Customer Refund",
       debitMinor: null,
       creditMinor: 1000000,
@@ -112,7 +112,7 @@ describe("BankStatementExtractionPipeline", () => {
 
     expect(BankTransactionModel.insertMany).toHaveBeenCalledWith(
       expect.arrayContaining([
-        expect.objectContaining({ date: "2026-01-10" })
+        expect.objectContaining({ date: new Date("2026-01-10") })
       ])
     );
   });
@@ -147,7 +147,7 @@ describe("BankStatementExtractionPipeline", () => {
   it("skips duplicate transactions on re-upload", async () => {
     const existingTxns = [
       {
-        date: "2026-01-10",
+        date: new Date("2026-01-10"),
         description: "Vendor Payment",
         debitMinor: 5000000,
         creditMinor: null,
@@ -366,7 +366,7 @@ describe("BankStatementExtractionPipeline.parsePdf", () => {
 
     const insertCall = (BankTransactionModel.insertMany as jest.Mock).mock.calls[0][0];
     expect(insertCall[0]).toMatchObject({
-      date: "2026-01-01"
+      date: new Date("2026-01-01")
     });
   });
 

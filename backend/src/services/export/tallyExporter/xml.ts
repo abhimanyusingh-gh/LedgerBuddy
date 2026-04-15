@@ -51,7 +51,7 @@ export interface VoucherPayloadInput {
   partyLedgerName: string;
   amountMinor: number;
   currency?: string;
-  date: string;
+  date: Date;
   narration?: string;
   gstin?: string;
   gst?: GstAmounts;
@@ -89,15 +89,8 @@ export function parseTallyImportResponse(xml: string): TallyImportSummary {
   };
 }
 
-export function formatTallyDate(primaryDate?: string | null, fallbackDate?: Date): string {
-  if (primaryDate) {
-    const normalized = normalizeDateInput(primaryDate);
-    if (normalized) {
-      return normalized;
-    }
-  }
-
-  const date = fallbackDate ?? new Date();
+export function formatTallyDate(primaryDate?: Date | null, fallbackDate?: Date): string {
+  const date = (primaryDate && !isNaN(primaryDate.getTime())) ? primaryDate : (fallbackDate ?? new Date());
   return [
     date.getFullYear().toString().padStart(4, "0"),
     (date.getMonth() + 1).toString().padStart(2, "0"),
@@ -116,7 +109,7 @@ function buildVoucherElement(input: VoucherPayloadInput): string {
 
   const lines: string[] = [
     "        <VOUCHER VCHTYPE=\"Purchase\" ACTION=\"Create\" OBJVIEW=\"Accounting Voucher View\">",
-    `          <DATE>${input.date}</DATE>`,
+    `          <DATE>${formatTallyDate(input.date)}</DATE>`,
     "          <VOUCHERTYPENAME>Purchase</VOUCHERTYPENAME>",
     `          <VOUCHERNUMBER>${voucherNumber}</VOUCHERNUMBER>`,
     "          <PERSISTEDVIEW>Accounting Voucher View</PERSISTEDVIEW>",
@@ -251,29 +244,6 @@ function wrapVouchersInEnvelope(escapedCompanyName: string, voucherElements: str
     "  </BODY>",
     "</ENVELOPE>"
   ].join("\n");
-}
-
-function normalizeDateInput(value: string): string | null {
-  const clean = value.trim();
-
-  if (/^\d{8}$/.test(clean)) {
-    return clean;
-  }
-
-  if (/^\d{4}-\d{2}-\d{2}$/.test(clean)) {
-    return clean.replace(/-/g, "");
-  }
-
-  const parsed = new Date(clean);
-  if (Number.isNaN(parsed.valueOf())) {
-    return null;
-  }
-
-  return [
-    parsed.getFullYear().toString().padStart(4, "0"),
-    (parsed.getMonth() + 1).toString().padStart(2, "0"),
-    parsed.getDate().toString().padStart(2, "0")
-  ].join("");
 }
 
 function readNumberTag(xml: string, tagName: string): number | null {

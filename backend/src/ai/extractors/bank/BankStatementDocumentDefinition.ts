@@ -4,7 +4,7 @@ import type { ValidationResult } from "@/core/engine/types.js";
 import { LLAMA_EXTRACT_BANK_STATEMENT_SCHEMA, LLAMA_EXTRACT_BANK_STATEMENT_CHUNK_SCHEMA } from "@/ai/schemas/bank/llamaExtractBankStatementSchema.js";
 
 export interface BankStatementTransaction {
-  date?: string;
+  date?: Date;
   description?: string;
   reference?: string;
   debit?: number | null;
@@ -88,7 +88,7 @@ function normalizeRawOutput(raw: Record<string, unknown>): SlmBankStatementOutpu
 
   const transactions: BankStatementTransaction[] = Array.isArray(rawTxns)
     ? (rawTxns as Record<string, unknown>[]).map(t => ({
-        date: typeof t["date"] === "string" ? t["date"] : undefined,
+        date: typeof t["date"] === "string" ? parseStatementDate(t["date"]) : undefined,
         description: typeof t["description"] === "string" ? t["description"] : undefined,
         reference: typeof t["reference"] === "string" ? t["reference"] : undefined,
         debit: (typeof t["debit"] === "number" || t["debit"] === null) ? t["debit"] as number | null : undefined,

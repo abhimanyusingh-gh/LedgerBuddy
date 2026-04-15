@@ -21,10 +21,12 @@ export function parseVerifierParsedResponse(value: unknown): ParsedInvoiceData |
     parsed.vendorName = source.vendorName.trim();
   }
   if (typeof source.invoiceDate === "string" && source.invoiceDate.trim()) {
-    parsed.invoiceDate = source.invoiceDate.trim();
+    const d = new Date(source.invoiceDate.trim());
+    if (!isNaN(d.getTime())) parsed.invoiceDate = d;
   }
   if (typeof source.dueDate === "string" && source.dueDate.trim()) {
-    parsed.dueDate = source.dueDate.trim();
+    const d = new Date(source.dueDate.trim());
+    if (!isNaN(d.getTime())) parsed.dueDate = d;
   }
   if (typeof source.currency === "string" && source.currency.trim()) {
     parsed.currency = source.currency.trim().toUpperCase();
@@ -112,10 +114,10 @@ export function normalizeVerifierContract(value: unknown): InvoiceVerifierContra
   if (invoiceNumber) result.invoiceNumber = invoiceNumber;
   const vendorNameContains = normalizeContractScalarString(source.vendorNameContains ?? source.vendorName);
   if (vendorNameContains) result.vendorNameContains = vendorNameContains;
-  const invoiceDate = normalizeContractScalarString(source.invoiceDate);
-  if (invoiceDate) result.invoiceDate = invoiceDate;
-  const dueDate = normalizeContractScalarString(source.dueDate);
-  if (dueDate) result.dueDate = dueDate;
+  const contractInvoiceDate = normalizeContractScalarString(source.invoiceDate);
+  if (contractInvoiceDate) result.invoiceDate = contractInvoiceDate;
+  const contractDueDate = normalizeContractScalarString(source.dueDate);
+  if (contractDueDate) result.dueDate = contractDueDate;
   const currency = normalizeContractScalarString(source.currency, true);
   result.currency = currency ?? { value: "INR" };
   const totalAmountMinor = normalizeContractScalarInt(source.totalAmountMinor);
@@ -170,8 +172,14 @@ export function parsedFromVerifierContract(contract: InvoiceVerifierContract): P
   const parsed: ParsedInvoiceData = {};
   if (contract.invoiceNumber) parsed.invoiceNumber = contract.invoiceNumber.value;
   if (contract.vendorNameContains) parsed.vendorName = contract.vendorNameContains.value;
-  if (contract.invoiceDate) parsed.invoiceDate = contract.invoiceDate.value;
-  if (contract.dueDate) parsed.dueDate = contract.dueDate.value;
+  if (contract.invoiceDate) {
+    const d = new Date(contract.invoiceDate.value);
+    if (!isNaN(d.getTime())) parsed.invoiceDate = d;
+  }
+  if (contract.dueDate) {
+    const d = new Date(contract.dueDate.value);
+    if (!isNaN(d.getTime())) parsed.dueDate = d;
+  }
   parsed.currency = contract.currency?.value ?? "INR";
   if (contract.totalAmountMinor) parsed.totalAmountMinor = contract.totalAmountMinor.value;
   if (contract.lineItems?.length) {

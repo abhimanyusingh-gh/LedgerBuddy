@@ -266,8 +266,8 @@ function extractHeaderFields(
   invoiceNumber?: string;
   vendorName?: string;
   currency: string;
-  invoiceDate?: string;
-  dueDate?: string;
+  invoiceDate?: Date;
+  dueDate?: Date;
   warnings: string[];
 } {
   const warnings: string[] = [];
@@ -289,12 +289,12 @@ function extractHeaderFields(
 
   const invoiceDateRaw = findFirstMatch(text, options.invoiceDatePatterns);
   const invoiceDate = invoiceDateRaw
-    ? normalizeDate(invoiceDateRaw, { preferDayFirst: options.preferDayFirstDates }) ?? invoiceDateRaw
+    ? normalizeDate(invoiceDateRaw, { preferDayFirst: options.preferDayFirstDates })
     : undefined;
 
   const dueDateRaw = findFirstMatch(text, options.dueDatePatterns);
   const dueDate = dueDateRaw
-    ? normalizeDate(dueDateRaw, { preferDayFirst: options.preferDayFirstDates }) ?? dueDateRaw
+    ? normalizeDate(dueDateRaw, { preferDayFirst: options.preferDayFirstDates })
     : undefined;
 
   return {
@@ -404,8 +404,11 @@ function applyLastResortExtraction(
   if (!parsed.invoiceDate) {
     const dateMatch = text.match(/\b(\d{1,2}[\/.\-]\d{1,2}[\/.\-]\d{2,4})\b/);
     if (dateMatch) {
-      parsed.invoiceDate = normalizeDate(dateMatch[1], { preferDayFirst }) ?? dateMatch[1];
-      warnings.push("Invoice date found via last-resort extraction.");
+      const recovered = normalizeDate(dateMatch[1], { preferDayFirst });
+      if (recovered) {
+        parsed.invoiceDate = recovered;
+        warnings.push("Invoice date found via last-resort extraction.");
+      }
     }
   }
 

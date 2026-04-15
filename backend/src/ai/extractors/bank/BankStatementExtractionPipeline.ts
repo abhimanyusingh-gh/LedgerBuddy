@@ -16,7 +16,7 @@ import { BANK_CTX } from "@/ai/extractors/bank/pipeline/contextKeys.js";
 type OnParseProgress = (event: BankParseProgressEvent) => void;
 
 interface ParsedTransaction {
-  date: string;
+  date: Date;
   description: string;
   reference?: string;
   debitMinor?: number;
@@ -61,8 +61,11 @@ export class BankStatementExtractionPipeline {
 
       const reference = columnMapping.reference !== undefined ? cols[columnMapping.reference]?.trim() : undefined;
 
+      const parsedDate = parseDateString(date);
+      if (!parsedDate || isNaN(parsedDate.getTime())) continue;
+
       parsed.push({
-        date: normalizeDate(date),
+        date: parsedDate,
         description,
         reference,
         debitMinor: debitMinor ?? undefined,
@@ -86,7 +89,7 @@ export class BankStatementExtractionPipeline {
       return { statementId, transactionCount: 0, duplicatesSkipped: 0 };
     }
 
-    const timestamps = parsed.map(t => new Date(t.date).getTime());
+    const timestamps = parsed.map(t => t.date.getTime());
     const minDate = parsed[timestamps.indexOf(Math.min(...timestamps))]!.date;
     const maxDate = parsed[timestamps.indexOf(Math.max(...timestamps))]!.date;
 
@@ -96,13 +99,13 @@ export class BankStatementExtractionPipeline {
     }).lean();
 
     const existingFingerprints = new Set(
-      existing.map(e => `${e.date}|${e.description}|${e.debitMinor ?? ""}|${e.creditMinor ?? ""}|${e.reference ?? ""}`)
+      existing.map(e => `${e.date instanceof Date ? e.date.toISOString().slice(0, 10) : String(e.date)}|${e.description}|${e.debitMinor ?? ""}|${e.creditMinor ?? ""}|${e.reference ?? ""}`)
     );
 
     const transactions: ParsedTransaction[] = [];
     let duplicatesSkipped = 0;
     for (const txn of parsed) {
-      const fp = `${txn.date}|${txn.description}|${txn.debitMinor ?? ""}|${txn.creditMinor ?? ""}|${txn.reference ?? ""}`;
+      const fp = `${txn.date.toISOString().slice(0, 10)}|${txn.description}|${txn.debitMinor ?? ""}|${txn.creditMinor ?? ""}|${txn.reference ?? ""}`;
       if (existingFingerprints.has(fp)) {
         duplicatesSkipped++;
       } else {
@@ -262,12 +265,15 @@ function parseAmountToMinor(value: string | undefined): number | null {
   return Math.round(Math.abs(parsed) * 100);
 }
 
-function normalizeDate(value: string): string {
+function parseDateString(value: string): Date | undefined {
+  if (!value) return undefined;
+
   const isoMatch = value.match(/^(\d{4})-(\d{2})-(\d{2})/);
-  if (isoMatch) return value.substring(0, 10);
+  if (isoMatch) return new Date(`${isoMatch[1]}-${isoMatch[2]}-${isoMatch[3]}`);
 
   const ddmmyyyy = value.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})/);
-  if (ddmmyyyy) return `${ddmmyyyy[3]}-${ddmmyyyy[2].padStart(2, "0")}-${ddmmyyyy[1].padStart(2, "0")}`;
+  if (ddmmyyyy) return new Date(`${ddmmyyyy[3]}-${ddmmyyyy[2].padStart(2, "0")}-${ddmmyyyy[1].padStart(2, "0")}`);
 
-  return value;
+  const d = new Date(value);
+  return isNaN(d.getTime()) ? undefined : d;
 }

@@ -7,7 +7,7 @@ import type {
 import { BANK_CTX } from "@/ai/extractors/bank/pipeline/contextKeys.js";
 
 export interface ParsedTransaction {
-  date: string;
+  date: Date;
   description: string;
   reference?: string;
   debitMinor?: number;
@@ -39,7 +39,8 @@ export class NormalizeTransactionsStep implements PipelineStep {
         continue;
       }
 
-      const date = typeof raw.date === "string" ? raw.date.trim() : "";
+      const rawDate = raw.date as Date | string | undefined;
+      const date = rawDate instanceof Date ? rawDate : (typeof rawDate === "string" ? parseDateString(rawDate.trim()) : undefined);
       const description = typeof raw.description === "string" ? raw.description.trim() : "";
 
       if (!date || !description) {
@@ -47,9 +48,8 @@ export class NormalizeTransactionsStep implements PipelineStep {
         continue;
       }
 
-      const normalizedDate = normalizeDate(date);
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(normalizedDate)) {
-        warnings.push(`Transaction at index ${i}: invalid date format "${date}", skipped.`);
+      if (isNaN(date.getTime())) {
+        warnings.push(`Transaction at index ${i}: invalid date, skipped.`);
         continue;
       }
 
@@ -64,7 +64,7 @@ export class NormalizeTransactionsStep implements PipelineStep {
       }
 
       parsed.push({
-        date: normalizedDate,
+        date,
         description,
         reference,
         debitMinor: debitMinor ?? undefined,
@@ -120,12 +120,15 @@ function parseAmountToMinor(value: string | undefined): number | null {
   return Math.round(Math.abs(parsed) * 100);
 }
 
-function normalizeDate(value: string): string {
+function parseDateString(value: string): Date | undefined {
+  if (!value) return undefined;
+
   const isoMatch = value.match(/^(\d{4})-(\d{2})-(\d{2})/);
-  if (isoMatch) return value.substring(0, 10);
+  if (isoMatch) return new Date(`${isoMatch[1]}-${isoMatch[2]}-${isoMatch[3]}`);
 
   const ddmmyyyy = value.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})/);
-  if (ddmmyyyy) return `${ddmmyyyy[3]}-${ddmmyyyy[2].padStart(2, "0")}-${ddmmyyyy[1].padStart(2, "0")}`;
+  if (ddmmyyyy) return new Date(`${ddmmyyyy[3]}-${ddmmyyyy[2].padStart(2, "0")}-${ddmmyyyy[1].padStart(2, "0")}`);
 
-  return value;
+  const d = new Date(value);
+  return isNaN(d.getTime()) ? undefined : d;
 }

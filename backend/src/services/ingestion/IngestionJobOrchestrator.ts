@@ -14,11 +14,11 @@ interface IngestionJobStatus {
   newInvoices: number;
   duplicates: number;
   failures: number;
-  startedAt?: string;
-  completedAt?: string;
+  startedAt?: Date;
+  completedAt?: Date;
   error?: string;
   correlationId?: string;
-  lastUpdatedAt: string;
+  lastUpdatedAt: Date;
   systemAlert?: string;
 }
 
@@ -109,7 +109,7 @@ export class IngestionJobOrchestrator {
       return existing;
     }
 
-    const startedAt = new Date().toISOString();
+    const startedAt = new Date();
     const correlationId = getCorrelationId();
     const runningStatus: IngestionJobStatus = {
       state: "running",
@@ -147,7 +147,7 @@ export class IngestionJobOrchestrator {
 
     void (correlationId ? runWithLogContext(correlationId, runJob) : runJob())
       .then((summary) => {
-        const completedAt = new Date().toISOString();
+        const completedAt = new Date();
         const current = this.getCurrentStatus(tenantId);
         const finalState: IngestionJobState = summary.paused ? "paused" : "completed";
         const nextStatus: IngestionJobStatus = {
@@ -179,7 +179,7 @@ export class IngestionJobOrchestrator {
         }
       })
       .catch((error) => {
-        const completedAt = new Date().toISOString();
+        const completedAt = new Date();
         const current = this.getCurrentStatus(tenantId);
         const nextStatus: IngestionJobStatus = {
           ...current,
@@ -227,6 +227,6 @@ function buildIdleStatus(): IngestionJobStatus {
     newInvoices: 0,
     duplicates: 0,
     failures: 0,
-    lastUpdatedAt: new Date().toISOString()
+    lastUpdatedAt: new Date()
   };
 }

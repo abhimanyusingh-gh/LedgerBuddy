@@ -176,7 +176,7 @@ export function addFieldDiagnosticsToMetadata(params: {
           ? params.ocrBlocks[slmProvenance.blockIndex]
           : undefined;
       const dateValueMatch =
-        (field === "invoiceDate" || field === "dueDate") && typeof value === "string"
+        (field === "invoiceDate" || field === "dueDate") && value instanceof Date
           ? findPreferredDateValueBlock(field as "invoiceDate" | "dueDate", value, params.ocrBlocks)
           : undefined;
       const labelAlignedMatch =

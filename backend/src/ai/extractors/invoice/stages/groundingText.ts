@@ -160,7 +160,7 @@ export function findBlockByLabelProximity(
   const maxLeftGap = alignment.maxLeftGap;
 
     let bestValue: { block: OcrBlock; index: number; distance: number } | undefined;
-    const dateCandidates: Array<{ block: OcrBlock; index: number; resolvedDate: string; distance: number }> = [];
+    const dateCandidates: Array<{ block: OcrBlock; index: number; resolvedDate: Date; distance: number }> = [];
     for (let j = 0; j < blocks.length; j++) {
       if (j >= alignment.maxCandidatesChecked) {
         break;
@@ -200,12 +200,12 @@ export function findBlockByLabelProximity(
 
     if (isDateField && dateCandidates.length > 0) {
       dateCandidates.sort((left, right) => {
-        if (left.resolvedDate === right.resolvedDate) {
+        if (left.resolvedDate.getTime() === right.resolvedDate.getTime()) {
           return left.distance - right.distance;
         }
         return field === "dueDate"
-          ? right.resolvedDate.localeCompare(left.resolvedDate)
-          : left.resolvedDate.localeCompare(right.resolvedDate);
+          ? right.resolvedDate.getTime() - left.resolvedDate.getTime()
+          : left.resolvedDate.getTime() - right.resolvedDate.getTime();
       });
       return { block: dateCandidates[0].block, index: dateCandidates[0].index };
     }
@@ -373,8 +373,9 @@ export function blockMatchesFieldValue(field: string, value: unknown, block: Ocr
     return false;
   }
 
-  if ((field === "invoiceDate" || field === "dueDate") && typeof value === "string") {
-    return normalizeDateToken(text) === value;
+  if ((field === "invoiceDate" || field === "dueDate") && value instanceof Date) {
+    const tokenDate = normalizeDateToken(text);
+    return tokenDate !== undefined && tokenDate.getTime() === value.getTime();
   }
 
   if (field === "totalAmountMinor" && typeof value === "number") {
@@ -395,12 +396,15 @@ export function blockMatchesFieldValue(field: string, value: unknown, block: Ocr
 
 export function findPreferredDateValueBlock(
   field: "invoiceDate" | "dueDate",
-  value: string,
+  value: Date,
   blocks: OcrBlock[]
 ): { block: OcrBlock; index: number } | undefined {
   const matches = blocks
     .map((block, index) => ({ block, index }))
-    .filter((entry) => normalizeDateToken(entry.block.text) === value);
+    .filter((entry) => {
+      const tokenDate = normalizeDateToken(entry.block.text);
+      return tokenDate !== undefined && tokenDate.getTime() === value.getTime();
+    });
   if (matches.length === 0) {
     return undefined;
   }
@@ -411,14 +415,14 @@ export function findBlockIndexByExactText(blocks: OcrBlock[], pattern: RegExp): 
   return blocks.findIndex((block) => pattern.test(block.text.trim()));
 }
 
-function candidateTerms(field: keyof ParsedInvoiceData, value: string): string[] {
-  const base = value.trim().toLowerCase();
-  if (!base) {
-    return [];
+function candidateTerms(field: keyof ParsedInvoiceData, value: string | Date): string[] {
+  if ((field === "invoiceDate" || field === "dueDate") && value instanceof Date) {
+    return buildDateTerms(value);
   }
 
-  if ((field === "invoiceDate" || field === "dueDate") && /^\d{4}-\d{2}-\d{2}$/.test(base)) {
-    return buildDateTerms(base);
+  const base = String(value).trim().toLowerCase();
+  if (!base) {
+    return [];
   }
 
   if (field !== "totalAmountMinor") {
@@ -453,6 +457,10 @@ function normalizeFieldValue(field: keyof ParsedInvoiceData, value: unknown): st
     }
     const major = value / 100;
     return Number.isInteger(major) ? String(major) : major.toFixed(2);
+  }
+
+  if (value instanceof Date) {
+    return value.toISOString().slice(0, 10);
   }
 
   if (typeof value !== "string") {

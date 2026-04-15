@@ -7,7 +7,7 @@ function baseParsed(overrides?: Partial<ParsedInvoiceData>): ParsedInvoiceData {
   return {
     invoiceNumber: "INV-001",
     vendorName: "Test Vendor",
-    invoiceDate: "2026-01-15",
+    invoiceDate: new Date("2026-01-15"),
     totalAmountMinor: 5000000,
     currency: "INR",
     ...overrides
@@ -66,7 +66,7 @@ describe("RiskSignalEvaluator", () => {
     it("flags when due date exceeds max days", () => {
       const referenceDate = new Date("2026-01-01");
       const signals = evaluator.evaluate({
-        parsed: baseParsed({ dueDate: "2027-06-01" }),
+        parsed: baseParsed({ dueDate: new Date("2027-06-01") }),
         expectedMaxTotal: 100000,
         expectedMaxDueDays: 90,
         referenceDate
@@ -79,7 +79,7 @@ describe("RiskSignalEvaluator", () => {
     it("does not flag normal due dates", () => {
       const referenceDate = new Date("2026-01-01");
       const signals = evaluator.evaluate({
-        parsed: baseParsed({ dueDate: "2026-02-15" }),
+        parsed: baseParsed({ dueDate: new Date("2026-02-15") }),
         expectedMaxTotal: 100000,
         expectedMaxDueDays: 90,
         referenceDate

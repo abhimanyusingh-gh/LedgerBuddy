@@ -26,7 +26,7 @@ interface IngestionRunSummary {
 interface IngestionRunProgress extends IngestionRunSummary {
   processedFiles: number;
   running: boolean;
-  lastUpdatedAt: string;
+  lastUpdatedAt: Date;
   systemAlert?: string;
 }
 
@@ -91,7 +91,7 @@ export class IngestionService {
         ...summary,
         processedFiles,
         running,
-        lastUpdatedAt: new Date().toISOString(),
+        lastUpdatedAt: new Date(),
         ...(systemAlert ? { systemAlert } : {})
       });
     };

@@ -57,8 +57,8 @@ const SORT_COLUMN_MAP: Record<string, string> = {
 export type UpdateParsedFieldInput = Partial<{
   invoiceNumber: string | null;
   vendorName: string | null;
-  invoiceDate: string | null;
-  dueDate: string | null;
+  invoiceDate: string | Date | null;
+  dueDate: string | Date | null;
   currency: string | null;
   totalAmountMinor: number | null;
   totalAmountMajor: number | string | null;
@@ -71,7 +71,8 @@ const EDITABLE_PARSED_FIELDS = [
   "currency", "totalAmountMinor", "totalAmountMajor", "notes", "gst"
 ] as const;
 
-const STRING_FIELDS = ["invoiceNumber", "vendorName", "invoiceDate", "dueDate"] as const;
+const STRING_FIELDS = ["invoiceNumber", "vendorName"] as const;
+const DATE_FIELDS = ["invoiceDate", "dueDate"] as const;
 
 const FACET_RETURN_MAP: Record<string, string> = {
   totalAll: "totalAll", approved: "approvedAll", pending: "pendingAll",
@@ -322,6 +323,14 @@ export class InvoiceService {
       const val = normalizeNullable(input, field, "string") as string | null | undefined;
       if (val === undefined) continue;
       if (val === null) delete nextParsed[field]; else nextParsed[field] = val;
+    }
+
+    for (const field of DATE_FIELDS) {
+      if (!Object.prototype.hasOwnProperty.call(input, field)) continue;
+      const raw = (input as Record<string, unknown>)[field];
+      if (raw === null) { delete nextParsed[field]; continue; }
+      const d = raw instanceof Date ? raw : typeof raw === "string" ? new Date(raw) : undefined;
+      if (d && !isNaN(d.getTime())) nextParsed[field] = d;
     }
 
     applyNullableField(nextParsed, "currency", normalizeNullableCurrency(input));

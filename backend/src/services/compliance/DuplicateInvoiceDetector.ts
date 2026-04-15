@@ -29,7 +29,7 @@ export class DuplicateInvoiceDetector {
       code: "DUPLICATE_INVOICE_NUMBER",
       category: "fraud",
       severity: "critical",
-      message: `Vendor "${vendorName}" previously submitted invoice "${invoiceNumber}"${existingDate ? ` on ${existingDate}` : ""}${existingAmount ? ` for ${existingAmount}` : ""}. This submission has different content.`,
+      message: `Vendor "${vendorName}" previously submitted invoice "${invoiceNumber}"${existingDate ? ` on ${existingDate instanceof Date ? existingDate.toISOString().slice(0, 10) : String(existingDate)}` : ""}${existingAmount ? ` for ${existingAmount}` : ""}. This submission has different content.`,
       confidencePenalty: 10,
       status: "open",
       resolvedBy: null,
