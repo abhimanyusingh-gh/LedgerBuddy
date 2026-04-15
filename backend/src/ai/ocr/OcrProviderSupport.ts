@@ -1,5 +1,6 @@
 import axios from "axios";
 import type { OcrBlock, OcrPageImage } from "@/core/interfaces/OcrProvider.js";
+import { IMAGE_MIME_TYPE, type ImageMimeType } from "@/types/mime.js";
 
 export const DEFAULT_PROMPT =
   "Transcribe all visible text exactly as written. Preserve numbers, punctuation, spacing, and line breaks. Do not summarize. Do not format as key-value pairs. In Indian invoices, /- or /= after a number means 'rupees only' — transcribe as separate characters (e.g., 300/- not 3001).";
@@ -234,7 +235,7 @@ function normalizePageImages(value: unknown): OcrPageImage[] | undefined {
     }
 
     const page = normalizePageNumber(entry.page);
-    const mimeType = normalizeText(entry.mimeType) ?? "image/png";
+    const mimeType = (normalizeText(entry.mimeType) ?? IMAGE_MIME_TYPE.PNG) as ImageMimeType;
     const dataUrl = normalizeText(entry.dataUrl);
     if (!dataUrl || !dataUrl.startsWith("data:")) {
       continue;

@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { DOCUMENT_MIME_TYPE, type DocumentMimeType } from "@/types/mime.js";
 
 const PNG_SIGNATURE = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
 
@@ -10,7 +11,7 @@ interface VendorFingerprint {
 
 interface VendorFingerprintInput {
   buffer: Buffer;
-  mimeType: string;
+  mimeType: DocumentMimeType;
   sourceKey: string;
   attachmentName: string;
 }
@@ -28,12 +29,12 @@ export function computeVendorFingerprint(input: VendorFingerprintInput): VendorF
   };
 }
 
-function buildLayoutSignature(buffer: Buffer, mimeType: string): string {
+function buildLayoutSignature(buffer: Buffer, mimeType: DocumentMimeType): string {
   const signatureParts: string[] = [];
   signatureParts.push(mimeType);
   signatureParts.push(`size-bucket:${Math.max(1, Math.ceil(buffer.length / 32_768))}`);
 
-  if (mimeType === "application/pdf") {
+  if (mimeType === DOCUMENT_MIME_TYPE.PDF) {
     signatureParts.push(`pages:${countPdfPages(buffer)}`);
   }
 
@@ -54,11 +55,11 @@ function countPdfPages(buffer: Buffer): number {
   return matches?.length && matches.length > 0 ? matches.length : 1;
 }
 
-function readImageDimensions(buffer: Buffer, mimeType: string): [number, number] | undefined {
-  if (mimeType === "image/png" || mimeType === "image/x-png") {
+function readImageDimensions(buffer: Buffer, mimeType: DocumentMimeType): [number, number] | undefined {
+  if (mimeType === DOCUMENT_MIME_TYPE.PNG) {
     return readPngDimensions(buffer);
   }
-  if (mimeType === "image/jpeg" || mimeType === "image/jpg" || mimeType === "image/pjpeg") {
+  if (mimeType === DOCUMENT_MIME_TYPE.JPEG) {
     return readJpegDimensions(buffer);
   }
   return undefined;

@@ -1,5 +1,6 @@
 import type { FieldVerifier, FieldVerifierInput, FieldVerifierResult } from "@/core/interfaces/FieldVerifier.js";
 import type { ParsedInvoiceData } from "@/types/invoice.js";
+import type { DocumentMimeType } from "@/types/mime.js";
 import type { OcrBlock, OcrPageImage, OcrProvider, OcrResult } from "@/core/interfaces/OcrProvider.js";
 import type { ChunkableDocumentDefinition, DocumentDefinition } from "@/core/engine/DocumentDefinition.js";
 import type { DocumentDefinitionCanChunk, ProcessingContext, ProcessingResult, ValidationResult } from "@/core/engine/types.js";
@@ -160,7 +161,7 @@ export class DocumentProcessingEngine<TOutput> {
   private async runSingleSlm(
     text: string,
     ocrResult: OcrResult,
-    mimeType: string
+    mimeType: DocumentMimeType
   ): Promise<{ output: TOutput; slmTokens: number }> {
     const blocks = ocrResult.blocks ?? [];
     const pageImages = ocrResult.pageImages ?? [];
@@ -172,7 +173,7 @@ export class DocumentProcessingEngine<TOutput> {
     text: string,
     blocks: OcrBlock[],
     pageImages: OcrPageImage[],
-    mimeType: string
+    mimeType: DocumentMimeType
   ): Promise<TOutput> {
     const prompt = this.definition.buildPrompt
       ? this.definition.buildPrompt(text, blocks, pageImages)
@@ -241,7 +242,7 @@ export class DocumentProcessingEngine<TOutput> {
     };
   }
 
-  private async callSlm(prompt: string, mimeType: string, _pageImages: OcrPageImage[]): Promise<string> {
+  private async callSlm(prompt: string, mimeType: DocumentMimeType, _pageImages: OcrPageImage[]): Promise<string> {
     const input: FieldVerifierInput = {
       parsed: { invoiceNumber: OCR_SENTINEL_KEY } as ParsedInvoiceData,
       ocrText: prompt,

@@ -5,12 +5,13 @@ import path from "node:path";
 import { env } from "@/config/env.js";
 import { refreshGoogleAccessToken } from "@/sources/email/gmailOAuthClient.js";
 import { buildXoauth2AuthorizationHeader } from "@/sources/email/xoauth2.js";
+import { DOCUMENT_MIME_TYPE, type DocumentMimeType } from "@/types/mime.js";
 
 const MAX_ATTACHMENTS_PER_EMAIL = 2;
 
 interface SimulationAttachment {
   fileName: string;
-  mimeType: string;
+  mimeType: DocumentMimeType;
   contentBase64: string;
 }
 
@@ -157,15 +158,15 @@ function pathExists(candidatePath: string): boolean {
   return !!candidatePath && existsSync(candidatePath);
 }
 
-function resolveMimeType(fileName: string): string {
+function resolveMimeType(fileName: string): DocumentMimeType {
   const lower = fileName.toLowerCase();
   if (lower.endsWith(".pdf")) {
-    return "application/pdf";
+    return DOCUMENT_MIME_TYPE.PDF;
   }
   if (lower.endsWith(".png")) {
-    return "image/png";
+    return DOCUMENT_MIME_TYPE.PNG;
   }
-  return "image/jpeg";
+  return DOCUMENT_MIME_TYPE.JPEG;
 }
 
 function chunkAttachments(attachments: SimulationAttachment[], maxPerBatch: number): SimulationAttachment[][] {

@@ -10,6 +10,7 @@ import type {
   InvoiceLineItemProvenance,
   ParsedInvoiceData
 } from "@/types/invoice.js";
+import type { DocumentMimeType } from "@/types/mime.js";
 import type { EnhancedOcrResult } from "@/ai/ocr/ocrPostProcessor.js";
 import type { RankedOcrTextCandidate } from "@/ai/extractors/stages/ocrTextCandidates.js";
 import type { DetectedInvoiceLanguage } from "@/ai/extractors/invoice/languageDetection.js";
@@ -30,7 +31,7 @@ export interface InvoiceSlmOutput {
 }
 
 interface InvoiceSlmContext {
-  mimeType: string;
+  mimeType: DocumentMimeType;
   attachmentName: string;
   template: VendorTemplateSnapshot | undefined;
   language: {

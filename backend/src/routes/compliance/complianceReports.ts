@@ -1,4 +1,5 @@
 import { getAuth } from "@/types/auth.js";
+import { EXPORT_CONTENT_TYPE } from "@/types/mime.js";
 import { Router } from "express";
 import { InvoiceModel } from "@/models/invoice/Invoice.js";
 import { VendorMasterModel } from "@/models/compliance/VendorMaster.js";
@@ -42,7 +43,7 @@ export function createComplianceReportsRouter() {
       if (req.query.format === "csv") {
         const header = "Vendor,Invoice Number,Invoice Date,TDS Section,TDS Rate (bps),TDS Amount (minor)\n";
         const csvRows = rows.map(r => `"${r.vendorName}","${r.invoiceNumber}","${r.invoiceDate}","${r.tdsSection}",${r.tdsRate},${r.tdsAmountMinor}`).join("\n");
-        res.setHeader("Content-Type", "text/csv");
+        res.setHeader("Content-Type", EXPORT_CONTENT_TYPE.CSV);
         res.setHeader("Content-Disposition", "attachment; filename=tds-summary.csv");
         res.send(header + csvRows);
         return;
@@ -66,7 +67,7 @@ export function createComplianceReportsRouter() {
       const result = { totalVendors, missingPan, recentBankChanges, msmeVendors };
 
       if (req.query.format === "csv") {
-        res.setHeader("Content-Type", "text/csv");
+        res.setHeader("Content-Type", EXPORT_CONTENT_TYPE.CSV);
         res.setHeader("Content-Disposition", "attachment; filename=vendor-health.csv");
         res.send(`Metric,Count\nTotal Vendors,${totalVendors}\nMissing PAN,${missingPan}\nBank Changes,${recentBankChanges}\nMSME Vendors,${msmeVendors}\n`);
         return;

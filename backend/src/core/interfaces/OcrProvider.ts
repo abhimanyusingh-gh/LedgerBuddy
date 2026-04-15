@@ -1,3 +1,6 @@
+import type { ImageMimeType } from "@/types/mime.js";
+import type { DocumentMimeType } from "@/types/mime.js";
+
 export interface OcrBlock {
   text: string;
   page: number;
@@ -10,7 +13,7 @@ export interface OcrBlock {
 
 export interface OcrPageImage {
   page: number;
-  mimeType: string;
+  mimeType: ImageMimeType;
   dataUrl: string;
   width?: number;
   height?: number;
@@ -49,5 +52,5 @@ export interface OcrExtractionOptions {
 
 export interface OcrProvider {
   readonly name: string;
-  extractText(buffer: Buffer, mimeType: string, options?: OcrExtractionOptions): Promise<OcrResult>;
+  extractText(buffer: Buffer, mimeType: DocumentMimeType, options?: OcrExtractionOptions): Promise<OcrResult>;
 }

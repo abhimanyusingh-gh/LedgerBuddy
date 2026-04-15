@@ -1,4 +1,5 @@
 import type { InvoiceDocument } from "@/models/invoice/Invoice.js";
+import type { ExportContentType } from "@/types/mime.js";
 
 export interface ExportResultItem {
   invoiceId: string;
@@ -9,7 +10,7 @@ export interface ExportResultItem {
 
 export interface ExportFileResult {
   content: Buffer;
-  contentType: string;
+  contentType: ExportContentType;
   filename: string;
   includedCount: number;
   skippedItems: ExportResultItem[];

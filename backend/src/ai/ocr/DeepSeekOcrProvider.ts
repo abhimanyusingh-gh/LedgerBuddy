@@ -1,5 +1,6 @@
 import axios from "axios";
 import type { OcrExtractionOptions, OcrProvider, OcrResult } from "@/core/interfaces/OcrProvider.js";
+import { DOCUMENT_MIME_TYPE, type DocumentMimeType } from "@/types/mime.js";
 import { getCorrelationId, logger } from "@/utils/logger.js";
 import {
   DEFAULT_PROMPT,
@@ -15,13 +16,13 @@ import {
   readTimeoutMsFromEnv
 } from "@/ai/ocr/OcrProviderSupport.js";
 
-const SUPPORTED_MIME_TYPES = new Set([
-  "image/jpeg",
+const SUPPORTED_MIME_TYPES = new Set<string>([
+  DOCUMENT_MIME_TYPE.JPEG,
   "image/jpg",
   "image/pjpeg",
-  "image/png",
+  DOCUMENT_MIME_TYPE.PNG,
   "image/x-png",
-  "application/pdf"
+  DOCUMENT_MIME_TYPE.PDF
 ]);
 const RETRYABLE_NETWORK_ERROR_CODES = new Set(["ECONNREFUSED", "ECONNRESET", "ETIMEDOUT", "EHOSTUNREACH"]);
 
@@ -65,7 +66,7 @@ export class DeepSeekOcrProvider implements OcrProvider {
     this.httpClient = options?.httpClient ?? axios.create({ baseURL: baseUrl });
   }
 
-  async extractText(buffer: Buffer, mimeType: string, options?: OcrExtractionOptions): Promise<OcrResult> {
+  async extractText(buffer: Buffer, mimeType: DocumentMimeType, options?: OcrExtractionOptions): Promise<OcrResult> {
     if (!SUPPORTED_MIME_TYPES.has(mimeType)) {
       return {
         text: "",

@@ -2,6 +2,7 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 import type { IngestedFile, IngestionSource } from "@/core/interfaces/IngestionSource.js";
 import type { WorkloadTier } from "@/types/tenant.js";
+import { DOCUMENT_MIME_TYPE, type DocumentMimeType } from "@/types/mime.js";
 
 interface FolderSourceConfig {
   key: string;
@@ -16,14 +17,14 @@ interface FolderEntry {
   relativePath: string;
   fileName: string;
   mtimeMs: number;
-  mimeType: string;
+  mimeType: DocumentMimeType;
 }
 
-const MIME_BY_EXTENSION: Record<string, string> = {
-  ".pdf": "application/pdf",
-  ".jpg": "image/jpeg",
-  ".jpeg": "image/jpeg",
-  ".png": "image/png"
+const MIME_BY_EXTENSION: Record<string, DocumentMimeType> = {
+  ".pdf": DOCUMENT_MIME_TYPE.PDF,
+  ".jpg": DOCUMENT_MIME_TYPE.JPEG,
+  ".jpeg": DOCUMENT_MIME_TYPE.JPEG,
+  ".png": DOCUMENT_MIME_TYPE.PNG
 };
 
 export class FolderIngestionSource implements IngestionSource {

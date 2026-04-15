@@ -1,3 +1,4 @@
+import type { DocumentMimeType } from "@/types/mime.js";
 import { BankStatementModel, BANK_STATEMENT_SOURCE, type BankStatementSource } from "@/models/bank/BankStatement.js";
 import { BankTransactionModel, BANK_TRANSACTION_SOURCE, type BankTransactionSource } from "@/models/bank/BankTransaction.js";
 import { logger } from "@/utils/logger.js";
@@ -148,7 +149,7 @@ export class BankStatementExtractionPipeline {
     tenantId: string,
     fileName: string,
     buffer: Buffer,
-    mimeType: string,
+    mimeType: DocumentMimeType,
     uploadedBy: string,
     onProgress?: OnParseProgress
   ): Promise<BankPdfParseResult> {

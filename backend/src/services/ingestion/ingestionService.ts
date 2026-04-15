@@ -6,6 +6,7 @@ import { InvoiceModel } from "@/models/invoice/Invoice.js";
 import { logger } from "@/utils/logger.js";
 import { env } from "@/config/env.js";
 import { normalizeInvoiceMimeType } from "@/utils/mime.js";
+import { assertDocumentMimeType } from "@/types/mime.js";
 import type { WorkloadTier } from "@/types/tenant.js";
 import { TenantModel } from "@/models/core/Tenant.js";
 import { S3UploadIngestionSource } from "@/sources/S3UploadIngestionSource.js";
@@ -268,7 +269,7 @@ export class IngestionService {
         }).select({ _id: 1, attachmentName: 1 }).lean()
       : null;
 
-    const normalizedMimeType = normalizeInvoiceMimeType(file.mimeType);
+    const normalizedMimeType = assertDocumentMimeType(normalizeInvoiceMimeType(file.mimeType));
     const baseOcrState = { ocrProvider: this.ocrProvider.name, ocrText: "", ocrConfidence: undefined as number | undefined, ocrBlocks: [] as OcrBlock[] };
 
     try {

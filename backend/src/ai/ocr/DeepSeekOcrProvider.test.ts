@@ -1,6 +1,7 @@
 import { DeepSeekOcrProvider } from "@/ai/ocr/DeepSeekOcrProvider.ts";
 import { runWithLogContext } from "@/utils/logger.ts";
 import { logger } from "@/utils/logger.ts";
+import type { DocumentMimeType } from "@/types/mime.ts";
 import axios from "axios";
 
 describe("DeepSeekOcrProvider", () => {
@@ -17,7 +18,7 @@ describe("DeepSeekOcrProvider", () => {
   it("returns empty OCR output for unsupported mime types", async () => {
     const post = jest.fn();
     const provider = new DeepSeekOcrProvider({ httpClient: { post } });
-    await expect(provider.extractText(Buffer.from("x"), "text/plain")).resolves.toEqual({
+    await expect(provider.extractText(Buffer.from("x"), "text/plain" as DocumentMimeType)).resolves.toEqual({
       text: "",
       confidence: 0,
       provider: "deepseek"

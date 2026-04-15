@@ -12,12 +12,13 @@ import { requireNotViewer } from "@/auth/middleware.js";
 import type { FileStore } from "@/core/interfaces/FileStore.js";
 import type { OcrProvider } from "@/core/interfaces/OcrProvider.js";
 import type { FieldVerifier } from "@/core/interfaces/FieldVerifier.js";
+import { DOCUMENT_MIME_TYPE, EXPORT_CONTENT_TYPE, assertDocumentMimeType } from "@/types/mime.js";
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 const reconciler = new ReconciliationService();
 
-const PDF_MIME_TYPES = new Set(["application/pdf", "image/jpeg", "image/jpg", "image/png"]);
-const CSV_MIME_TYPES = new Set(["text/csv", "application/vnd.ms-excel"]);
+const PDF_MIME_TYPES = new Set<string>([DOCUMENT_MIME_TYPE.PDF, DOCUMENT_MIME_TYPE.JPEG, "image/jpg", DOCUMENT_MIME_TYPE.PNG]);
+const CSV_MIME_TYPES = new Set<string>([EXPORT_CONTENT_TYPE.CSV, "application/vnd.ms-excel"]);
 
 function isDocumentMime(mimeType: string): boolean {
   return PDF_MIME_TYPES.has(mimeType);
@@ -29,10 +30,10 @@ function isCsvMime(mimeType: string): boolean {
 
 function detectMimeFromExtension(fileName: string): string | null {
   const ext = fileName.split(".").pop()?.toLowerCase();
-  if (ext === "csv") return "text/csv";
-  if (ext === "pdf") return "application/pdf";
-  if (ext === "jpg" || ext === "jpeg") return "image/jpeg";
-  if (ext === "png") return "image/png";
+  if (ext === "csv") return EXPORT_CONTENT_TYPE.CSV;
+  if (ext === "pdf") return DOCUMENT_MIME_TYPE.PDF;
+  if (ext === "jpg" || ext === "jpeg") return DOCUMENT_MIME_TYPE.JPEG;
+  if (ext === "png") return DOCUMENT_MIME_TYPE.PNG;
   return null;
 }
 
@@ -273,7 +274,7 @@ export function createBankStatementsRouter(
 
       if (fileStore) {
         const s3Key = `bank-statements/${tenantId}/${result.statementId}/${file.originalname}`;
-        await fileStore.putObject({ key: s3Key, body: file.buffer, contentType: "text/csv" });
+        await fileStore.putObject({ key: s3Key, body: file.buffer, contentType: EXPORT_CONTENT_TYPE.CSV });
         await BankStatementModel.updateOne({ _id: result.statementId }, { $set: { s3Key } });
       }
 
@@ -310,7 +311,7 @@ export function createBankStatementsRouter(
 
         if (fileStore) {
           const s3Key = `bank-statements/${tenantId}/${result.statementId}/${file.originalname}`;
-          await fileStore.putObject({ key: s3Key, body: file.buffer, contentType: "text/csv" });
+          await fileStore.putObject({ key: s3Key, body: file.buffer, contentType: EXPORT_CONTENT_TYPE.CSV });
           await BankStatementModel.updateOne({ _id: result.statementId }, { $set: { s3Key } });
         }
 
@@ -338,7 +339,7 @@ export function createBankStatementsRouter(
         tenantId,
         file.originalname,
         file.buffer,
-        resolvedMime,
+        assertDocumentMimeType(resolvedMime),
         req.authContext!.email,
         (event) => parseProgress.broadcast(tenantId, event)
       );

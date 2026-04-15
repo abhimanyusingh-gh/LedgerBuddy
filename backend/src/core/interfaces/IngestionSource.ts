@@ -1,4 +1,5 @@
 import type { WorkloadTier } from "@/types/tenant.js";
+import type { DocumentMimeType } from "@/types/mime.js";
 
 export interface IngestedFile {
   tenantId: string;
@@ -7,7 +8,7 @@ export interface IngestedFile {
   sourceType: string;
   sourceDocumentId: string;
   attachmentName: string;
-  mimeType: string;
+  mimeType: DocumentMimeType;
   receivedAt: Date;
   buffer: Buffer;
   checkpointValue: string;

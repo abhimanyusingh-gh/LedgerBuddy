@@ -7,6 +7,7 @@ import type {
   InvoiceLineItemProvenance,
   ParsedInvoiceData
 } from "@/types/invoice.js";
+import type { DocumentMimeType, ImageMimeType } from "@/types/mime.js";
 import type { MergedBlock, OcrLine } from "@/ai/ocr/ocrPostProcessor.js";
 
 export type FieldVerificationMode = "strict" | "relaxed";
@@ -17,7 +18,7 @@ export interface FieldVerifierInput {
   ocrBlocks: OcrBlock[];
   mode: FieldVerificationMode;
   hints: {
-    mimeType: string;
+    mimeType: DocumentMimeType;
     languageHint?: string;
     documentLanguage?: string;
     documentLanguageConfidence?: number;
@@ -29,7 +30,7 @@ export interface FieldVerifierInput {
     vendorTemplateMatched: boolean;
     fieldCandidates: Record<string, string[]>;
     fieldRegions?: Record<string, OcrBlock[]>;
-    pageImages?: Array<{ page: number; mimeType: string; dataUrl: string; width?: number; height?: number; dpi?: number }>;
+    pageImages?: Array<{ page: number; mimeType: ImageMimeType; dataUrl: string; width?: number; height?: number; dpi?: number }>;
     llmAssist?: boolean;
     priorCorrections?: Array<{ field: string; hint: string; count: number }>;
     extractionMode?: string;

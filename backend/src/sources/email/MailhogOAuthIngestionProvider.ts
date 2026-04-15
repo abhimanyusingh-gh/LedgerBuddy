@@ -4,6 +4,7 @@ import type { EmailIngestionBoundary } from "@/core/boundaries/EmailIngestionBou
 import type { IngestedFile } from "@/core/interfaces/IngestionSource.js";
 import { logger } from "@/utils/logger.js";
 import { isSupportedInvoiceMimeType, normalizeInvoiceMimeType } from "@/utils/mime.js";
+import { assertDocumentMimeType } from "@/types/mime.js";
 import { refreshGoogleAccessToken } from "@/sources/email/gmailOAuthClient.js";
 import type { EmailSourceConfig, OAuth2EmailAuthConfig } from "@/sources/email/types.js";
 import { buildXoauth2AuthorizationHeader } from "@/sources/email/xoauth2.js";
@@ -68,8 +69,8 @@ export class MailhogOAuthIngestionProvider implements EmailIngestionBoundary {
       }
 
       for (const attachment of parsedMail.attachments ?? []) {
-        const mimeType = normalizeInvoiceMimeType(attachment.contentType ?? "");
-        if (!isSupportedInvoiceMimeType(mimeType)) {
+        const normalizedMime = normalizeInvoiceMimeType(attachment.contentType ?? "");
+        if (!isSupportedInvoiceMimeType(normalizedMime)) {
           continue;
         }
 
@@ -80,7 +81,7 @@ export class MailhogOAuthIngestionProvider implements EmailIngestionBoundary {
           sourceType: "email",
           sourceDocumentId: message.id,
           attachmentName: attachment.filename ?? `attachment-${message.id}`,
-          mimeType,
+          mimeType: assertDocumentMimeType(normalizedMime),
           receivedAt: normalizeReceivedAt(message.receivedAt, parsedMail.date),
           buffer: attachment.content,
           checkpointValue: message.checkpoint,

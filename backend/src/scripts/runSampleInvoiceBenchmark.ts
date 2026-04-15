@@ -3,6 +3,7 @@ import { join, extname, resolve } from "node:path";
 import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { DOCUMENT_MIME_TYPE, type DocumentMimeType } from "@/types/mime.js";
 import { DeepSeekOcrProvider } from "@/ai/ocr/DeepSeekOcrProvider.js";
 import { LlamaParseOcrProvider } from "@/ai/ocr/LlamaParseOcrProvider.js";
 import { HttpFieldVerifier } from "@/ai/verifiers/HttpFieldVerifier.js";
@@ -351,18 +352,18 @@ async function run(): Promise<void> {
     .filter((name) => filePrefixes.length === 0 || filePrefixes.some((p) => name.startsWith(p)))
     .sort((left, right) => left.localeCompare(right));
 
-  const mimeTypeMap: Record<string, string> = {
-    ".pdf": "application/pdf",
-    ".png": "image/png",
-    ".jpg": "image/jpeg",
-    ".jpeg": "image/jpeg",
-    ".webp": "image/webp"
+  const mimeTypeMap: Record<string, DocumentMimeType> = {
+    ".pdf": DOCUMENT_MIME_TYPE.PDF,
+    ".png": DOCUMENT_MIME_TYPE.PNG,
+    ".jpg": DOCUMENT_MIME_TYPE.JPEG,
+    ".jpeg": DOCUMENT_MIME_TYPE.JPEG,
+    ".webp": DOCUMENT_MIME_TYPE.WEBP
   };
 
   async function processFile(file: string): Promise<BenchmarkResult> {
     const fullPath = join(samplesDir, file);
     const fileBuffer = readFileSync(fullPath);
-    const mimeType = mimeTypeMap[extname(file).toLowerCase()] ?? "application/octet-stream";
+    const mimeType = mimeTypeMap[extname(file).toLowerCase()] ?? DOCUMENT_MIME_TYPE.PDF;
     const extraction = await pipeline.extract({
       tenantId: "benchmark",
       sourceKey: file,

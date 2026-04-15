@@ -12,6 +12,7 @@ import {
   sanitizeFieldProvenanceRecord,
   type FieldProvenanceEntry
 } from "@/services/ingestion/provenance.js";
+import { DOCUMENT_MIME_TYPE, IMAGE_MIME_TYPE, type DocumentMimeType } from "@/types/mime.js";
 
 interface CropPageImage {
   page: number;
@@ -28,7 +29,7 @@ export interface ArtifactResults {
 
 export async function persistFieldArtifacts(input: {
   file: IngestedFile;
-  mimeType: string;
+  mimeType: DocumentMimeType;
   extraction: {
     ocrPageImages: OcrPageImage[];
     metadata: Record<string, string>;
@@ -97,7 +98,7 @@ function buildArtifactPrefix(file: IngestedFile): string {
 
 async function persistPreviewImages(input: {
   file: IngestedFile;
-  mimeType: string;
+  mimeType: DocumentMimeType;
   images: OcrPageImage[];
   keyPrefix: string;
   fileStore: FileStore;
@@ -183,7 +184,7 @@ async function persistOcrBlockCrops(input: {
         const objectRef = await input.fileStore.putObject({
           key: `${input.keyPrefix}/page-${pageImage.page}/block-${index + 1}.png`,
           body: cropped,
-          contentType: "image/png",
+          contentType: IMAGE_MIME_TYPE.PNG,
           metadata: {
             tenantId: input.file.tenantId,
             sourceKey: input.file.sourceKey,
@@ -245,7 +246,7 @@ async function persistFieldOverlayImages(input: {
         const objectRef = await input.fileStore.putObject({
           key: `${input.keyPrefix}/${sanitizeObjectName(field)}.png`,
           body: overlayBuffer,
-          contentType: "image/png",
+          contentType: IMAGE_MIME_TYPE.PNG,
           metadata: {
             tenantId: input.file.tenantId,
             sourceKey: input.file.sourceKey,
@@ -272,12 +273,12 @@ async function persistFieldOverlayImages(input: {
 
 async function buildPageSourcesForCropping(
   file: IngestedFile,
-  mimeType: string,
+  mimeType: DocumentMimeType,
   pageImages: OcrPageImage[]
 ): Promise<Map<number, CropPageImage>> {
   const output = new Map<number, CropPageImage>();
 
-  if (mimeType === "application/pdf") {
+  if (mimeType === DOCUMENT_MIME_TYPE.PDF) {
     for (const pageImage of pageImages) {
       const parsed = decodeDataUrl(pageImage.dataUrl);
       if (!parsed) {
@@ -446,7 +447,7 @@ function decodeDataUrl(value: string): { mimeType: string; buffer: Buffer } | un
 }
 
 function extensionForMimeType(value: string): string {
-  if (value === "image/jpeg" || value === "image/jpg") {
+  if (value === DOCUMENT_MIME_TYPE.JPEG || value === "image/jpg") {
     return "jpg";
   }
   return "png";

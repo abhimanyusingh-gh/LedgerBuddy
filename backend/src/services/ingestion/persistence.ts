@@ -5,6 +5,7 @@ import type {
   InvoiceExtractionData,
   InvoiceStatus
 } from "@/types/invoice.js";
+import type { DocumentMimeType } from "@/types/mime.js";
 import type { ArtifactResults } from "@/services/ingestion/artifacts.js";
 import { normalizeExtractionData, encodeExtractionFieldKey } from "@/services/ingestion/provenance.js";
 import { ExtractionPipelineError } from "@/ai/extractors/invoice/InvoiceExtractionPipeline.js";
@@ -30,7 +31,7 @@ interface ExtractionResult {
 
 export function buildSuccessData(
   file: IngestedFile,
-  mimeType: string,
+  mimeType: DocumentMimeType,
   extraction: ExtractionResult,
   ocrBlocks: OcrBlock[],
   artifacts: ArtifactResults
@@ -113,7 +114,7 @@ export function buildSuccessData(
 
 export function buildFailureData(
   file: IngestedFile,
-  mimeType: string,
+  mimeType: DocumentMimeType,
   ocrState: { ocrProvider: string; ocrText: string; ocrConfidence: number | undefined; ocrBlocks: OcrBlock[] },
   error: unknown
 ): Record<string, unknown> {

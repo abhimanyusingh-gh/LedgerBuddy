@@ -1,4 +1,5 @@
 import { HttpFieldVerifier } from "@/ai/verifiers/HttpFieldVerifier.ts";
+import { DOCUMENT_MIME_TYPE, IMAGE_MIME_TYPE } from "@/types/mime.ts";
 import { logger } from "@/utils/logger.ts";
 
 describe("HttpFieldVerifier", () => {
@@ -35,7 +36,7 @@ describe("HttpFieldVerifier", () => {
       ocrBlocks: [],
       mode: "relaxed",
       hints: {
-        mimeType: "image/png",
+        mimeType: IMAGE_MIME_TYPE.PNG,
         vendorTemplateMatched: false,
         fieldCandidates: {}
       }
@@ -81,10 +82,10 @@ describe("HttpFieldVerifier", () => {
       ocrBlocks: [],
       mode: "strict",
       hints: {
-        mimeType: "image/png",
+        mimeType: IMAGE_MIME_TYPE.PNG,
         vendorTemplateMatched: false,
         fieldCandidates: {},
-        pageImages: [{ page: 1, mimeType: "image/png", dataUrl: "data:image/png;base64,abc" }],
+        pageImages: [{ page: 1, mimeType: IMAGE_MIME_TYPE.PNG, dataUrl: "data:image/png;base64,abc" }],
         llmAssist: true,
         priorCorrections: [{ field: "currency", hint: "INR not USD", count: 2 }]
       }
@@ -155,7 +156,7 @@ describe("HttpFieldVerifier", () => {
       ocrBlocks: [],
       mode: "relaxed",
       hints: {
-        mimeType: "application/pdf",
+        mimeType: DOCUMENT_MIME_TYPE.PDF,
         vendorTemplateMatched: false,
         fieldCandidates: {}
       }
@@ -196,7 +197,7 @@ describe("HttpFieldVerifier", () => {
       ocrBlocks: [],
       mode: "strict" as const,
       hints: {
-        mimeType: "image/png",
+        mimeType: IMAGE_MIME_TYPE.PNG,
         vendorTemplateMatched: false,
         fieldCandidates: {}
       }

@@ -1,4 +1,5 @@
 import type { OcrBlock, OcrPageImage } from "@/core/interfaces/OcrProvider.js";
+import type { DocumentMimeType } from "@/types/mime.js";
 
 export interface DocumentDefinitionCanChunk {
   canChunk(): boolean;
@@ -12,7 +13,7 @@ export interface ValidationResult {
 export interface ProcessingContext {
   tenantId: string;
   fileName: string;
-  mimeType: string;
+  mimeType: DocumentMimeType;
   fileBuffer: Buffer;
   ocrLanguageHint?: string;
 }

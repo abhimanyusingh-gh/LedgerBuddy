@@ -1,7 +1,9 @@
+import type { DocumentMimeType } from "@/types/mime.js";
+
 export interface PipelineInput {
   tenantId: string;
   fileName: string;
-  mimeType: string;
+  mimeType: DocumentMimeType;
   fileBuffer: Buffer;
   [key: string]: unknown;
 }

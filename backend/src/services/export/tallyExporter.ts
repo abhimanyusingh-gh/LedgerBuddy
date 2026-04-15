@@ -3,6 +3,7 @@ import type { AccountingExporter, ExportFileResult, ExportResultItem } from "@/c
 import type { InvoiceDocument } from "@/models/invoice/Invoice.js";
 import { logger } from "@/utils/logger.js";
 import { isRecord } from "@/utils/validation.js";
+import { EXPORT_CONTENT_TYPE } from "@/types/mime.js";
 import {
   buildTallyBatchImportXml,
   buildTallyPurchaseVoucherPayload,
@@ -178,7 +179,7 @@ export class TallyExporter implements AccountingExporter {
     if (inputs.length === 0) {
       return {
         content: Buffer.alloc(0),
-        contentType: "text/xml",
+        contentType: EXPORT_CONTENT_TYPE.TEXT_XML,
         filename: `tally-import-${Date.now()}.xml`,
         includedCount: 0,
         skippedItems
@@ -189,7 +190,7 @@ export class TallyExporter implements AccountingExporter {
     const timestamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
     return {
       content: Buffer.from(xml, "utf-8"),
-      contentType: "text/xml",
+      contentType: EXPORT_CONTENT_TYPE.TEXT_XML,
       filename: `tally-import-${timestamp}.xml`,
       includedCount: inputs.length,
       skippedItems

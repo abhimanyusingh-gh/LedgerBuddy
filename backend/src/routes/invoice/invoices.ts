@@ -1,4 +1,5 @@
 import { getAuth } from "@/types/auth.js";
+import { DOCUMENT_MIME_TYPE } from "@/types/mime.js";
 import { Router, type Request, type Response, type NextFunction } from "express";
 import { constants as fsConstants } from "node:fs";
 import { access } from "node:fs/promises";
@@ -325,9 +326,9 @@ function resolveSourceDocumentPath(rootPath: string, relativePathValue: string):
 
 function inferImageMimeType(value: string): string {
   const n = value.toLowerCase();
-  if (n.endsWith(".jpg") || n.endsWith(".jpeg")) return "image/jpeg";
-  if (n.endsWith(".webp")) return "image/webp";
-  return "image/png";
+  if (n.endsWith(".jpg") || n.endsWith(".jpeg")) return DOCUMENT_MIME_TYPE.JPEG;
+  if (n.endsWith(".webp")) return DOCUMENT_MIME_TYPE.WEBP;
+  return DOCUMENT_MIME_TYPE.PNG;
 }
 
 function getS3Client(): S3Client {

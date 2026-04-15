@@ -1,4 +1,5 @@
 import { clampProbability } from "@/ai/extractors/stages/fieldParsingUtils.js";
+import { DOCUMENT_MIME_TYPE, type DocumentMimeType } from "@/types/mime.js";
 
 interface ScriptLanguageCandidate {
   code: string;
@@ -25,7 +26,7 @@ export interface DetectedInvoiceLanguage {
 interface PreOcrLanguageInput {
   attachmentName: string;
   sourceKey: string;
-  mimeType: string;
+  mimeType: DocumentMimeType;
   fileBuffer: Buffer;
 }
 
@@ -264,12 +265,12 @@ function normalizeHintText(value: string): string {
     .trim();
 }
 
-function extractUtf8Probe(fileBuffer: Buffer, mimeType: string): string {
+function extractUtf8Probe(fileBuffer: Buffer, mimeType: DocumentMimeType): string {
   if (fileBuffer.length === 0) {
     return "";
   }
 
-  const isLikelyTextDocument = mimeType.startsWith("text/") || mimeType === "application/pdf";
+  const isLikelyTextDocument = mimeType.startsWith("text/") || mimeType === DOCUMENT_MIME_TYPE.PDF;
   if (!isLikelyTextDocument) {
     return "";
   }
@@ -286,7 +287,7 @@ function extractUtf8Probe(fileBuffer: Buffer, mimeType: string): string {
     return "";
   }
 
-  if (mimeType === "application/pdf") {
+  if (mimeType === DOCUMENT_MIME_TYPE.PDF) {
     const asciiOnly = normalized.replace(/[^\x20-\x7E]/g, "");
     const asciiRatio = asciiOnly.length / Math.max(1, normalized.length);
     if (asciiRatio < 0.5) {
@@ -310,7 +311,7 @@ function detectLanguageFromHintKeywords(text: string): string | undefined {
 
 export function resolvePreOcrLanguageHint(
   language: DetectedInvoiceLanguage,
-  mimeType: string
+  mimeType: DocumentMimeType
 ): { hint?: string; reason: "detected" | "low-confidence-detected" | "default-en" | "none" } {
   if (language.code !== "und") {
     return {
@@ -319,7 +320,7 @@ export function resolvePreOcrLanguageHint(
     };
   }
 
-  if (isDocumentMimeType(mimeType)) {
+  if (isDocumentMimeForLanguageHint(mimeType)) {
     return {
       hint: "en",
       reason: "default-en"
@@ -362,7 +363,6 @@ function shouldUseLanguageHint(language: DetectedInvoiceLanguage): boolean {
   return language.code !== "und" && language.confidence >= 0.4;
 }
 
-function isDocumentMimeType(mimeType: string): boolean {
-  const normalized = mimeType.trim().toLowerCase();
-  return normalized.startsWith("image/") || normalized === "application/pdf";
+function isDocumentMimeForLanguageHint(mimeType: DocumentMimeType): boolean {
+  return mimeType.startsWith("image/") || mimeType === DOCUMENT_MIME_TYPE.PDF;
 }

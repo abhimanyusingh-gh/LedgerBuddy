@@ -1,5 +1,6 @@
 import type { FieldVerifier } from "@/core/interfaces/FieldVerifier.js";
 import type { OcrBlock, OcrPageImage, OcrProvider, OcrResult } from "@/core/interfaces/OcrProvider.js";
+import type { DocumentMimeType } from "@/types/mime.js";
 import type { EnhancedOcrResult } from "@/ai/ocr/ocrPostProcessor.js";
 import type {
   InvoiceCompliance,
@@ -78,7 +79,7 @@ interface ExtractionPipelineInput {
   sourceKey: string;
   attachmentName: string;
   fileBuffer: Buffer;
-  mimeType: string;
+  mimeType: DocumentMimeType;
   expectedMaxTotal: number;
   expectedMaxDueDays: number;
   autoSelectMin: number;

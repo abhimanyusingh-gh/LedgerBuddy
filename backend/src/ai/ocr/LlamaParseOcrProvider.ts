@@ -5,13 +5,14 @@ import { logger } from "@/utils/logger.js";
 import { env } from "@/config/env.js";
 import { buildOcrRequestError } from "@/ai/ocr/OcrProviderSupport.js";
 import { LLAMA_EXTRACT_INVOICE_SCHEMA } from "@/ai/schemas/invoice/llamaExtractInvoiceSchema.js";
+import { DOCUMENT_MIME_TYPE, IMAGE_MIME_TYPE, type DocumentMimeType, type ImageMimeType } from "@/types/mime.js";
 
-const SUPPORTED_MIME_TYPES = new Set([
-  "application/pdf",
-  "image/jpeg",
+const SUPPORTED_MIME_TYPES = new Set<string>([
+  DOCUMENT_MIME_TYPE.PDF,
+  DOCUMENT_MIME_TYPE.JPEG,
   "image/jpg",
   "image/pjpeg",
-  "image/png",
+  DOCUMENT_MIME_TYPE.PNG,
   "image/x-png"
 ]);
 
@@ -52,7 +53,7 @@ export class LlamaParseOcrProvider implements OcrProvider {
     this.extractSystemPrompt = options?.extractSystemPrompt ?? process.env.LLAMA_EXTRACT_SYSTEM_PROMPT;
   }
 
-  async extractText(buffer: Buffer, mimeType: string, _options?: OcrExtractionOptions): Promise<OcrResult> {
+  async extractText(buffer: Buffer, mimeType: DocumentMimeType, _options?: OcrExtractionOptions): Promise<OcrResult> {
     if (!SUPPORTED_MIME_TYPES.has(mimeType)) {
       return { text: "", confidence: 0, provider: this.name };
     }
@@ -313,7 +314,7 @@ async function downloadScreenshots(
         const response = await fetch(img.presigned_url!);
         if (!response.ok) return;
         const buffer = Buffer.from(await response.arrayBuffer());
-        const mimeType = img.content_type ?? "image/png";
+        const mimeType = (img.content_type ?? IMAGE_MIME_TYPE.PNG) as ImageMimeType;
         results.push({
           page: img.index + 1,
           mimeType,
