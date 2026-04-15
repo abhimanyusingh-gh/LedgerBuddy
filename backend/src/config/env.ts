@@ -148,6 +148,7 @@ const envSchema = z.object({
   LLAMA_PARSE_CUSTOM_PROMPT: z.string().optional(),
   LLAMA_PARSE_EXTRACT_ENABLED: z.coerce.boolean().default(false),
   LLAMA_PARSE_EXTRACT_TIER: z.enum(["cost_effective", "agentic"]).default("cost_effective"),
+  LLAMA_EXTRACT_TARGET_PAGES: z.string().optional(),
   FIELD_VERIFIER_PROVIDER: z.enum(["none", "http"]).default("http"),
   FIELD_VERIFIER_BASE_URL: z.string().optional(),
   FIELD_VERIFIER_TIMEOUT_MS: z.coerce.number().default(600000),

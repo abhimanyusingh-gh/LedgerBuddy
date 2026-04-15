@@ -172,6 +172,8 @@ export interface InvoiceFieldProvenance {
   blockIndex?: number;
   blockIndices?: number[];
   confidence?: number;
+  parsingConfidence?: number;
+  extractionConfidence?: number;
 }
 
 export interface InvoiceLineItemProvenance {

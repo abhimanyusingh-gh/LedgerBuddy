@@ -33,6 +33,8 @@ export interface ExtractedField {
   bbox?: [number, number, number, number];
   bboxNormalized?: [number, number, number, number];
   confidence?: number;
+  parsingConfidence?: number;
+  extractionConfidence?: number;
 }
 
 export type OcrProviderType = "auto" | "deepseek" | "mock" | "llamaparse" | "native-pdf" | "apple_vision";
@@ -40,6 +42,8 @@ export type OcrProviderType = "auto" | "deepseek" | "mock" | "llamaparse" | "nat
 export interface OcrResult {
   text: string;
   confidence?: number;
+  parsingConfidence?: number;
+  extractionConfidence?: number;
   provider: OcrProviderType | string;
   blocks?: OcrBlock[];
   pageImages?: OcrPageImage[];

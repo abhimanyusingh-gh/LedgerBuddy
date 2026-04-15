@@ -194,6 +194,44 @@ describe("DocumentProcessingEngine", () => {
     expect((fieldVerifier.verify as jest.Mock)).not.toHaveBeenCalled();
   });
 
+  it("propagates parsingConfidence and extractionConfidence in extract provenance", async () => {
+    const fields = [
+      { key: "invoice_number", value: "INV-002", confidence: 0.95, parsingConfidence: 0.92, extractionConfidence: 0.97, page: 1, bboxNormalized: [0.1, 0.2, 0.3, 0.4] as [number, number, number, number] },
+      { key: "total_amount", value: 5000, confidence: 0.88, parsingConfidence: 0.85, extractionConfidence: 0.91 },
+    ];
+    const ocrProvider = makeOcrProvider("OCR TEXT", { fields });
+
+    let capturedRaw: Record<string, unknown> | null = null;
+    class CaptureDefinition extends TestDocumentDefinition {
+      parseOutput(raw: string | Record<string, unknown>): string {
+        if (typeof raw === "object") {
+          capturedRaw = raw;
+          return `EXTRACTED:${JSON.stringify(raw)}`;
+        }
+        return `PARSED:${raw}`;
+      }
+    }
+
+    const fieldVerifier = makeFieldVerifier("unused");
+    const engine = new DocumentProcessingEngine(new CaptureDefinition(), fieldVerifier, ocrProvider);
+    await engine.process(makeCtx());
+
+    const provenance = capturedRaw?.["__extract_provenance__"] as unknown as Record<string, Record<string, unknown>>;
+    expect(provenance).toBeDefined();
+    expect(provenance["invoice_number"]).toMatchObject({
+      page: 1,
+      bboxNormalized: [0.1, 0.2, 0.3, 0.4],
+      confidence: 0.95,
+      parsingConfidence: 0.92,
+      extractionConfidence: 0.97,
+    });
+    expect(provenance["total_amount"]).toMatchObject({
+      confidence: 0.88,
+      parsingConfidence: 0.85,
+      extractionConfidence: 0.91,
+    });
+  });
+
   it("uses chunked SLM when text exceeds maxChunkChars and mergeChunkOutputs is defined", async () => {
     const largeText = "Transaction line\n".repeat(600);
     const ocrProvider = makeOcrProvider(largeText);

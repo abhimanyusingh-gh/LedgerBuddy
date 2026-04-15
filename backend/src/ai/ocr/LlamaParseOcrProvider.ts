@@ -32,7 +32,11 @@ interface LlamaParseOcrProviderOptions {
   extractEnabled?: boolean;
   extractTier?: LlamaExtractTier;
   extractSystemPrompt?: string;
+  extractTargetPages?: string;
 }
+
+const DEFAULT_EXTRACT_SYSTEM_PROMPT =
+  "Extract all fields exactly as they appear on the invoice. For monetary amounts, return the numeric value only without currency symbols. For dates, use YYYY-MM-DD format. The total_amount must be the final grand total including all taxes. The vendor_name is the seller/supplier, not the buyer. If a field is not present, omit it rather than guessing. For Indian invoices, extract GSTIN, PAN, HSN/SAC codes, and all GST components separately.";
 
 export class LlamaParseOcrProvider implements OcrProvider {
   readonly name = "llamaparse";
@@ -41,7 +45,8 @@ export class LlamaParseOcrProvider implements OcrProvider {
   private readonly customPrompt: string | undefined;
   private readonly extractEnabled: boolean;
   private readonly extractTier: LlamaExtractTier;
-  private readonly extractSystemPrompt: string | undefined;
+  private readonly extractSystemPrompt: string;
+  private readonly extractTargetPages: string | undefined;
 
   constructor(options?: LlamaParseOcrProviderOptions) {
     const apiKey = options?.apiKey ?? env.LLAMA_CLOUD_API_KEY ?? "";
@@ -52,7 +57,8 @@ export class LlamaParseOcrProvider implements OcrProvider {
     this.client = new LlamaCloud({ apiKey });
     this.extractEnabled = options?.extractEnabled ?? env.LLAMA_PARSE_EXTRACT_ENABLED;
     this.extractTier = options?.extractTier ?? env.LLAMA_PARSE_EXTRACT_TIER ?? "agentic";
-    this.extractSystemPrompt = options?.extractSystemPrompt ?? process.env.LLAMA_EXTRACT_SYSTEM_PROMPT;
+    this.extractSystemPrompt = options?.extractSystemPrompt ?? process.env.LLAMA_EXTRACT_SYSTEM_PROMPT ?? DEFAULT_EXTRACT_SYSTEM_PROMPT;
+    this.extractTargetPages = options?.extractTargetPages ?? env.LLAMA_EXTRACT_TARGET_PAGES;
   }
 
   async extractText(buffer: Buffer, mimeType: DocumentMimeType, _options?: OcrExtractionOptions): Promise<OcrResult> {
@@ -109,9 +115,9 @@ export class LlamaParseOcrProvider implements OcrProvider {
       } catch (deleteErr) {
         logger.warn("ocr.file.delete.failed", { provider: this.name, fileId: fileObj.id, error: String(deleteErr) });
       }
-      const confidence = computeDocumentConfidence(fields);
+      const { confidence, parsingConfidence, extractionConfidence } = computeDocumentConfidences(fields);
       logger.info("ocr.request.end", { provider: this.name, mimeType, latencyMs: Date.now() - startedAt, chars: text.length, blockCount: blocks.length, pageImageCount: pageImages.length });
-      return { text, confidence, provider: this.name, blocks, pageImages, fields, extractedLineItems };
+      return { text, confidence, parsingConfidence, extractionConfidence, provider: this.name, blocks, pageImages, fields, extractedLineItems };
     } catch (error) {
       logger.error("ocr.request.failed", { provider: this.name, mimeType, latencyMs: Date.now() - startedAt, error: buildOcrRequestError(this.name, error) });
       throw new Error(buildOcrRequestError(this.name, error));
@@ -128,7 +134,8 @@ export class LlamaParseOcrProvider implements OcrProvider {
           confidence_scores: true,
           tier: this.extractTier,
           extraction_target: "per_doc",
-          ...(this.extractSystemPrompt ? { system_prompt: this.extractSystemPrompt } : {})
+          system_prompt: this.extractSystemPrompt,
+          ...(this.extractTargetPages ? { target_pages: this.extractTargetPages } : {})
         },
       });
       const completed = await this.client.extract.waitForCompletion(job.id, { expand: ["extract_metadata"] });
@@ -221,6 +228,12 @@ function mapExtractResult(
       }
       if (typeof fm["confidence"] === "number") {
         field.confidence = fm["confidence"];
+      }
+      if (typeof fm["parsing_confidence"] === "number") {
+        field.parsingConfidence = fm["parsing_confidence"];
+      }
+      if (typeof fm["extraction_confidence"] === "number") {
+        field.extractionConfidence = fm["extraction_confidence"];
       }
     }
     fields.push(field);
@@ -335,15 +348,23 @@ async function downloadScreenshots(
   return results;
 }
 
-function computeDocumentConfidence(fields: ExtractedField[] | undefined): number | undefined {
+function averageFinite(values: (number | undefined)[]): number | undefined {
+  const nums = values.filter((v): v is number => typeof v === "number" && Number.isFinite(v));
+  if (nums.length === 0) return undefined;
+  return nums.reduce((sum, v) => sum + v, 0) / nums.length;
+}
+
+function computeDocumentConfidences(fields: ExtractedField[] | undefined): {
+  confidence: number | undefined;
+  parsingConfidence: number | undefined;
+  extractionConfidence: number | undefined;
+} {
   if (!fields || fields.length === 0) {
-    return undefined;
+    return { confidence: undefined, parsingConfidence: undefined, extractionConfidence: undefined };
   }
-  const confidences = fields
-    .map((f) => f.confidence)
-    .filter((c): c is number => typeof c === "number" && Number.isFinite(c));
-  if (confidences.length === 0) {
-    return undefined;
-  }
-  return confidences.reduce((sum, v) => sum + v, 0) / confidences.length;
+  return {
+    confidence: averageFinite(fields.map((f) => f.confidence)),
+    parsingConfidence: averageFinite(fields.map((f) => f.parsingConfidence)),
+    extractionConfidence: averageFinite(fields.map((f) => f.extractionConfidence)),
+  };
 }

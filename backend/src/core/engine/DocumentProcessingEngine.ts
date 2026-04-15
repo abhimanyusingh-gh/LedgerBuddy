@@ -45,14 +45,16 @@ export class DocumentProcessingEngine<TOutput> {
 
     if (ocrResult.fields && ocrResult.fields.length > 0) {
       const fieldsAsRecord: Record<string, unknown> = {};
-      const extractProvenance: Record<string, { page?: number; bboxNormalized?: [number, number, number, number]; confidence?: number }> = {};
+      const extractProvenance: Record<string, { page?: number; bboxNormalized?: [number, number, number, number]; confidence?: number; parsingConfidence?: number; extractionConfidence?: number }> = {};
       for (const field of ocrResult.fields) {
         fieldsAsRecord[field.key] = field.value;
-        if (field.page !== undefined || field.bboxNormalized !== undefined || field.confidence !== undefined) {
+        if (field.page !== undefined || field.bboxNormalized !== undefined || field.confidence !== undefined || field.parsingConfidence !== undefined || field.extractionConfidence !== undefined) {
           extractProvenance[field.key] = {
             ...(field.page !== undefined ? { page: field.page } : {}),
             ...(field.bboxNormalized !== undefined ? { bboxNormalized: field.bboxNormalized } : {}),
-            ...(field.confidence !== undefined ? { confidence: field.confidence } : {})
+            ...(field.confidence !== undefined ? { confidence: field.confidence } : {}),
+            ...(field.parsingConfidence !== undefined ? { parsingConfidence: field.parsingConfidence } : {}),
+            ...(field.extractionConfidence !== undefined ? { extractionConfidence: field.extractionConfidence } : {})
           };
         }
       }
