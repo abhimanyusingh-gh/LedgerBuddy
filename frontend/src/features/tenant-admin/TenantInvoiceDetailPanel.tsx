@@ -134,7 +134,7 @@ export function TenantInvoiceDetailPanel({
           <div className="detail-grid">
             <p><span>Status</span><strong>{invoice.status}</strong></p>
             <p><span>Received</span>{new Date(invoice.receivedAt).toLocaleString()}</p>
-            <p><span>Confidence</span><ConfidenceBadge score={invoice.confidenceScore} /></p>
+            <p><span>Confidence</span><ConfidenceBadge score={invoice.confidenceScore} tone={invoice.confidenceTone} /></p>
             {invoice.metadata?.invoiceType ? <p><span>Type</span><strong>{formatInvoiceType(invoice.metadata.invoiceType)}</strong></p> : null}
             {invoice.metadata?.learningHintsApplied && Number(invoice.metadata.learningHintsApplied) > 0 ? (
               <p><span>Learning</span><strong className="learning-badge">{invoice.metadata.learningHintsApplied} learned pattern{Number(invoice.metadata.learningHintsApplied) === 1 ? "" : "s"} available</strong></p>

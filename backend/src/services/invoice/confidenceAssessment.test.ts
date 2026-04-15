@@ -197,6 +197,16 @@ describe("assessInvoiceConfidence", () => {
       const result = assess({ autoSelectMin: score });
       expect(result.autoSelectForApproval).toBe(true);
     });
+
+    it("defaults to 91 when autoSelectMin is undefined", () => {
+      const result = assessInvoiceConfidence({
+        ocrConfidence: 0.95,
+        parsed: fullParsed(),
+        warnings: []
+      });
+      expect(result.score).toBe(Math.round(95 * 0.65 + 100 * 0.35));
+      expect(result.autoSelectForApproval).toBe(true);
+    });
   });
 
   describe("score clamping", () => {
@@ -249,6 +259,50 @@ describe("assessInvoiceConfidence", () => {
     });
   });
 
+  describe("tone derives from autoApprovalThreshold", () => {
+    it("uses autoApprovalThreshold as green threshold", () => {
+      const result = assess({ ocrConfidence: 1.0, warnings: [], autoApprovalThreshold: 95 });
+      expect(result.score).toBe(100);
+      expect(result.tone).toBe("green");
+    });
+
+    it("returns yellow when score is below custom green threshold but above yellow", () => {
+      const result = assess({
+        ocrConfidence: 0.95,
+        warnings: [],
+        parsed: fullParsed(),
+        autoApprovalThreshold: 98
+      });
+      expect(result.score).toBe(Math.round(95 * 0.65 + 100 * 0.35));
+      expect(result.tone).toBe("yellow");
+    });
+
+    it("returns red when score is below derived yellow threshold", () => {
+      const result = assess({
+        ocrConfidence: 0.95,
+        warnings: ["w1", "w2", "w3"],
+        parsed: fullParsed(),
+        autoApprovalThreshold: 98
+      });
+      expect(result.tone).toBe("red");
+    });
+
+    it("falls back to 91 when autoApprovalThreshold is undefined", () => {
+      const result = assess({ ocrConfidence: 1.0, warnings: [], autoApprovalThreshold: undefined });
+      expect(result.tone).toBe("green");
+    });
+
+    it("uses low autoApprovalThreshold to make more scores green", () => {
+      const result = assess({
+        ocrConfidence: 0.95,
+        warnings: ["w1", "w2", "w3"],
+        parsed: fullParsed(),
+        autoApprovalThreshold: 70
+      });
+      expect(result.tone).toBe("green");
+    });
+  });
+
   it("does not include riskFlags or riskMessages in result", () => {
     const result = assess();
     expect(result).not.toHaveProperty("riskFlags");
@@ -280,5 +334,42 @@ describe("getConfidenceTone", () => {
     expect(getConfidenceTone(90)).toBe("yellow");
     expect(getConfidenceTone(80)).toBe("yellow");
     expect(getConfidenceTone(79)).toBe("red");
+  });
+
+  describe("custom greenThreshold", () => {
+    it("returns green when score meets custom threshold", () => {
+      expect(getConfidenceTone(85, 85)).toBe("green");
+      expect(getConfidenceTone(90, 85)).toBe("green");
+    });
+
+    it("returns yellow between custom yellow and green thresholds", () => {
+      expect(getConfidenceTone(80, 85)).toBe("yellow");
+      expect(getConfidenceTone(74, 85)).toBe("yellow");
+    });
+
+    it("returns red below derived yellow threshold", () => {
+      expect(getConfidenceTone(73, 85)).toBe("red");
+      expect(getConfidenceTone(50, 85)).toBe("red");
+    });
+
+    it("derives yellow threshold as greenThreshold - 11", () => {
+      expect(getConfidenceTone(89, 100)).toBe("yellow");
+      expect(getConfidenceTone(88, 100)).toBe("red");
+    });
+
+    it("clamps yellow threshold at 0 for very low green threshold", () => {
+      expect(getConfidenceTone(0, 5)).toBe("yellow");
+      expect(getConfidenceTone(5, 5)).toBe("green");
+      expect(getConfidenceTone(4, 5)).toBe("yellow");
+    });
+
+    it("handles greenThreshold of 0", () => {
+      expect(getConfidenceTone(0, 0)).toBe("green");
+    });
+
+    it("handles greenThreshold of 11 with yellow at 0", () => {
+      expect(getConfidenceTone(11, 11)).toBe("green");
+      expect(getConfidenceTone(0, 11)).toBe("yellow");
+    });
   });
 });

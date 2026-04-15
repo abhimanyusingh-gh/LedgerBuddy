@@ -10,6 +10,7 @@ interface ConfidenceInput {
   warnings: string[];
   autoSelectMin?: number;
   complianceRiskPenalty?: number;
+  autoApprovalThreshold?: number;
 }
 
 export interface ConfidenceAssessment {
@@ -42,7 +43,8 @@ export function assessInvoiceConfidence(input: ConfidenceInput): ConfidenceAsses
     100
   );
 
-  const tone = getConfidenceTone(score);
+  const greenThreshold = input.autoApprovalThreshold ?? DEFAULT_AUTO_SELECT_MIN;
+  const tone = getConfidenceTone(score, greenThreshold);
 
   return {
     score,
@@ -51,12 +53,13 @@ export function assessInvoiceConfidence(input: ConfidenceInput): ConfidenceAsses
   };
 }
 
-export function getConfidenceTone(score: number): ConfidenceTone {
-  if (score >= 91) {
+export function getConfidenceTone(score: number, greenThreshold = DEFAULT_AUTO_SELECT_MIN): ConfidenceTone {
+  if (score >= greenThreshold) {
     return "green";
   }
 
-  if (score >= 80) {
+  const yellowThreshold = Math.max(0, greenThreshold - 11);
+  if (score >= yellowThreshold) {
     return "yellow";
   }
 

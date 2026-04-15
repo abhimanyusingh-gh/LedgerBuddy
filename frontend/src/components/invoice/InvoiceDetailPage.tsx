@@ -60,7 +60,7 @@ export function InvoiceDetailPage({ invoiceId }: InvoiceDetailPageProps) {
         <div className="detail-grid" style={{ marginTop: "0.75rem" }}>
           <p><span>Status</span><strong>{invoice.status}</strong></p>
           <p><span>Received</span>{new Date(invoice.receivedAt).toLocaleString()}</p>
-          <p><span>Confidence</span><ConfidenceBadge score={invoice.confidenceScore} /></p>
+          <p><span>Confidence</span><ConfidenceBadge score={invoice.confidenceScore} tone={invoice.confidenceTone} /></p>
           <p><span>File</span>{invoice.attachmentName}</p>
           {invoice.parsed?.invoiceDate ? <p><span>Invoice Date</span><strong>{invoice.parsed.invoiceDate}</strong></p> : null}
           {invoice.parsed?.dueDate ? <p><span>Due Date</span><strong>{invoice.parsed.dueDate}</strong></p> : null}

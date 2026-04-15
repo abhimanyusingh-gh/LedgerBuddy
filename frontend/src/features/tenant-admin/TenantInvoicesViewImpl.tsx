@@ -1384,7 +1384,7 @@ export function TenantInvoicesView({
                           })()}
                         </td>
                         <td>
-                          <ConfidenceBadge score={invoice.confidenceScore ?? 0} />
+                          <ConfidenceBadge score={invoice.confidenceScore ?? 0} tone={invoice.confidenceTone} />
                         </td>
                         <td>
                           {ingestingIds.has(invoice._id) ? (
