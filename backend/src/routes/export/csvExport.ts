@@ -26,7 +26,7 @@ export function createCsvExportRouter() {
         return;
       }
 
-      const result = generateCsvExport(invoices as unknown as import("../../models/invoice/Invoice.js").InvoiceDocument[], columns);
+      const result = await generateCsvExport(invoices as unknown as import("../../models/invoice/Invoice.js").InvoiceDocument[], columns, tenantId);
 
       res.setHeader("Content-Type", EXPORT_CONTENT_TYPE.CSV);
       res.setHeader("Content-Disposition", `attachment; filename="${result.filename}"`);

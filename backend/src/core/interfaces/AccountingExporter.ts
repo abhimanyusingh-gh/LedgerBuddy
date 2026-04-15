@@ -19,6 +19,6 @@ export interface ExportFileResult {
 
 export interface AccountingExporter {
   readonly system: string;
-  exportInvoices(invoices: InvoiceDocument[]): Promise<ExportResultItem[]>;
-  generateImportFile?(invoices: InvoiceDocument[]): ExportFileResult;
+  exportInvoices(invoices: InvoiceDocument[], tenantId?: string): Promise<ExportResultItem[]>;
+  generateImportFile?(invoices: InvoiceDocument[], tenantId?: string): ExportFileResult | Promise<ExportFileResult>;
 }

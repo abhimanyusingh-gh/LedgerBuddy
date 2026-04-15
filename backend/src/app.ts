@@ -25,6 +25,7 @@ import { createComplianceAnalyticsRouter } from "@/routes/compliance/complianceA
 import { createCostCentersRouter } from "@/routes/compliance/costCenters.js";
 import { createVendorCommunicationRouter } from "@/routes/compliance/vendorCommunication.js";
 import { createCsvExportRouter } from "@/routes/export/csvExport.js";
+import { createTenantExportConfigRouter } from "@/routes/export/tenantExportConfig.js";
 import { createBankStatementsRouter } from "@/routes/bank/bankStatements.js";
 import { createTcsConfigRouter } from "@/routes/compliance/tcsConfig.js";
 import { createExtractionMappingsRouter } from "@/routes/invoice/extractionMappings.js";
@@ -123,6 +124,7 @@ export async function createApp(prebuiltDependencies?: Awaited<ReturnType<typeof
   app.use("/api", requireNonPlatformAdmin, requireTenantSetupCompleted, createComplianceAnalyticsRouter());
   app.use("/api", requireNonPlatformAdmin, requireTenantSetupCompleted, createVendorCommunicationRouter());
   app.use("/api", requireNonPlatformAdmin, requireTenantSetupCompleted, createCsvExportRouter());
+  app.use("/api", requireNonPlatformAdmin, requireTenantSetupCompleted, createTenantExportConfigRouter());
   app.use("/api", requireNonPlatformAdmin, requireTenantSetupCompleted, createBankStatementsRouter(dependencies.fileStore, dependencies.ocrProvider, dependencies.fieldVerifier));
   app.use("/api", requireNonPlatformAdmin, requireTenantSetupCompleted, createTcsConfigRouter());
   app.use("/api", requireNonPlatformAdmin, requireTenantSetupCompleted, createExtractionMappingsRouter());

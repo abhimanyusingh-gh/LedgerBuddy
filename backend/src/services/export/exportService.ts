@@ -58,7 +58,7 @@ export class ExportService {
       };
     }
 
-    const results = await this.exporter.exportInvoices(invoices);
+    const results = await this.exporter.exportInvoices(invoices, request.tenantId);
 
     const successCount = results.filter((item) => item.success).length;
     const failureCount = results.length - successCount;
@@ -167,7 +167,7 @@ export class ExportService {
       };
     }
 
-    const fileResult = this.exporter.generateImportFile(invoices);
+    const fileResult = await this.exporter.generateImportFile(invoices, request.tenantId);
 
     if (fileResult.includedCount === 0) {
       return {

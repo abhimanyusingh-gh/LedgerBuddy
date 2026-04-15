@@ -640,7 +640,7 @@ describe("buildTallyBatchImportXml", () => {
 });
 
 describe("TallyExporter.generateImportFile", () => {
-  it("generates import file with valid invoices", () => {
+  it("generates import file with valid invoices", async () => {
     const exporter = createExporter();
 
     const invoices = [
@@ -664,7 +664,7 @@ describe("TallyExporter.generateImportFile", () => {
       })
     ];
 
-    const result = exporter.generateImportFile(invoices);
+    const result = await exporter.generateImportFile(invoices);
     expect(result.includedCount).toBe(2);
     expect(result.skippedItems).toEqual([]);
     expect(result.contentType).toBe("text/xml");
@@ -675,7 +675,7 @@ describe("TallyExporter.generateImportFile", () => {
     expect(xml).toContain("<VOUCHERNUMBER>INV-F2</VOUCHERNUMBER>");
   });
 
-  it("skips invoices with invalid amounts and includes them in skippedItems", () => {
+  it("skips invoices with invalid amounts and includes them in skippedItems", async () => {
     const exporter = createExporter();
 
     const invoices = [
@@ -695,7 +695,7 @@ describe("TallyExporter.generateImportFile", () => {
       })
     ];
 
-    const result = exporter.generateImportFile(invoices);
+    const result = await exporter.generateImportFile(invoices);
     expect(result.includedCount).toBe(1);
     expect(result.skippedItems).toHaveLength(1);
     expect(result.skippedItems[0]).toEqual({
@@ -705,7 +705,7 @@ describe("TallyExporter.generateImportFile", () => {
     });
   });
 
-  it("uses fallback values when parsed fields are missing", () => {
+  it("uses fallback values when parsed fields are missing", async () => {
     const exporter = createExporter();
 
     const invoices = [
@@ -716,7 +716,7 @@ describe("TallyExporter.generateImportFile", () => {
       })
     ];
 
-    const result = exporter.generateImportFile(invoices);
+    const result = await exporter.generateImportFile(invoices);
     expect(result.includedCount).toBe(1);
 
     const xml = result.content.toString("utf-8");
@@ -724,7 +724,7 @@ describe("TallyExporter.generateImportFile", () => {
     expect(xml).toContain("<PARTYLEDGERNAME>Unknown Vendor</PARTYLEDGERNAME>");
   });
 
-  it("returns empty content when all invoices are skipped", () => {
+  it("returns empty content when all invoices are skipped", async () => {
     const exporter = createExporter();
 
     const invoices = [
@@ -735,7 +735,7 @@ describe("TallyExporter.generateImportFile", () => {
       })
     ];
 
-    const result = exporter.generateImportFile(invoices);
+    const result = await exporter.generateImportFile(invoices);
     expect(result.includedCount).toBe(0);
     expect(result.content).toHaveLength(0);
     expect(result.skippedItems).toHaveLength(1);
@@ -1072,7 +1072,7 @@ describe("TallyExporter with GST config", () => {
     expect(payload).toContain("<LEDGERNAME>Input SGST</LEDGERNAME>");
   });
 
-  it("generates GST import file with multiple invoices", () => {
+  it("generates GST import file with multiple invoices", async () => {
     const exporter = createExporter({
       gstLedgers: {
         cgstLedger: "Input CGST",
@@ -1112,7 +1112,7 @@ describe("TallyExporter with GST config", () => {
       })
     ];
 
-    const result = exporter.generateImportFile(invoices);
+    const result = await exporter.generateImportFile(invoices);
     expect(result.includedCount).toBe(2);
 
     const xml = result.content.toString("utf-8");

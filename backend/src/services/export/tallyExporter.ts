@@ -17,6 +17,7 @@ import type {
   VoucherPayloadInput
 } from "@/services/export/tallyExporter/xml.js";
 import { resolveInvoiceTotalAmountMinor } from "@/services/export/tallyExporter/amountResolution.js";
+import { buildTallyExportConfig } from "@/services/export/tenantExportConfigResolver.js";
 
 export {
   buildTallyBatchImportXml,
@@ -58,9 +59,13 @@ export class TallyExporter implements AccountingExporter {
     this.config = config;
   }
 
-  async exportInvoices(invoices: InvoiceDocument[]): Promise<ExportResultItem[]> {
+  async exportInvoices(invoices: InvoiceDocument[], tenantId?: string): Promise<ExportResultItem[]> {
     const results: ExportResultItem[] = [];
     logger.info("tally.export.batch.start", { totalInvoices: invoices.length });
+
+    const effectiveConfig = tenantId
+      ? await this.resolveEffectiveConfig(tenantId)
+      : this.config;
 
     for (const invoice of invoices) {
       const invoiceId = toUUID(String(invoice._id));
@@ -108,9 +113,9 @@ export class TallyExporter implements AccountingExporter {
           );
         }
 
-        const voucherPayload = buildTallyPurchaseVoucherPayload(buildVoucherInput(this.config, invoice, invoiceId, resolvedTotalAmountMinor));
+        const voucherPayload = buildTallyPurchaseVoucherPayload(buildVoucherInput(effectiveConfig, invoice, invoiceId, resolvedTotalAmountMinor));
 
-        const response = await postWithRetry(this.config.endpoint, voucherPayload, {
+        const response = await postWithRetry(effectiveConfig.endpoint, voucherPayload, {
           headers: {
             "Content-Type": "text/xml; charset=utf-8"
           },
@@ -154,7 +159,38 @@ export class TallyExporter implements AccountingExporter {
     return results;
   }
 
-  generateImportFile(invoices: InvoiceDocument[]): ExportFileResult {
+  generateImportFile(invoices: InvoiceDocument[], tenantId?: string): ExportFileResult | Promise<ExportFileResult> {
+    if (tenantId) {
+      return this.generateImportFileWithTenantConfig(invoices, tenantId);
+    }
+    return this.buildImportFile(this.config, invoices);
+  }
+
+  private async generateImportFileWithTenantConfig(invoices: InvoiceDocument[], tenantId: string): Promise<ExportFileResult> {
+    const effectiveConfig = await this.resolveEffectiveConfig(tenantId);
+    return this.buildImportFile(effectiveConfig, invoices);
+  }
+
+  private async resolveEffectiveConfig(tenantId: string): Promise<TallyExporterConfig> {
+    const resolved = await buildTallyExportConfig(tenantId, {
+      companyName: this.config.companyName,
+      purchaseLedgerName: this.config.purchaseLedgerName,
+      gstLedgers: this.config.gstLedgers,
+      tdsLedgerPrefix: this.config.tdsLedgerPrefix,
+      tcsLedgerName: this.config.tcsLedgerName
+    });
+
+    return {
+      endpoint: this.config.endpoint,
+      companyName: resolved.companyName,
+      purchaseLedgerName: resolved.purchaseLedgerName,
+      gstLedgers: resolved.gstLedgers,
+      tdsLedgerPrefix: resolved.tdsLedgerPrefix,
+      tcsLedgerName: resolved.tcsLedgerName
+    };
+  }
+
+  private buildImportFile(config: TallyExporterConfig, invoices: InvoiceDocument[]): ExportFileResult {
     const inputs: VoucherPayloadInput[] = [];
     const skippedItems: ExportResultItem[] = [];
 
@@ -174,7 +210,7 @@ export class TallyExporter implements AccountingExporter {
         continue;
       }
 
-      inputs.push(buildVoucherInput(this.config, invoice, invoiceId, resolvedAmount));
+      inputs.push(buildVoucherInput(config, invoice, invoiceId, resolvedAmount));
     }
 
     if (inputs.length === 0) {
@@ -185,9 +221,9 @@ export class TallyExporter implements AccountingExporter {
         includedCount: 0,
         skippedItems
       };
-  }
+    }
 
-    const xml = buildTallyBatchImportXml(this.config.companyName, inputs);
+    const xml = buildTallyBatchImportXml(config.companyName, inputs);
     const timestamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
     return {
       content: Buffer.from(xml, "utf-8"),

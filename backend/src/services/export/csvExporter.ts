@@ -2,6 +2,7 @@ import type { InvoiceDocument } from "@/models/invoice/Invoice.js";
 import { minorUnitsToMajorString } from "@/utils/currency.js";
 import { isRecord } from "@/utils/validation.js";
 import { INVOICE_STATUS } from "@/types/invoice.js";
+import { buildCsvExportConfig } from "@/services/export/tenantExportConfigResolver.js";
 
 const DEFAULT_COLUMNS = [
   "invoiceNumber", "vendorName", "invoiceDate", "dueDate",
@@ -16,14 +17,28 @@ interface CsvExportResult {
   skippedCount: number;
 }
 
-export function generateCsvExport(
+export async function generateCsvExport(
   invoices: InvoiceDocument[],
-  columns?: string[]
-): CsvExportResult {
-  const cols = columns && columns.length > 0 ? columns : DEFAULT_COLUMNS;
+  columns?: string[],
+  tenantId?: string
+): Promise<CsvExportResult> {
+  let cols = columns && columns.length > 0 ? columns : undefined;
+  let headerOverrides: Record<string, string> | undefined;
+
+  if (!cols && tenantId) {
+    const tenantCsvConfig = await buildCsvExportConfig(tenantId);
+    if (tenantCsvConfig.columns && tenantCsvConfig.columns.length > 0) {
+      cols = tenantCsvConfig.columns.map(c => c.key);
+      headerOverrides = Object.fromEntries(tenantCsvConfig.columns.map(c => [c.key, c.label]));
+    }
+  }
+
+  if (!cols) cols = DEFAULT_COLUMNS;
+
   let skippedCount = 0;
 
-  const header = cols.map(c => csvEscape(COLUMN_HEADERS[c] ?? c)).join(",");
+  const effectiveHeaders = headerOverrides ? { ...COLUMN_HEADERS, ...headerOverrides } : COLUMN_HEADERS;
+  const header = cols.map(c => csvEscape(effectiveHeaders[c] ?? c)).join(",");
   const rows: string[] = [];
 
   for (const inv of invoices) {
