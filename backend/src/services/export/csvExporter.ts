@@ -43,8 +43,8 @@ export function generateCsvExport(
     const values: Record<string, string> = {
       invoiceNumber: inv.parsed?.invoiceNumber ?? "",
       vendorName: inv.parsed?.vendorName ?? "",
-      invoiceDate: inv.parsed?.invoiceDate ?? "",
-      dueDate: inv.parsed?.dueDate ?? "",
+      invoiceDate: inv.parsed?.invoiceDate instanceof Date ? inv.parsed.invoiceDate.toISOString().slice(0, 10) : "",
+      dueDate: inv.parsed?.dueDate instanceof Date ? inv.parsed.dueDate.toISOString().slice(0, 10) : "",
       total: inv.parsed?.totalAmountMinor != null ? minorUnitsToMajorString(inv.parsed.totalAmountMinor, currency) : "",
       currency,
       tdsSection: (tds?.section as string) ?? "",

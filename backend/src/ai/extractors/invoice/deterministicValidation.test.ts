@@ -8,8 +8,8 @@ describe("validateInvoiceFields", () => {
         vendorName: "ACME Corp",
         currency: "USD",
         totalAmountMinor: 125000,
-        invoiceDate: "2026-02-01",
-        dueDate: "2026-02-15"
+        invoiceDate: new Date("2026-02-01"),
+        dueDate: new Date("2026-02-15")
       },
       expectedMaxTotal: 50000,
       expectedMaxDueDays: 60,
@@ -44,8 +44,8 @@ describe("validateInvoiceFields", () => {
         vendorName: "Globex Ltd",
         currency: "USD",
         totalAmountMinor: 999999999,
-        invoiceDate: "2026-04-20",
-        dueDate: "2026-02-20"
+        invoiceDate: new Date("2026-04-20"),
+        dueDate: new Date("2026-02-20")
       },
       expectedMaxTotal: 100000,
       expectedMaxDueDays: 15

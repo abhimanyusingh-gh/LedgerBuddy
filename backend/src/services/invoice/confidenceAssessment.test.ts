@@ -5,7 +5,7 @@ function fullParsed(overrides?: Partial<ParsedInvoiceData>): ParsedInvoiceData {
   return {
     invoiceNumber: "INV-001",
     vendorName: "ACME Corp",
-    invoiceDate: "2026-01-15",
+    invoiceDate: new Date("2026-01-15"),
     totalAmountMinor: 50000,
     currency: "USD",
     ...overrides
@@ -159,7 +159,7 @@ describe("assessInvoiceConfidence", () => {
   describe("risk flags", () => {
     it("produces no risk flags when amount and date are within limits", () => {
       const result = assess({
-        parsed: fullParsed({ totalAmountMinor: 50000, dueDate: "2026-02-01" }),
+        parsed: fullParsed({ totalAmountMinor: 50000, dueDate: new Date("2026-02-01") }),
         expectedMaxTotal: 10000,
         expectedMaxDueDays: 90,
         referenceDate: new Date("2026-01-20T00:00:00.000Z")
@@ -180,7 +180,7 @@ describe("assessInvoiceConfidence", () => {
 
     it("flags DUE_DATE_TOO_FAR when due date exceeds max days", () => {
       const result = assess({
-        parsed: fullParsed({ dueDate: "2027-06-01" }),
+        parsed: fullParsed({ dueDate: new Date("2027-06-01") }),
         expectedMaxDueDays: 90,
         referenceDate: new Date("2026-01-20T00:00:00.000Z")
       });
@@ -191,7 +191,7 @@ describe("assessInvoiceConfidence", () => {
 
     it("flags both risks simultaneously", () => {
       const result = assess({
-        parsed: fullParsed({ totalAmountMinor: 2000000, currency: "USD", dueDate: "2027-06-01" }),
+        parsed: fullParsed({ totalAmountMinor: 2000000, currency: "USD", dueDate: new Date("2027-06-01") }),
         expectedMaxTotal: 10000,
         expectedMaxDueDays: 90,
         referenceDate: new Date("2026-01-20T00:00:00.000Z")
@@ -235,7 +235,7 @@ describe("assessInvoiceConfidence", () => {
 
     it("does not flag due date when dueDate is an invalid string", () => {
       const result = assess({
-        parsed: fullParsed({ dueDate: "not-a-date" }),
+        parsed: fullParsed({ dueDate: new Date("not-a-date") }),
         expectedMaxDueDays: 30
       });
       expect(result.riskFlags).not.toContain("DUE_DATE_TOO_FAR");
@@ -243,7 +243,7 @@ describe("assessInvoiceConfidence", () => {
 
     it("does not flag due date when due date is within expected range", () => {
       const result = assess({
-        parsed: fullParsed({ dueDate: "2026-02-10" }),
+        parsed: fullParsed({ dueDate: new Date("2026-02-10") }),
         expectedMaxDueDays: 90,
         referenceDate: new Date("2026-01-20T00:00:00.000Z")
       });
@@ -252,7 +252,7 @@ describe("assessInvoiceConfidence", () => {
 
     it("does not flag due date when expectedMaxDueDays is 0", () => {
       const result = assess({
-        parsed: fullParsed({ dueDate: "2027-12-31" }),
+        parsed: fullParsed({ dueDate: new Date("2027-12-31") }),
         expectedMaxDueDays: 0,
         referenceDate: new Date("2026-01-20T00:00:00.000Z")
       });
@@ -287,7 +287,7 @@ describe("assessInvoiceConfidence", () => {
 
     it("penalty for due date is capped at 20", () => {
       const result = assess({
-        parsed: fullParsed({ dueDate: "2036-01-01" }),
+        parsed: fullParsed({ dueDate: new Date("2036-01-01") }),
         expectedMaxDueDays: 30,
         referenceDate: new Date("2026-01-20T00:00:00.000Z")
       });
@@ -370,7 +370,7 @@ describe("assessInvoiceConfidence", () => {
   it("uses default referenceDate when not provided", () => {
     const result = assessInvoiceConfidence({
       ocrConfidence: 0.95,
-      parsed: fullParsed({ dueDate: "2099-12-31" }),
+      parsed: fullParsed({ dueDate: new Date("2099-12-31") }),
       warnings: [],
       expectedMaxTotal: 10000,
       expectedMaxDueDays: 30,

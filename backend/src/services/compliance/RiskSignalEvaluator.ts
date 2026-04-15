@@ -74,7 +74,7 @@ export class RiskSignalEvaluator {
     const { parsed, expectedMaxDueDays, referenceDate = new Date() } = input;
     if (!parsed.dueDate || expectedMaxDueDays <= 0) return;
 
-    const dueDate = new Date(parsed.dueDate);
+    const dueDate = parsed.dueDate;
     if (isNaN(dueDate.getTime())) return;
 
     const daysToDue = Math.round(

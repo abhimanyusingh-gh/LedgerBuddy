@@ -44,7 +44,7 @@ export class VendorCommunicationService {
     const vars: Record<string, string> = {
       "{{vendorName}}": invoice.parsed?.vendorName ?? "Vendor",
       "{{invoiceNumber}}": invoice.parsed?.invoiceNumber ?? "N/A",
-      "{{invoiceDate}}": invoice.parsed?.invoiceDate ?? "N/A",
+      "{{invoiceDate}}": invoice.parsed?.invoiceDate instanceof Date ? invoice.parsed.invoiceDate.toISOString().slice(0, 10) : "N/A",
       "{{tenantName}}": tenantName
     };
 

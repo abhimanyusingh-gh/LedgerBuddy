@@ -40,11 +40,17 @@ export function parseLlamaExtractFields(fields: Record<string, unknown>): Parsed
   const vendorName = getString(LLAMA_EXTRACT_FIELD_KEY.VENDOR_NAME);
   if (vendorName) parsed.vendorName = vendorName;
 
-  const invoiceDate = getString(LLAMA_EXTRACT_FIELD_KEY.INVOICE_DATE);
-  if (invoiceDate) parsed.invoiceDate = invoiceDate;
+  const invoiceDateStr = getString(LLAMA_EXTRACT_FIELD_KEY.INVOICE_DATE);
+  if (invoiceDateStr) {
+    const d = new Date(invoiceDateStr);
+    if (!isNaN(d.getTime())) parsed.invoiceDate = d;
+  }
 
-  const dueDate = getString(LLAMA_EXTRACT_FIELD_KEY.DUE_DATE);
-  if (dueDate) parsed.dueDate = dueDate;
+  const dueDateStr = getString(LLAMA_EXTRACT_FIELD_KEY.DUE_DATE);
+  if (dueDateStr) {
+    const d = new Date(dueDateStr);
+    if (!isNaN(d.getTime())) parsed.dueDate = d;
+  }
 
   const currency = getString(LLAMA_EXTRACT_FIELD_KEY.CURRENCY);
   if (currency) parsed.currency = currency;

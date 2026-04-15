@@ -115,7 +115,8 @@ function candidateTerms(field: string, value: string): string[] {
   }
 
   if ((field === "invoiceDate" || field === "dueDate") && /^\d{4}-\d{2}-\d{2}$/.test(base)) {
-    return buildDateTerms(base);
+    const d = new Date(base);
+    return isNaN(d.getTime()) ? [base] : buildDateTerms(d);
   }
 
   if (field !== "totalAmountMinor") {

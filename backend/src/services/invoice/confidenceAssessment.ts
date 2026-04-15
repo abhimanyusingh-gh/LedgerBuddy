@@ -143,17 +143,16 @@ function assessRiskFlags(
   };
 }
 
-function parseDate(value?: string): Date | null {
+function parseDate(value?: Date): Date | null {
   if (!value) {
     return null;
   }
 
-  const date = new Date(value);
-  if (Number.isNaN(date.valueOf())) {
+  if (Number.isNaN(value.getTime())) {
     return null;
   }
 
-  return date;
+  return value;
 }
 
 function daysBetween(from: Date, to: Date): number {

@@ -105,6 +105,10 @@ function argValues(name: string): string[] {
 }
 
 function normalizeDate(value: unknown): string | undefined {
+  if (value instanceof Date) {
+    if (isNaN(value.getTime())) return undefined;
+    return value.toISOString().slice(0, 10);
+  }
   if (typeof value !== "string" || value.trim().length === 0) {
     return undefined;
   }

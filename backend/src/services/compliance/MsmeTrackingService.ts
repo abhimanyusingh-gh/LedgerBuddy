@@ -19,7 +19,7 @@ export class MsmeTrackingService {
     tenantId: string,
     vendorFingerprint: string,
     udyamNumber: string | null | undefined,
-    invoiceDate: string | null | undefined
+    invoiceDate: Date | null | undefined
   ): Promise<MsmeTrackingResult> {
     const riskSignals: ComplianceRiskSignal[] = [];
     let classification: "micro" | "small" | "medium" | null = null;
@@ -39,7 +39,7 @@ export class MsmeTrackingService {
     }
 
     if (classification && invoiceDate) {
-      const invDate = new Date(invoiceDate);
+      const invDate = invoiceDate;
       if (!isNaN(invDate.getTime())) {
         paymentDeadline = new Date(invDate.getTime() + MSME_PAYMENT_OVERDUE_DAYS * 86400000);
         const daysSinceInvoice = Math.floor((Date.now() - invDate.getTime()) / 86400000);

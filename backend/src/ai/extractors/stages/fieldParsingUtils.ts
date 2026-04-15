@@ -38,7 +38,7 @@ export function resolveMonthNumber(value: string): string | undefined {
  * Normalize a raw text block into an ISO-style date (YYYY-MM-DD) if it contains
  * a recognisable named-date pattern (e.g. "January 15, 2024" or "15 Jan 2024").
  */
-export function normalizeDateToken(text: string): string | undefined {
+export function normalizeDateToken(text: string): Date | undefined {
   const normalizedText = text.trim().replace(/[|]/g, "I");
   const patterns = [
     /\b([A-Z][a-z]+ \d{1,2}, \d{4})\b/,
@@ -62,13 +62,14 @@ export function normalizeDateToken(text: string): string | undefined {
  * Parse a named date string like "January 15 2024" or "15 January 2024"
  * into ISO format "2024-01-15".
  */
-function normalizeDateValue(value: string): string | undefined {
+function normalizeDateValue(value: string): Date | undefined {
   const sanitized = value.replace(/,/g, "").trim();
   const monthNameFirst = sanitized.match(/^([A-Za-z]{3,9})\s+(\d{1,2})\s+(\d{4})$/);
   if (monthNameFirst) {
     const month = resolveMonthNumber(monthNameFirst[1]);
     if (month) {
-      return `${monthNameFirst[3]}-${month}-${monthNameFirst[2].padStart(2, "0")}`;
+      const d = new Date(`${monthNameFirst[3]}-${month}-${monthNameFirst[2].padStart(2, "0")}`);
+      return isNaN(d.getTime()) ? undefined : d;
     }
   }
 
@@ -76,7 +77,8 @@ function normalizeDateValue(value: string): string | undefined {
   if (dayFirst) {
     const month = resolveMonthNumber(dayFirst[2]);
     if (month) {
-      return `${dayFirst[3]}-${month}-${dayFirst[1].padStart(2, "0")}`;
+      const d = new Date(`${dayFirst[3]}-${month}-${dayFirst[1].padStart(2, "0")}`);
+      return isNaN(d.getTime()) ? undefined : d;
     }
   }
 
@@ -138,12 +140,13 @@ export function formatConfidence(value: number): string {
   return clampProbability(value).toFixed(4);
 }
 
-export function buildDateTerms(value: string): string[] {
-  const [year, month, day] = value.split("-");
+export function buildDateTerms(value: Date): string[] {
+  const iso = value.toISOString().slice(0, 10);
+  const [year, month, day] = iso.split("-");
   const monthIndex = Number(month) - 1;
   const dayNumber = Number(day);
   if (!Number.isInteger(monthIndex) || monthIndex < 0 || monthIndex > 11 || !Number.isInteger(dayNumber)) {
-    return [value];
+    return [iso];
   }
 
   const monthNames = [
@@ -162,5 +165,5 @@ export function buildDateTerms(value: string): string[] {
   ];
   const [shortMonth, longMonth] = monthNames[monthIndex] ?? [];
   const normalizedDay = String(dayNumber);
-  return [value, `${longMonth} ${normalizedDay}, ${year}`, `${shortMonth} ${normalizedDay}, ${year}`].filter(Boolean);
+  return [iso, `${longMonth} ${normalizedDay}, ${year}`, `${shortMonth} ${normalizedDay}, ${year}`].filter(Boolean);
 }

@@ -131,7 +131,7 @@ export class ReconciliationService {
     const tolerance = 100;
     const candidates: MatchCandidate[] = [];
     const descLower = txn.description.toLowerCase();
-    const txnDate = new Date(txn.date);
+    const txnDate = txn.date instanceof Date ? txn.date : new Date(txn.date);
 
     for (const inv of invoices) {
       const parsed = (inv as Record<string, unknown>).parsed as Record<string, unknown> | undefined;
@@ -161,10 +161,10 @@ export class ReconciliationService {
         score += 20;
       }
 
-      const invoiceDate = parsed?.invoiceDate ? new Date(parsed.invoiceDate as string) : null;
-      const dueDate = parsed?.dueDate ? new Date(parsed.dueDate as string) : null;
+      const invoiceDate = parsed?.invoiceDate instanceof Date ? parsed.invoiceDate : null;
+      const dueDate = parsed?.dueDate instanceof Date ? parsed.dueDate : null;
       const approval = isRecord(invObj.approval) ? invObj.approval : undefined;
-      const approvedAt = approval?.approvedAt ? new Date(approval.approvedAt as string) : null;
+      const approvedAt = approval?.approvedAt instanceof Date ? approval.approvedAt : null;
 
       if (!isNaN(txnDate.getTime())) {
         let bestDateScore = 0;

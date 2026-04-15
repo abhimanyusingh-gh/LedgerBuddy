@@ -70,12 +70,20 @@ export function sanitizeParsedData(parsed: unknown): ParsedInvoiceData {
   if (!isPlainObject(parsed)) return {};
   const s = parsed as Record<string, unknown>;
   const str = (v: unknown) => typeof v === "string" && v.trim().length > 0 ? v.trim() : undefined;
+  const toDate = (v: unknown): Date | undefined => {
+    if (v instanceof Date) return isNaN(v.getTime()) ? undefined : v;
+    if (typeof v === "string" && v.trim()) {
+      const d = new Date(v.trim());
+      return isNaN(d.getTime()) ? undefined : d;
+    }
+    return undefined;
+  };
   const notes = Array.isArray(s.notes) ? s.notes.map((e) => String(e).trim()).filter((e) => e.length > 0) : undefined;
   return {
     invoiceNumber: str(s.invoiceNumber),
     vendorName: str(s.vendorName),
-    invoiceDate: str(s.invoiceDate),
-    dueDate: str(s.dueDate),
+    invoiceDate: toDate(s.invoiceDate),
+    dueDate: toDate(s.dueDate),
     totalAmountMinor: typeof s.totalAmountMinor === "number" && Number.isInteger(s.totalAmountMinor) ? s.totalAmountMinor : undefined,
     currency: typeof s.currency === "string" && s.currency.trim().toUpperCase().length > 0 ? s.currency.trim().toUpperCase() : undefined,
     notes: notes && notes.length > 0 ? notes : undefined,

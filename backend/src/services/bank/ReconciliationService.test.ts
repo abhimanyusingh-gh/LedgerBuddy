@@ -13,7 +13,7 @@ function makeTxn(overrides: Partial<{
   _id: string;
   debitMinor: number;
   description: string;
-  date: string;
+  date: Date;
   matchedInvoiceId: string | null;
 }> = {}) {
   return {
@@ -22,7 +22,7 @@ function makeTxn(overrides: Partial<{
     statementId: "stmt-1",
     debitMinor: 100000,
     description: "Payment INV-001",
-    date: "2026-01-15",
+    date: new Date("2026-01-15"),
     matchedInvoiceId: null,
     matchStatus: "unmatched",
     ...overrides
@@ -63,7 +63,7 @@ describe("ReconciliationService", () => {
     (BankTransactionModel.updateOne as jest.Mock).mockResolvedValue({});
     (InvoiceModel.updateOne as jest.Mock).mockResolvedValue({});
 
-    const candidates = await service.findMatchCandidates("t1", { debitMinor: 100000, description: "Payment INV-001", date: "2026-01-15" });
+    const candidates = await service.findMatchCandidates("t1", { debitMinor: 100000, description: "Payment INV-001", date: new Date("2026-01-15") });
 
     expect(candidates).toHaveLength(1);
     expect(candidates[0].invoiceId).toBe("inv-1");
@@ -74,11 +74,11 @@ describe("ReconciliationService", () => {
     const invoice = makeInvoice({ parsed: { invoiceNumber: "INV-999", vendorName: "Acme", totalAmountMinor: 100000 } });
     (InvoiceModel.find as jest.Mock).mockReturnValue({ lean: jest.fn().mockResolvedValue([invoice]) });
 
-    const withInvNum = await service.findMatchCandidates("t1", { debitMinor: 100000, description: "Ref INV-999 payment", date: "2026-01-15" });
+    const withInvNum = await service.findMatchCandidates("t1", { debitMinor: 100000, description: "Ref INV-999 payment", date: new Date("2026-01-15") });
 
     (InvoiceModel.find as jest.Mock).mockReturnValue({ lean: jest.fn().mockResolvedValue([invoice]) });
 
-    const withoutInvNum = await service.findMatchCandidates("t1", { debitMinor: 100000, description: "Wire transfer ref unknown", date: "2026-01-15" });
+    const withoutInvNum = await service.findMatchCandidates("t1", { debitMinor: 100000, description: "Wire transfer ref unknown", date: new Date("2026-01-15") });
 
     expect(withInvNum).toHaveLength(1);
     expect(withInvNum[0].invoiceId).toBe("inv-1");
@@ -90,7 +90,7 @@ describe("ReconciliationService", () => {
     const invoice = makeInvoice({ parsed: { invoiceNumber: "INV-ZZZ", vendorName: "Unknown Vendor XYZ", totalAmountMinor: 100000 } });
     (InvoiceModel.find as jest.Mock).mockReturnValue({ lean: jest.fn().mockResolvedValue([invoice]) });
 
-    const candidates = await service.findMatchCandidates("t1", { debitMinor: 100000, description: "Wire transfer", date: "2026-01-20" });
+    const candidates = await service.findMatchCandidates("t1", { debitMinor: 100000, description: "Wire transfer", date: new Date("2026-01-20") });
 
     expect(candidates).toHaveLength(1);
     expect(candidates[0].invoiceId).toBe("inv-1");
@@ -100,7 +100,7 @@ describe("ReconciliationService", () => {
   it("leaves unmatched when no candidates found", async () => {
     (InvoiceModel.find as jest.Mock).mockReturnValue({ lean: jest.fn().mockResolvedValue([]) });
 
-    const candidates = await service.findMatchCandidates("t1", { debitMinor: 100000, description: "Unknown", date: "2026-01-15" });
+    const candidates = await service.findMatchCandidates("t1", { debitMinor: 100000, description: "Unknown", date: new Date("2026-01-15") });
 
     expect(candidates).toHaveLength(0);
   });
@@ -113,7 +113,7 @@ describe("ReconciliationService", () => {
     });
     (InvoiceModel.find as jest.Mock).mockReturnValue({ lean: jest.fn().mockResolvedValue([invoice]) });
 
-    const candidates = await service.findMatchCandidates("t1", { debitMinor: 91818, description: "Payment", date: "2026-01-15" }, 1);
+    const candidates = await service.findMatchCandidates("t1", { debitMinor: 91818, description: "Payment", date: new Date("2026-01-15") }, 1);
 
     expect(candidates).toHaveLength(1);
     expect(candidates[0].invoiceId).toBe("inv-1");
@@ -176,7 +176,7 @@ describe("ReconciliationService", () => {
   it("passes amount range pre-filter in MongoDB query", async () => {
     (InvoiceModel.find as jest.Mock).mockReturnValue({ lean: jest.fn().mockResolvedValue([]) });
 
-    await service.findMatchCandidates("t1", { debitMinor: 100000, description: "Payment", date: "2026-01-15" }, 0);
+    await service.findMatchCandidates("t1", { debitMinor: 100000, description: "Payment", date: new Date("2026-01-15") }, 0);
 
     const findCall = (InvoiceModel.find as jest.Mock).mock.calls[0];
     const query = findCall[0] as Record<string, unknown>;
@@ -190,7 +190,7 @@ describe("ReconciliationService", () => {
   it("amount pre-filter range widens with TCS rate", async () => {
     (InvoiceModel.find as jest.Mock).mockReturnValue({ lean: jest.fn().mockResolvedValue([]) });
 
-    await service.findMatchCandidates("t1", { debitMinor: 100000, description: "Payment", date: "2026-01-15" }, 10);
+    await service.findMatchCandidates("t1", { debitMinor: 100000, description: "Payment", date: new Date("2026-01-15") }, 10);
 
     const findCall = (InvoiceModel.find as jest.Mock).mock.calls[0];
     const query = findCall[0] as Record<string, unknown>;
@@ -206,11 +206,11 @@ describe("ReconciliationService", () => {
     });
     (InvoiceModel.find as jest.Mock).mockReturnValue({ lean: jest.fn().mockResolvedValue([invoice]) });
 
-    const withOverlap = await service.findMatchCandidates("t1", { debitMinor: 100000, description: "Payment Acme Corporation ref", date: "2026-01-15" });
+    const withOverlap = await service.findMatchCandidates("t1", { debitMinor: 100000, description: "Payment Acme Corporation ref", date: new Date("2026-01-15") });
 
     (InvoiceModel.find as jest.Mock).mockReturnValue({ lean: jest.fn().mockResolvedValue([invoice]) });
 
-    const withoutOverlap = await service.findMatchCandidates("t1", { debitMinor: 100000, description: "Wire transfer xyz", date: "2026-01-15" });
+    const withoutOverlap = await service.findMatchCandidates("t1", { debitMinor: 100000, description: "Wire transfer xyz", date: new Date("2026-01-15") });
 
     expect(withOverlap[0].score).toBeGreaterThan(withoutOverlap[0].score);
   });

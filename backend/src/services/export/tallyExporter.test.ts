@@ -75,7 +75,7 @@ describe("buildTallyPurchaseVoucherPayload", () => {
       partyLedgerName: "ACME Vendor",
       amountMinor: 120000,
       currency: "USD",
-      date: "20260219",
+      date: new Date("2026-02-19"),
       narration: "Imported invoice"
     });
 
@@ -97,7 +97,7 @@ describe("buildTallyPurchaseVoucherPayload", () => {
       voucherNumber: "INV-1002",
       partyLedgerName: "ACME Vendor",
       amountMinor: 5000,
-      date: "20260220"
+      date: new Date("2026-02-20")
     });
 
     expect(xml).toContain("<NARRATION>Invoice import from BillForge</NARRATION>");
@@ -171,20 +171,16 @@ describe("parseTallyImportResponse", () => {
 });
 
 describe("formatTallyDate", () => {
-  it("normalizes ISO dates into Tally format", () => {
-    expect(formatTallyDate("2026-02-19")).toBe("20260219");
+  it("formats Date into Tally format", () => {
+    expect(formatTallyDate(new Date("2026-02-19"))).toBe("20260219");
   });
 
-  it("falls back to supplied Date when invoice date is invalid", () => {
-    expect(formatTallyDate("not-a-date", new Date("2026-02-20T10:00:00.000Z"))).toBe("20260220");
+  it("falls back to supplied Date when primary date is invalid", () => {
+    expect(formatTallyDate(new Date("invalid"), new Date("2026-02-20T10:00:00.000Z"))).toBe("20260220");
   });
 
-  it("accepts already formatted tally date", () => {
-    expect(formatTallyDate("20260219")).toBe("20260219");
-  });
-
-  it("parses human-readable dates", () => {
-    expect(formatTallyDate("February 20 2026")).toBe("20260220");
+  it("falls back to supplied Date when primary is null", () => {
+    expect(formatTallyDate(null, new Date("2026-02-20T10:00:00.000Z"))).toBe("20260220");
   });
 
   it("falls back to current date when no dates are provided", () => {
@@ -594,7 +590,7 @@ describe("buildTallyBatchImportXml", () => {
         partyLedgerName: "Vendor A",
         amountMinor: 120000,
         currency: "USD",
-        date: "20260219",
+        date: new Date("2026-02-19"),
         narration: "Invoice 1"
       },
       {
@@ -604,7 +600,7 @@ describe("buildTallyBatchImportXml", () => {
         partyLedgerName: "Vendor B",
         amountMinor: 50000,
         currency: "USD",
-        date: "20260220",
+        date: new Date("2026-02-20"),
         narration: "Invoice 2"
       }
     ]);
@@ -627,7 +623,7 @@ describe("buildTallyBatchImportXml", () => {
       partyLedgerName: "ACME Vendor",
       amountMinor: 120000,
       currency: "USD",
-      date: "20260219",
+      date: new Date("2026-02-19"),
       narration: "Imported invoice"
     };
 
@@ -762,7 +758,7 @@ describe("GST voucher XML generation", () => {
       partyLedgerName: "Vendor India",
       amountMinor: 118000,
       currency: "INR",
-      date: "20260301",
+      date: new Date("2026-03-01"),
       narration: "GST intra-state purchase",
       gstin: "29ABCDE1234F1Z5",
       gst: {
@@ -797,7 +793,7 @@ describe("GST voucher XML generation", () => {
       partyLedgerName: "Vendor Interstate",
       amountMinor: 118000,
       currency: "INR",
-      date: "20260302",
+      date: new Date("2026-03-02"),
       gstin: "07FGHIJ5678K2Z3",
       gst: {
         subtotalMinor: 100000,
@@ -821,7 +817,7 @@ describe("GST voucher XML generation", () => {
       partyLedgerName: "Vendor Cess",
       amountMinor: 130000,
       currency: "INR",
-      date: "20260303",
+      date: new Date("2026-03-03"),
       gst: {
         subtotalMinor: 100000,
         cgstMinor: 9000,
@@ -843,7 +839,7 @@ describe("GST voucher XML generation", () => {
       partyLedgerName: "Vendor No GSTIN",
       amountMinor: 118000,
       currency: "INR",
-      date: "20260304",
+      date: new Date("2026-03-04"),
       gst: {
         subtotalMinor: 100000,
         cgstMinor: 9000,
@@ -864,7 +860,7 @@ describe("GST voucher XML generation", () => {
       partyLedgerName: "Vendor NoSubtotal",
       amountMinor: 118000,
       currency: "INR",
-      date: "20260306",
+      date: new Date("2026-03-06"),
       gst: {
         subtotalMinor: 0,
         cgstMinor: 9000,
@@ -886,7 +882,7 @@ describe("GST voucher XML generation", () => {
       partyLedgerName: "Vendor Fallback",
       amountMinor: 118000,
       currency: "INR",
-      date: "20260305"
+      date: new Date("2026-03-05")
     });
 
     // Should have simple two-entry structure
@@ -1136,7 +1132,7 @@ describe("TCS voucher XML generation", () => {
       partyLedgerName: "TCS Vendor",
       amountMinor: 100000,
       currency: "INR",
-      date: "20260401",
+      date: new Date("2026-04-01"),
       tcs: {
         amountMinor: 1000,
         ledgerName: "TCS Receivable"
@@ -1157,7 +1153,7 @@ describe("TCS voucher XML generation", () => {
       partyLedgerName: "TCS Vendor",
       amountMinor: 100000,
       currency: "INR",
-      date: "20260401",
+      date: new Date("2026-04-01"),
       tcs: {
         amountMinor: 1000,
         ledgerName: "TCS Receivable"
@@ -1175,7 +1171,7 @@ describe("TCS voucher XML generation", () => {
       partyLedgerName: "TCS Vendor",
       amountMinor: 100000,
       currency: "INR",
-      date: "20260401",
+      date: new Date("2026-04-01"),
       tcs: {
         amountMinor: 0,
         ledgerName: "TCS Receivable"
@@ -1194,7 +1190,7 @@ describe("TCS voucher XML generation", () => {
       partyLedgerName: "Vendor No TCS",
       amountMinor: 100000,
       currency: "INR",
-      date: "20260401"
+      date: new Date("2026-04-01")
     });
 
     expect(xml).not.toContain("TCS Receivable");
@@ -1209,7 +1205,7 @@ describe("TCS voucher XML generation", () => {
       partyLedgerName: "Combo Vendor",
       amountMinor: 100000,
       currency: "INR",
-      date: "20260401",
+      date: new Date("2026-04-01"),
       tds: {
         section: "194C",
         amountMinor: 2000,

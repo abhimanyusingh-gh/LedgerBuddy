@@ -34,7 +34,7 @@ export function createComplianceReportsRouter() {
       const rows = invoices.map(inv => ({
         vendorName: inv.parsed?.vendorName ?? "",
         invoiceNumber: inv.parsed?.invoiceNumber ?? "",
-        invoiceDate: inv.parsed?.invoiceDate ?? "",
+        invoiceDate: inv.parsed?.invoiceDate instanceof Date ? inv.parsed.invoiceDate.toISOString().slice(0, 10) : "",
         tdsSection: (inv as Record<string, unknown>).compliance ? ((inv as Record<string, unknown>).compliance as Record<string, unknown>).tds ? (((inv as Record<string, unknown>).compliance as Record<string, unknown>).tds as Record<string, unknown>).section : "" : "",
         tdsRate: (inv as Record<string, unknown>).compliance ? ((inv as Record<string, unknown>).compliance as Record<string, unknown>).tds ? (((inv as Record<string, unknown>).compliance as Record<string, unknown>).tds as Record<string, unknown>).rate : 0 : 0,
         tdsAmountMinor: (inv as Record<string, unknown>).compliance ? ((inv as Record<string, unknown>).compliance as Record<string, unknown>).tds ? (((inv as Record<string, unknown>).compliance as Record<string, unknown>).tds as Record<string, unknown>).amountMinor : 0 : 0

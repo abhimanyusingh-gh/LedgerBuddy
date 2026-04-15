@@ -8,7 +8,7 @@ const tcsRateChangeSchema = new Schema(
     changedByName: { type: String, required: true, default: "" },
     changedAt: { type: Date, required: true },
     reason: { type: String, default: null },
-    effectiveFrom: { type: String, required: true }
+    effectiveFrom: { type: Date, required: true }
   },
   { _id: false }
 );
@@ -17,7 +17,7 @@ const tenantTcsConfigSchema = new Schema(
   {
     tenantId: { type: String, required: true },
     ratePercent: { type: Number, required: true, default: 0 },
-    effectiveFrom: { type: String, required: true, default: () => new Date().toISOString().slice(0, 10) },
+    effectiveFrom: { type: Date, required: true, default: () => new Date() },
     updatedBy: { type: String, required: true, default: "" },
     enabled: { type: Boolean, required: true, default: false },
     tcsModifyRoles: {

@@ -144,8 +144,8 @@ const invoiceSchema = new Schema(
     parsed: {
       invoiceNumber: { type: String },
       vendorName: { type: String },
-      invoiceDate: { type: String },
-      dueDate: { type: String },
+      invoiceDate: { type: Date },
+      dueDate: { type: Date },
       totalAmountMinor: {
         type: Number,
         validate: {

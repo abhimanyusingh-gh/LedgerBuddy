@@ -56,8 +56,8 @@ export function validateInvoiceFields(input: DeterministicValidationInput): Dete
     }
   }
 
-  const invoiceDate = parseIsoDate(parsed.invoiceDate);
-  const dueDate = parseIsoDate(parsed.dueDate);
+  const invoiceDate = parsed.invoiceDate instanceof Date && !isNaN(parsed.invoiceDate.getTime()) ? parsed.invoiceDate : undefined;
+  const dueDate = parsed.dueDate instanceof Date && !isNaN(parsed.dueDate.getTime()) ? parsed.dueDate : undefined;
   if (invoiceDate && dueDate) {
     if (dueDate.getTime() < invoiceDate.getTime()) {
       issues.push("Due date is earlier than invoice date.");
@@ -199,13 +199,3 @@ function parseAmountMinor(raw: string): number | undefined {
   return negative ? -minor : minor;
 }
 
-function parseIsoDate(value?: string): Date | undefined {
-  if (!value) {
-    return undefined;
-  }
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) {
-    return undefined;
-  }
-  return parsed;
-}

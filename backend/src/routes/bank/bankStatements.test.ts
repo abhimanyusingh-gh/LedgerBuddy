@@ -314,7 +314,7 @@ describe("GET /bank-statements/:id/transactions filtering", () => {
     );
 
     const findQuery = mockTransactionFind.mock.calls[0][0];
-    expect(findQuery.date).toEqual({ $gte: "2024-02-05", $lte: "2024-02-20" });
+    expect(findQuery.date).toEqual({ $gte: new Date("2024-02-05"), $lte: new Date("2024-02-20") });
   });
 
   it("filters transactions by matchStatus", async () => {
@@ -633,8 +633,8 @@ describe("GET /bank-statements/:id/matches", () => {
       { _id: "t3", date: "2024-02-15", description: "Misc", debitMinor: 20000, matchStatus: "unmatched" }
     ]));
     mockInvoiceFind.mockReturnValue({ lean: jest.fn().mockResolvedValue([
-      { _id: "inv-1", status: "AWAITING_APPROVAL", parsed: { invoiceNumber: "INV-001", vendorName: "ACME", totalAmountMinor: 100000, invoiceDate: "2024-02-01" } },
-      { _id: "inv-2", status: "PENDING", parsed: { invoiceNumber: "INV-002", vendorName: "Corp B", totalAmountMinor: 50000, invoiceDate: "2024-02-08" } }
+      { _id: "inv-1", status: "AWAITING_APPROVAL", parsed: { invoiceNumber: "INV-001", vendorName: "ACME", totalAmountMinor: 100000, invoiceDate: new Date("2024-02-01") } },
+      { _id: "inv-2", status: "PENDING", parsed: { invoiceNumber: "INV-002", vendorName: "Corp B", totalAmountMinor: 50000, invoiceDate: new Date("2024-02-08") } }
     ]) });
 
     const router = createBankStatementsRouter();

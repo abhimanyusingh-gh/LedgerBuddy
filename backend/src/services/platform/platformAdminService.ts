@@ -26,8 +26,8 @@ interface TenantUsageOverview {
   adminEmail?: string;
   ocrTokensTotal: number;
   slmTokensTotal: number;
-  lastIngestedAt: string | null;
-  createdAt: string;
+  lastIngestedAt: Date | null;
+  createdAt: Date;
 }
 
 export class PlatformAdminService {
@@ -226,8 +226,8 @@ export class PlatformAdminService {
         slmTokensTotal: invoice?.slmTokensTotal ?? 0,
         gmailConnectionState:
           gmailStatus === "connected" ? "CONNECTED" : gmailStatus === "requires_reauth" ? "NEEDS_REAUTH" : "DISCONNECTED",
-        lastIngestedAt: invoice?.lastIngestedAt ? new Date(invoice.lastIngestedAt).toISOString() : null,
-        createdAt: new Date(tenant.createdAt).toISOString(),
+        lastIngestedAt: invoice?.lastIngestedAt ? new Date(invoice.lastIngestedAt) : null,
+        createdAt: new Date(tenant.createdAt),
         adminEmail: adminInfoMap.get(tenantId)?.email
       };
     });
