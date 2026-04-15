@@ -1,4 +1,5 @@
 import type { ComplianceRiskSignal } from "@/types/invoice.js";
+import { MSME_CLASSIFICATION, type MsmeClassification } from "@/types/invoice.js";
 import { VendorMasterModel } from "@/models/compliance/VendorMaster.js";
 
 const UDYAM_FORMAT = /^UDYAM-[A-Z]{2}-\d{2}-\d{7}$/;
@@ -8,7 +9,7 @@ const MSME_PAYMENT_OVERDUE_DAYS = 45;
 interface MsmeTrackingResult {
   msme: {
     udyamNumber: string | null;
-    classification: "micro" | "small" | "medium" | null;
+    classification: MsmeClassification | null;
     paymentDeadline: Date | null;
   };
   riskSignals: ComplianceRiskSignal[];
@@ -22,11 +23,11 @@ export class MsmeTrackingService {
     invoiceDate: Date | null | undefined
   ): Promise<MsmeTrackingResult> {
     const riskSignals: ComplianceRiskSignal[] = [];
-    let classification: "micro" | "small" | "medium" | null = null;
+    let classification: MsmeClassification | null = null;
     let paymentDeadline: Date | null = null;
 
     if (udyamNumber && UDYAM_FORMAT.test(udyamNumber.toUpperCase())) {
-      classification = "small";
+      classification = MSME_CLASSIFICATION.SMALL;
       await VendorMasterModel.updateOne(
         { tenantId, vendorFingerprint },
         { $set: { "msme.udyamNumber": udyamNumber.toUpperCase(), "msme.classification": classification, "msme.verifiedAt": new Date() } }
@@ -34,7 +35,7 @@ export class MsmeTrackingService {
     } else {
       const vendor = await VendorMasterModel.findOne({ tenantId, vendorFingerprint }).lean();
       if (vendor?.msme?.udyamNumber) {
-        classification = (vendor.msme.classification as "micro" | "small" | "medium" | null) ?? null;
+        classification = (vendor.msme.classification as MsmeClassification | null) ?? null;
       }
     }
 

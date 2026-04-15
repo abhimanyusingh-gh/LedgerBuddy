@@ -1,9 +1,10 @@
 import type { OcrBlock } from "@/core/interfaces/OcrProvider.js";
 import type { OcrLine } from "@/ai/ocr/ocrPostProcessor.js";
 import { buildLayoutText } from "@/ai/ocr/ocrPostProcessor.js";
+import { BLOCK_SCALE, type BlockScale, type OcrTextCandidateId } from "@/types/ocrRecovery.js";
 
 export interface RankedOcrTextCandidate {
-  id: "layout" | "blocks" | "raw" | "keyValue" | "augmented";
+  id: OcrTextCandidateId;
   text: string;
   score: number;
   metrics: {
@@ -291,9 +292,9 @@ export function buildAugmentedGroundingText(keyValueText: string, blockText: str
   return sections.join("\n\n");
 }
 
-function inferBlockScale(bbox: [number, number, number, number]): "normalized" | "pixel" {
+function inferBlockScale(bbox: [number, number, number, number]): BlockScale {
   if (bbox.every((value) => Number.isFinite(value) && Math.abs(value) <= 2.5)) {
-    return "normalized";
+    return BLOCK_SCALE.NORMALIZED;
   }
-  return "pixel";
+  return BLOCK_SCALE.PIXEL;
 }

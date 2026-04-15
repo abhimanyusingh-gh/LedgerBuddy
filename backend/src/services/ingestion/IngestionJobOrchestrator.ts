@@ -3,8 +3,7 @@ import type { IngestionService } from "@/services/ingestion/ingestionService.js"
 import { getCorrelationId, logger, runWithLogContext } from "@/utils/logger.js";
 import { SSE_HEARTBEAT_INTERVAL_MS, RERUN_MAX_COUNT } from "@/constants.js";
 import { getRedisClient } from "@/db/redis.js";
-
-type IngestionJobState = "idle" | "running" | "completed" | "failed" | "paused";
+import { INGESTION_JOB_STATE, type IngestionJobState } from "@/types/ingestion.js";
 
 interface IngestionJobStatus {
   state: IngestionJobState;
@@ -112,7 +111,7 @@ export class IngestionJobOrchestrator {
     const startedAt = new Date();
     const correlationId = getCorrelationId();
     const runningStatus: IngestionJobStatus = {
-      state: "running",
+      state: INGESTION_JOB_STATE.RUNNING,
       running: true,
       totalFiles: 0,
       processedFiles: 0,
@@ -134,7 +133,7 @@ export class IngestionJobOrchestrator {
           const updated: IngestionJobStatus = {
             ...current,
             ...progress,
-            state: progress.running ? "running" : current.state,
+            state: progress.running ? INGESTION_JOB_STATE.RUNNING : current.state,
             running: progress.running
           };
           this.setCurrentStatus(tenantId, updated);
@@ -149,7 +148,7 @@ export class IngestionJobOrchestrator {
       .then((summary) => {
         const completedAt = new Date();
         const current = this.getCurrentStatus(tenantId);
-        const finalState: IngestionJobState = summary.paused ? "paused" : "completed";
+        const finalState: IngestionJobState = summary.paused ? INGESTION_JOB_STATE.PAUSED : INGESTION_JOB_STATE.COMPLETED;
         const nextStatus: IngestionJobStatus = {
           ...current,
           ...summary,
@@ -183,7 +182,7 @@ export class IngestionJobOrchestrator {
         const current = this.getCurrentStatus(tenantId);
         const nextStatus: IngestionJobStatus = {
           ...current,
-          state: "failed",
+          state: INGESTION_JOB_STATE.FAILED,
           running: false,
           completedAt,
           error: error instanceof Error ? error.message : String(error),
@@ -211,7 +210,7 @@ export class IngestionJobOrchestrator {
     ingestionService.requestPause();
     this.localPendingRerun.delete(tenantId);
     void getRedisClient().del(`ingestion:pendingRerun:${tenantId}`).catch((err) => logger.warn("redis.operation.failed", { error: String(err) }));
-    const paused: IngestionJobStatus = { ...current, state: "paused" };
+    const paused: IngestionJobStatus = { ...current, state: INGESTION_JOB_STATE.PAUSED };
     this.setCurrentStatus(tenantId, paused);
     this.broadcastToSubscribers(tenantId, paused);
     return paused;
@@ -220,7 +219,7 @@ export class IngestionJobOrchestrator {
 
 function buildIdleStatus(): IngestionJobStatus {
   return {
-    state: "idle",
+    state: INGESTION_JOB_STATE.IDLE,
     running: false,
     totalFiles: 0,
     processedFiles: 0,

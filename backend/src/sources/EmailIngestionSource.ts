@@ -3,6 +3,8 @@ import type { IngestedFile, IngestionSource } from "@/core/interfaces/IngestionS
 import { GmailImapIngestionProvider } from "@/sources/email/GmailImapIngestionProvider.js";
 import { MailhogOAuthIngestionProvider } from "@/sources/email/MailhogOAuthIngestionProvider.js";
 import type { EmailSourceConfig } from "@/sources/email/types.js";
+import { EMAIL_TRANSPORT_TYPE } from "@/types/email.js";
+import type { WorkloadTier } from "@/types/tenant.js";
 
 export type { EmailSourceConfig } from "@/sources/email/types.js";
 
@@ -10,7 +12,7 @@ export class EmailIngestionSource implements IngestionSource {
   readonly type = "email";
   readonly key: string;
   readonly tenantId: string;
-  readonly workloadTier: "standard" | "heavy";
+  readonly workloadTier: WorkloadTier;
 
   private readonly boundary: EmailIngestionBoundary;
 
@@ -20,7 +22,7 @@ export class EmailIngestionSource implements IngestionSource {
     this.tenantId = config.tenantId ?? "default";
     this.workloadTier = config.workloadTier ?? "standard";
     this.boundary =
-      config.transport === "mailhog_oauth" ? new MailhogOAuthIngestionProvider(config) : new GmailImapIngestionProvider(config);
+      config.transport === EMAIL_TRANSPORT_TYPE.MAILHOG_OAUTH ? new MailhogOAuthIngestionProvider(config) : new GmailImapIngestionProvider(config);
   }
 
   fetchNewFiles(lastCheckpoint: string | null): Promise<IngestedFile[]> {

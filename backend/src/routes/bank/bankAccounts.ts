@@ -3,6 +3,7 @@ import { Router } from "express";
 import { requireCap } from "@/auth/requireCapability.js";
 import { BankAccountModel } from "@/models/bank/BankAccount.js";
 import type { IBankConnectionService } from "@/services/bank/anumati/IBankConnectionService.js";
+import { BANK_ACCOUNT_STATUS } from "@/types/bankAccount.js";
 
 export function createBankAccountsRouter(bankService: IBankConnectionService) {
   const router = Router();
@@ -48,7 +49,7 @@ export function createBankAccountsRouter(bankService: IBankConnectionService) {
         createdByUserId: userId,
         aaAddress,
         displayName: displayName || aaAddress,
-        status: "pending_consent"
+        status: BANK_ACCOUNT_STATUS.PENDING_CONSENT
       });
 
       const result = await bankService.initiateConsent({

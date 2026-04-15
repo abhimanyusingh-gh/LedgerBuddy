@@ -3,6 +3,7 @@ import path from "node:path";
 import { z } from "zod";
 import { env } from "@/config/env.js";
 import { TenantRoles, type TenantRole } from "@/models/core/TenantUserRole.js";
+import type { OnboardingStatus, TenantMode } from "@/types/onboarding.js";
 
 const demoConfigSchema = z.object({
   tenants: z.array(
@@ -29,8 +30,8 @@ type DemoConfig = z.infer<typeof demoConfigSchema>;
 interface LocalDemoTenant {
   id: string;
   name: string;
-  onboardingStatus: "pending" | "completed";
-  mode: "test" | "live";
+  onboardingStatus: OnboardingStatus;
+  mode: TenantMode;
 }
 
 interface LocalDemoUser {

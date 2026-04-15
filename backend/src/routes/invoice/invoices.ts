@@ -1,5 +1,6 @@
 import { getAuth } from "@/types/auth.js";
 import { DOCUMENT_MIME_TYPE } from "@/types/mime.js";
+import { SORT_DIRECTION, type SortDirection } from "@/types/sorting.js";
 import { Router, type Request, type Response, type NextFunction } from "express";
 import { constants as fsConstants } from "node:fs";
 import { access } from "node:fs/promises";
@@ -97,7 +98,7 @@ export function createInvoiceRouter(invoiceService: InvoiceService, fileStore?: 
     const rawSortBy = typeof req.query.sortBy === "string" ? req.query.sortBy : undefined;
     const sortBy = rawSortBy && ALLOWED_SORT_COLUMNS.has(rawSortBy) ? rawSortBy : undefined;
     const rawSortDir = typeof req.query.sortDir === "string" ? req.query.sortDir : undefined;
-    const sortDir: "asc" | "desc" | undefined = rawSortDir === "asc" || rawSortDir === "desc" ? rawSortDir : undefined;
+    const sortDir: SortDirection | undefined = rawSortDir === SORT_DIRECTION.ASC || rawSortDir === SORT_DIRECTION.DESC ? rawSortDir : undefined;
 
     res.json(await invoiceService.listInvoices({
       page, limit, status, tenantId: authContext.tenantId,

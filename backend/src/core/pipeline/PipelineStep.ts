@@ -1,7 +1,8 @@
 import type { PipelineContext } from "@/core/pipeline/PipelineContext.js";
+import type { PipelineStepStatus } from "@/types/pipeline.js";
 
 export interface StepOutput {
-  status?: "continue" | "skip" | "halt";
+  status?: PipelineStepStatus;
 }
 
 export interface PipelineStep {

@@ -9,12 +9,14 @@ import { HttpError } from "@/errors/HttpError.js";
 import type { InviteEmailSenderBoundary } from "@/core/boundaries/InviteEmailSenderBoundary.js";
 import type { KeycloakAdminClient } from "@/keycloak/KeycloakAdminClient.js";
 import { seedDefaultGlCodes } from "@/services/compliance/seedGlCodes.js";
+import { ONBOARDING_STATUS, type OnboardingStatus, type TenantMode } from "@/types/onboarding.js";
+import { GMAIL_CONNECTION_STATUS } from "@/types/gmail.js";
 
 interface TenantUsageOverview {
   tenantId: string;
   tenantName: string;
   enabled: boolean;
-  onboardingStatus: "pending" | "completed";
+  onboardingStatus: OnboardingStatus;
   userCount: number;
   totalDocuments: number;
   parsedDocuments: number;
@@ -39,7 +41,7 @@ export class PlatformAdminService {
     this.keycloakAdmin = keycloakAdmin!;
   }
 
-  async onboardTenantAdmin(input: { tenantName: string; adminEmail: string; displayName?: string; mode?: "test" | "live" }): Promise<{
+  async onboardTenantAdmin(input: { tenantName: string; adminEmail: string; displayName?: string; mode?: TenantMode }): Promise<{
     tenantId: string;
     tenantName: string;
     adminUserId: string;
@@ -68,7 +70,7 @@ export class PlatformAdminService {
 
     const tenant = await TenantModel.create({
       name: tenantName,
-      onboardingStatus: "pending",
+      onboardingStatus: ONBOARDING_STATUS.PENDING,
       ...(input.mode ? { mode: input.mode } : {})
     });
 
@@ -225,7 +227,7 @@ export class PlatformAdminService {
         ocrTokensTotal: invoice?.ocrTokensTotal ?? 0,
         slmTokensTotal: invoice?.slmTokensTotal ?? 0,
         gmailConnectionState:
-          gmailStatus === "connected" ? "CONNECTED" : gmailStatus === "requires_reauth" ? "NEEDS_REAUTH" : "DISCONNECTED",
+          gmailStatus === GMAIL_CONNECTION_STATUS.CONNECTED ? "CONNECTED" : gmailStatus === GMAIL_CONNECTION_STATUS.REQUIRES_REAUTH ? "NEEDS_REAUTH" : "DISCONNECTED",
         lastIngestedAt: invoice?.lastIngestedAt ? new Date(invoice.lastIngestedAt) : null,
         createdAt: new Date(tenant.createdAt),
         adminEmail: adminInfoMap.get(tenantId)?.email

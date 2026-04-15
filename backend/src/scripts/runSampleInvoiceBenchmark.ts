@@ -17,6 +17,7 @@ import type {
   ParsedInvoiceData
 } from "@/types/invoice.js";
 import type { OcrBlock, OcrProvider } from "@/core/interfaces/OcrProvider.js";
+import type { LlamaParseTier } from "@/core/runtimeManifest.js";
 
 type ExpectedFieldProvenance = {
   page?: number;
@@ -325,7 +326,7 @@ async function run(): Promise<void> {
 
   let ocrProvider: OcrProvider;
   if (ocrChoice === "llamaparse") {
-    ocrProvider = new LlamaParseOcrProvider({ tier: (process.env.LLAMA_PARSE_TIER ?? "agentic") as "agentic" | "cost_effective" | "fast" });
+    ocrProvider = new LlamaParseOcrProvider({ tier: (process.env.LLAMA_PARSE_TIER ?? "agentic") as LlamaParseTier });
   } else {
     ocrProvider = new DeepSeekOcrProvider({ baseUrl: ocrBaseUrl, timeoutMs: 240_000 });
   }

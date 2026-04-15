@@ -1,13 +1,14 @@
 import type { WorkloadTier } from "@/types/tenant.js";
 import type { GmailMailboxBoundary } from "@/core/boundaries/GmailMailboxBoundary.js";
+import type { EmailTransportType, EmailAuthMode } from "@/types/email.js";
 
 interface PasswordEmailAuthConfig {
-  type: "password";
+  type: Extract<EmailAuthMode, "password">;
   password: string;
 }
 
 export interface OAuth2EmailAuthConfig {
-  type: "oauth2";
+  type: Extract<EmailAuthMode, "oauth2">;
   accessToken: string;
   refreshToken: string;
   clientId: string;
@@ -23,7 +24,7 @@ export interface EmailSourceConfig {
   tenantId?: string;
   workloadTier?: WorkloadTier;
   oauthUserId: string;
-  transport: "imap" | "mailhog_oauth";
+  transport: EmailTransportType;
   mailhogApiBaseUrl: string;
   host: string;
   port: number;

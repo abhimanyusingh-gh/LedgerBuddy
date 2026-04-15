@@ -4,8 +4,9 @@ import { parseAmountTokenWithOcrRepair } from "@/ai/parsers/invoiceParser.js";
 import { extractAmountValueNearColumn, extractNumericValueNearColumn } from "@/ai/extractors/invoice/stages/groundingAmounts.js";
 import { findBlockIndexByExactText } from "@/ai/extractors/invoice/stages/groundingText.js";
 import { findSummaryAmountByLabel } from "@/ai/extractors/invoice/stages/totalsRecovery.js";
+import { OCR_RECOVERY_STRATEGY, type OcrRecoveryStrategy } from "@/types/ocrRecovery.js";
 
-export type OcrRecoveryStrategy = "generic" | "invoice_table" | "receipt_statement";
+export type { OcrRecoveryStrategy } from "@/types/ocrRecovery.js";
 type BoxedBlock = { block: OcrBlock; index: number; box: [number, number, number, number] };
 
 export function classifyOcrRecoveryStrategy(ocrBlocks: OcrBlock[], ocrText: string): OcrRecoveryStrategy {
@@ -13,20 +14,20 @@ export function classifyOcrRecoveryStrategy(ocrBlocks: OcrBlock[], ocrText: stri
   const hasIssuedBy = findBlockIndexByExactText(ocrBlocks, /^issued by$/i) >= 0;
   const hasTaxableAmount = findBlockIndexByExactText(ocrBlocks, /taxable amount/i) >= 0;
   if (hasBillingStatement || (hasIssuedBy && hasTaxableAmount)) {
-    return "receipt_statement";
+    return OCR_RECOVERY_STRATEGY.RECEIPT_STATEMENT;
   }
 
   const hasDescription = findBlockIndexByExactText(ocrBlocks, /description/i) >= 0;
   const hasAmountHeader = findBlockIndexByExactText(ocrBlocks, /\b(amount|unit\s*price|rate|amt)\b/i) >= 0;
   if (hasDescription && hasAmountHeader) {
-    return "invoice_table";
+    return OCR_RECOVERY_STRATEGY.INVOICE_TABLE;
   }
 
   if (/billing statement/i.test(ocrText)) {
-    return "receipt_statement";
+    return OCR_RECOVERY_STRATEGY.RECEIPT_STATEMENT;
   }
 
-  return "generic";
+  return OCR_RECOVERY_STRATEGY.GENERIC;
 }
 
 export function recoverLineItemsFromOcr(

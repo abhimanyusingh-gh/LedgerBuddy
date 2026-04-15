@@ -1,6 +1,7 @@
 /* eslint-disable no-console */
 
 import { AsyncLocalStorage } from "node:async_hooks";
+import { LOG_LEVEL, type LogLevel } from "@/types/logging.js";
 
 type LogContext = Record<string, unknown>;
 
@@ -10,7 +11,7 @@ interface RequestLogContext {
 
 const contextStore = new AsyncLocalStorage<RequestLogContext>();
 
-function write(level: "info" | "warn" | "error", message: string, context?: LogContext) {
+function write(level: LogLevel, message: string, context?: LogContext) {
   if (process.env.NODE_ENV === "test" && process.env.LOG_IN_TESTS !== "true") {
     return;
   }
@@ -29,11 +30,11 @@ function write(level: "info" | "warn" | "error", message: string, context?: LogC
   }
 
   const line = JSON.stringify(payload);
-  if (level === "error") {
+  if (level === LOG_LEVEL.ERROR) {
     console.error(line);
     return;
   }
-  if (level === "warn") {
+  if (level === LOG_LEVEL.WARN) {
     console.warn(line);
     return;
   }
@@ -50,12 +51,12 @@ export function getCorrelationId(): string | undefined {
 
 export const logger = {
   info(message: string, context?: LogContext) {
-    write("info", message, context);
+    write(LOG_LEVEL.INFO, message, context);
   },
   warn(message: string, context?: LogContext) {
-    write("warn", message, context);
+    write(LOG_LEVEL.WARN, message, context);
   },
   error(message: string, context?: LogContext) {
-    write("error", message, context);
+    write(LOG_LEVEL.ERROR, message, context);
   }
 };
