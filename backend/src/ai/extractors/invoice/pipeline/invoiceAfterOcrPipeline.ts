@@ -1,15 +1,15 @@
 import { ComposablePipeline } from "@/core/pipeline/ComposablePipeline.js";
-import type { InvoiceDocumentDefinition } from "../InvoiceDocumentDefinition.js";
-import type { VendorTemplateSnapshot } from "../learning/vendorTemplateStore.js";
-import { CaptureOcrMetadataStep } from "../../commonSteps/CaptureOcrMetadataStep.js";
-import { PostProcessOcrStep } from "../../commonSteps/PostProcessOcrStep.js";
-import { BuildTextCandidatesStep } from "../../commonSteps/BuildTextCandidatesStep.js";
-import { CalibrateConfidenceStep } from "../../commonSteps/CalibrateConfidenceStep.js";
-import { DetectLanguageStep } from "../../commonSteps/DetectLanguageStep.js";
-import { CheckExtractFieldsGateStep } from "./steps/CheckExtractFieldsGateStep.js";
-import { BaselineTextParseStep } from "./steps/BaselineTextParseStep.js";
-import { AugmentPromptBuilderStep } from "./steps/AugmentPromptBuilderStep.js";
-import { SetValidationContextStep } from "./steps/SetValidationContextStep.js";
+import type { InvoiceDocumentDefinition } from "@/ai/extractors/invoice/InvoiceDocumentDefinition.js";
+import type { VendorTemplateSnapshot } from "@/ai/extractors/invoice/learning/vendorTemplateStore.js";
+import { CaptureOcrMetadataStep } from "@/ai/extractors/commonSteps/CaptureOcrMetadataStep.js";
+import { PostProcessOcrStep } from "@/ai/extractors/commonSteps/PostProcessOcrStep.js";
+import { BuildTextCandidatesStep } from "@/ai/extractors/commonSteps/BuildTextCandidatesStep.js";
+import { CalibrateConfidenceStep } from "@/ai/extractors/commonSteps/CalibrateConfidenceStep.js";
+import { DetectLanguageStep } from "@/ai/extractors/commonSteps/DetectLanguageStep.js";
+import { CheckExtractFieldsGateStep } from "@/ai/extractors/invoice/pipeline/steps/CheckExtractFieldsGateStep.js";
+import { BaselineTextParseStep } from "@/ai/extractors/invoice/pipeline/steps/BaselineTextParseStep.js";
+import { AugmentPromptBuilderStep } from "@/ai/extractors/invoice/pipeline/steps/AugmentPromptBuilderStep.js";
+import { SetValidationContextStep } from "@/ai/extractors/invoice/pipeline/steps/SetValidationContextStep.js";
 
 interface AfterOcrPipelineParams {
   definition: InvoiceDocumentDefinition;

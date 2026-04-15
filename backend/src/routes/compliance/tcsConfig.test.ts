@@ -1,5 +1,5 @@
-import { createTcsConfigRouter, requireTcsModifyAccess } from "./tcsConfig.ts";
-import { defaultAuth, findHandler, mockRequest, mockResponse } from "../testHelpers.ts";
+import { createTcsConfigRouter, requireTcsModifyAccess } from "@/routes/compliance/tcsConfig.ts";
+import { defaultAuth, findHandler, mockRequest, mockResponse } from "@/routes/testHelpers.ts";
 import { TenantTcsConfigModel } from "@/models/integration/TenantTcsConfig.ts";
 import { TenantUserRoleModel } from "@/models/core/TenantUserRole.ts";
 import { requireCap } from "@/auth/requireCapability.ts";

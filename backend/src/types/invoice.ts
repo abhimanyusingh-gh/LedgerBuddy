@@ -1,4 +1,4 @@
-import type { ExtractionSource } from "../core/engine/extractionSource.js";
+import type { ExtractionSource } from "@/core/engine/extractionSource.js";
 
 export const INVOICE_FIELD_KEY = {
   INVOICE_NUMBER: "invoiceNumber",

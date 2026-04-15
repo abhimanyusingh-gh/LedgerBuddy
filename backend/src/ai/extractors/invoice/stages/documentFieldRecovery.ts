@@ -1,8 +1,8 @@
 import type { OcrBlock } from "@/core/interfaces/OcrProvider.js";
 import type { ParsedInvoiceData } from "@/types/invoice.js";
-import { isWeakVendorValue } from "./fieldCandidates.js";
-import { findBlockByLabelProximity, findVendorBlock } from "./groundingText.js";
-import { normalizeDateToken, detectExplicitCurrency } from "../../stages/fieldParsingUtils.js";
+import { isWeakVendorValue } from "@/ai/extractors/invoice/stages/fieldCandidates.js";
+import { findBlockByLabelProximity, findVendorBlock } from "@/ai/extractors/invoice/stages/groundingText.js";
+import { normalizeDateToken, detectExplicitCurrency } from "@/ai/extractors/stages/fieldParsingUtils.js";
 
 type BoxedBlock = { block: OcrBlock; index: number; box: [number, number, number, number] };
 

@@ -10,21 +10,21 @@ import { logger } from "@/utils/logger.js";
 import { assessInvoiceConfidence } from "@/services/invoice/confidenceAssessment.js";
 import type { ComplianceEnricher } from "@/services/compliance/ComplianceEnricher.js";
 import { RiskSignalEvaluator } from "@/services/compliance/RiskSignalEvaluator.js";
-import type { ExtractionLearningStore } from "./learning/extractionLearningStore.js";
-import type { ExtractionMappingService } from "./learning/extractionMappingService.js";
+import type { ExtractionLearningStore } from "@/ai/extractors/invoice/learning/extractionLearningStore.js";
+import type { ExtractionMappingService } from "@/ai/extractors/invoice/learning/extractionMappingService.js";
 import {
   detectInvoiceLanguageBeforeOcr,
   resolvePreOcrLanguageHint
-} from "./languageDetection.js";
-import type { VendorTemplateStore } from "./learning/vendorTemplateStore.js";
+} from "@/ai/extractors/invoice/languageDetection.js";
+import type { VendorTemplateStore } from "@/ai/extractors/invoice/learning/vendorTemplateStore.js";
 import type { ConfidenceAssessment } from "@/services/invoice/confidenceAssessment.js";
 import { ContextStore } from "@/core/pipeline/PipelineContext.js";
 import type { PipelineContext } from "@/core/pipeline/PipelineContext.js";
-import { INVOICE_CTX } from "./pipeline/contextKeys.js";
-import { POST_ENGINE_CTX } from "./pipeline/postEngineContextKeys.js";
-import { buildInvoiceAfterOcrPipeline } from "./pipeline/invoiceAfterOcrPipeline.js";
-import { createInvoicePostEnginePipeline } from "./pipeline/invoicePostEnginePipeline.js";
-import type { RankedOcrTextCandidate } from "../stages/ocrTextCandidates.js";
+import { INVOICE_CTX } from "@/ai/extractors/invoice/pipeline/contextKeys.js";
+import { POST_ENGINE_CTX } from "@/ai/extractors/invoice/pipeline/postEngineContextKeys.js";
+import { buildInvoiceAfterOcrPipeline } from "@/ai/extractors/invoice/pipeline/invoiceAfterOcrPipeline.js";
+import { createInvoicePostEnginePipeline } from "@/ai/extractors/invoice/pipeline/invoicePostEnginePipeline.js";
+import type { RankedOcrTextCandidate } from "@/ai/extractors/stages/ocrTextCandidates.js";
 import * as fs from "fs/promises";
 import * as path from "path";
 
@@ -62,13 +62,13 @@ export interface PipelineExtractionResult {
   compliance?: InvoiceCompliance;
   extraction?: InvoiceExtractionData;
 }
-import { clampProbability, formatConfidence, uniqueIssues } from "../stages/fieldParsingUtils.js";
-import { computeVendorFingerprint } from "./learning/vendorFingerprint.js";
+import { clampProbability, formatConfidence, uniqueIssues } from "@/ai/extractors/stages/fieldParsingUtils.js";
+import { computeVendorFingerprint } from "@/ai/extractors/invoice/learning/vendorFingerprint.js";
 import { DocumentProcessingEngine } from "@/core/engine/DocumentProcessingEngine.js";
 import {
   InvoiceDocumentDefinition,
   type InvoiceSlmOutput,
-} from "./InvoiceDocumentDefinition.js";
+} from "@/ai/extractors/invoice/InvoiceDocumentDefinition.js";
 import { EXTRACTION_SOURCE, type ExtractionSource } from "@/core/engine/extractionSource.js";
 
 type PipelineErrorCode = "FAILED_OCR" | "FAILED_PARSE";

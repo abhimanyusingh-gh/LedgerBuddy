@@ -1,5 +1,5 @@
 import { Types } from "mongoose";
-import { ExportService } from "./exportService.ts";
+import { ExportService } from "@/services/export/exportService.ts";
 import { ExportBatchModel } from "@/models/invoice/ExportBatch.ts";
 import { InvoiceModel } from "@/models/invoice/Invoice.ts";
 import type { AccountingExporter } from "@/core/interfaces/AccountingExporter.ts";

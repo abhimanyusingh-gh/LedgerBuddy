@@ -3,15 +3,15 @@ import { BankTransactionModel, BANK_TRANSACTION_SOURCE, type BankTransactionSour
 import { logger } from "@/utils/logger.js";
 import type { OcrProvider } from "@/core/interfaces/OcrProvider.js";
 import type { FieldVerifier } from "@/core/interfaces/FieldVerifier.js";
-import type { BankParseProgressEvent } from "./BankStatementParseProgress.js";
+import type { BankParseProgressEvent } from "@/ai/extractors/bank/BankStatementParseProgress.js";
 import { DocumentProcessingEngine, type DocumentProcessingProgressEvent } from "@/core/engine/DocumentProcessingEngine.js";
 import {
   BankStatementDocumentDefinition,
   type SlmBankStatementOutput,
-} from "./BankStatementDocumentDefinition.js";
+} from "@/ai/extractors/bank/BankStatementDocumentDefinition.js";
 import { ContextStore } from "@/core/pipeline/PipelineContext.js";
-import { buildBankPostEnginePipeline, type BankPdfParseResult } from "./pipeline/bankPipelineFactory.js";
-import { BANK_CTX } from "./pipeline/contextKeys.js";
+import { buildBankPostEnginePipeline, type BankPdfParseResult } from "@/ai/extractors/bank/pipeline/bankPipelineFactory.js";
+import { BANK_CTX } from "@/ai/extractors/bank/pipeline/contextKeys.js";
 
 type OnParseProgress = (event: BankParseProgressEvent) => void;
 

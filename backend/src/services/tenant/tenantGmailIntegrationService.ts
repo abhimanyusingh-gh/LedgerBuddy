@@ -11,7 +11,7 @@ import {
 } from "@/sources/email/gmailOAuthClient.js";
 import { GmailMailboxNeedsReauthError } from "@/sources/email/errors.js";
 import { decryptSecret, encryptSecret } from "@/utils/secretCrypto.js";
-import { MailboxNotificationService } from "../platform/mailboxNotificationService.js";
+import { MailboxNotificationService } from "@/services/platform/mailboxNotificationService.js";
 import { HttpError } from "@/errors/HttpError.js";
 
 const PROVIDER = "gmail";

@@ -1,6 +1,6 @@
 import type { OcrBlock } from "@/core/interfaces/OcrProvider.ts";
 import type { OcrLine } from "@/ai/ocr/ocrPostProcessor.ts";
-import { buildRankedOcrTextCandidates, normalizeOcrTextForSlm } from "./ocrTextCandidates.ts";
+import { buildRankedOcrTextCandidates, normalizeOcrTextForSlm } from "@/ai/extractors/stages/ocrTextCandidates.ts";
 
 function makeBlock(text: string, bboxNormalized: [number, number, number, number], page = 1): OcrBlock {
   return {

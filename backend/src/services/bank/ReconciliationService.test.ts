@@ -1,4 +1,4 @@
-import { ReconciliationService } from "./ReconciliationService.ts";
+import { ReconciliationService } from "@/services/bank/ReconciliationService.ts";
 import { InvoiceModel } from "@/models/invoice/Invoice.ts";
 import { BankTransactionModel } from "@/models/bank/BankTransaction.ts";
 import { BankStatementModel } from "@/models/bank/BankStatement.ts";

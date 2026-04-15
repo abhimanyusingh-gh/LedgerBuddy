@@ -19,7 +19,7 @@ import {
   formatTallyDate,
   parseTallyImportResponse,
   resolveInvoiceTotalAmountMinor
-} from "./tallyExporter.ts";
+} from "@/services/export/tallyExporter.ts";
 
 type TallyExporterConfig = ConstructorParameters<typeof TallyExporter>[0];
 

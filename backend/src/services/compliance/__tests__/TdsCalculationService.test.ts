@@ -1,4 +1,4 @@
-import { TdsCalculationService } from "../TdsCalculationService";
+import { TdsCalculationService } from "@/services/compliance/TdsCalculationService";
 import type { ParsedInvoiceData } from "@/types/invoice";
 
 const service = new TdsCalculationService();

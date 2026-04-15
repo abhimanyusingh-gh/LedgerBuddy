@@ -1,10 +1,10 @@
 import type { EmailIngestionBoundary } from "@/core/boundaries/EmailIngestionBoundary.js";
 import type { IngestedFile, IngestionSource } from "@/core/interfaces/IngestionSource.js";
-import { GmailImapIngestionProvider } from "./email/GmailImapIngestionProvider.js";
-import { MailhogOAuthIngestionProvider } from "./email/MailhogOAuthIngestionProvider.js";
-import type { EmailSourceConfig } from "./email/types.js";
+import { GmailImapIngestionProvider } from "@/sources/email/GmailImapIngestionProvider.js";
+import { MailhogOAuthIngestionProvider } from "@/sources/email/MailhogOAuthIngestionProvider.js";
+import type { EmailSourceConfig } from "@/sources/email/types.js";
 
-export type { EmailSourceConfig } from "./email/types.js";
+export type { EmailSourceConfig } from "@/sources/email/types.js";
 
 export class EmailIngestionSource implements IngestionSource {
   readonly type = "email";

@@ -21,8 +21,8 @@ jest.mock("../../models/compliance/GlCodeMaster.js", () => ({
   }
 }));
 
-import { defaultAuth, findHandler, findSecondHandler, mockRequest, mockResponse } from "../testHelpers.ts";
-import { parseCsvContent, MAX_CSV_ROWS } from "./glCodes.ts";
+import { defaultAuth, findHandler, findSecondHandler, mockRequest, mockResponse } from "@/routes/testHelpers.ts";
+import { parseCsvContent, MAX_CSV_ROWS } from "@/routes/compliance/glCodes.ts";
 
 let createGlCodesRouter: typeof import("./glCodes.ts").createGlCodesRouter;
 

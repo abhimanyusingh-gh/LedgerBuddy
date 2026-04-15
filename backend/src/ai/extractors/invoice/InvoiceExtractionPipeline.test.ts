@@ -1,7 +1,7 @@
 import type { FieldVerifier, FieldVerifierInput, FieldVerifierResult } from "@/core/interfaces/FieldVerifier.ts";
 import type { OcrBlock, OcrProvider } from "@/core/interfaces/OcrProvider.ts";
-import { InvoiceExtractionPipeline } from "./InvoiceExtractionPipeline.ts";
-import type { VendorTemplateStore } from "./learning/vendorTemplateStore.ts";
+import { InvoiceExtractionPipeline } from "@/ai/extractors/invoice/InvoiceExtractionPipeline.ts";
+import type { VendorTemplateStore } from "@/ai/extractors/invoice/learning/vendorTemplateStore.ts";
 
 function makeBlock(text: string, bboxNormalized: [number, number, number, number], page = 1): OcrBlock {
   return {

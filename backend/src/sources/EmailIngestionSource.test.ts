@@ -43,7 +43,7 @@ jest.mock("imapflow", () => ({
   })
 }));
 
-import { EmailIngestionSource, type EmailSourceConfig } from "./EmailIngestionSource.js";
+import { EmailIngestionSource, type EmailSourceConfig } from "@/sources/EmailIngestionSource.js";
 
 function baseConfig(overrides?: Partial<EmailSourceConfig>): EmailSourceConfig {
   return {

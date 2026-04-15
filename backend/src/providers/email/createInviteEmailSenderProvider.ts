@@ -1,7 +1,7 @@
 import { env } from "@/config/env.js";
 import type { InviteEmailSenderBoundary } from "@/core/boundaries/InviteEmailSenderBoundary.js";
-import { SendGridInviteEmailSenderProvider } from "./SendGridInviteEmailSenderProvider.js";
-import { SmtpInviteEmailSenderProvider } from "./SmtpInviteEmailSenderProvider.js";
+import { SendGridInviteEmailSenderProvider } from "@/providers/email/SendGridInviteEmailSenderProvider.js";
+import { SmtpInviteEmailSenderProvider } from "@/providers/email/SmtpInviteEmailSenderProvider.js";
 
 export function createInviteEmailSenderProvider(): InviteEmailSenderBoundary {
   if (env.INVITE_EMAIL_PROVIDER === "smtp") {

@@ -7,7 +7,7 @@ import type {
   OidcNormalizedClaims,
   OidcPasswordGrantResult,
   OidcProvider
-} from "./OidcProvider.js";
+} from "@/sts/OidcProvider.js";
 
 interface HttpOidcProviderConfig {
   clientId: string;

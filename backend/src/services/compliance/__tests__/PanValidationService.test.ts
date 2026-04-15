@@ -1,4 +1,4 @@
-import { PanValidationService } from "../PanValidationService";
+import { PanValidationService } from "@/services/compliance/PanValidationService";
 
 const service = new PanValidationService();
 

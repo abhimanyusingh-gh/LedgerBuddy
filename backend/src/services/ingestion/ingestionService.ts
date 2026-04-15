@@ -12,8 +12,8 @@ import { S3UploadIngestionSource } from "@/sources/S3UploadIngestionSource.js";
 import { InvoiceExtractionPipeline, ExtractionPipelineError } from "@/ai/extractors/invoice/InvoiceExtractionPipeline.js";
 import { NoopFieldVerifier } from "@/ai/verifiers/NoopFieldVerifier.js";
 import { MongoVendorTemplateStore } from "@/ai/extractors/invoice/learning/vendorTemplateStore.js";
-import { buildFailureData, buildSuccessData, isDuplicateKeyError, upsertFromPending } from "./persistence.js";
-import { persistFieldArtifacts } from "./artifacts.js";
+import { buildFailureData, buildSuccessData, isDuplicateKeyError, upsertFromPending } from "@/services/ingestion/persistence.js";
+import { persistFieldArtifacts } from "@/services/ingestion/artifacts.js";
 const MAX_FILE_PROCESSING_CONCURRENCY = env.INGESTION_CONCURRENCY;
 
 interface IngestionRunSummary {

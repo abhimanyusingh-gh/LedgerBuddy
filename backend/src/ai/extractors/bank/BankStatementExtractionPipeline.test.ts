@@ -1,7 +1,7 @@
-import { BankStatementExtractionPipeline } from "./BankStatementExtractionPipeline.ts";
+import { BankStatementExtractionPipeline } from "@/ai/extractors/bank/BankStatementExtractionPipeline.ts";
 import { BankStatementModel, BANK_STATEMENT_SOURCE } from "@/models/bank/BankStatement.ts";
 import { BankTransactionModel, BANK_TRANSACTION_SOURCE } from "@/models/bank/BankTransaction.ts";
-import * as nativePdfText from "../stages/nativePdfText.ts";
+import * as nativePdfText from "@/ai/extractors/stages/nativePdfText.ts";
 
 jest.mock("@/models/bank/BankStatement.ts");
 jest.mock("@/models/bank/BankTransaction.ts");

@@ -15,7 +15,7 @@ jest.mock("../../utils/logger.js", () => ({
   logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() }
 }));
 
-import { seedDefaultGlCodes, DEFAULT_GL_CODES } from "./seedGlCodes";
+import { seedDefaultGlCodes, DEFAULT_GL_CODES } from "@/services/compliance/seedGlCodes";
 
 beforeEach(() => {
   mockFind.mockReset().mockResolvedValue([]);

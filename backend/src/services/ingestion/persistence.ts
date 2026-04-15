@@ -5,8 +5,8 @@ import type {
   InvoiceExtractionData,
   InvoiceStatus
 } from "@/types/invoice.js";
-import type { ArtifactResults } from "./artifacts.js";
-import { normalizeExtractionData, encodeExtractionFieldKey } from "./provenance.js";
+import type { ArtifactResults } from "@/services/ingestion/artifacts.js";
+import { normalizeExtractionData, encodeExtractionFieldKey } from "@/services/ingestion/provenance.js";
 import { ExtractionPipelineError } from "@/ai/extractors/invoice/InvoiceExtractionPipeline.js";
 
 interface ExtractionResult {

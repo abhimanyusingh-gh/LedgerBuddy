@@ -1,4 +1,4 @@
-import type { IngestedFile, IngestionSource } from "../interfaces/IngestionSource.js";
+import type { IngestedFile, IngestionSource } from "@/core/interfaces/IngestionSource.js";
 import { EmailIngestionSource, type EmailSourceConfig } from "@/sources/EmailIngestionSource.js";
 import type { WorkloadTier } from "@/types/tenant.js";
 

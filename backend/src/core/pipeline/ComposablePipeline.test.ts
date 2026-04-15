@@ -1,8 +1,8 @@
-import { ComposablePipeline } from "./ComposablePipeline.js";
-import { ContextStore } from "./PipelineContext.js";
-import type { PipelineContext, PipelineInput } from "./PipelineContext.js";
-import type { PipelineStage } from "./PipelineStage.js";
-import type { StageResult } from "./PipelineStage.js";
+import { ComposablePipeline } from "@/core/pipeline/ComposablePipeline.js";
+import { ContextStore } from "@/core/pipeline/PipelineContext.js";
+import type { PipelineContext, PipelineInput } from "@/core/pipeline/PipelineContext.js";
+import type { PipelineStep } from "@/core/pipeline/PipelineStep.js";
+import type { StepOutput } from "@/core/pipeline/PipelineStep.js";
 
 function makeInput(overrides: Partial<PipelineInput> = {}): PipelineInput {
   return {
@@ -14,7 +14,7 @@ function makeInput(overrides: Partial<PipelineInput> = {}): PipelineInput {
   };
 }
 
-function makeStage(name: string, fn?: (ctx: PipelineContext) => Promise<StageResult>): PipelineStage {
+function makeStage(name: string, fn?: (ctx: PipelineContext) => Promise<StepOutput>): PipelineStep {
   return {
     name,
     execute: fn ?? (async () => ({})),
@@ -52,7 +52,7 @@ describe("ComposablePipeline", () => {
 
     const result = await pipeline.execute(makeInput());
     expect(result.output).toEqual(["a", "b", "c"]);
-    expect(result.stagesExecuted).toEqual(["a", "b", "c"]);
+    expect(result.stepsExecuted).toEqual(["a", "b", "c"]);
   });
 
   it("records stage timing in metadata", async () => {
@@ -60,8 +60,8 @@ describe("ComposablePipeline", () => {
       .add(makeStage("timer"));
 
     const result = await pipeline.execute(makeInput());
-    expect(result.metadata["stage.timer.ms"]).toBeDefined();
-    expect(Number(result.metadata["stage.timer.ms"])).toBeGreaterThanOrEqual(0);
+    expect(result.metadata["step.timer.ms"]).toBeDefined();
+    expect(Number(result.metadata["step.timer.ms"])).toBeGreaterThanOrEqual(0);
   });
 
   it("halt stops pipeline early", async () => {
@@ -70,7 +70,7 @@ describe("ComposablePipeline", () => {
       .add(makeStage("second"));
 
     const result = await pipeline.execute(makeInput());
-    expect(result.stagesExecuted).toEqual(["first"]);
+    expect(result.stepsExecuted).toEqual(["first"]);
   });
 
   it("skip continues to next stage", async () => {
@@ -79,7 +79,7 @@ describe("ComposablePipeline", () => {
       .add(makeStage("next"));
 
     const result = await pipeline.execute(makeInput());
-    expect(result.stagesExecuted).toEqual(["skipper", "next"]);
+    expect(result.stepsExecuted).toEqual(["skipper", "next"]);
   });
 
   it("addIf(false) skips the stage", async () => {
@@ -88,7 +88,7 @@ describe("ComposablePipeline", () => {
       .add(makeStage("kept"));
 
     const result = await pipeline.execute(makeInput());
-    expect(result.stagesExecuted).toEqual(["kept"]);
+    expect(result.stepsExecuted).toEqual(["kept"]);
   });
 
   it("addIf(true) includes the stage", async () => {
@@ -96,7 +96,7 @@ describe("ComposablePipeline", () => {
       .addIf(true, makeStage("included"));
 
     const result = await pipeline.execute(makeInput());
-    expect(result.stagesExecuted).toEqual(["included"]);
+    expect(result.stepsExecuted).toEqual(["included"]);
   });
 
   it("addIf with factory function", async () => {
@@ -104,7 +104,7 @@ describe("ComposablePipeline", () => {
       .addIf(true, () => makeStage("lazy"));
 
     const result = await pipeline.execute(makeInput());
-    expect(result.stagesExecuted).toEqual(["lazy"]);
+    expect(result.stepsExecuted).toEqual(["lazy"]);
   });
 
   it("stage errors propagate with metadata recorded", async () => {
@@ -126,7 +126,7 @@ describe("ComposablePipeline", () => {
     const pipeline = new ComposablePipeline<string>(() => "empty");
     const result = await pipeline.execute(makeInput());
     expect(result.output).toBe("empty");
-    expect(result.stagesExecuted).toEqual([]);
+    expect(result.stepsExecuted).toEqual([]);
     expect(result.durationMs).toBeGreaterThanOrEqual(0);
   });
 

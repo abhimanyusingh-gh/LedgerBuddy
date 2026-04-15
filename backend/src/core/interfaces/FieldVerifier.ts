@@ -1,4 +1,4 @@
-import type { OcrBlock } from "./OcrProvider.js";
+import type { OcrBlock } from "@/core/interfaces/OcrProvider.js";
 import type {
   InvoiceExtractionClassification,
   InvoiceFieldKey,

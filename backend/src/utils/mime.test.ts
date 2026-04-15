@@ -1,4 +1,4 @@
-import { isSupportedInvoiceMimeType, normalizeInvoiceMimeType } from "./mime.ts";
+import { isSupportedInvoiceMimeType, normalizeInvoiceMimeType } from "@/utils/mime.ts";
 
 describe("mime utils", () => {
   it("normalizes image/jpg alias to image/jpeg", () => {

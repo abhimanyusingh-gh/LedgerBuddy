@@ -116,7 +116,7 @@ jest.mock("../utils/logger.js", () => ({
   }
 }));
 
-import { resolveOcrProvider } from "./dependencies.ts";
+import { resolveOcrProvider } from "@/core/dependencies.ts";
 
 describe("resolveOcrProvider", () => {
   beforeEach(() => {

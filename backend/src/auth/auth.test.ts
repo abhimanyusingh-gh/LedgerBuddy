@@ -1,8 +1,8 @@
 import { createHmac } from "node:crypto";
 import type { Request, Response } from "express";
-import { AuthService } from "./AuthService.js";
-import { createSessionToken, verifySessionToken } from "./sessionToken.js";
-import { createAuthenticationMiddleware, requireNotViewer, resolveBearerToken } from "./middleware.js";
+import { AuthService } from "@/auth/AuthService.js";
+import { createSessionToken, verifySessionToken } from "@/auth/sessionToken.js";
+import { createAuthenticationMiddleware, requireNotViewer, resolveBearerToken } from "@/auth/middleware.js";
 import { env } from "@/config/env.js";
 import { UserModel } from "@/models/core/User.js";
 import { TenantModel } from "@/models/core/Tenant.js";

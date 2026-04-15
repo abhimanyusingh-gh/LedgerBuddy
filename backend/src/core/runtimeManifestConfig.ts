@@ -2,8 +2,8 @@ import { existsSync } from "node:fs";
 import path from "node:path";
 import { env } from "@/config/env.js";
 import type { WorkloadTier } from "@/types/tenant.js";
-import type { IngestionSourceManifest, RuntimeManifest } from "./runtimeManifest.js";
-import type { RuntimeSourceInput } from "./runtimeManifestSchema.js";
+import type { IngestionSourceManifest, RuntimeManifest } from "@/core/runtimeManifest.js";
+import type { RuntimeSourceInput } from "@/core/runtimeManifestSchema.js";
 
 export function deepMerge(base: Record<string, unknown>, overrides: Record<string, unknown>): Record<string, unknown> {
   const result = { ...base };

@@ -3,7 +3,7 @@ import LlamaCloud from "@llamaindex/llama-cloud";
 import type { OcrBlock, OcrExtractionOptions, OcrPageImage, OcrProvider, OcrResult, ExtractedField } from "@/core/interfaces/OcrProvider.js";
 import { logger } from "@/utils/logger.js";
 import { env } from "@/config/env.js";
-import { buildOcrRequestError } from "./OcrProviderSupport.js";
+import { buildOcrRequestError } from "@/ai/ocr/OcrProviderSupport.js";
 import { LLAMA_EXTRACT_INVOICE_SCHEMA } from "@/ai/schemas/invoice/llamaExtractInvoiceSchema.js";
 
 const SUPPORTED_MIME_TYPES = new Set([

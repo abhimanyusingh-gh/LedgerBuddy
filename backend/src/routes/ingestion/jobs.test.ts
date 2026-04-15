@@ -12,7 +12,7 @@ jest.mock("../../utils/logger.js", () => ({
 }));
 
 import type { IngestionService } from "@/services/ingestion/ingestionService.ts";
-import { defaultAuth, findHandler, findSecondHandler, mockRequest, mockResponse, createMockFileStore } from "../testHelpers.ts";
+import { defaultAuth, findHandler, findSecondHandler, mockRequest, mockResponse, createMockFileStore } from "@/routes/testHelpers.ts";
 
 let createJobsRouter: typeof import("./jobs.ts").createJobsRouter;
 

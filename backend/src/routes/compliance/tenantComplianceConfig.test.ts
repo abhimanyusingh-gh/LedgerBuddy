@@ -43,7 +43,7 @@ jest.mock("../../models/integration/TenantComplianceConfig.js", () => {
   };
 });
 
-import { defaultAuth, findHandler, mockRequest, mockResponse } from "../testHelpers.ts";
+import { defaultAuth, findHandler, mockRequest, mockResponse } from "@/routes/testHelpers.ts";
 import { TenantComplianceConfigModel } from "@/models/integration/TenantComplianceConfig.ts";
 
 let createTenantComplianceConfigRouter: typeof import("./tenantComplianceConfig.ts").createTenantComplianceConfigRouter;

@@ -1,4 +1,4 @@
-import { buildSmtpXoauth2Token } from "./smtpXoauth2Probe.js";
+import { buildSmtpXoauth2Token } from "@/sources/email/smtpXoauth2Probe.js";
 
 describe("buildSmtpXoauth2Token", () => {
   it("builds the expected xoauth2 auth payload", () => {

@@ -1,10 +1,10 @@
-import type { PipelineStage, StageResult } from "@/core/pipeline/PipelineStage.js";
+import type { PipelineStep, StepOutput } from "@/core/pipeline/PipelineStep.js";
 import type { PipelineContext } from "@/core/pipeline/PipelineContext.js";
 import type {
   SlmBankStatementOutput,
   BankStatementTransaction,
-} from "../../BankStatementDocumentDefinition.js";
-import { BANK_CTX } from "../contextKeys.js";
+} from "@/ai/extractors/bank/BankStatementDocumentDefinition.js";
+import { BANK_CTX } from "@/ai/extractors/bank/pipeline/contextKeys.js";
 
 export interface ParsedTransaction {
   date: string;
@@ -22,10 +22,10 @@ export interface ParsedTransaction {
  * - Converts amounts from major units to minor units (paise/cents)
  * - Collects warnings for skipped transactions
  */
-export class NormalizeTransactionsStep implements PipelineStage {
+export class NormalizeTransactionsStep implements PipelineStep {
   readonly name = "normalize-transactions";
 
-  async execute(ctx: PipelineContext): Promise<StageResult> {
+  async execute(ctx: PipelineContext): Promise<StepOutput> {
     const slmOutput = ctx.store.require<SlmBankStatementOutput>(BANK_CTX.SLM_OUTPUT);
     const warnings = ctx.store.require<string[]>(BANK_CTX.WARNINGS);
 

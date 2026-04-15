@@ -1,5 +1,5 @@
-import type { OcrBlock, OcrPageImage } from "../interfaces/OcrProvider.js";
-import type { ChunkingStrategy, ValidationResult } from "./types.js";
+import type { OcrBlock, OcrPageImage } from "@/core/interfaces/OcrProvider.js";
+import type { ChunkingStrategy, ValidationResult } from "@/core/engine/types.js";
 
 export const DOC_TYPE = {
   INVOICE: "invoice",

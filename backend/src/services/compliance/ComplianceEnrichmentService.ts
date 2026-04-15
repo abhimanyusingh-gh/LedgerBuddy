@@ -3,17 +3,17 @@ import type { ComplianceRiskSignal } from "@/types/invoice.js";
 import { TenantComplianceConfigModel } from "@/models/integration/TenantComplianceConfig.js";
 import { TenantTcsConfigModel } from "@/models/integration/TenantTcsConfig.js";
 import { logger } from "@/utils/logger.js";
-import type { ComplianceEnricher, ComplianceEnrichContext, ComplianceResult } from "./ComplianceEnricher.js";
-import { emptyComplianceResult } from "./ComplianceEnricher.js";
-import { PanValidationService } from "./PanValidationService.js";
-import { VendorMasterService } from "./VendorMasterService.js";
-import { TdsCalculationService } from "./TdsCalculationService.js";
-import { GlCodeSuggestionService } from "./GlCodeSuggestionService.js";
+import type { ComplianceEnricher, ComplianceEnrichContext, ComplianceResult } from "@/services/compliance/ComplianceEnricher.js";
+import { emptyComplianceResult } from "@/services/compliance/ComplianceEnricher.js";
+import { PanValidationService } from "@/services/compliance/PanValidationService.js";
+import { VendorMasterService } from "@/services/compliance/VendorMasterService.js";
+import { TdsCalculationService } from "@/services/compliance/TdsCalculationService.js";
+import { GlCodeSuggestionService } from "@/services/compliance/GlCodeSuggestionService.js";
 import { GlCodeMasterModel } from "@/models/compliance/GlCodeMaster.js";
-import { IrnValidationService } from "./IrnValidationService.js";
-import { MsmeTrackingService } from "./MsmeTrackingService.js";
-import { DuplicateInvoiceDetector } from "./DuplicateInvoiceDetector.js";
-import { CostCenterService } from "./CostCenterService.js";
+import { IrnValidationService } from "@/services/compliance/IrnValidationService.js";
+import { MsmeTrackingService } from "@/services/compliance/MsmeTrackingService.js";
+import { DuplicateInvoiceDetector } from "@/services/compliance/DuplicateInvoiceDetector.js";
+import { CostCenterService } from "@/services/compliance/CostCenterService.js";
 
 interface ComplianceEnrichmentDeps {
   panValidation: PanValidationService;

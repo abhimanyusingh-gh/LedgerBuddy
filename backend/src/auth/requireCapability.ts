@@ -1,7 +1,7 @@
 import type { Request, Response, NextFunction } from "express";
 import { TenantUserRoleModel } from "@/models/core/TenantUserRole.js";
 import type { AuthenticatedRequestContext } from "@/types/auth.js";
-import { getRoleDefaults, mergeCapabilitiesWithDefaults, type UserCapabilities } from "./personaDefaults.js";
+import { getRoleDefaults, mergeCapabilitiesWithDefaults, type UserCapabilities } from "@/auth/personaDefaults.js";
 
 const capabilitiesCache = new WeakMap<Request, UserCapabilities>();
 

@@ -1,5 +1,5 @@
-import { buildIngestionSources } from "./sourceRegistry.js";
-import type { IngestionSourceManifest } from "./runtimeManifest.js";
+import { buildIngestionSources } from "@/core/sourceRegistry.js";
+import type { IngestionSourceManifest } from "@/core/runtimeManifest.js";
 
 function buildEmailSource(overrides?: Partial<Extract<IngestionSourceManifest, { type: "email" }>>): IngestionSourceManifest {
   return {

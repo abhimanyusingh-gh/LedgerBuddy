@@ -1,4 +1,4 @@
-import { HttpFieldVerifier } from "./HttpFieldVerifier.ts";
+import { HttpFieldVerifier } from "@/ai/verifiers/HttpFieldVerifier.ts";
 import { logger } from "@/utils/logger.ts";
 
 describe("HttpFieldVerifier", () => {

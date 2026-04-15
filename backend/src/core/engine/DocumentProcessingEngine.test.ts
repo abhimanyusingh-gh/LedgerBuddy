@@ -1,11 +1,11 @@
-import type { FieldVerifier, FieldVerifierInput, FieldVerifierResult } from "../interfaces/FieldVerifier.ts";
-import type { OcrBlock, OcrPageImage, OcrProvider, OcrResult } from "../interfaces/OcrProvider.ts";
-import { DocumentProcessingEngine, OCR_SENTINEL_KEY, type DocumentProcessingProgressEvent } from "./DocumentProcessingEngine.ts";
-import type { ChunkableDocumentDefinition, DocumentDefinition, SinglePassDocumentDefinition } from "./DocumentDefinition.ts";
-import { DOC_TYPE } from "./DocumentDefinition.ts";
-import type { ProcessingContext, ValidationResult } from "./types.ts";
-import { DocumentProcessingError } from "./types.ts";
-import * as nativePdfText from "../../ai/extractors/stages/nativePdfText.ts";
+import type { FieldVerifier, FieldVerifierInput, FieldVerifierResult } from "@/core/interfaces/FieldVerifier.ts";
+import type { OcrBlock, OcrPageImage, OcrProvider, OcrResult } from "@/core/interfaces/OcrProvider.ts";
+import { DocumentProcessingEngine, OCR_SENTINEL_KEY, type DocumentProcessingProgressEvent } from "@/core/engine/DocumentProcessingEngine.ts";
+import type { ChunkableDocumentDefinition, DocumentDefinition, SinglePassDocumentDefinition } from "@/core/engine/DocumentDefinition.ts";
+import { DOC_TYPE } from "@/core/engine/DocumentDefinition.ts";
+import type { ProcessingContext, ValidationResult } from "@/core/engine/types.ts";
+import { DocumentProcessingError } from "@/core/engine/types.ts";
+import * as nativePdfText from "@/ai/extractors/stages/nativePdfText.ts";
 
 jest.mock("../../ai/extractors/stages/nativePdfText.ts");
 

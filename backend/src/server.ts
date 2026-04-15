@@ -1,12 +1,12 @@
 import type { Server } from "node:http";
-import { createApp } from "./app.js";
-import { connectToDatabase, disconnectFromDatabase } from "./db/connect.js";
-import { closeRedisClient } from "./db/redis.js";
-import { env } from "./config/env.js";
-import { logger } from "./utils/logger.js";
-import { seedLocalDemoData } from "./bootstrap/seedLocalDemoData.js";
-import { buildDependencies } from "./core/dependencies.js";
-import { TenantModel } from "./models/core/Tenant.js";
+import { createApp } from "@/app.js";
+import { connectToDatabase, disconnectFromDatabase } from "@/db/connect.js";
+import { closeRedisClient } from "@/db/redis.js";
+import { env } from "@/config/env.js";
+import { logger } from "@/utils/logger.js";
+import { seedLocalDemoData } from "@/bootstrap/seedLocalDemoData.js";
+import { buildDependencies } from "@/core/dependencies.js";
+import { TenantModel } from "@/models/core/Tenant.js";
 
 let server: Server | undefined;
 let shuttingDown = false;

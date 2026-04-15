@@ -1,4 +1,4 @@
-import { mergeBlocks, buildLines, buildLayoutText } from "./ocrPostProcessor.ts";
+import { mergeBlocks, buildLines, buildLayoutText } from "@/ai/ocr/ocrPostProcessor.ts";
 import type { OcrBlock } from "@/core/interfaces/OcrProvider.ts";
 
 function makeBlock(

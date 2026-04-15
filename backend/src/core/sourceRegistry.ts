@@ -1,8 +1,8 @@
-import { EmailIngestionFacade } from "./facades/EmailIngestionFacade.js";
-import type { IngestionSource } from "./interfaces/IngestionSource.js";
-import type { IngestionSourceManifest } from "./runtimeManifest.js";
+import { EmailIngestionFacade } from "@/core/facades/EmailIngestionFacade.js";
+import type { IngestionSource } from "@/core/interfaces/IngestionSource.js";
+import type { IngestionSourceManifest } from "@/core/runtimeManifest.js";
 import { FolderIngestionSource } from "@/sources/FolderIngestionSource.js";
-import type { GmailMailboxBoundary } from "./boundaries/GmailMailboxBoundary.js";
+import type { GmailMailboxBoundary } from "@/core/boundaries/GmailMailboxBoundary.js";
 
 interface SourceRegistryOptions {
   gmailMailboxBoundary?: GmailMailboxBoundary;

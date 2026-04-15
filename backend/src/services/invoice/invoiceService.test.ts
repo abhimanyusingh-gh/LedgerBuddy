@@ -17,7 +17,7 @@ import { Types } from "mongoose";
 import { InvoiceModel } from "@/models/invoice/Invoice.js";
 import { GlCodeMasterModel } from "@/models/compliance/GlCodeMaster.js";
 import { TenantTcsConfigModel } from "@/models/integration/TenantTcsConfig.js";
-import { InvoiceService } from "./invoiceService.js";
+import { InvoiceService } from "@/services/invoice/invoiceService.js";
 import type { AuthenticatedRequestContext } from "@/types/auth.js";
 
 const TENANT_ID = "65f0000000000000000000b1";

@@ -1,5 +1,5 @@
 import { CreateBucketCommand, DeleteObjectsCommand, ListObjectsV2Command, S3Client } from "@aws-sdk/client-s3";
-import { S3FileStore } from "./S3FileStore.js";
+import { S3FileStore } from "@/storage/S3FileStore.js";
 
 const LOCALSTACK_ENDPOINT = process.env.LOCALSTACK_ENDPOINT;
 const TEST_BUCKET = "billforge-integration-test";

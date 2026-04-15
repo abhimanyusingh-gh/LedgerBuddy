@@ -4,9 +4,9 @@ import type { EmailIngestionBoundary } from "@/core/boundaries/EmailIngestionBou
 import type { IngestedFile } from "@/core/interfaces/IngestionSource.js";
 import { logger } from "@/utils/logger.js";
 import { isSupportedInvoiceMimeType, normalizeInvoiceMimeType } from "@/utils/mime.js";
-import { refreshGoogleAccessToken } from "./gmailOAuthClient.js";
-import type { EmailSourceConfig, OAuth2EmailAuthConfig } from "./types.js";
-import { buildXoauth2AuthorizationHeader } from "./xoauth2.js";
+import { refreshGoogleAccessToken } from "@/sources/email/gmailOAuthClient.js";
+import type { EmailSourceConfig, OAuth2EmailAuthConfig } from "@/sources/email/types.js";
+import { buildXoauth2AuthorizationHeader } from "@/sources/email/xoauth2.js";
 
 interface WrapperMessage {
   id: string;

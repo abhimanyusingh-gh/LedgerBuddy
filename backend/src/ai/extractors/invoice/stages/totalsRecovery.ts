@@ -1,8 +1,8 @@
 import type { OcrBlock } from "@/core/interfaces/OcrProvider.js";
 import type { ParsedInvoiceData } from "@/types/invoice.js";
 import { parseAmountTokenWithOcrRepair } from "@/ai/parsers/invoiceParser.js";
-import { normalizeInvoiceNumberValue, normalizeVendorText } from "./documentFieldRecovery.js";
-import { detectExplicitCurrency } from "../../stages/fieldParsingUtils.js";
+import { normalizeInvoiceNumberValue, normalizeVendorText } from "@/ai/extractors/invoice/stages/documentFieldRecovery.js";
+import { detectExplicitCurrency } from "@/ai/extractors/stages/fieldParsingUtils.js";
 
 export function normalizeParsedAgainstOcrText(
   parsed: ParsedInvoiceData,

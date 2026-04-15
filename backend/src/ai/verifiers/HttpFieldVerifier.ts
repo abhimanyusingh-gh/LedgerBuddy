@@ -5,7 +5,7 @@ import {
   normalizeFieldConfidence,
   normalizeFieldProvenance,
   normalizeLineItemProvenance
-} from "../extractors/invoice/stages/provenance.js";
+} from "@/ai/extractors/invoice/stages/provenance.js";
 import {
   fieldProvenanceFromVerifierContract,
   lineItemProvenanceFromVerifierContract,
@@ -13,7 +13,7 @@ import {
   normalizeReasonCodes,
   normalizeVerifierContract,
   parsedFromVerifierContract
-} from "./httpFieldVerifierNormalizer.js";
+} from "@/ai/verifiers/httpFieldVerifierNormalizer.js";
 import { getCorrelationId, logger } from "@/utils/logger.js";
 
 interface HttpFieldVerifierOptions {

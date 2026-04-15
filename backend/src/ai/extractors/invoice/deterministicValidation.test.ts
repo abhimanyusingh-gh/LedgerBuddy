@@ -1,4 +1,4 @@
-import { validateInvoiceFields } from "./deterministicValidation.ts";
+import { validateInvoiceFields } from "@/ai/extractors/invoice/deterministicValidation.ts";
 
 describe("validateInvoiceFields", () => {
   it("passes when required fields are present and consistent", () => {

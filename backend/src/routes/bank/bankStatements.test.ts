@@ -1,5 +1,5 @@
 import { requireNotViewer } from "@/auth/middleware.ts";
-import { mockRequest, mockResponse, defaultAuth } from "../testHelpers.ts";
+import { mockRequest, mockResponse, defaultAuth } from "@/routes/testHelpers.ts";
 import type { Request, Response } from "express";
 
 const viewerAuth = { ...defaultAuth, role: "audit_clerk" };
@@ -99,7 +99,7 @@ jest.mock("@/ai/extractors/bank/BankStatementParseProgress.ts", () => {
   return actual;
 });
 
-import { createBankStatementsRouter } from "./bankStatements.ts";
+import { createBankStatementsRouter } from "@/routes/bank/bankStatements.ts";
 
 function findRouteHandler(router: ReturnType<typeof createBankStatementsRouter>, method: string, path: string): Function {
   for (const layer of (router as unknown as { stack: unknown[] }).stack) {

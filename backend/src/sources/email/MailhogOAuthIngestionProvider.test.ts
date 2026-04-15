@@ -16,9 +16,9 @@ jest.mock("mailparser", () => ({
   simpleParser: (...args: unknown[]) => simpleParserMock(...args)
 }));
 
-import { MailhogOAuthIngestionProvider } from "./MailhogOAuthIngestionProvider.js";
-import type { EmailSourceConfig } from "./types.js";
-import { buildXoauth2AuthorizationHeader } from "./xoauth2.js";
+import { MailhogOAuthIngestionProvider } from "@/sources/email/MailhogOAuthIngestionProvider.js";
+import type { EmailSourceConfig } from "@/sources/email/types.js";
+import { buildXoauth2AuthorizationHeader } from "@/sources/email/xoauth2.js";
 
 function baseConfig(overrides?: Partial<EmailSourceConfig>): EmailSourceConfig {
   return {

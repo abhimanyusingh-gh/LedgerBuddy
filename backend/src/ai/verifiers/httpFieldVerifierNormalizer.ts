@@ -5,7 +5,7 @@ import type {
   InvoiceVerifierContract,
   ParsedInvoiceData
 } from "@/types/invoice.js";
-import { normalizeVerifierFieldProvenance, normalizeVerifierSingleProvenance } from "./VerifierProvenanceNormalizer.js";
+import { normalizeVerifierFieldProvenance, normalizeVerifierSingleProvenance } from "@/ai/verifiers/VerifierProvenanceNormalizer.js";
 
 export function parseVerifierParsedResponse(value: unknown): ParsedInvoiceData | undefined {
   if (!isRecord(value)) {

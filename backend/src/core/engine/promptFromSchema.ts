@@ -1,4 +1,4 @@
-import type { ExtractionSchema } from "./DocumentDefinition.js";
+import type { ExtractionSchema } from "@/core/engine/DocumentDefinition.js";
 
 export function buildExtractionPromptFromSchema(
   text: string,

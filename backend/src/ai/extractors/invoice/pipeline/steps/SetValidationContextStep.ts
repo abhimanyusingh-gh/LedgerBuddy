@@ -1,7 +1,7 @@
-import type { PipelineStage, StageResult } from "@/core/pipeline/PipelineStage.js";
+import type { PipelineStep, StepOutput } from "@/core/pipeline/PipelineStep.js";
 import type { PipelineContext } from "@/core/pipeline/PipelineContext.js";
-import type { InvoiceDocumentDefinition, InvoiceValidationContext } from "../../InvoiceDocumentDefinition.js";
-import { INVOICE_CTX } from "../contextKeys.js";
+import type { InvoiceDocumentDefinition, InvoiceValidationContext } from "@/ai/extractors/invoice/InvoiceDocumentDefinition.js";
+import { INVOICE_CTX } from "@/ai/extractors/invoice/pipeline/contextKeys.js";
 
 interface ValidationParams {
   expectedMaxTotal: number;
@@ -9,7 +9,7 @@ interface ValidationParams {
   referenceDate?: Date;
 }
 
-export class SetValidationContextStep implements PipelineStage {
+export class SetValidationContextStep implements PipelineStep {
   readonly name = "set-validation-context";
 
   constructor(
@@ -17,7 +17,7 @@ export class SetValidationContextStep implements PipelineStage {
     private params: ValidationParams,
   ) {}
 
-  async execute(ctx: PipelineContext): Promise<StageResult> {
+  async execute(ctx: PipelineContext): Promise<StepOutput> {
     const primaryText = ctx.store.require<string>(INVOICE_CTX.PRIMARY_TEXT);
 
     const validationCtx: InvoiceValidationContext = {

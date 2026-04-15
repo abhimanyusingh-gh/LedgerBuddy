@@ -1,4 +1,4 @@
-import type { OcrBlock, OcrPageImage } from "../interfaces/OcrProvider.js";
+import type { OcrBlock, OcrPageImage } from "@/core/interfaces/OcrProvider.js";
 
 export interface DocumentDefinitionCanChunk {
   canChunk(): boolean;

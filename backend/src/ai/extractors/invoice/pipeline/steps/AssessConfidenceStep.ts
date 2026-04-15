@@ -1,17 +1,17 @@
-import type { PipelineContext, PipelineStage, StageResult } from "@/core/pipeline/index.js";
+import type { PipelineContext, PipelineStep, StepOutput } from "@/core/pipeline/index.js";
 import type { ParsedInvoiceData, InvoiceCompliance } from "@/types/invoice.js";
 import { assessInvoiceConfidence } from "@/services/invoice/confidenceAssessment.js";
 import { RiskSignalEvaluator } from "@/services/compliance/RiskSignalEvaluator.js";
-import { POST_ENGINE_CTX } from "../postEngineContextKeys.js";
+import { POST_ENGINE_CTX } from "@/ai/extractors/invoice/pipeline/postEngineContextKeys.js";
 
 /**
  * Stage 14: Assesses overall extraction confidence, applying risk signal penalties
  * from compliance enrichment. Wraps `assessInvoiceConfidence()`.
  */
-export class AssessConfidenceStep implements PipelineStage {
+export class AssessConfidenceStep implements PipelineStep {
   readonly name = "assess-confidence";
 
-  async execute(ctx: PipelineContext): Promise<StageResult> {
+  async execute(ctx: PipelineContext): Promise<StepOutput> {
     const parsed = ctx.store.require<ParsedInvoiceData>(POST_ENGINE_CTX.RECOVERED_PARSED);
     const ocrConfidence = ctx.store.get<number>("invoice.ocrConfidence");
     const compliance = ctx.store.get<InvoiceCompliance>(POST_ENGINE_CTX.COMPLIANCE);

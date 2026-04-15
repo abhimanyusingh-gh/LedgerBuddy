@@ -5,7 +5,7 @@ import { UserModel } from "@/models/core/User.js";
 import { logger } from "@/utils/logger.js";
 import { loadLocalDemoUsersConfig } from "@/config/localDemoUsers.js";
 import type { KeycloakAdminClient } from "@/keycloak/KeycloakAdminClient.js";
-import { seedTdsRates } from "./seedTdsRates.js";
+import { seedTdsRates } from "@/bootstrap/seedTdsRates.js";
 import { getRoleDefaults } from "@/auth/personaDefaults.js";
 import { seedDefaultGlCodes } from "@/services/compliance/seedGlCodes.js";
 

@@ -3,7 +3,7 @@ import {
   exchangeGoogleAuthorizationCode,
   fetchGoogleUserEmail,
   isInvalidGrantError
-} from "./gmailOAuthClient.ts";
+} from "@/sources/email/gmailOAuthClient.ts";
 
 const TOKEN_ENDPOINT = "https://oauth2.googleapis.com/token";
 const USERINFO_ENDPOINT = "https://www.googleapis.com/oauth2/v3/userinfo";

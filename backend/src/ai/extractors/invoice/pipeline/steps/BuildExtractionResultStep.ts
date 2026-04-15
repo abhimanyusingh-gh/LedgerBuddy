@@ -1,4 +1,4 @@
-import type { PipelineContext, PipelineStage, StageResult } from "@/core/pipeline/index.js";
+import type { PipelineContext, PipelineStep, StepOutput } from "@/core/pipeline/index.js";
 import type { OcrBlock, OcrPageImage } from "@/core/interfaces/OcrProvider.js";
 import type {
   InvoiceCompliance,
@@ -9,12 +9,12 @@ import type {
   ParsedInvoiceData,
 } from "@/types/invoice.js";
 import type { ConfidenceAssessment } from "@/services/invoice/confidenceAssessment.js";
-import type { InvoiceSlmOutput } from "../../InvoiceDocumentDefinition.js";
-import type { OcrRecoveryStrategy } from "../../stages/lineItemRecovery.js";
+import type { InvoiceSlmOutput } from "@/ai/extractors/invoice/InvoiceDocumentDefinition.js";
+import type { OcrRecoveryStrategy } from "@/ai/extractors/invoice/stages/lineItemRecovery.js";
 import { EXTRACTION_SOURCE, type ExtractionSource } from "@/core/engine/extractionSource.js";
-import { uniqueIssues } from "../../../stages/fieldParsingUtils.js";
-import { POST_ENGINE_CTX } from "../postEngineContextKeys.js";
-import type { PipelineExtractionResult } from "../../InvoiceExtractionPipeline.js";
+import { uniqueIssues } from "@/ai/extractors/stages/fieldParsingUtils.js";
+import { POST_ENGINE_CTX } from "@/ai/extractors/invoice/pipeline/postEngineContextKeys.js";
+import type { PipelineExtractionResult } from "@/ai/extractors/invoice/InvoiceExtractionPipeline.js";
 
 const OCR_RECOVERY_STRATEGY_SOURCE: Record<OcrRecoveryStrategy, ExtractionSource> = {
   generic: EXTRACTION_SOURCE.SLM_GENERIC,
@@ -25,10 +25,10 @@ const OCR_RECOVERY_STRATEGY_SOURCE: Record<OcrRecoveryStrategy, ExtractionSource
 /**
  * Stage 16: Assembles the final PipelineExtractionResult from all context store values.
  */
-export class BuildExtractionResultStep implements PipelineStage {
+export class BuildExtractionResultStep implements PipelineStep {
   readonly name = "build-extraction-result";
 
-  async execute(ctx: PipelineContext): Promise<StageResult> {
+  async execute(ctx: PipelineContext): Promise<StepOutput> {
     const parsed = ctx.store.require<ParsedInvoiceData>(POST_ENGINE_CTX.RECOVERED_PARSED);
     const slm = ctx.store.require<InvoiceSlmOutput>(POST_ENGINE_CTX.SLM_OUTPUT);
     const ocrBlocks = ctx.store.require<OcrBlock[]>("invoice.ocrBlocks");

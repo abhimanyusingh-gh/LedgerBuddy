@@ -1,22 +1,22 @@
-import type { PipelineContext, PipelineStage, StageResult } from "@/core/pipeline/index.js";
+import type { PipelineContext, PipelineStep, StepOutput } from "@/core/pipeline/index.js";
 import type { OcrBlock } from "@/core/interfaces/OcrProvider.js";
 import type { InvoiceCompliance, InvoiceFieldKey, InvoiceFieldProvenance, ParsedInvoiceData } from "@/types/invoice.js";
-import type { InvoiceSlmOutput } from "../../InvoiceDocumentDefinition.js";
+import type { InvoiceSlmOutput } from "@/ai/extractors/invoice/InvoiceDocumentDefinition.js";
 import {
   collectLineItemConfidence,
   mergeClassification,
   resolveLineItemProvenance,
-} from "../../stages/provenance.js";
-import { POST_ENGINE_CTX } from "../postEngineContextKeys.js";
+} from "@/ai/extractors/invoice/stages/provenance.js";
+import { POST_ENGINE_CTX } from "@/ai/extractors/invoice/pipeline/postEngineContextKeys.js";
 
 /**
  * Stage 15: Resolves line-item provenance via OCR block matching, collects
  * line-item confidence, and merges classification with compliance TDS section.
  */
-export class ResolveProvenanceStep implements PipelineStage {
+export class ResolveProvenanceStep implements PipelineStep {
   readonly name = "resolve-provenance";
 
-  async execute(ctx: PipelineContext): Promise<StageResult> {
+  async execute(ctx: PipelineContext): Promise<StepOutput> {
     const parsed = ctx.store.require<ParsedInvoiceData>(POST_ENGINE_CTX.RECOVERED_PARSED);
     const ocrBlocks = ctx.store.require<OcrBlock[]>("invoice.ocrBlocks");
     const slm = ctx.store.require<InvoiceSlmOutput>(POST_ENGINE_CTX.SLM_OUTPUT);

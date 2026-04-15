@@ -1,9 +1,9 @@
 import type { OcrBlock } from "@/core/interfaces/OcrProvider.js";
 import type { ParsedInvoiceData } from "@/types/invoice.js";
 import { parseAmountTokenWithOcrRepair } from "@/ai/parsers/invoiceParser.js";
-import { extractAmountValueNearColumn, extractNumericValueNearColumn } from "./groundingAmounts.js";
-import { findBlockIndexByExactText } from "./groundingText.js";
-import { findSummaryAmountByLabel } from "./totalsRecovery.js";
+import { extractAmountValueNearColumn, extractNumericValueNearColumn } from "@/ai/extractors/invoice/stages/groundingAmounts.js";
+import { findBlockIndexByExactText } from "@/ai/extractors/invoice/stages/groundingText.js";
+import { findSummaryAmountByLabel } from "@/ai/extractors/invoice/stages/totalsRecovery.js";
 
 export type OcrRecoveryStrategy = "generic" | "invoice_table" | "receipt_statement";
 type BoxedBlock = { block: OcrBlock; index: number; box: [number, number, number, number] };

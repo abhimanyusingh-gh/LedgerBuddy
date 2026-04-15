@@ -2,16 +2,16 @@ import { Types } from "mongoose";
 import { InvoiceModel } from "@/models/invoice/Invoice.js";
 import { env } from "@/config/env.js";
 import type { GstBreakdown, ParsedInvoiceData, ComplianceRiskSignal } from "@/types/invoice.js";
-import { assessInvoiceConfidence } from "./confidenceAssessment.js";
+import { assessInvoiceConfidence } from "@/services/invoice/confidenceAssessment.js";
 import { toMinorUnits } from "@/utils/currency.js";
 import type { AuthenticatedRequestContext } from "@/types/auth.js";
 import type { FileStore } from "@/core/interfaces/FileStore.js";
 import { logger } from "@/utils/logger.js";
 import { isRecord } from "@/utils/validation.js";
-import type { ApprovalWorkflowService } from "./approvalWorkflowService.js";
+import type { ApprovalWorkflowService } from "@/services/invoice/approvalWorkflowService.js";
 import { buildCorrectionHint, type ExtractionLearningStore } from "@/ai/extractors/invoice/learning/extractionLearningStore.js";
 import type { ExtractionMappingService } from "@/ai/extractors/invoice/learning/extractionMappingService.js";
-import { TdsCalculationService } from "../compliance/TdsCalculationService.js";
+import { TdsCalculationService } from "@/services/compliance/TdsCalculationService.js";
 import { GlCodeMasterModel } from "@/models/compliance/GlCodeMaster.js";
 import { TenantTcsConfigModel } from "@/models/integration/TenantTcsConfig.js";
 import {
@@ -27,8 +27,8 @@ import {
   normalizeNullableMinorAmount,
   normalizeNullableMajorAmount,
   normalizeNullableNotes
-} from "./invoiceHelpers.js";
-export { InvoiceUpdateError } from "./invoiceHelpers.js";
+} from "@/services/invoice/invoiceHelpers.js";
+export { InvoiceUpdateError } from "@/services/invoice/invoiceHelpers.js";
 import { EXTRACTION_GROUP_TYPE } from "@/ai/extractors/invoice/learning/extractionLearningStore.js";
 
 interface ListInvoicesParams {

@@ -1,4 +1,4 @@
-import { decryptSecret, encryptSecret } from "./secretCrypto.js";
+import { decryptSecret, encryptSecret } from "@/utils/secretCrypto.js";
 
 describe("secretCrypto", () => {
   it("encrypts and decrypts secrets", () => {

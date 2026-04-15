@@ -1,16 +1,16 @@
-import type { PipelineStage, StageResult } from "@/core/pipeline/PipelineStage.js";
+import type { PipelineStep, StepOutput } from "@/core/pipeline/PipelineStep.js";
 import type { PipelineContext } from "@/core/pipeline/PipelineContext.js";
 import type { OcrResult, OcrBlock } from "@/core/interfaces/OcrProvider.js";
 import type { EnhancedOcrResult } from "@/ai/ocr/ocrPostProcessor.js";
-import { buildRankedOcrTextCandidates } from "../stages/ocrTextCandidates.js";
-import { INVOICE_CTX } from "../invoice/pipeline/contextKeys.js";
+import { buildRankedOcrTextCandidates } from "@/ai/extractors/stages/ocrTextCandidates.js";
+import { INVOICE_CTX } from "@/ai/extractors/invoice/pipeline/contextKeys.js";
 
-export class BuildTextCandidatesStep implements PipelineStage {
+export class BuildTextCandidatesStep implements PipelineStep {
   readonly name = "build-text-candidates";
 
   constructor(private enableKeyValueGrounding: boolean) {}
 
-  async execute(ctx: PipelineContext): Promise<StageResult> {
+  async execute(ctx: PipelineContext): Promise<StepOutput> {
     const ocrResult = ctx.store.require<OcrResult>(INVOICE_CTX.OCR_RESULT);
     const enhanced = ctx.store.require<EnhancedOcrResult>(INVOICE_CTX.ENHANCED_OCR);
     const blocks = ctx.store.require<OcrBlock[]>(INVOICE_CTX.OCR_BLOCKS);

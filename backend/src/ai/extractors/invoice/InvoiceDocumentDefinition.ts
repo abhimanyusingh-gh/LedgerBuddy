@@ -11,12 +11,12 @@ import type {
   ParsedInvoiceData
 } from "@/types/invoice.js";
 import type { EnhancedOcrResult } from "@/ai/ocr/ocrPostProcessor.js";
-import type { RankedOcrTextCandidate } from "../stages/ocrTextCandidates.js";
-import type { DetectedInvoiceLanguage } from "./languageDetection.js";
-import type { VendorTemplateSnapshot } from "./learning/vendorTemplateStore.js";
-import { validateInvoiceFields } from "./deterministicValidation.js";
-import { parseLlamaExtractFields } from "./adapters/LlamaExtractAdapter.js";
-import { sanitizeInvoiceExtraction } from "./InvoiceExtractionSanitizer.js";
+import type { RankedOcrTextCandidate } from "@/ai/extractors/stages/ocrTextCandidates.js";
+import type { DetectedInvoiceLanguage } from "@/ai/extractors/invoice/languageDetection.js";
+import type { VendorTemplateSnapshot } from "@/ai/extractors/invoice/learning/vendorTemplateStore.js";
+import { validateInvoiceFields } from "@/ai/extractors/invoice/deterministicValidation.js";
+import { parseLlamaExtractFields } from "@/ai/extractors/invoice/adapters/LlamaExtractAdapter.js";
+import { sanitizeInvoiceExtraction } from "@/ai/extractors/invoice/InvoiceExtractionSanitizer.js";
 
 export interface InvoiceSlmOutput {
   parsed: ParsedInvoiceData;

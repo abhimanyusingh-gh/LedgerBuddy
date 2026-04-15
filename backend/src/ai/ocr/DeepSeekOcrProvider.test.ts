@@ -1,4 +1,4 @@
-import { DeepSeekOcrProvider } from "./DeepSeekOcrProvider.ts";
+import { DeepSeekOcrProvider } from "@/ai/ocr/DeepSeekOcrProvider.ts";
 import { runWithLogContext } from "@/utils/logger.ts";
 import { logger } from "@/utils/logger.ts";
 import axios from "axios";

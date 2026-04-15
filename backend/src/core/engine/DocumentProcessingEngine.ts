@@ -1,13 +1,13 @@
-import type { FieldVerifier, FieldVerifierInput, FieldVerifierResult } from "../interfaces/FieldVerifier.js";
-import type { ParsedInvoiceData } from "../../types/invoice.js";
-import type { OcrBlock, OcrPageImage, OcrProvider, OcrResult } from "../interfaces/OcrProvider.js";
-import type { ChunkableDocumentDefinition, DocumentDefinition } from "./DocumentDefinition.js";
-import type { DocumentDefinitionCanChunk, ProcessingContext, ProcessingResult, ValidationResult } from "./types.js";
-import { DocumentProcessingError } from "./types.js";
+import type { FieldVerifier, FieldVerifierInput, FieldVerifierResult } from "@/core/interfaces/FieldVerifier.js";
+import type { ParsedInvoiceData } from "@/types/invoice.js";
+import type { OcrBlock, OcrPageImage, OcrProvider, OcrResult } from "@/core/interfaces/OcrProvider.js";
+import type { ChunkableDocumentDefinition, DocumentDefinition } from "@/core/engine/DocumentDefinition.js";
+import type { DocumentDefinitionCanChunk, ProcessingContext, ProcessingResult, ValidationResult } from "@/core/engine/types.js";
+import { DocumentProcessingError } from "@/core/engine/types.js";
 
-import { extractNativePdfText } from "../../ai/extractors/stages/nativePdfText.js";
-import { logger } from "../../utils/logger.js";
-import { buildExtractionPromptFromSchema } from "./promptFromSchema.js";
+import { extractNativePdfText } from "@/ai/extractors/stages/nativePdfText.js";
+import { logger } from "@/utils/logger.js";
+import { buildExtractionPromptFromSchema } from "@/core/engine/promptFromSchema.js";
 
 export const OCR_SENTINEL_KEY = "__bank_statement_extraction__" as const;
 

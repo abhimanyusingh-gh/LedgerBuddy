@@ -7,7 +7,7 @@ import { TenantUserRoleModel } from "@/models/core/TenantUserRole.js";
 import { HttpError } from "@/errors/HttpError.js";
 import type { InviteEmailSenderBoundary } from "@/core/boundaries/InviteEmailSenderBoundary.js";
 import type { KeycloakAdminClient } from "@/keycloak/KeycloakAdminClient.js";
-import { seedDefaultGlCodes } from "../compliance/seedGlCodes.js";
+import { seedDefaultGlCodes } from "@/services/compliance/seedGlCodes.js";
 
 interface TenantUsageOverview {
   tenantId: string;

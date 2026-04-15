@@ -13,7 +13,7 @@ import {
   normalizeConfidenceValue,
   readMaxTokensFromEnv,
   readTimeoutMsFromEnv
-} from "./OcrProviderSupport.js";
+} from "@/ai/ocr/OcrProviderSupport.js";
 
 const SUPPORTED_MIME_TYPES = new Set([
   "image/jpeg",

@@ -1,4 +1,4 @@
-import { GlCodeSuggestionService } from "../GlCodeSuggestionService";
+import { GlCodeSuggestionService } from "@/services/compliance/GlCodeSuggestionService";
 import { GlCodeMasterModel } from "@/models/compliance/GlCodeMaster";
 
 jest.mock("../../../models/compliance/GlCodeMaster");

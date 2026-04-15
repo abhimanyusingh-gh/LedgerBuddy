@@ -1,11 +1,11 @@
 import type { ParsedInvoiceData } from "@/types/invoice.js";
 import { toMinorUnits } from "@/utils/currency.js";
-import { extractTotalAmount, parseAmountToken } from "./amountParser.js";
-import { normalizeDate, shouldPreferDayFirstDates } from "./dateParser.js";
-import { extractCurrency, currencyBySymbol } from "./currencyParser.js";
-import { resolveVendorName, buildExplicitVendorLinePattern, VENDOR_ADDRESS_SIGNAL_PATTERN, VENDOR_NON_VENDOR_SIGNAL_PATTERN } from "./vendorParser.js";
-export { extractTotalAmount, parseAmountToken, parseAmountTokenWithOcrRepair } from "./amountParser.js";
-export { currencyBySymbol } from "./currencyParser.js";
+import { extractTotalAmount, parseAmountToken } from "@/ai/parsers/amountParser.js";
+import { normalizeDate, shouldPreferDayFirstDates } from "@/ai/parsers/dateParser.js";
+import { extractCurrency, currencyBySymbol } from "@/ai/parsers/currencyParser.js";
+import { resolveVendorName, buildExplicitVendorLinePattern, VENDOR_ADDRESS_SIGNAL_PATTERN, VENDOR_NON_VENDOR_SIGNAL_PATTERN } from "@/ai/parsers/vendorParser.js";
+export { extractTotalAmount, parseAmountToken, parseAmountTokenWithOcrRepair } from "@/ai/parsers/amountParser.js";
+export { currencyBySymbol } from "@/ai/parsers/currencyParser.js";
 
 interface ParseResult {
   parsed: ParsedInvoiceData;

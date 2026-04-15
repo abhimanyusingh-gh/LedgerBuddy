@@ -1,21 +1,21 @@
-import type { PipelineStage, StageResult } from "@/core/pipeline/PipelineStage.js";
+import type { PipelineStep, StepOutput } from "@/core/pipeline/PipelineStep.js";
 import type { PipelineContext } from "@/core/pipeline/PipelineContext.js";
 import type { OcrBlock } from "@/core/interfaces/OcrProvider.js";
-import type { VendorTemplateSnapshot } from "../../learning/vendorTemplateStore.js";
+import type { VendorTemplateSnapshot } from "@/ai/extractors/invoice/learning/vendorTemplateStore.js";
 import { parseInvoiceText } from "@/ai/parsers/invoiceParser.js";
-import { buildFieldCandidates, buildFieldRegions } from "../../stages/fieldCandidates.js";
-import { INVOICE_CTX } from "../contextKeys.js";
+import { buildFieldCandidates, buildFieldRegions } from "@/ai/extractors/invoice/stages/fieldCandidates.js";
+import { INVOICE_CTX } from "@/ai/extractors/invoice/pipeline/contextKeys.js";
 
 interface LanguageResolution {
   resolved: { code: string };
 }
 
-export class BaselineTextParseStep implements PipelineStage {
+export class BaselineTextParseStep implements PipelineStep {
   readonly name = "baseline-text-parse";
 
   constructor(private template?: VendorTemplateSnapshot) {}
 
-  async execute(ctx: PipelineContext): Promise<StageResult> {
+  async execute(ctx: PipelineContext): Promise<StepOutput> {
     const primaryText = ctx.store.require<string>(INVOICE_CTX.PRIMARY_TEXT);
     const ocrBlocks = ctx.store.require<OcrBlock[]>(INVOICE_CTX.OCR_BLOCKS);
     const language = ctx.store.require<LanguageResolution>(INVOICE_CTX.LANGUAGE_RESOLUTION);

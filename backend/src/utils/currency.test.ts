@@ -4,7 +4,7 @@ import {
   minorUnitsToMajorString,
   normalizeMinorUnits,
   toMinorUnits
-} from "./currency.ts";
+} from "@/utils/currency.ts";
 
 describe("currency utils", () => {
   it("uses expected minor-unit digits per currency", () => {

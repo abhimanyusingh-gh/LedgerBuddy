@@ -37,7 +37,7 @@ jest.mock("./SendGridInviteEmailSenderProvider.js", () => ({
   SendGridInviteEmailSenderProvider: jest.fn().mockImplementation((config: unknown) => sendGridCtorMock(config))
 }));
 
-import { createInviteEmailSenderProvider } from "./createInviteEmailSenderProvider.ts";
+import { createInviteEmailSenderProvider } from "@/providers/email/createInviteEmailSenderProvider.ts";
 
 describe("createInviteEmailSenderProvider", () => {
   beforeEach(() => {

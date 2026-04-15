@@ -1,4 +1,4 @@
-import { TdsCalculationService } from "../TdsCalculationService";
+import { TdsCalculationService } from "@/services/compliance/TdsCalculationService";
 import { TdsSectionMappingModel } from "@/models/compliance/TdsSectionMapping";
 import { TdsRateTableModel } from "@/models/compliance/TdsRateTable";
 import { TenantComplianceConfigModel } from "@/models/integration/TenantComplianceConfig";

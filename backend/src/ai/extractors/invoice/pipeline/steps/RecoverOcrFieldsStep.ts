@@ -1,27 +1,27 @@
-import type { PipelineContext, PipelineStage, StageResult } from "@/core/pipeline/index.js";
+import type { PipelineContext, PipelineStep, StepOutput } from "@/core/pipeline/index.js";
 import type { OcrBlock } from "@/core/interfaces/OcrProvider.js";
 import type { ParsedInvoiceData } from "@/types/invoice.js";
-import { recoverHeaderFieldsFromOcr } from "../../stages/documentFieldRecovery.js";
+import { recoverHeaderFieldsFromOcr } from "@/ai/extractors/invoice/stages/documentFieldRecovery.js";
 import {
   computeSummaryTotalMinor,
   normalizeParsedAgainstOcrText,
   recoverGstSummaryFromOcr,
   recoverPreferredTotalAmountMinor,
-} from "../../stages/totalsRecovery.js";
+} from "@/ai/extractors/invoice/stages/totalsRecovery.js";
 import {
   classifyOcrRecoveryStrategy,
   recoverLineItemsFromOcr,
-} from "../../stages/lineItemRecovery.js";
-import { POST_ENGINE_CTX } from "../postEngineContextKeys.js";
+} from "@/ai/extractors/invoice/stages/lineItemRecovery.js";
+import { POST_ENGINE_CTX } from "@/ai/extractors/invoice/pipeline/postEngineContextKeys.js";
 
 /**
  * Stage 10: Recovers header fields, GST summary, totals, and line items from OCR blocks.
  * Equivalent to the private `recoverOcrFields()` in InvoiceExtractionPipeline.
  */
-export class RecoverOcrFieldsStep implements PipelineStage {
+export class RecoverOcrFieldsStep implements PipelineStep {
   readonly name = "recover-ocr-fields";
 
-  async execute(ctx: PipelineContext): Promise<StageResult> {
+  async execute(ctx: PipelineContext): Promise<StepOutput> {
     const merged = ctx.store.require<ParsedInvoiceData>(POST_ENGINE_CTX.MERGED_PARSED);
     const ocrBlocks = ctx.store.require<OcrBlock[]>("invoice.ocrBlocks");
     const primaryText = ctx.store.require<string>("invoice.primaryText");

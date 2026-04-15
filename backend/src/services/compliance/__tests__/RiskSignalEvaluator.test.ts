@@ -1,4 +1,4 @@
-import { RiskSignalEvaluator } from "../RiskSignalEvaluator";
+import { RiskSignalEvaluator } from "@/services/compliance/RiskSignalEvaluator";
 import type { ParsedInvoiceData } from "@/types/invoice";
 
 const evaluator = new RiskSignalEvaluator();

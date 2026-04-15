@@ -1,14 +1,14 @@
 import type { OcrBlock } from "@/core/interfaces/OcrProvider.js";
 import type { InvoiceFieldKey, InvoiceFieldProvenance, ParsedInvoiceData } from "@/types/invoice.js";
-import { clampProbability } from "../../stages/fieldParsingUtils.js";
+import { clampProbability } from "@/ai/extractors/stages/fieldParsingUtils.js";
 import {
   blockMatchesFieldValue,
   DEFAULT_FIELD_LABEL_PATTERNS,
   findBlockByLabelProximity,
   findBlockForField,
   findPreferredDateValueBlock
-} from "../stages/groundingText.js";
-import { findBlockByAmountValue } from "../stages/groundingAmounts.js";
+} from "@/ai/extractors/invoice/stages/groundingText.js";
+import { findBlockByAmountValue } from "@/ai/extractors/invoice/stages/groundingAmounts.js";
 
 const ADDRESS_RE = /\b(address|warehouse|village|road|street|taluk|district|postal|zip)\b/i;
 

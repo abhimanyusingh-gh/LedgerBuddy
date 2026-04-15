@@ -4,10 +4,10 @@ import type { EmailIngestionBoundary } from "@/core/boundaries/EmailIngestionBou
 import type { IngestedFile } from "@/core/interfaces/IngestionSource.js";
 import { logger } from "@/utils/logger.js";
 import { isSupportedInvoiceMimeType, normalizeInvoiceMimeType } from "@/utils/mime.js";
-import { refreshGoogleAccessToken } from "./gmailOAuthClient.js";
-import type { EmailSourceConfig, OAuth2EmailAuthConfig } from "./types.js";
-import { verifySmtpXoauth2 } from "./smtpXoauth2Probe.js";
-import { GmailMailboxNeedsReauthError } from "./errors.js";
+import { refreshGoogleAccessToken } from "@/sources/email/gmailOAuthClient.js";
+import type { EmailSourceConfig, OAuth2EmailAuthConfig } from "@/sources/email/types.js";
+import { verifySmtpXoauth2 } from "@/sources/email/smtpXoauth2Probe.js";
+import { GmailMailboxNeedsReauthError } from "@/sources/email/errors.js";
 
 interface ResolvedImapAuth {
   auth: {

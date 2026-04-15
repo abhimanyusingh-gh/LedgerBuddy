@@ -1,5 +1,5 @@
 import type { Response, Request } from "express";
-import type { IngestionService } from "./ingestionService.js";
+import type { IngestionService } from "@/services/ingestion/ingestionService.js";
 import { getCorrelationId, logger, runWithLogContext } from "@/utils/logger.js";
 import { SSE_HEARTBEAT_INTERVAL_MS, RERUN_MAX_COUNT } from "@/constants.js";
 import { getRedisClient } from "@/db/redis.js";

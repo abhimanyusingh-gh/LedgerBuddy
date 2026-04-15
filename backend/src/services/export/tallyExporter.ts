@@ -9,20 +9,20 @@ import {
   formatTallyDate,
   isSuccessfulImport,
   parseTallyImportResponse
-} from "./tallyExporter/xml.js";
+} from "@/services/export/tallyExporter/xml.js";
 import type {
   TallyExporterConfig,
   VoucherPayloadInput
-} from "./tallyExporter/xml.js";
-import { resolveInvoiceTotalAmountMinor } from "./tallyExporter/amountResolution.js";
+} from "@/services/export/tallyExporter/xml.js";
+import { resolveInvoiceTotalAmountMinor } from "@/services/export/tallyExporter/amountResolution.js";
 
 export {
   buildTallyBatchImportXml,
   buildTallyPurchaseVoucherPayload,
   formatTallyDate,
   parseTallyImportResponse
-} from "./tallyExporter/xml.js";
-export { resolveInvoiceTotalAmountMinor } from "./tallyExporter/amountResolution.js";
+} from "@/services/export/tallyExporter/xml.js";
+export { resolveInvoiceTotalAmountMinor } from "@/services/export/tallyExporter/amountResolution.js";
 
 async function postWithRetry(
   url: string,

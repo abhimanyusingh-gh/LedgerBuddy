@@ -1,19 +1,19 @@
-import type { PipelineContext, PipelineStage, StageResult } from "@/core/pipeline/index.js";
+import type { PipelineContext, PipelineStep, StepOutput } from "@/core/pipeline/index.js";
 import type { OcrBlock } from "@/core/interfaces/OcrProvider.js";
 import type { ParsedInvoiceData } from "@/types/invoice.js";
-import type { InvoiceSlmOutput } from "../../InvoiceDocumentDefinition.js";
-import { addFieldDiagnosticsToMetadata } from "../../confidenceScoring/FieldConfidenceScorer.js";
+import type { InvoiceSlmOutput } from "@/ai/extractors/invoice/InvoiceDocumentDefinition.js";
+import { addFieldDiagnosticsToMetadata } from "@/ai/extractors/invoice/confidenceScoring/FieldConfidenceScorer.js";
 import { EXTRACTION_SOURCE } from "@/core/engine/extractionSource.js";
-import { POST_ENGINE_CTX } from "../postEngineContextKeys.js";
+import { POST_ENGINE_CTX } from "@/ai/extractors/invoice/pipeline/postEngineContextKeys.js";
 
 /**
  * Stage 12: Computes per-field confidence scores and provenance via OCR block grounding.
  * Wraps `addFieldDiagnosticsToMetadata()` from FieldConfidenceScorer.
  */
-export class ComputeFieldDiagnosticsStep implements PipelineStage {
+export class ComputeFieldDiagnosticsStep implements PipelineStep {
   readonly name = "compute-field-diagnostics";
 
-  async execute(ctx: PipelineContext): Promise<StageResult> {
+  async execute(ctx: PipelineContext): Promise<StepOutput> {
     const parsed = ctx.store.require<ParsedInvoiceData>(POST_ENGINE_CTX.RECOVERED_PARSED);
     const ocrBlocks = ctx.store.require<OcrBlock[]>("invoice.ocrBlocks");
     const fieldRegions = ctx.store.get<Record<string, OcrBlock[]>>("invoice.fieldRegions") ?? {};

@@ -1,4 +1,4 @@
-import { assessInvoiceConfidence, getConfidenceTone } from "./confidenceAssessment.ts";
+import { assessInvoiceConfidence, getConfidenceTone } from "@/services/invoice/confidenceAssessment.ts";
 import type { ParsedInvoiceData } from "@/types/invoice.ts";
 
 function fullParsed(overrides?: Partial<ParsedInvoiceData>): ParsedInvoiceData {

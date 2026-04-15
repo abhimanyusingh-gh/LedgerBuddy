@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { z } from "zod";
-import { env } from "./env.js";
+import { env } from "@/config/env.js";
 import { TenantRoles, type TenantRole } from "@/models/core/TenantUserRole.js";
 
 const demoConfigSchema = z.object({

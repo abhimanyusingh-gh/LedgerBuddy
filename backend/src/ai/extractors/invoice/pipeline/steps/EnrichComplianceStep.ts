@@ -1,19 +1,19 @@
-import type { PipelineContext, PipelineStage, StageResult } from "@/core/pipeline/index.js";
+import type { PipelineContext, PipelineStep, StepOutput } from "@/core/pipeline/index.js";
 import type { ParsedInvoiceData } from "@/types/invoice.js";
 import type { ComplianceEnricher } from "@/services/compliance/ComplianceEnricher.js";
 import { logger } from "@/utils/logger.js";
-import { POST_ENGINE_CTX } from "../postEngineContextKeys.js";
+import { POST_ENGINE_CTX } from "@/ai/extractors/invoice/pipeline/postEngineContextKeys.js";
 
 /**
  * Stage 13: Enriches the parsed data with compliance information (TDS, PAN, risk signals).
  * Only executes if a ComplianceEnricher was provided. Mirrors `runCompliance()` in the pipeline.
  */
-export class EnrichComplianceStep implements PipelineStage {
+export class EnrichComplianceStep implements PipelineStep {
   readonly name = "enrich-compliance";
 
   constructor(private readonly complianceEnricher?: ComplianceEnricher) {}
 
-  async execute(ctx: PipelineContext): Promise<StageResult> {
+  async execute(ctx: PipelineContext): Promise<StepOutput> {
     if (!this.complianceEnricher) {
       return {};
     }

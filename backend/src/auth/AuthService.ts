@@ -5,13 +5,13 @@ import { TenantUserRoleModel, normalizeTenantRole } from "@/models/core/TenantUs
 import { UserModel } from "@/models/core/User.js";
 import { env } from "@/config/env.js";
 import type { OidcProvider } from "@/sts/OidcProvider.js";
-import { createSessionToken, verifySessionToken } from "./sessionToken.js";
+import { createSessionToken, verifySessionToken } from "@/auth/sessionToken.js";
 import { encryptSecret, decryptSecret } from "@/utils/secretCrypto.js";
 import type { AuthenticatedRequestContext, SessionFlagsPayload } from "@/types/auth.js";
 import { TenantIntegrationModel } from "@/models/integration/TenantIntegration.js";
 import { HttpError } from "@/errors/HttpError.js";
 import type { KeycloakAdminClient } from "@/keycloak/KeycloakAdminClient.js";
-import { mergeCapabilitiesWithDefaults } from "./personaDefaults.js";
+import { mergeCapabilitiesWithDefaults } from "@/auth/personaDefaults.js";
 
 interface LoginCallbackResult {
   sessionToken: string;

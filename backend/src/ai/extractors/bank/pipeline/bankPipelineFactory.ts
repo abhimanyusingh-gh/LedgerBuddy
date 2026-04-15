@@ -1,9 +1,9 @@
 import { ComposablePipeline } from "@/core/pipeline/ComposablePipeline.js";
 import type { PipelineContext } from "@/core/pipeline/PipelineContext.js";
-import { NormalizeTransactionsStep } from "./steps/NormalizeTransactionsStep.js";
-import { DeduplicateTransactionsStep } from "./steps/DeduplicateTransactionsStep.js";
-import { PersistBankStatementStep } from "./steps/PersistBankStatementStep.js";
-import { BANK_CTX } from "./contextKeys.js";
+import { NormalizeTransactionsStep } from "@/ai/extractors/bank/pipeline/steps/NormalizeTransactionsStep.js";
+import { DeduplicateTransactionsStep } from "@/ai/extractors/bank/pipeline/steps/DeduplicateTransactionsStep.js";
+import { PersistBankStatementStep } from "@/ai/extractors/bank/pipeline/steps/PersistBankStatementStep.js";
+import { BANK_CTX } from "@/ai/extractors/bank/pipeline/contextKeys.js";
 
 export interface BankPdfParseResult {
   statementId: string;

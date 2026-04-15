@@ -1,7 +1,7 @@
 import {
   normalizeClassification,
   mergeClassification
-} from "./stages/provenance";
+} from "@/ai/extractors/invoice/stages/provenance";
 
 describe("SLM Classification", () => {
   describe("normalizeClassification with glCategory", () => {

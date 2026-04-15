@@ -1,4 +1,4 @@
-import { jwsSign } from "./AnumatiCrypto.js";
+import { jwsSign } from "@/services/bank/anumati/AnumatiCrypto.js";
 
 interface AnumatiClientConfig {
   entityId: string;

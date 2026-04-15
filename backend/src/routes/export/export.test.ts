@@ -1,5 +1,5 @@
-import { createExportRouter } from "./export.ts";
-import { defaultAuth, findHandler, hasMiddleware, mockRequest, mockResponse } from "../testHelpers.ts";
+import { createExportRouter } from "@/routes/export/export.ts";
+import { defaultAuth, findHandler, hasMiddleware, mockRequest, mockResponse } from "@/routes/testHelpers.ts";
 import type { ExportService } from "@/services/export/exportService.ts";
 
 function createMockExportService(overrides?: Partial<ExportService>): ExportService {
