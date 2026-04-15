@@ -52,7 +52,7 @@ describe("ComposablePipeline", () => {
 
     const result = await pipeline.execute(makeInput());
     expect(result.output).toEqual(["a", "b", "c"]);
-    expect(result.stepsExecuted).toEqual(["a", "b", "c"]);
+    expect(result.stepsExecuted.map(s => s.name)).toEqual(["a", "b", "c"]);
   });
 
   it("records stage timing in metadata", async () => {
@@ -70,7 +70,7 @@ describe("ComposablePipeline", () => {
       .add(makeStage("second"));
 
     const result = await pipeline.execute(makeInput());
-    expect(result.stepsExecuted).toEqual(["first"]);
+    expect(result.stepsExecuted.map(s => s.name)).toEqual(["first"]);
   });
 
   it("skip continues to next stage", async () => {
@@ -79,7 +79,7 @@ describe("ComposablePipeline", () => {
       .add(makeStage("next"));
 
     const result = await pipeline.execute(makeInput());
-    expect(result.stepsExecuted).toEqual(["skipper", "next"]);
+    expect(result.stepsExecuted.map(s => s.name)).toEqual(["skipper", "next"]);
   });
 
   it("addIf(false) skips the stage", async () => {
@@ -88,7 +88,7 @@ describe("ComposablePipeline", () => {
       .add(makeStage("kept"));
 
     const result = await pipeline.execute(makeInput());
-    expect(result.stepsExecuted).toEqual(["kept"]);
+    expect(result.stepsExecuted.map(s => s.name)).toEqual(["kept"]);
   });
 
   it("addIf(true) includes the stage", async () => {
@@ -96,7 +96,7 @@ describe("ComposablePipeline", () => {
       .addIf(true, makeStage("included"));
 
     const result = await pipeline.execute(makeInput());
-    expect(result.stepsExecuted).toEqual(["included"]);
+    expect(result.stepsExecuted.map(s => s.name)).toEqual(["included"]);
   });
 
   it("addIf with factory function", async () => {
@@ -104,7 +104,7 @@ describe("ComposablePipeline", () => {
       .addIf(true, () => makeStage("lazy"));
 
     const result = await pipeline.execute(makeInput());
-    expect(result.stepsExecuted).toEqual(["lazy"]);
+    expect(result.stepsExecuted.map(s => s.name)).toEqual(["lazy"]);
   });
 
   it("stage errors propagate with metadata recorded", async () => {

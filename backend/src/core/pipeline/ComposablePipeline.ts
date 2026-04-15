@@ -35,14 +35,14 @@ export class ComposablePipeline<T> {
   }
 
   async executeWithContext(ctx: PipelineContext): Promise<PipelineResult<T>> {
-    const stepsExecuted: string[] = [];
+    const stepsExecuted: PipelineStep[] = [];
     const start = performance.now();
 
     for (const step of this.steps) {
       const stepStart = performance.now();
       try {
         const result = await step.execute(ctx);
-        stepsExecuted.push(step.name);
+        stepsExecuted.push(step);
         ctx.metadata[`step.${step.name}.ms`] = (performance.now() - stepStart).toFixed(0);
 
         if (result.status === "halt") {
