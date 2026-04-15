@@ -332,9 +332,3 @@ export interface InvoiceCompliance {
   };
 }
 
-interface ComplianceSummary {
-  tdsSection: string | null;
-  glCode: string | null;
-  riskSignalCount: number;
-  riskSignalMaxSeverity: RiskSignalSeverity | null;
-}

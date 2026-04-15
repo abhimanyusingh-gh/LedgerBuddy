@@ -194,7 +194,6 @@ export function createTenantComplianceConfigRouter() {
         update.activeRiskSignals = req.body.activeRiskSignals;
       }
 
-      if (Array.isArray(req.body.enabledSignals)) update.enabledSignals = req.body.enabledSignals;
       if (Array.isArray(req.body.disabledSignals)) update.disabledSignals = req.body.disabledSignals;
       if (typeof req.body.signalSeverityOverrides === "object" && req.body.signalSeverityOverrides !== null) {
         update.signalSeverityOverrides = req.body.signalSeverityOverrides;
@@ -206,6 +205,17 @@ export function createTenantComplianceConfigRouter() {
         res.status(400).json({ message: newFieldsError });
         return;
       }
+
+      const effectiveOcrWeight = (newFieldsUpdate as Record<string, unknown>).ocrWeight as number | undefined;
+      const effectiveCompletenessWeight = (newFieldsUpdate as Record<string, unknown>).completenessWeight as number | undefined;
+      if (effectiveOcrWeight !== undefined && effectiveCompletenessWeight !== undefined) {
+        const sum = effectiveOcrWeight + effectiveCompletenessWeight;
+        if (Math.abs(sum - 1.0) > 0.001) {
+          res.status(400).json({ message: `ocrWeight (${effectiveOcrWeight}) + completenessWeight (${effectiveCompletenessWeight}) must sum to 1.0.` });
+          return;
+        }
+      }
+
       Object.assign(update, newFieldsUpdate);
 
       update.updatedBy = req.authContext!.email || req.authContext!.userId;

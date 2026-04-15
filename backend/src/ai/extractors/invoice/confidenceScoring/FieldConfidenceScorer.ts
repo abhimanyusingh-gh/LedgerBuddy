@@ -1,7 +1,7 @@
 import type { OcrBlock } from "@/core/interfaces/OcrProvider.js";
 import { PROVENANCE_SOURCE } from "@/types/invoice.js";
 import type { InvoiceFieldKey, InvoiceFieldProvenance, ParsedInvoiceData, ProvenanceSource } from "@/types/invoice.js";
-import { clampProbability } from "@/ai/extractors/stages/fieldParsingUtils.js";
+import { clampProbability } from "@/utils/math.js";
 import { normalizeConfidence } from "@/utils/math.js";
 import {
   DEFAULT_FIELD_LABEL_PATTERNS,

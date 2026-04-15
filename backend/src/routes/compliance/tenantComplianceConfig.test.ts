@@ -1163,6 +1163,82 @@ describe("compliance config routes", () => {
     });
   });
 
+  describe("PUT /admin/compliance-config — ocrWeight + completenessWeight sum validation", () => {
+    it("rejects when both weights are provided and do not sum to 1.0", async () => {
+      const router = createTenantComplianceConfigRouter();
+      const handler = findHandler(router, "put", "/admin/compliance-config");
+      const res = mockResponse();
+
+      await handler(
+        mockRequest({
+          authContext: defaultAuth,
+          body: { ocrWeight: 0.6, completenessWeight: 0.6 }
+        }),
+        res,
+        nextFn
+      );
+
+      expect(res.statusCode).toBe(400);
+      expect((res.jsonBody as { message: string }).message).toContain("sum to 1.0");
+    });
+
+    it("accepts when both weights sum to 1.0", async () => {
+      const router = createTenantComplianceConfigRouter();
+      const handler = findHandler(router, "put", "/admin/compliance-config");
+      const res = mockResponse();
+
+      await handler(
+        mockRequest({
+          authContext: defaultAuth,
+          body: { ocrWeight: 0.7, completenessWeight: 0.3 }
+        }),
+        res,
+        nextFn
+      );
+
+      expect(res.statusCode).toBe(200);
+      const body = res.jsonBody as Record<string, unknown>;
+      expect(body.ocrWeight).toBe(0.7);
+      expect(body.completenessWeight).toBe(0.3);
+    });
+
+    it("allows ocrWeight alone without completenessWeight", async () => {
+      const router = createTenantComplianceConfigRouter();
+      const handler = findHandler(router, "put", "/admin/compliance-config");
+      const res = mockResponse();
+
+      await handler(
+        mockRequest({
+          authContext: defaultAuth,
+          body: { ocrWeight: 0.8 }
+        }),
+        res,
+        nextFn
+      );
+
+      expect(res.statusCode).toBe(200);
+      expect((res.jsonBody as Record<string, unknown>).ocrWeight).toBe(0.8);
+    });
+
+    it("allows completenessWeight alone without ocrWeight", async () => {
+      const router = createTenantComplianceConfigRouter();
+      const handler = findHandler(router, "put", "/admin/compliance-config");
+      const res = mockResponse();
+
+      await handler(
+        mockRequest({
+          authContext: defaultAuth,
+          body: { completenessWeight: 0.4 }
+        }),
+        res,
+        nextFn
+      );
+
+      expect(res.statusCode).toBe(200);
+      expect((res.jsonBody as Record<string, unknown>).completenessWeight).toBe(0.4);
+    });
+  });
+
   describe("GET /compliance/tds-sections", () => {
     it("returns default TDS sections", async () => {
       const router = createTenantComplianceConfigRouter();

@@ -8,16 +8,22 @@ export class DuplicateInvoiceDetector {
     tenantId: string,
     vendorName: string | undefined,
     invoiceNumber: string | undefined,
-    currentContentHash: string | undefined
+    currentContentHash: string | undefined,
+    currentInvoiceId?: string
   ): Promise<ComplianceRiskSignal[]> {
     if (!invoiceNumber || !vendorName) return [];
 
-    const existing = await InvoiceModel.findOne({
+    const query: Record<string, unknown> = {
       tenantId,
       "parsed.vendorName": vendorName,
       "parsed.invoiceNumber": invoiceNumber,
       status: { $ne: INVOICE_STATUS.PENDING }
-    }).lean();
+    };
+    if (currentInvoiceId) {
+      query._id = { $ne: currentInvoiceId };
+    }
+
+    const existing = await InvoiceModel.findOne(query).lean();
 
     if (!existing) return [];
 

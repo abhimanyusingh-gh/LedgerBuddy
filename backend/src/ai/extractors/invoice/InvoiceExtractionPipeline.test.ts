@@ -83,7 +83,11 @@ const defaultInput = {
 
 describe("InvoiceExtractionPipeline", () => {
   beforeEach(() => {
-    (TenantComplianceConfigModel.findOne as jest.Mock).mockReturnValue({ lean: jest.fn().mockResolvedValue(null) });
+    const chainable = { lean: jest.fn().mockResolvedValue(null) };
+    (TenantComplianceConfigModel.findOne as jest.Mock).mockReturnValue({
+      select: jest.fn().mockReturnValue(chainable),
+      lean: chainable.lean
+    });
   });
 
   it("calls OCR and SLM verifier once, returns parsed invoice data", async () => {
