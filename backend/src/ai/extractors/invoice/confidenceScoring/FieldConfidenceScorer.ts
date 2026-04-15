@@ -10,61 +10,24 @@ import {
 } from "@/ai/extractors/invoice/stages/groundingText.js";
 import { findBlockByAmountValue } from "@/ai/extractors/invoice/stages/groundingAmounts.js";
 
-const ADDRESS_RE = /\b(address|warehouse|village|road|street|taluk|district|postal|zip)\b/i;
-
-function looksLikeAddress(value: string): boolean {
-  return ADDRESS_RE.test(value);
-}
-
-const VALIDATION_KEY_BY_FIELD: Record<string, string> = {
-  totalAmountMinor: "total amount",
-  vendorName: "vendor",
-  invoiceNumber: "invoice number",
-  currency: "currency",
-  dueDate: "due date",
-  invoiceDate: "invoice date"
-};
-
-function inferHeuristicConfidence(field: keyof ParsedInvoiceData, value: unknown, warningText: string): number {
-  if (field === "totalAmountMinor") {
-    if (typeof value !== "number" || value <= 0) {
-      return 0.45;
-    }
-    return warningText.includes("total amount") ? 0.7 : 0.92;
-  }
-  if (field === "vendorName") {
-    if (typeof value !== "string") {
-      return 0.45;
-    }
-    if (looksLikeAddress(value)) {
-      return 0.5;
-    }
-    return warningText.includes("vendor name") ? 0.68 : 0.9;
-  }
-  if (field === "invoiceNumber") {
-    return warningText.includes("invoice number") ? 0.65 : 0.9;
-  }
-  if (field === "currency") {
-    return warningText.includes("currency") ? 0.7 : 0.88;
-  }
-  return 0.82;
-}
-
-function inferValidationBonus(field: keyof ParsedInvoiceData, validationText: string): number {
-  const key = VALIDATION_KEY_BY_FIELD[field] ?? field;
-  return validationText.includes(key) ? 0.7 : 1;
-}
-
-export function scoreFieldConfidence(
-  field: keyof ParsedInvoiceData,
-  value: unknown,
-  warningText: string,
-  validationText: string,
+function resolveFieldConfidence(
+  field: InvoiceFieldKey,
+  verifierFieldConfidence: Partial<Record<InvoiceFieldKey, number>> | undefined,
+  verifierFieldProvenance: Partial<Record<InvoiceFieldKey, InvoiceFieldProvenance>> | undefined,
   ocrConfidence: number
 ): number {
-  const heuristicConfidence = inferHeuristicConfidence(field, value, warningText);
-  const validationBonus = inferValidationBonus(field, validationText);
-  return clampProbability(ocrConfidence * heuristicConfidence * validationBonus);
+  const slmConfidence = verifierFieldConfidence?.[field];
+  if (typeof slmConfidence === "number" && Number.isFinite(slmConfidence)) {
+    const normalized = slmConfidence > 1 ? slmConfidence / 100 : slmConfidence;
+    return Number(clampProbability(normalized).toFixed(4));
+  }
+
+  const extractConfidence = verifierFieldProvenance?.[field]?.confidence;
+  if (typeof extractConfidence === "number" && Number.isFinite(extractConfidence)) {
+    return Number(clampProbability(extractConfidence).toFixed(4));
+  }
+
+  return Number(clampProbability(ocrConfidence).toFixed(4));
 }
 
 export function calibrateDocumentConfidence(
@@ -90,8 +53,7 @@ export function calibrateDocumentConfidence(
 
   const printableCount = [...sourceText].filter((char) => (char >= " " && char <= "~") || char === "\n").length;
   const printableRatio = printableCount / Math.max(1, sourceText.length);
-  const base = clampProbability(baseConfidence ?? 0.75);
-  const score = clampProbability(base * 0.8 + (1 - lowTokenRatio) * 0.15 + printableRatio * 0.05);
+  const score = clampProbability(baseConfidence ?? 0);
 
   return {
     score: Number(score.toFixed(4)),
@@ -131,9 +93,7 @@ export function addFieldDiagnosticsToMetadata(params: {
     "gst.totalTaxMinor"
   ];
 
-  const ocrConfidence = clampProbability(params.ocrConfidence ?? 0.75);
-  const validationText = params.validationIssues.join(" ").toLowerCase();
-  const warningText = params.warnings.join(" ").toLowerCase();
+  const ocrConfidence = clampProbability(params.ocrConfidence ?? 0);
   const changedByVerifier = new Set(params.verifierChangedFields);
 
   const fieldConfidence: Partial<Record<InvoiceFieldKey, number>> = {};
@@ -151,14 +111,12 @@ export function addFieldDiagnosticsToMetadata(params: {
       continue;
     }
 
-    const slmConfidence = params.verifierFieldConfidence?.[field];
-    if (typeof slmConfidence === "number" && Number.isFinite(slmConfidence)) {
-      const normalized = slmConfidence > 1 ? slmConfidence / 100 : slmConfidence;
-      fieldConfidence[field] = Number(clampProbability(normalized).toFixed(4));
-    } else {
-      const finalConfidence = scoreFieldConfidence(field as keyof ParsedInvoiceData, value, warningText, validationText, ocrConfidence);
-      fieldConfidence[field] = Number(finalConfidence.toFixed(4));
-    }
+    fieldConfidence[field] = resolveFieldConfidence(
+      field,
+      params.verifierFieldConfidence,
+      params.verifierFieldProvenance,
+      ocrConfidence
+    );
 
     const provenanceSource = changedByVerifier.has(field)
       ? "slm"
