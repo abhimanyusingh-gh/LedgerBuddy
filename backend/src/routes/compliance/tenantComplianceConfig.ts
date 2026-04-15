@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { z } from "zod";
 import { TenantComplianceConfigModel } from "@/models/integration/TenantComplianceConfig.js";
 import { requireAuth } from "@/auth/requireAuth.js";
 import { requireCap } from "@/auth/requireCapability.js";
@@ -46,6 +47,30 @@ interface TdsRateEntry {
   active: boolean;
 }
 
+const newFieldsSchema = z.object({
+  maxInvoiceTotalMinor: z.number().int().min(0).optional(),
+  maxDueDays: z.number().int().min(1).max(3650).optional(),
+  autoApprovalThreshold: z.number().int().min(0).max(100).optional(),
+  eInvoiceThresholdMinor: z.number().int().min(0).optional(),
+  msmePaymentWarningDays: z.number().int().min(1).max(365).optional(),
+  msmePaymentOverdueDays: z.number().int().min(1).max(365).optional(),
+  minimumExpectedTotalMinor: z.number().int().min(0).optional(),
+  riskSignalPenaltyCap: z.number().int().min(0).max(100).optional(),
+  ocrWeight: z.number().min(0).max(1).optional(),
+  completenessWeight: z.number().min(0).max(1).optional(),
+  warningPenalty: z.number().int().min(0).max(100).optional(),
+  warningPenaltyCap: z.number().int().min(0).max(100).optional(),
+  requiredFields: z.array(z.string().min(1)).optional(),
+  confidencePenaltyOverrides: z.record(z.string(), z.number().min(0).max(100)).optional(),
+  reconciliationAutoMatchThreshold: z.number().int().min(0).max(100).optional(),
+  reconciliationSuggestThreshold: z.number().int().min(0).max(100).optional(),
+  reconciliationAmountToleranceMinor: z.number().int().min(0).optional(),
+  invoiceDateWindowDays: z.number().int().min(1).max(7300).optional(),
+  defaultCurrency: z.string().length(3).regex(/^[A-Z]{3}$/).optional()
+}).strict();
+
+const NEW_FIELD_KEYS = Object.keys(newFieldsSchema.shape) as Array<keyof z.infer<typeof newFieldsSchema>>;
+
 function validateTdsRate(entry: unknown, index: number): string | null {
   if (typeof entry !== "object" || entry === null) return `tdsRates[${index}] must be an object.`;
   const e = entry as Record<string, unknown>;
@@ -80,6 +105,23 @@ function applyDefaults(config: Record<string, unknown>): Record<string, unknown>
     config.activeRiskSignals = AVAILABLE_RISK_SIGNALS.map((s) => s.code);
   }
   return config;
+}
+
+function validateNewFields(body: Record<string, unknown>): { update: Record<string, unknown>; error?: string } {
+  const subset: Record<string, unknown> = {};
+  for (const key of NEW_FIELD_KEYS) {
+    if (body[key] !== undefined) subset[key] = body[key];
+  }
+
+  if (Object.keys(subset).length === 0) return { update: {} };
+
+  const result = newFieldsSchema.safeParse(subset);
+  if (!result.success) {
+    const first = result.error.issues[0];
+    return { update: {}, error: `${first.path.join(".")}: ${first.message}` };
+  }
+
+  return { update: result.data as Record<string, unknown> };
 }
 
 export function createTenantComplianceConfigRouter() {
@@ -155,6 +197,13 @@ export function createTenantComplianceConfigRouter() {
         update.signalSeverityOverrides = req.body.signalSeverityOverrides;
       }
       if (req.body.defaultTdsSection !== undefined) update.defaultTdsSection = req.body.defaultTdsSection || null;
+
+      const { update: newFieldsUpdate, error: newFieldsError } = validateNewFields(req.body);
+      if (newFieldsError) {
+        res.status(400).json({ message: newFieldsError });
+        return;
+      }
+      Object.assign(update, newFieldsUpdate);
 
       update.updatedBy = req.authContext!.email || req.authContext!.userId;
 

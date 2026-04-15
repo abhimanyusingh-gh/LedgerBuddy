@@ -30,7 +30,27 @@ const tenantComplianceConfigSchema = new Schema(
     signalSeverityOverrides: { type: Map, of: String, default: {} },
     defaultTdsSection: { type: String, default: null },
     defaultTcsRateBps: { type: Number, default: null },
-    updatedBy: { type: String, default: null }
+    updatedBy: { type: String, default: null },
+
+    maxInvoiceTotalMinor: { type: Number },
+    maxDueDays: { type: Number },
+    autoApprovalThreshold: { type: Number },
+    eInvoiceThresholdMinor: { type: Number },
+    msmePaymentWarningDays: { type: Number },
+    msmePaymentOverdueDays: { type: Number },
+    minimumExpectedTotalMinor: { type: Number },
+    riskSignalPenaltyCap: { type: Number },
+    ocrWeight: { type: Number },
+    completenessWeight: { type: Number },
+    warningPenalty: { type: Number },
+    warningPenaltyCap: { type: Number },
+    requiredFields: { type: [String] },
+    confidencePenaltyOverrides: { type: Map, of: Number },
+    reconciliationAutoMatchThreshold: { type: Number },
+    reconciliationSuggestThreshold: { type: Number },
+    reconciliationAmountToleranceMinor: { type: Number },
+    invoiceDateWindowDays: { type: Number },
+    defaultCurrency: { type: String }
   },
   { timestamps: true }
 );
@@ -39,5 +59,52 @@ tenantComplianceConfigSchema.index({ tenantId: 1 }, { unique: true });
 
 type TenantComplianceConfig = InferSchemaType<typeof tenantComplianceConfigSchema>;
 type TenantComplianceConfigDocument = HydratedDocument<TenantComplianceConfig>;
+
+export interface TenantComplianceConfigFields {
+  tenantId: string;
+  complianceEnabled?: boolean;
+  autoSuggestGlCodes?: boolean;
+  autoDetectTds?: boolean;
+  tdsEnabled?: boolean;
+  tdsRates?: Array<{
+    section: string;
+    description: string;
+    rateIndividual: number;
+    rateCompany: number;
+    rateNoPan: number;
+    threshold: number;
+    active: boolean;
+  }>;
+  panValidationEnabled?: boolean;
+  panValidationLevel?: "format" | "format_and_checksum" | "disabled";
+  riskSignalsEnabled?: boolean;
+  activeRiskSignals?: string[];
+  enabledSignals?: string[];
+  disabledSignals?: string[];
+  signalSeverityOverrides?: Record<string, string>;
+  defaultTdsSection?: string | null;
+  defaultTcsRateBps?: number | null;
+  updatedBy?: string | null;
+
+  maxInvoiceTotalMinor?: number;
+  maxDueDays?: number;
+  autoApprovalThreshold?: number;
+  eInvoiceThresholdMinor?: number;
+  msmePaymentWarningDays?: number;
+  msmePaymentOverdueDays?: number;
+  minimumExpectedTotalMinor?: number;
+  riskSignalPenaltyCap?: number;
+  ocrWeight?: number;
+  completenessWeight?: number;
+  warningPenalty?: number;
+  warningPenaltyCap?: number;
+  requiredFields?: string[];
+  confidencePenaltyOverrides?: Record<string, number>;
+  reconciliationAutoMatchThreshold?: number;
+  reconciliationSuggestThreshold?: number;
+  reconciliationAmountToleranceMinor?: number;
+  invoiceDateWindowDays?: number;
+  defaultCurrency?: string;
+}
 
 export const TenantComplianceConfigModel = model<TenantComplianceConfig>("TenantComplianceConfig", tenantComplianceConfigSchema);

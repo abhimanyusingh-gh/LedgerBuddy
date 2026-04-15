@@ -32,7 +32,8 @@
         "src/ai/extractors/invoice/pipeline/**/*.ts",
         "src/ai/extractors/bank/pipeline/**/*.ts",
         "src/ai/extractors/commonSteps/**/*.ts",
-        "src/core/pipeline/index.ts"
+        "src/core/pipeline/index.ts",
+        "src/models/integration/TenantComplianceConfig.ts"
       ]
     },
     "frontend": {
