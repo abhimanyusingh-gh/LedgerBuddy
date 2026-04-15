@@ -9,7 +9,7 @@ export async function resolveTenantComplianceConfig(
   return doc as unknown as TenantComplianceConfigFields;
 }
 
-export interface FreemailConfig {
+interface FreemailConfig {
   additionalFreemailDomains?: string[];
 }
 
@@ -23,7 +23,7 @@ export async function resolveFreemailConfig(
   return doc as unknown as FreemailConfig;
 }
 
-export interface LearningModeConfig {
+interface LearningModeConfig {
   learningMode?: "active" | "assistive";
 }
 
@@ -37,7 +37,7 @@ export async function resolveLearningModeConfig(
   return doc as unknown as LearningModeConfig;
 }
 
-export interface DefaultCurrencyConfig {
+interface DefaultCurrencyConfig {
   defaultCurrency?: string;
 }
 
@@ -51,7 +51,7 @@ export async function resolveDefaultCurrencyConfig(
   return doc as unknown as DefaultCurrencyConfig;
 }
 
-export interface TdsRatesConfig {
+interface TdsRatesConfig {
   tdsRates?: TenantComplianceConfigFields["tdsRates"];
 }
 
@@ -65,7 +65,7 @@ export async function resolveTdsRatesConfig(
   return doc as unknown as TdsRatesConfig;
 }
 
-export interface ApprovalLimitConfig {
+interface ApprovalLimitConfig {
   approvalLimitOverrides?: Record<string, number>;
 }
 
