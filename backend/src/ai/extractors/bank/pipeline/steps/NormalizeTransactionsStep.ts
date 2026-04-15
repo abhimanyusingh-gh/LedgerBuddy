@@ -4,6 +4,7 @@ import type {
   SlmBankStatementOutput,
   BankStatementTransaction,
 } from "@/ai/extractors/bank/BankStatementDocumentDefinition.js";
+import { parseAmountToken } from "@/ai/parsers/amountParser.js";
 import { BANK_CTX } from "@/ai/extractors/bank/pipeline/contextKeys.js";
 
 export interface ParsedTransaction {
@@ -15,13 +16,6 @@ export interface ParsedTransaction {
   balanceMinor?: number;
 }
 
-/**
- * Validates and normalizes raw SLM transaction output:
- * - Validates each transaction has date, description, and at least one amount
- * - Normalizes dates to ISO 8601 (YYYY-MM-DD)
- * - Converts amounts from major units to minor units (paise/cents)
- * - Collects warnings for skipped transactions
- */
 export class NormalizeTransactionsStep implements PipelineStep {
   readonly name = "normalize-transactions";
 
@@ -91,33 +85,12 @@ function normalizeSlmAmount(value: unknown): number | null {
   }
 
   if (typeof value === "string") {
-    return parseAmountToMinor(value);
+    const major = parseAmountToken(value);
+    if (major === null || major === 0) return null;
+    return Math.round(Math.abs(major) * 100);
   }
 
   return null;
-}
-
-function parseAmountToMinor(value: string | undefined): number | null {
-  if (!value) return null;
-  const cleaned = value.replace(/[^0-9.,\-]/g, "").trim();
-  if (!cleaned) return null;
-
-  let normalized = cleaned;
-  if (normalized.includes(",") && normalized.includes(".")) {
-    if (normalized.lastIndexOf(",") > normalized.lastIndexOf(".")) {
-      normalized = normalized.replace(/\./g, "").replace(",", ".");
-    } else {
-      normalized = normalized.replace(/,/g, "");
-    }
-  } else if (normalized.includes(",")) {
-    const parts = normalized.split(",");
-    const lastPart = parts[parts.length - 1];
-    normalized = lastPart.length <= 2 ? normalized.replace(",", ".") : normalized.replace(/,/g, "");
-  }
-
-  const parsed = Number(normalized);
-  if (!Number.isFinite(parsed) || parsed === 0) return null;
-  return Math.round(Math.abs(parsed) * 100);
 }
 
 function parseDateString(value: string): Date | undefined {

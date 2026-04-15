@@ -1,5 +1,6 @@
 import { ADDRESS_SIGNAL_PATTERN, PAN_FORMAT, GSTIN_FORMAT, extractPanFromGstin } from "@/constants/indianCompliance.js";
 import type { ParsedInvoiceData } from "@/types/invoice.js";
+import { parseAmountToken } from "@/ai/parsers/amountParser.js";
 
 interface DeterministicValidationInput {
   parsed: ParsedInvoiceData;
@@ -154,43 +155,11 @@ function detectInvalidTotalPrecision(text?: string): boolean {
 }
 
 function parseAmountMinor(raw: string): number | undefined {
-  const sanitized = raw.replace(/\s+/g, "");
-  if (!sanitized) {
+  const major = parseAmountToken(raw);
+  if (major === null || major === 0) {
     return undefined;
   }
-
-  let normalized = sanitized.replace(/[^0-9,.\-+]/g, "");
-  if (!normalized) {
-    return undefined;
-  }
-
-  const negative = normalized.startsWith("-");
-  normalized = normalized.replace(/^[+-]/, "");
-
-  if (normalized.includes(",") && normalized.includes(".")) {
-    if (normalized.lastIndexOf(",") > normalized.lastIndexOf(".")) {
-      normalized = normalized.replace(/\./g, "").replace(",", ".");
-    } else {
-      normalized = normalized.replace(/,/g, "");
-    }
-  } else if (normalized.includes(",")) {
-    const commaParts = normalized.split(",");
-    const isIndian = commaParts.length >= 3 && commaParts[commaParts.length - 1].length === 3 &&
-      commaParts.slice(1, -1).every((segment) => segment.length === 2);
-    if (isIndian) {
-      normalized = commaParts.join("");
-    } else {
-      const fractionalDigits = commaParts.at(-1)?.length ?? 0;
-      normalized = fractionalDigits <= 2 ? normalized.replace(",", ".") : normalized.replace(/,/g, "");
-    }
-  }
-
-  const parsed = Number(normalized);
-  if (!Number.isFinite(parsed) || parsed <= 0) {
-    return undefined;
-  }
-
-  const minor = Math.round(parsed * 100);
-  return negative ? -minor : minor;
+  const minor = Math.round(Math.abs(major) * 100);
+  return major < 0 ? -minor : minor;
 }
 

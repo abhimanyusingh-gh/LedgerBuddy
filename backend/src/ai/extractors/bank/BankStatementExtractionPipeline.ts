@@ -3,6 +3,7 @@ import type { DocumentMimeType } from "@/types/mime.js";
 import { BankStatementModel, BANK_STATEMENT_SOURCE, type BankStatementSource } from "@/models/bank/BankStatement.js";
 import { BankTransactionModel, BANK_TRANSACTION_SOURCE, type BankTransactionSource } from "@/models/bank/BankTransaction.js";
 import { logger } from "@/utils/logger.js";
+import { parseAmountToken } from "@/ai/parsers/amountParser.js";
 import type { OcrProvider } from "@/core/interfaces/OcrProvider.js";
 import type { FieldVerifier } from "@/core/interfaces/FieldVerifier.js";
 import type { BankParseProgressEvent } from "@/ai/extractors/bank/BankStatementParseProgress.js";
@@ -246,25 +247,9 @@ function parseCsvLine(line: string): string[] {
 
 function parseAmountToMinor(value: string | undefined): number | null {
   if (!value) return null;
-  const cleaned = value.replace(/[^0-9.,\-]/g, "").trim();
-  if (!cleaned) return null;
-
-  let normalized = cleaned;
-  if (normalized.includes(",") && normalized.includes(".")) {
-    if (normalized.lastIndexOf(",") > normalized.lastIndexOf(".")) {
-      normalized = normalized.replace(/\./g, "").replace(",", ".");
-    } else {
-      normalized = normalized.replace(/,/g, "");
-    }
-  } else if (normalized.includes(",")) {
-    const parts = normalized.split(",");
-    const lastPart = parts[parts.length - 1];
-    normalized = lastPart.length <= 2 ? normalized.replace(",", ".") : normalized.replace(/,/g, "");
-  }
-
-  const parsed = Number(normalized);
-  if (!Number.isFinite(parsed) || parsed === 0) return null;
-  return Math.round(Math.abs(parsed) * 100);
+  const major = parseAmountToken(value);
+  if (major === null || major === 0) return null;
+  return Math.round(Math.abs(major) * 100);
 }
 
 function parseDateString(value: string): Date | undefined {

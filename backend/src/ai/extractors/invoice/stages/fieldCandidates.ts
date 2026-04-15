@@ -3,7 +3,7 @@ import type { OcrBlock } from "@/core/interfaces/OcrProvider.js";
 import type { ParsedInvoiceData } from "@/types/invoice.js";
 import type { VendorTemplateSnapshot } from "@/ai/extractors/invoice/learning/vendorTemplateStore.js";
 import { currencyBySymbol, parseAmountToken } from "@/ai/parsers/invoiceParser.js";
-import { buildDateTerms } from "@/ai/extractors/stages/fieldParsingUtils.js";
+import { candidateTerms } from "@/ai/extractors/stages/fieldParsingUtils.js";
 const WEAK_VENDOR_RE =
   /\b(currency|invoice|total|amount|date|due|tax|gst|vat|number|booking|booking id|customer|bill to|ship to|company legal name|company trade name|trade name|legal name|hsn\/sac|beneficiary|bank account|ifsc|swift|micr)\b/i;
 const COUNTRY_LINE_RE = /\b(united states|united kingdom|india|singapore|australia|canada|germany|france)\b/i;
@@ -105,42 +105,6 @@ export function buildFieldRegions(
   }
 
   return regions;
-}
-
-function candidateTerms(field: string, value: string): string[] {
-  const base = value.trim().toLowerCase();
-  if (!base) {
-    return [];
-  }
-
-  if ((field === "invoiceDate" || field === "dueDate") && /^\d{4}-\d{2}-\d{2}$/.test(base)) {
-    const d = new Date(base);
-    return isNaN(d.getTime()) ? [base] : buildDateTerms(d);
-  }
-
-  if (field !== "totalAmountMinor") {
-    return [base];
-  }
-
-  const amount = Number(base);
-  if (!Number.isFinite(amount) || amount <= 0) {
-    return [base];
-  }
-
-  const withDecimals = amount.toFixed(2);
-  const noDecimals = Number.isInteger(amount) ? String(amount) : "";
-  const digitsOnly = base.replace(/[^0-9]/g, "");
-
-  const terms: string[] = [];
-  const seen = new Set<string>();
-  for (const raw of [base, withDecimals, noDecimals, digitsOnly]) {
-    const entry = raw.trim().toLowerCase();
-    if (entry.length >= 3 && !seen.has(entry)) {
-      seen.add(entry);
-      terms.push(entry);
-    }
-  }
-  return terms;
 }
 
 function collectMatches(text: string, pattern: RegExp): string[] {
