@@ -8,7 +8,6 @@ import { logger } from "@/utils/logger.js";
 import type { ComplianceEnricher, ComplianceEnrichContext, ComplianceResult } from "@/services/compliance/ComplianceEnricher.js";
 import { emptyComplianceResult } from "@/services/compliance/ComplianceEnricher.js";
 import { resolveTenantComplianceConfig, resolveFreemailConfig } from "@/services/compliance/tenantConfigResolver.js";
-import type { UUID } from "@/types/uuid.js";
 import { PanValidationService } from "@/services/compliance/PanValidationService.js";
 import { VendorMasterService } from "@/services/compliance/VendorMasterService.js";
 import { TdsCalculationService } from "@/services/compliance/TdsCalculationService.js";
