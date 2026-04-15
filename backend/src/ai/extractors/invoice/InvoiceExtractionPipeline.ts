@@ -66,6 +66,7 @@ import { type ExtractionSource } from "@/core/engine/extractionSource.js";
 import { PIPELINE_ERROR_CODE, type PipelineErrorCode } from "@/core/engine/types.js";
 import { LEARNING_MODE, type LearningMode } from "@/types/pipeline.js";
 import type { UUID } from "@/types/uuid.js";
+import { TenantComplianceConfigModel } from "@/models/integration/TenantComplianceConfig.js";
 
 interface ExtractionPipelineInput {
   tenantId: UUID;
@@ -103,7 +104,7 @@ export class InvoiceExtractionPipeline {
   private readonly learningStore?: ExtractionLearningStore;
   private readonly complianceEnricher?: ComplianceEnricher;
   private readonly mappingService?: ExtractionMappingService;
-  private readonly learningMode: LearningMode;
+  private readonly defaultLearningMode: LearningMode;
   private readonly llamaExtractEnabled: boolean;
 
   constructor(deps: ExtractionPipelineDeps, options?: ExtractionPipelineOptions) {
@@ -113,7 +114,7 @@ export class InvoiceExtractionPipeline {
     this.learningStore = deps.learningStore;
     this.complianceEnricher = deps.complianceEnricher;
     this.mappingService = deps.mappingService;
-    this.learningMode = options?.learningMode ?? LEARNING_MODE.ASSISTIVE;
+    this.defaultLearningMode = options?.learningMode ?? LEARNING_MODE.ASSISTIVE;
     this.llamaExtractEnabled = options?.llamaExtractEnabled ?? false;
   }
 
@@ -138,8 +139,12 @@ export class InvoiceExtractionPipeline {
     metadata.layoutSignature = fingerprint.layoutSignature;
     metadata.vendorContentHash = fingerprint.hash;
 
-    const template = await this.templateStore.findByFingerprint(input.tenantId, fingerprint.key);
+    const [template, tenantLearningMode] = await Promise.all([
+      this.templateStore.findByFingerprint(input.tenantId, fingerprint.key),
+      this.resolveLearningMode(input.tenantId)
+    ]);
     metadata.vendorTemplateMatched = template ? "true" : "false";
+    metadata.learningMode = tenantLearningMode;
 
     const preOcrLanguage = detectInvoiceLanguageBeforeOcr(input);
     const preOcrLanguageHint = resolvePreOcrLanguageHint(preOcrLanguage, input.mimeType);
@@ -242,6 +247,14 @@ export class InvoiceExtractionPipeline {
 
     const postEngineResult = await postEnginePipeline.executeWithContext(ctx);
     return postEngineResult.output;
+  }
+
+  private async resolveLearningMode(tenantId: UUID): Promise<LearningMode> {
+    const config = await TenantComplianceConfigModel.findOne({ tenantId })
+      .select({ learningMode: 1 })
+      .lean();
+    const tenantMode = (config as Record<string, unknown> | null)?.learningMode as LearningMode | undefined;
+    return tenantMode ?? this.defaultLearningMode;
   }
 
 }

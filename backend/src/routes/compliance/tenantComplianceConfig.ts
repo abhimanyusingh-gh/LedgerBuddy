@@ -66,7 +66,10 @@ const newFieldsSchema = z.object({
   reconciliationSuggestThreshold: z.number().int().min(0).max(100).optional(),
   reconciliationAmountToleranceMinor: z.number().int().min(0).optional(),
   invoiceDateWindowDays: z.number().int().min(1).max(7300).optional(),
-  defaultCurrency: z.string().length(3).regex(/^[A-Z]{3}$/).optional()
+  defaultCurrency: z.string().length(3).regex(/^[A-Z]{3}$/).optional(),
+  approvalLimitOverrides: z.record(z.string().min(1), z.number().int().min(0)).optional(),
+  additionalFreemailDomains: z.array(z.string().min(1).regex(/^[a-z0-9.-]+\.[a-z]{2,}$/)).optional(),
+  learningMode: z.enum(["active", "assistive"]).optional()
 }).strict();
 
 const NEW_FIELD_KEYS = Object.keys(newFieldsSchema.shape) as Array<keyof z.infer<typeof newFieldsSchema>>;

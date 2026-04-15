@@ -311,7 +311,7 @@ export class ComplianceEnrichmentService implements ComplianceEnricher {
           if (vendor && vendor.emailDomains && vendor.emailDomains.length > 0) {
             const knownDomains = new Set(vendor.emailDomains.map((d: string) => d.toLowerCase()));
             if (!knownDomains.has(domain)) {
-              const freemailDomains = new Set(["gmail.com", "yahoo.com", "outlook.com", "hotmail.com", "aol.com"]);
+              const freemailDomains = await this.resolveFreemailDomains(tenantId);
               if (freemailDomains.has(domain) && vendor.emailDomains.some((d: string) => !freemailDomains.has(d.toLowerCase()))) {
                 riskSignals.push(createRiskSignal(
                   "SENDER_FREEMAIL",
@@ -344,6 +344,18 @@ export class ComplianceEnrichmentService implements ComplianceEnricher {
     } catch (error) {
       processingIssues.push(`Compliance: Email sender detection failed — ${error instanceof Error ? error.message : String(error)}`);
     }
+  }
+
+  private async resolveFreemailDomains(tenantId: string): Promise<Set<string>> {
+    const systemDefaults = ["gmail.com", "yahoo.com", "outlook.com", "hotmail.com", "aol.com"];
+    const config = await TenantComplianceConfigModel.findOne({ tenantId })
+      .select({ additionalFreemailDomains: 1 })
+      .lean();
+    const additional = (config as Record<string, unknown> | null)?.additionalFreemailDomains as string[] | undefined;
+    if (additional && additional.length > 0) {
+      return new Set([...systemDefaults, ...additional.map(d => d.toLowerCase())]);
+    }
+    return new Set(systemDefaults);
   }
 
   private async enrichDuplicateDetection(

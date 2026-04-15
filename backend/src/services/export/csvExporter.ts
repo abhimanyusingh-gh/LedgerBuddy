@@ -3,6 +3,7 @@ import { minorUnitsToMajorString } from "@/utils/currency.js";
 import { isRecord } from "@/utils/validation.js";
 import { INVOICE_STATUS } from "@/types/invoice.js";
 import { buildCsvExportConfig } from "@/services/export/tenantExportConfigResolver.js";
+import { TenantComplianceConfigModel } from "@/models/integration/TenantComplianceConfig.js";
 
 const DEFAULT_COLUMNS = [
   "invoiceNumber", "vendorName", "invoiceDate", "dueDate",
@@ -35,6 +36,15 @@ export async function generateCsvExport(
 
   if (!cols) cols = DEFAULT_COLUMNS;
 
+  let tenantDefaultCurrency = "INR";
+  if (tenantId) {
+    const complianceConfig = await TenantComplianceConfigModel.findOne({ tenantId })
+      .select({ defaultCurrency: 1 })
+      .lean();
+    const configCurrency = (complianceConfig as Record<string, unknown> | null)?.defaultCurrency as string | undefined;
+    if (configCurrency) tenantDefaultCurrency = configCurrency;
+  }
+
   let skippedCount = 0;
 
   const effectiveHeaders = headerOverrides ? { ...COLUMN_HEADERS, ...headerOverrides } : COLUMN_HEADERS;
@@ -53,7 +63,7 @@ export async function generateCsvExport(
     const gl = isRecord(compliance?.glCode) ? compliance.glCode : undefined;
     const cc = isRecord(compliance?.costCenter) ? compliance.costCenter : undefined;
     const pan = isRecord(compliance?.pan) ? compliance.pan : undefined;
-    const currency = inv.parsed?.currency ?? "INR";
+    const currency = inv.parsed?.currency ?? tenantDefaultCurrency;
 
     const values: Record<string, string> = {
       invoiceNumber: inv.parsed?.invoiceNumber ?? "",

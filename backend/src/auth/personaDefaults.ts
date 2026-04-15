@@ -164,3 +164,15 @@ export function mergeCapabilitiesWithDefaults(
   );
   return { ...defaults, ...filtered } as UserCapabilities;
 }
+
+export function applyApprovalLimitOverrides(
+  capabilities: UserCapabilities,
+  role: string,
+  overrides: Record<string, number> | undefined | null
+): UserCapabilities {
+  if (!overrides) return capabilities;
+  const normalized = normalizeTenantRole(role);
+  const overrideValue = overrides[normalized];
+  if (overrideValue === undefined) return capabilities;
+  return { ...capabilities, approvalLimitMinor: overrideValue };
+}

@@ -981,6 +981,188 @@ describe("compliance config routes", () => {
     });
   });
 
+  describe("PUT /admin/compliance-config — approval limit overrides", () => {
+    it("accepts valid approvalLimitOverrides map", async () => {
+      const router = createTenantComplianceConfigRouter();
+      const handler = findHandler(router, "put", "/admin/compliance-config");
+      const res = mockResponse();
+
+      await handler(
+        mockRequest({
+          authContext: defaultAuth,
+          body: {
+            approvalLimitOverrides: {
+              ap_clerk: 20000000,
+              senior_accountant: 200000000
+            }
+          }
+        }),
+        res,
+        nextFn
+      );
+
+      expect(res.statusCode).toBe(200);
+      const body = res.jsonBody as Record<string, unknown>;
+      const overrides = body.approvalLimitOverrides as Record<string, number>;
+      expect(overrides.ap_clerk).toBe(20000000);
+      expect(overrides.senior_accountant).toBe(200000000);
+    });
+
+    it("rejects negative approval limit override", async () => {
+      const router = createTenantComplianceConfigRouter();
+      const handler = findHandler(router, "put", "/admin/compliance-config");
+      const res = mockResponse();
+
+      await handler(
+        mockRequest({
+          authContext: defaultAuth,
+          body: {
+            approvalLimitOverrides: { ap_clerk: -100 }
+          }
+        }),
+        res,
+        nextFn
+      );
+
+      expect(res.statusCode).toBe(400);
+    });
+
+    it("rejects non-integer approval limit override", async () => {
+      const router = createTenantComplianceConfigRouter();
+      const handler = findHandler(router, "put", "/admin/compliance-config");
+      const res = mockResponse();
+
+      await handler(
+        mockRequest({
+          authContext: defaultAuth,
+          body: {
+            approvalLimitOverrides: { ap_clerk: 99.5 }
+          }
+        }),
+        res,
+        nextFn
+      );
+
+      expect(res.statusCode).toBe(400);
+    });
+  });
+
+  describe("PUT /admin/compliance-config — additional freemail domains", () => {
+    it("accepts valid additional freemail domains", async () => {
+      const router = createTenantComplianceConfigRouter();
+      const handler = findHandler(router, "put", "/admin/compliance-config");
+      const res = mockResponse();
+
+      await handler(
+        mockRequest({
+          authContext: defaultAuth,
+          body: {
+            additionalFreemailDomains: ["protonmail.com", "zoho.com"]
+          }
+        }),
+        res,
+        nextFn
+      );
+
+      expect(res.statusCode).toBe(200);
+      const body = res.jsonBody as Record<string, unknown>;
+      expect(body.additionalFreemailDomains).toEqual(["protonmail.com", "zoho.com"]);
+    });
+
+    it("rejects invalid domain format", async () => {
+      const router = createTenantComplianceConfigRouter();
+      const handler = findHandler(router, "put", "/admin/compliance-config");
+      const res = mockResponse();
+
+      await handler(
+        mockRequest({
+          authContext: defaultAuth,
+          body: {
+            additionalFreemailDomains: ["not a domain"]
+          }
+        }),
+        res,
+        nextFn
+      );
+
+      expect(res.statusCode).toBe(400);
+    });
+
+    it("rejects empty string in freemail domains", async () => {
+      const router = createTenantComplianceConfigRouter();
+      const handler = findHandler(router, "put", "/admin/compliance-config");
+      const res = mockResponse();
+
+      await handler(
+        mockRequest({
+          authContext: defaultAuth,
+          body: {
+            additionalFreemailDomains: [""]
+          }
+        }),
+        res,
+        nextFn
+      );
+
+      expect(res.statusCode).toBe(400);
+    });
+  });
+
+  describe("PUT /admin/compliance-config — learning mode", () => {
+    it("accepts valid learning mode 'active'", async () => {
+      const router = createTenantComplianceConfigRouter();
+      const handler = findHandler(router, "put", "/admin/compliance-config");
+      const res = mockResponse();
+
+      await handler(
+        mockRequest({
+          authContext: defaultAuth,
+          body: { learningMode: "active" }
+        }),
+        res,
+        nextFn
+      );
+
+      expect(res.statusCode).toBe(200);
+      expect((res.jsonBody as Record<string, unknown>).learningMode).toBe("active");
+    });
+
+    it("accepts valid learning mode 'assistive'", async () => {
+      const router = createTenantComplianceConfigRouter();
+      const handler = findHandler(router, "put", "/admin/compliance-config");
+      const res = mockResponse();
+
+      await handler(
+        mockRequest({
+          authContext: defaultAuth,
+          body: { learningMode: "assistive" }
+        }),
+        res,
+        nextFn
+      );
+
+      expect(res.statusCode).toBe(200);
+      expect((res.jsonBody as Record<string, unknown>).learningMode).toBe("assistive");
+    });
+
+    it("rejects invalid learning mode", async () => {
+      const router = createTenantComplianceConfigRouter();
+      const handler = findHandler(router, "put", "/admin/compliance-config");
+      const res = mockResponse();
+
+      await handler(
+        mockRequest({
+          authContext: defaultAuth,
+          body: { learningMode: "invalid" }
+        }),
+        res,
+        nextFn
+      );
+
+      expect(res.statusCode).toBe(400);
+    });
+  });
+
   describe("GET /compliance/tds-sections", () => {
     it("returns default TDS sections", async () => {
       const router = createTenantComplianceConfigRouter();

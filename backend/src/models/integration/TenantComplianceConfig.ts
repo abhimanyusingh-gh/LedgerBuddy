@@ -50,7 +50,10 @@ const tenantComplianceConfigSchema = new Schema(
     reconciliationSuggestThreshold: { type: Number },
     reconciliationAmountToleranceMinor: { type: Number },
     invoiceDateWindowDays: { type: Number },
-    defaultCurrency: { type: String }
+    defaultCurrency: { type: String },
+    approvalLimitOverrides: { type: Map, of: Number },
+    additionalFreemailDomains: { type: [String], default: undefined },
+    learningMode: { type: String, enum: ["active", "assistive"], default: undefined }
   },
   { timestamps: true }
 );
@@ -105,6 +108,9 @@ export interface TenantComplianceConfigFields {
   reconciliationAmountToleranceMinor?: number;
   invoiceDateWindowDays?: number;
   defaultCurrency?: string;
+  approvalLimitOverrides?: Record<string, number>;
+  additionalFreemailDomains?: string[];
+  learningMode?: "active" | "assistive";
 }
 
 export const TenantComplianceConfigModel = model<TenantComplianceConfig>("TenantComplianceConfig", tenantComplianceConfigSchema);

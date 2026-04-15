@@ -1,7 +1,8 @@
 import type { Request, Response, NextFunction } from "express";
 import { TenantUserRoleModel } from "@/models/core/TenantUserRole.js";
+import { TenantComplianceConfigModel } from "@/models/integration/TenantComplianceConfig.js";
 import type { AuthenticatedRequestContext } from "@/types/auth.js";
-import { getRoleDefaults, mergeCapabilitiesWithDefaults, type UserCapabilities } from "@/auth/personaDefaults.js";
+import { getRoleDefaults, mergeCapabilitiesWithDefaults, applyApprovalLimitOverrides, type UserCapabilities } from "@/auth/personaDefaults.js";
 
 const capabilitiesCache = new WeakMap<Request, UserCapabilities>();
 
@@ -12,16 +13,28 @@ async function resolveCapabilitiesForContext(
     return getRoleDefaults("PLATFORM_ADMIN");
   }
 
-  const roleDoc = await TenantUserRoleModel.findOne({
-    tenantId: context.tenantId,
-    userId: context.userId
-  }).lean();
+  const [roleDoc, complianceConfig] = await Promise.all([
+    TenantUserRoleModel.findOne({
+      tenantId: context.tenantId,
+      userId: context.userId
+    }).lean(),
+    TenantComplianceConfigModel.findOne({ tenantId: context.tenantId })
+      .select({ approvalLimitOverrides: 1 })
+      .lean()
+  ]);
 
   const rawRoleDoc = roleDoc as Record<string, unknown> | null;
   const storedCaps = rawRoleDoc?.capabilities as Record<string, unknown> | null | undefined;
   const roleForDefaults = typeof rawRoleDoc?.role === "string" ? rawRoleDoc.role : context.role;
 
-  return mergeCapabilitiesWithDefaults(roleForDefaults, storedCaps);
+  const capabilities = mergeCapabilitiesWithDefaults(roleForDefaults, storedCaps);
+
+  const overridesRaw = (complianceConfig as Record<string, unknown> | null)?.approvalLimitOverrides;
+  const overrides = overridesRaw instanceof Map
+    ? Object.fromEntries(overridesRaw)
+    : overridesRaw as Record<string, number> | undefined;
+
+  return applyApprovalLimitOverrides(capabilities, roleForDefaults, overrides);
 }
 
 export async function resolveCapabilities(req: Request): Promise<UserCapabilities> {

@@ -1,3 +1,13 @@
+jest.mock("@/models/integration/TenantComplianceConfig.js", () => ({
+  TenantComplianceConfigModel: {
+    findOne: jest.fn(() => ({
+      select: jest.fn().mockReturnValue({
+        lean: jest.fn().mockResolvedValue(null)
+      })
+    }))
+  }
+}));
+
 import type { FieldVerifier, FieldVerifierInput, FieldVerifierResult } from "@/core/interfaces/FieldVerifier.ts";
 import type { OcrBlock, OcrProvider } from "@/core/interfaces/OcrProvider.ts";
 import { InvoiceExtractionPipeline } from "@/ai/extractors/invoice/InvoiceExtractionPipeline.ts";

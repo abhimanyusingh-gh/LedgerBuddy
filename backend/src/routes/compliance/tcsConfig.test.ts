@@ -5,6 +5,15 @@ import { TenantUserRoleModel } from "@/models/core/TenantUserRole.ts";
 import { requireCap } from "@/auth/requireCapability.ts";
 
 jest.mock("../../models/integration/TenantTcsConfig.ts");
+jest.mock("../../models/integration/TenantComplianceConfig.ts", () => ({
+  TenantComplianceConfigModel: {
+    findOne: jest.fn(() => ({
+      select: jest.fn().mockReturnValue({
+        lean: jest.fn().mockResolvedValue(null)
+      })
+    }))
+  }
+}));
 jest.mock("../../models/core/TenantUserRole.ts", () => {
   const actual = jest.requireActual("../../models/core/TenantUserRole.ts");
   return {
