@@ -1,11 +1,5 @@
-jest.mock("@/models/integration/TenantComplianceConfig.js", () => ({
-  TenantComplianceConfigModel: {
-    findOne: jest.fn(() => ({
-      select: jest.fn().mockReturnValue({
-        lean: jest.fn().mockResolvedValue(null)
-      })
-    }))
-  }
+jest.mock("@/services/compliance/tenantConfigResolver.js", () => ({
+  resolveTenantComplianceConfig: jest.fn(async () => null)
 }));
 
 import type { FieldVerifier, FieldVerifierInput, FieldVerifierResult } from "@/core/interfaces/FieldVerifier.ts";
@@ -13,9 +7,7 @@ import type { OcrBlock, OcrProvider } from "@/core/interfaces/OcrProvider.ts";
 import { InvoiceExtractionPipeline } from "@/ai/extractors/invoice/InvoiceExtractionPipeline.ts";
 import type { VendorTemplateStore } from "@/ai/extractors/invoice/learning/vendorTemplateStore.ts";
 import { EXTRACTION_SOURCE } from "@/core/engine/extractionSource.ts";
-import { TenantComplianceConfigModel } from "@/models/integration/TenantComplianceConfig.ts";
-
-jest.mock("@/models/integration/TenantComplianceConfig.ts");
+import { resolveTenantComplianceConfig } from "@/services/compliance/tenantConfigResolver.ts";
 
 function makeBlock(text: string, bboxNormalized: [number, number, number, number], page = 1): OcrBlock {
   return {
@@ -83,7 +75,7 @@ const defaultInput = {
 
 describe("InvoiceExtractionPipeline", () => {
   beforeEach(() => {
-    (TenantComplianceConfigModel.findOne as jest.Mock).mockReturnValue({ lean: jest.fn().mockResolvedValue(null) });
+    (resolveTenantComplianceConfig as jest.Mock).mockResolvedValue(null);
   });
 
   it("calls OCR and SLM verifier once, returns parsed invoice data", async () => {
@@ -161,5 +153,38 @@ describe("InvoiceExtractionPipeline", () => {
     expect(result.metadata.preOcrLanguage).toBeTruthy();
     expect(result.confidenceAssessment).toBeDefined();
     expect(result.processingIssues).toBeInstanceOf(Array);
+  });
+
+  it("fetches tenant compliance config once and stores in context", async () => {
+    const mockConfig = { tenantId: "tenant-1", complianceEnabled: true, learningMode: "active" };
+    (resolveTenantComplianceConfig as jest.Mock).mockResolvedValue(mockConfig);
+
+    const { ocrProvider, fieldVerifier, templateStore } = buildDeps();
+
+    const pipeline = new InvoiceExtractionPipeline(
+      { ocrProvider, fieldVerifier, templateStore },
+      {}
+    );
+
+    const result = await pipeline.extract(defaultInput);
+
+    expect(resolveTenantComplianceConfig).toHaveBeenCalledTimes(1);
+    expect(resolveTenantComplianceConfig).toHaveBeenCalledWith("tenant-1");
+    expect(result.metadata.learningMode).toBe("active");
+  });
+
+  it("uses default learning mode when tenant config returns null", async () => {
+    (resolveTenantComplianceConfig as jest.Mock).mockResolvedValue(null);
+
+    const { ocrProvider, fieldVerifier, templateStore } = buildDeps();
+
+    const pipeline = new InvoiceExtractionPipeline(
+      { ocrProvider, fieldVerifier, templateStore },
+      { learningMode: "assistive" }
+    );
+
+    const result = await pipeline.extract(defaultInput);
+
+    expect(result.metadata.learningMode).toBe("assistive");
   });
 });

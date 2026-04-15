@@ -1,6 +1,6 @@
 import type { Request, Response, NextFunction } from "express";
 import { TenantUserRoleModel } from "@/models/core/TenantUserRole.js";
-import { TenantComplianceConfigModel } from "@/models/integration/TenantComplianceConfig.js";
+import { resolveApprovalLimitConfig } from "@/services/compliance/tenantConfigResolver.js";
 import type { AuthenticatedRequestContext } from "@/types/auth.js";
 import { getRoleDefaults, mergeCapabilitiesWithDefaults, applyApprovalLimitOverrides, type UserCapabilities } from "@/auth/personaDefaults.js";
 
@@ -13,14 +13,12 @@ async function resolveCapabilitiesForContext(
     return getRoleDefaults("PLATFORM_ADMIN");
   }
 
-  const [roleDoc, complianceConfig] = await Promise.all([
+  const [roleDoc, approvalConfig] = await Promise.all([
     TenantUserRoleModel.findOne({
       tenantId: context.tenantId,
       userId: context.userId
     }).lean(),
-    TenantComplianceConfigModel.findOne({ tenantId: context.tenantId })
-      .select({ approvalLimitOverrides: 1 })
-      .lean()
+    resolveApprovalLimitConfig(context.tenantId)
   ]);
 
   const rawRoleDoc = roleDoc as Record<string, unknown> | null;
@@ -29,10 +27,7 @@ async function resolveCapabilitiesForContext(
 
   const capabilities = mergeCapabilitiesWithDefaults(roleForDefaults, storedCaps);
 
-  const overridesRaw = (complianceConfig as Record<string, unknown> | null)?.approvalLimitOverrides;
-  const overrides = overridesRaw instanceof Map
-    ? Object.fromEntries(overridesRaw)
-    : overridesRaw as Record<string, number> | undefined;
+  const overrides = approvalConfig?.approvalLimitOverrides;
 
   return applyApprovalLimitOverrides(capabilities, roleForDefaults, overrides);
 }

@@ -1,7 +1,7 @@
 import { PAN_FORMAT, derivePanCategory } from "@/constants/indianCompliance.js";
 import { TdsRateTableModel } from "@/models/compliance/TdsRateTable.js";
 import { TdsSectionMappingModel } from "@/models/compliance/TdsSectionMapping.js";
-import { TenantComplianceConfigModel } from "@/models/integration/TenantComplianceConfig.js";
+import { resolveTdsRatesConfig } from "@/services/compliance/tenantConfigResolver.js";
 import type { ComplianceTdsResult, ComplianceRiskSignal, ParsedInvoiceData } from "@/types/invoice.js";
 import { TDS_CONFIDENCE, type TdsConfidence } from "@/types/invoice.js";
 import { createRiskSignal } from "@/services/compliance/riskSignalFactory.js";
@@ -65,9 +65,9 @@ export class TdsCalculationService {
     tenantId?: string
   ): Promise<TdsRateLookup | null> {
     if (tenantId) {
-      const tenantConfig = await TenantComplianceConfigModel.findOne({ tenantId }).lean();
+      const tenantConfig = await resolveTdsRatesConfig(tenantId);
       if (tenantConfig && tenantConfig.tdsRates && tenantConfig.tdsRates.length > 0) {
-        const entry = tenantConfig.tdsRates.find((r) => r.section === section);
+        const entry = tenantConfig.tdsRates.find((r: { section: string }) => r.section === section);
         if (entry) {
           if (!entry.active) return null;
 

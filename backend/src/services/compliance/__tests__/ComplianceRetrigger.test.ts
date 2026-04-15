@@ -1,12 +1,14 @@
 import { TdsCalculationService } from "@/services/compliance/TdsCalculationService";
 import { TdsSectionMappingModel } from "@/models/compliance/TdsSectionMapping";
 import { TdsRateTableModel } from "@/models/compliance/TdsRateTable";
-import { TenantComplianceConfigModel } from "@/models/integration/TenantComplianceConfig";
+import { resolveTdsRatesConfig } from "@/services/compliance/tenantConfigResolver";
 import type { ParsedInvoiceData } from "@/types/invoice";
 
 jest.mock("../../../models/compliance/TdsSectionMapping");
 jest.mock("../../../models/compliance/TdsRateTable");
-jest.mock("../../../models/integration/TenantComplianceConfig");
+jest.mock("@/services/compliance/tenantConfigResolver", () => ({
+  resolveTdsRatesConfig: jest.fn()
+}));
 
 const tdsService = new TdsCalculationService();
 
@@ -17,15 +19,11 @@ function mockSectionMapping(section: string, priority = 10) {
 }
 
 function mockNoTenantConfig() {
-  (TenantComplianceConfigModel.findOne as jest.Mock).mockReturnValue({
-    lean: () => Promise.resolve(null)
-  });
+  (resolveTdsRatesConfig as jest.Mock).mockResolvedValue(null);
 }
 
 function mockTenantConfigWithRates(rates: object[]) {
-  (TenantComplianceConfigModel.findOne as jest.Mock).mockReturnValue({
-    lean: () => Promise.resolve({ tdsRates: rates })
-  });
+  (resolveTdsRatesConfig as jest.Mock).mockResolvedValue({ tdsRates: rates });
 }
 
 describe("Compliance Retrigger", () => {
@@ -290,7 +288,7 @@ describe("Compliance Retrigger", () => {
       const result = await tdsService.lookupRate("194J", "P");
       expect(result).not.toBeNull();
       expect(result!.rateBps).toBe(1000);
-      expect(TenantComplianceConfigModel.findOne).not.toHaveBeenCalled();
+      expect(resolveTdsRatesConfig).not.toHaveBeenCalled();
     });
   });
 

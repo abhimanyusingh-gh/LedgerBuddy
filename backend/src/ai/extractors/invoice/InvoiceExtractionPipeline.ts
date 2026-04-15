@@ -66,7 +66,8 @@ import { type ExtractionSource } from "@/core/engine/extractionSource.js";
 import { PIPELINE_ERROR_CODE, type PipelineErrorCode } from "@/core/engine/types.js";
 import { LEARNING_MODE, type LearningMode } from "@/types/pipeline.js";
 import type { UUID } from "@/types/uuid.js";
-import { TenantComplianceConfigModel } from "@/models/integration/TenantComplianceConfig.js";
+import { resolveTenantComplianceConfig } from "@/services/compliance/tenantConfigResolver.js";
+import type { TenantComplianceConfigFields } from "@/models/integration/TenantComplianceConfig.js";
 
 interface ExtractionPipelineInput {
   tenantId: UUID;
@@ -139,10 +140,11 @@ export class InvoiceExtractionPipeline {
     metadata.layoutSignature = fingerprint.layoutSignature;
     metadata.vendorContentHash = fingerprint.hash;
 
-    const [template, tenantLearningMode] = await Promise.all([
+    const [template, tenantComplianceConfig] = await Promise.all([
       this.templateStore.findByFingerprint(input.tenantId, fingerprint.key),
-      this.resolveLearningMode(input.tenantId)
+      resolveTenantComplianceConfig(input.tenantId)
     ]);
+    const tenantLearningMode = this.extractLearningMode(tenantComplianceConfig);
     metadata.vendorTemplateMatched = template ? "true" : "false";
     metadata.learningMode = tenantLearningMode;
 
@@ -172,6 +174,9 @@ export class InvoiceExtractionPipeline {
     pipelineCtx.store.set(INVOICE_CTX.PRE_OCR_LANGUAGE, preOcrLanguage);
     if (template) {
       pipelineCtx.store.set(INVOICE_CTX.VENDOR_TEMPLATE, template);
+    }
+    if (tenantComplianceConfig) {
+      pipelineCtx.store.set(POST_ENGINE_CTX.TENANT_COMPLIANCE_CONFIG, tenantComplianceConfig);
     }
 
     return pipelineCtx;
@@ -249,12 +254,8 @@ export class InvoiceExtractionPipeline {
     return postEngineResult.output;
   }
 
-  private async resolveLearningMode(tenantId: UUID): Promise<LearningMode> {
-    const config = await TenantComplianceConfigModel.findOne({ tenantId })
-      .select({ learningMode: 1 })
-      .lean();
-    const tenantMode = (config as Record<string, unknown> | null)?.learningMode as LearningMode | undefined;
-    return tenantMode ?? this.defaultLearningMode;
+  private extractLearningMode(config: TenantComplianceConfigFields | null): LearningMode {
+    return config?.learningMode ?? this.defaultLearningMode;
   }
 
 }

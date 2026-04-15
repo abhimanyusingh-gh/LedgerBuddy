@@ -3,7 +3,7 @@ import { minorUnitsToMajorString } from "@/utils/currency.js";
 import { isRecord } from "@/utils/validation.js";
 import { INVOICE_STATUS } from "@/types/invoice.js";
 import { buildCsvExportConfig } from "@/services/export/tenantExportConfigResolver.js";
-import { TenantComplianceConfigModel } from "@/models/integration/TenantComplianceConfig.js";
+import { resolveDefaultCurrencyConfig } from "@/services/compliance/tenantConfigResolver.js";
 
 const DEFAULT_COLUMNS = [
   "invoiceNumber", "vendorName", "invoiceDate", "dueDate",
@@ -38,11 +38,8 @@ export async function generateCsvExport(
 
   let tenantDefaultCurrency = "INR";
   if (tenantId) {
-    const complianceConfig = await TenantComplianceConfigModel.findOne({ tenantId })
-      .select({ defaultCurrency: 1 })
-      .lean();
-    const configCurrency = (complianceConfig as Record<string, unknown> | null)?.defaultCurrency as string | undefined;
-    if (configCurrency) tenantDefaultCurrency = configCurrency;
+    const currencyConfig = await resolveDefaultCurrencyConfig(tenantId);
+    if (currencyConfig?.defaultCurrency) tenantDefaultCurrency = currencyConfig.defaultCurrency;
   }
 
   let skippedCount = 0;

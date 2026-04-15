@@ -13,4 +13,5 @@ export const POST_ENGINE_CTX = {
   LINE_ITEM_PROVENANCE: "invoice.lineItemProvenance",
   CLASSIFICATION: "invoice.classification",
   FINAL_RESULT: "invoice.finalResult",
+  TENANT_COMPLIANCE_CONFIG: "invoice.tenantComplianceConfig",
 } as const;

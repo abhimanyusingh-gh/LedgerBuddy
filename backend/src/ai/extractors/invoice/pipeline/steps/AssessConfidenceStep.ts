@@ -3,8 +3,7 @@ import type { ParsedInvoiceData, InvoiceCompliance } from "@/types/invoice.js";
 import { assessInvoiceConfidence, type ConfidenceTenantConfig } from "@/services/invoice/confidenceAssessment.js";
 import { RiskSignalEvaluator } from "@/services/compliance/RiskSignalEvaluator.js";
 import { POST_ENGINE_CTX } from "@/ai/extractors/invoice/pipeline/postEngineContextKeys.js";
-import { resolveTenantComplianceConfig } from "@/services/compliance/tenantConfigResolver.js";
-import type { UUID } from "@/types/uuid.js";
+import type { TenantComplianceConfigFields } from "@/models/integration/TenantComplianceConfig.js";
 
 export class AssessConfidenceStep implements PipelineStep {
   readonly name = "assess-confidence";
@@ -13,9 +12,8 @@ export class AssessConfidenceStep implements PipelineStep {
     const parsed = ctx.store.require<ParsedInvoiceData>(POST_ENGINE_CTX.RECOVERED_PARSED);
     const ocrConfidence = ctx.store.get<number>("invoice.ocrConfidence");
     const compliance = ctx.store.get<InvoiceCompliance>(POST_ENGINE_CTX.COMPLIANCE);
-    const tenantId = ctx.input.tenantId as UUID;
 
-    const tenantConfig = await resolveTenantComplianceConfig(tenantId);
+    const tenantConfig = ctx.store.get<TenantComplianceConfigFields>(POST_ENGINE_CTX.TENANT_COMPLIANCE_CONFIG) ?? null;
 
     const penaltyCap = tenantConfig?.riskSignalPenaltyCap;
     const penalty = compliance?.riskSignals?.length
