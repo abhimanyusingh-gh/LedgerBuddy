@@ -7,16 +7,22 @@ interface IrnValidationResult {
   riskSignals: ComplianceRiskSignal[];
 }
 
+interface IrnTenantConfig {
+  eInvoiceThresholdMinor?: number;
+}
+
 export class IrnValidationService {
   validate(
     irn: string | null | undefined,
     vendorGstin: string | null | undefined,
-    totalAmountMinor: number | undefined
+    totalAmountMinor: number | undefined,
+    tenantConfig?: IrnTenantConfig
   ): IrnValidationResult {
     const riskSignals: ComplianceRiskSignal[] = [];
+    const threshold = tenantConfig?.eInvoiceThresholdMinor ?? E_INVOICE_THRESHOLD_MINOR;
 
     if (!irn) {
-      if (vendorGstin && totalAmountMinor && totalAmountMinor > E_INVOICE_THRESHOLD_MINOR) {
+      if (vendorGstin && totalAmountMinor && totalAmountMinor > threshold) {
         riskSignals.push(createRiskSignal(
           "IRN_MISSING",
           "compliance",

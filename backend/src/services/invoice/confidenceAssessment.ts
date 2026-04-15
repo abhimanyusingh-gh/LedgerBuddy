@@ -3,6 +3,26 @@ import type { ConfidenceTone } from "@/types/confidence.js";
 import { clamp, normalizeConfidence } from "@/utils/math.js";
 
 const DEFAULT_AUTO_SELECT_MIN = 91;
+const DEFAULT_OCR_WEIGHT = 0.65;
+const DEFAULT_COMPLETENESS_WEIGHT = 0.35;
+const DEFAULT_WARNING_PENALTY = 4;
+const DEFAULT_WARNING_PENALTY_CAP = 25;
+
+const DEFAULT_REQUIRED_FIELDS: Array<keyof ParsedInvoiceData> = [
+  "invoiceNumber",
+  "vendorName",
+  "invoiceDate",
+  "totalAmountMinor",
+  "currency"
+];
+
+export interface ConfidenceTenantConfig {
+  ocrWeight?: number;
+  completenessWeight?: number;
+  warningPenalty?: number;
+  warningPenaltyCap?: number;
+  requiredFields?: string[];
+}
 
 interface ConfidenceInput {
   ocrConfidence?: number;
@@ -11,6 +31,7 @@ interface ConfidenceInput {
   autoSelectMin?: number;
   complianceRiskPenalty?: number;
   autoApprovalThreshold?: number;
+  tenantConfig?: ConfidenceTenantConfig;
 }
 
 export interface ConfidenceAssessment {
@@ -19,26 +40,28 @@ export interface ConfidenceAssessment {
   autoSelectForApproval: boolean;
 }
 
-const REQUIRED_FIELDS: Array<keyof ParsedInvoiceData> = [
-  "invoiceNumber",
-  "vendorName",
-  "invoiceDate",
-  "totalAmountMinor",
-  "currency"
-];
-
 export function assessInvoiceConfidence(input: ConfidenceInput): ConfidenceAssessment {
   const normalizedOcr = input.ocrConfidence !== undefined && !Number.isNaN(input.ocrConfidence)
     ? normalizeConfidence(input.ocrConfidence)
     : 0.6;
   const ocrScore = normalizedOcr * 100;
-  const completenessScore = scoreCompleteness(input.parsed);
 
-  const warningsPenalty = Math.min(25, input.warnings.length * 4);
+  const tc = input.tenantConfig;
+  const ocrWeight = tc?.ocrWeight ?? DEFAULT_OCR_WEIGHT;
+  const completenessWeight = tc?.completenessWeight ?? DEFAULT_COMPLETENESS_WEIGHT;
+  const warnPenalty = tc?.warningPenalty ?? DEFAULT_WARNING_PENALTY;
+  const warnCap = tc?.warningPenaltyCap ?? DEFAULT_WARNING_PENALTY_CAP;
+  const reqFields = tc?.requiredFields
+    ? tc.requiredFields as Array<keyof ParsedInvoiceData>
+    : DEFAULT_REQUIRED_FIELDS;
+
+  const completenessScore = scoreCompleteness(input.parsed, reqFields);
+
+  const warningsPenalty = Math.min(warnCap, input.warnings.length * warnPenalty);
   const compliancePenalty = input.complianceRiskPenalty ?? 0;
 
   const score = clamp(
-    Math.round(ocrScore * 0.65 + completenessScore * 0.35 - warningsPenalty - compliancePenalty),
+    Math.round(ocrScore * ocrWeight + completenessScore * completenessWeight - warningsPenalty - compliancePenalty),
     0,
     100
   );
@@ -66,14 +89,14 @@ export function getConfidenceTone(score: number, greenThreshold = DEFAULT_AUTO_S
   return "red";
 }
 
-function scoreCompleteness(parsed: ParsedInvoiceData): number {
+function scoreCompleteness(parsed: ParsedInvoiceData, requiredFields: Array<keyof ParsedInvoiceData> = DEFAULT_REQUIRED_FIELDS): number {
   let present = 0;
-  for (const field of REQUIRED_FIELDS) {
+  for (const field of requiredFields) {
     const value = parsed[field];
     if (value !== undefined && value !== null && value !== "") {
       present += 1;
     }
   }
 
-  return Math.round((present / REQUIRED_FIELDS.length) * 100);
+  return Math.round((present / requiredFields.length) * 100);
 }

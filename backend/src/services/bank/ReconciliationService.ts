@@ -5,6 +5,11 @@ import { TenantTcsConfigModel } from "@/models/integration/TenantTcsConfig.js";
 import { logger } from "@/utils/logger.js";
 import { isRecord } from "@/utils/validation.js";
 import { type UUID, toUUID } from "@/types/uuid.js";
+import { resolveTenantComplianceConfig } from "@/services/compliance/tenantConfigResolver.js";
+
+const DEFAULT_AUTO_MATCH_THRESHOLD = 50;
+const DEFAULT_SUGGEST_THRESHOLD = 30;
+const DEFAULT_AMOUNT_TOLERANCE_MINOR = 100;
 
 interface MatchCandidate {
   invoiceId: UUID;
@@ -40,15 +45,19 @@ export class ReconciliationService {
     const tcsConfig = await TenantTcsConfigModel.findOne({ tenantId }).lean();
     const tcsRatePercent = tcsConfig?.enabled ? (tcsConfig.ratePercent ?? 0) : 0;
 
+    const tenantConfig = await resolveTenantComplianceConfig(tenantId);
+    const autoMatchThreshold = tenantConfig?.reconciliationAutoMatchThreshold ?? DEFAULT_AUTO_MATCH_THRESHOLD;
+    const suggestThreshold = tenantConfig?.reconciliationSuggestThreshold ?? DEFAULT_SUGGEST_THRESHOLD;
+    const tolerance = tenantConfig?.reconciliationAmountToleranceMinor ?? DEFAULT_AMOUNT_TOLERANCE_MINOR;
+
     let matched = 0;
     let suggested = 0;
     let unmatched = 0;
 
-    // Batch-fetch all candidate invoices in a single query to avoid N+1
-    const allCandidateInvoices = await this.batchFetchCandidateInvoices(tenantId, transactions, tcsRatePercent, statementGstin);
+    const allCandidateInvoices = await this.batchFetchCandidateInvoices(tenantId, transactions, tcsRatePercent, statementGstin, tolerance);
 
     for (const txn of transactions) {
-      const candidates = this.scoreMatchCandidates(txn, allCandidateInvoices, tcsRatePercent);
+      const candidates = this.scoreMatchCandidates(txn, allCandidateInvoices, tcsRatePercent, tolerance);
 
       if (candidates.length === 0) {
         unmatched++;
@@ -56,10 +65,10 @@ export class ReconciliationService {
       }
 
       const best = candidates[0];
-      if (best.score > 50) {
+      if (best.score > autoMatchThreshold) {
         await this.applyMatch(tenantId, String(txn._id), best.invoiceId, best.score);
         matched++;
-      } else if (best.score >= 30) {
+      } else if (best.score >= suggestThreshold) {
         await BankTransactionModel.updateOne(
           { _id: txn._id },
           { $set: { matchedInvoiceId: best.invoiceId, matchConfidence: best.score, matchStatus: "suggested" } }
@@ -87,12 +96,12 @@ export class ReconciliationService {
     tenantId: UUID,
     transactions: Pick<BankTransaction, "debitMinor" | "description" | "date">[],
     tcsRatePercent: number,
-    gstin?: string
+    gstin?: string,
+    tolerance: number = DEFAULT_AMOUNT_TOLERANCE_MINOR
   ): Promise<Record<string, unknown>[]> {
     const validTxns = transactions.filter(t => t.debitMinor && t.debitMinor > 0);
     if (validTxns.length === 0) return [];
 
-    const tolerance = 100;
     const tcsMultiplier = 1 + tcsRatePercent / 100;
 
     let globalMin = Infinity;
@@ -123,11 +132,11 @@ export class ReconciliationService {
   private scoreMatchCandidates(
     txn: Pick<BankTransaction, "debitMinor" | "description" | "date">,
     invoices: Record<string, unknown>[],
-    tcsRatePercent: number
+    tcsRatePercent: number,
+    tolerance: number = DEFAULT_AMOUNT_TOLERANCE_MINOR
   ): MatchCandidate[] {
     if (!txn.debitMinor || txn.debitMinor <= 0) return [];
 
-    const tolerance = 100;
     const candidates: MatchCandidate[] = [];
     const descLower = txn.description.toLowerCase();
     const txnDate = txn.date instanceof Date ? txn.date : new Date(txn.date);

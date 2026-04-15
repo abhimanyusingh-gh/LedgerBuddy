@@ -3,8 +3,13 @@ import { VendorMasterModel } from "@/models/compliance/VendorMaster.js";
 import type { ComplianceRiskSignal } from "@/types/invoice.js";
 import { MSME_CLASSIFICATION, type MsmeClassification } from "@/types/invoice.js";
 import { createRiskSignal } from "@/services/compliance/riskSignalFactory.js";
-const MSME_PAYMENT_WARNING_DAYS = 30;
-const MSME_PAYMENT_OVERDUE_DAYS = 45;
+const DEFAULT_MSME_PAYMENT_WARNING_DAYS = 30;
+const DEFAULT_MSME_PAYMENT_OVERDUE_DAYS = 45;
+
+interface MsmeTenantConfig {
+  msmePaymentWarningDays?: number;
+  msmePaymentOverdueDays?: number;
+}
 
 interface MsmeTrackingResult {
   msme: {
@@ -20,11 +25,14 @@ export class MsmeTrackingService {
     tenantId: string,
     vendorFingerprint: string,
     udyamNumber: string | null | undefined,
-    invoiceDate: Date | null | undefined
+    invoiceDate: Date | null | undefined,
+    tenantConfig?: MsmeTenantConfig
   ): Promise<MsmeTrackingResult> {
     const riskSignals: ComplianceRiskSignal[] = [];
     let classification: MsmeClassification | null = null;
     let paymentDeadline: Date | null = null;
+    const warningDays = tenantConfig?.msmePaymentWarningDays ?? DEFAULT_MSME_PAYMENT_WARNING_DAYS;
+    const overdueDays = tenantConfig?.msmePaymentOverdueDays ?? DEFAULT_MSME_PAYMENT_OVERDUE_DAYS;
 
     if (udyamNumber && UDYAM_FORMAT.test(udyamNumber.toUpperCase())) {
       classification = MSME_CLASSIFICATION.SMALL;
@@ -42,23 +50,23 @@ export class MsmeTrackingService {
     if (classification && invoiceDate) {
       const invDate = invoiceDate;
       if (!isNaN(invDate.getTime())) {
-        paymentDeadline = new Date(invDate.getTime() + MSME_PAYMENT_OVERDUE_DAYS * 86400000);
+        paymentDeadline = new Date(invDate.getTime() + overdueDays * 86400000);
         const daysSinceInvoice = Math.floor((Date.now() - invDate.getTime()) / 86400000);
 
-        if (daysSinceInvoice > MSME_PAYMENT_OVERDUE_DAYS) {
+        if (daysSinceInvoice > overdueDays) {
           riskSignals.push(createRiskSignal(
             "MSME_PAYMENT_OVERDUE",
             "compliance",
             "critical",
-            `MSME vendor — invoice is ${daysSinceInvoice} days old, exceeds 45-day payment deadline.`,
+            `MSME vendor — invoice is ${daysSinceInvoice} days old, exceeds ${overdueDays}-day payment deadline.`,
             10
           ));
-        } else if (daysSinceInvoice > MSME_PAYMENT_WARNING_DAYS) {
+        } else if (daysSinceInvoice > warningDays) {
           riskSignals.push(createRiskSignal(
             "MSME_PAYMENT_DUE_SOON",
             "compliance",
             "warning",
-            `MSME vendor — invoice is ${daysSinceInvoice} days old, approaching 45-day payment deadline.`,
+            `MSME vendor — invoice is ${daysSinceInvoice} days old, approaching ${overdueDays}-day payment deadline.`,
             4
           ));
         }

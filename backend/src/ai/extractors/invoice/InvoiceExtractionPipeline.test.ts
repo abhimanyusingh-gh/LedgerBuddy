@@ -13,6 +13,9 @@ import type { OcrBlock, OcrProvider } from "@/core/interfaces/OcrProvider.ts";
 import { InvoiceExtractionPipeline } from "@/ai/extractors/invoice/InvoiceExtractionPipeline.ts";
 import type { VendorTemplateStore } from "@/ai/extractors/invoice/learning/vendorTemplateStore.ts";
 import { EXTRACTION_SOURCE } from "@/core/engine/extractionSource.ts";
+import { TenantComplianceConfigModel } from "@/models/integration/TenantComplianceConfig.ts";
+
+jest.mock("@/models/integration/TenantComplianceConfig.ts");
 
 function makeBlock(text: string, bboxNormalized: [number, number, number, number], page = 1): OcrBlock {
   return {
@@ -79,6 +82,10 @@ const defaultInput = {
 };
 
 describe("InvoiceExtractionPipeline", () => {
+  beforeEach(() => {
+    (TenantComplianceConfigModel.findOne as jest.Mock).mockReturnValue({ lean: jest.fn().mockResolvedValue(null) });
+  });
+
   it("calls OCR and SLM verifier once, returns parsed invoice data", async () => {
     const { ocrProvider, fieldVerifier, templateStore, extractText, verify } = buildDeps();
 

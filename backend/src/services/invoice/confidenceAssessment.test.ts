@@ -373,3 +373,73 @@ describe("getConfidenceTone", () => {
     });
   });
 });
+
+describe("assessInvoiceConfidence with tenantConfig", () => {
+  it("uses custom ocrWeight and completenessWeight", () => {
+    const result = assessInvoiceConfidence({
+      ocrConfidence: 0.95,
+      parsed: fullParsed(),
+      warnings: [],
+      tenantConfig: { ocrWeight: 0.5, completenessWeight: 0.5 }
+    });
+    const expected = Math.round(95 * 0.5 + 100 * 0.5);
+    expect(result.score).toBe(expected);
+  });
+
+  it("uses custom warningPenalty", () => {
+    const result = assessInvoiceConfidence({
+      ocrConfidence: 0.95,
+      parsed: fullParsed(),
+      warnings: ["w1", "w2"],
+      tenantConfig: { warningPenalty: 10 }
+    });
+    const expected = Math.round(95 * 0.65 + 100 * 0.35 - 20);
+    expect(result.score).toBe(expected);
+  });
+
+  it("uses custom warningPenaltyCap", () => {
+    const warnings = Array.from({ length: 10 }, (_, i) => `w${i}`);
+    const result = assessInvoiceConfidence({
+      ocrConfidence: 0.95,
+      parsed: fullParsed(),
+      warnings,
+      tenantConfig: { warningPenaltyCap: 10 }
+    });
+    const expected = Math.round(95 * 0.65 + 100 * 0.35 - 10);
+    expect(result.score).toBe(expected);
+  });
+
+  it("uses custom requiredFields for completeness scoring", () => {
+    const result = assessInvoiceConfidence({
+      ocrConfidence: 0.95,
+      parsed: fullParsed({ invoiceDate: undefined, currency: undefined }),
+      warnings: [],
+      tenantConfig: { requiredFields: ["invoiceNumber", "vendorName", "totalAmountMinor"] }
+    });
+    const completeness = Math.round((3 / 3) * 100);
+    const expected = Math.round(95 * 0.65 + completeness * 0.35);
+    expect(result.score).toBe(expected);
+  });
+
+  it("falls back to defaults when tenantConfig is undefined", () => {
+    const result = assessInvoiceConfidence({
+      ocrConfidence: 0.95,
+      parsed: fullParsed(),
+      warnings: [],
+      tenantConfig: undefined
+    });
+    const expected = Math.round(95 * 0.65 + 100 * 0.35);
+    expect(result.score).toBe(expected);
+  });
+
+  it("falls back to defaults when tenantConfig fields are all undefined", () => {
+    const result = assessInvoiceConfidence({
+      ocrConfidence: 0.95,
+      parsed: fullParsed(),
+      warnings: [],
+      tenantConfig: {}
+    });
+    const expected = Math.round(95 * 0.65 + 100 * 0.35);
+    expect(result.score).toBe(expected);
+  });
+});

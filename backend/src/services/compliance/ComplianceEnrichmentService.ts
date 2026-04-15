@@ -73,8 +73,8 @@ export class ComplianceEnrichmentService implements ComplianceEnricher {
     await this.enrichCostCenter(tenantId, vendorFingerprint, result, processingIssues);
     await this.enrichTcs(invoice, tenantId, result);
     await this.enrichTds(invoice, config, tenantId, vendorFingerprint, result, riskSignals, processingIssues);
-    this.enrichIrn(invoice, result, riskSignals, processingIssues);
-    await this.enrichMsme(invoice, tenantId, vendorFingerprint, result, riskSignals, processingIssues);
+    this.enrichIrn(invoice, config, result, riskSignals, processingIssues);
+    await this.enrichMsme(invoice, config, tenantId, vendorFingerprint, result, riskSignals, processingIssues);
     await this.enrichEmailSender(tenantId, vendorFingerprint, context, riskSignals, processingIssues);
     await this.enrichDuplicateDetection(invoice, tenantId, context, riskSignals, processingIssues);
 
@@ -256,6 +256,7 @@ export class ComplianceEnrichmentService implements ComplianceEnricher {
 
   private enrichIrn(
     invoice: ParsedInvoiceData,
+    config: Record<string, unknown>,
     result: ComplianceResult,
     riskSignals: ComplianceRiskSignal[],
     processingIssues: string[]
@@ -264,7 +265,8 @@ export class ComplianceEnrichmentService implements ComplianceEnricher {
       const irnResult = this.irnValidation.validate(
         (invoice as Record<string, unknown>).irn as string | undefined,
         invoice.gst?.gstin,
-        invoice.totalAmountMinor
+        invoice.totalAmountMinor,
+        { eInvoiceThresholdMinor: config.eInvoiceThresholdMinor as number | undefined }
       );
       result.irn = irnResult.irn;
       riskSignals.push(...irnResult.riskSignals);
@@ -275,6 +277,7 @@ export class ComplianceEnrichmentService implements ComplianceEnricher {
 
   private async enrichMsme(
     invoice: ParsedInvoiceData,
+    config: Record<string, unknown>,
     tenantId: string,
     vendorFingerprint: string,
     result: ComplianceResult,
@@ -286,7 +289,11 @@ export class ComplianceEnrichmentService implements ComplianceEnricher {
         tenantId,
         vendorFingerprint,
         (invoice as Record<string, unknown>).udyamNumber as string | undefined,
-        invoice.invoiceDate
+        invoice.invoiceDate,
+        {
+          msmePaymentWarningDays: config.msmePaymentWarningDays as number | undefined,
+          msmePaymentOverdueDays: config.msmePaymentOverdueDays as number | undefined,
+        }
       );
       result.msme = msmeResult.msme;
       riskSignals.push(...msmeResult.riskSignals);
@@ -381,24 +388,37 @@ export class ComplianceEnrichmentService implements ComplianceEnricher {
 
 function filterSignalsByConfig(
   signals: ComplianceRiskSignal[],
-  config: { activeRiskSignals?: string[]; disabledSignals?: string[]; signalSeverityOverrides?: Map<string, string> | Record<string, string> }
+  config: {
+    activeRiskSignals?: string[];
+    disabledSignals?: string[];
+    signalSeverityOverrides?: Map<string, string> | Record<string, string> | null;
+    confidencePenaltyOverrides?: Map<string, number> | Record<string, number> | null;
+  }
 ): ComplianceRiskSignal[] {
   const disabled = new Set(config.disabledSignals ?? []);
   const active = config.activeRiskSignals && config.activeRiskSignals.length > 0
     ? new Set(config.activeRiskSignals)
     : null;
-  const overrides = config.signalSeverityOverrides instanceof Map
+  const severityOverrides = config.signalSeverityOverrides instanceof Map
     ? Object.fromEntries(config.signalSeverityOverrides)
     : (config.signalSeverityOverrides ?? {});
+  const penaltyOverrides = config.confidencePenaltyOverrides instanceof Map
+    ? Object.fromEntries(config.confidencePenaltyOverrides)
+    : (config.confidencePenaltyOverrides ?? {});
 
   return signals
     .filter(s => !disabled.has(s.code))
     .filter(s => !active || active.has(s.code))
     .map(s => {
-      const override = overrides[s.code];
-      if (override && (override === "info" || override === "warning" || override === "critical")) {
-        return { ...s, severity: override };
+      let updated = s;
+      const sevOverride = severityOverrides[s.code];
+      if (sevOverride && (sevOverride === "info" || sevOverride === "warning" || sevOverride === "critical")) {
+        updated = { ...updated, severity: sevOverride };
       }
-      return s;
+      const penOverride = penaltyOverrides[s.code];
+      if (penOverride !== undefined && typeof penOverride === "number") {
+        updated = { ...updated, confidencePenalty: penOverride };
+      }
+      return updated;
     });
 }

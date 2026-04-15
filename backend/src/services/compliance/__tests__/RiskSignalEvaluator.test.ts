@@ -154,4 +154,90 @@ describe("RiskSignalEvaluator", () => {
       expect(signals).toHaveLength(0);
     });
   });
+
+  describe("tenant config overrides", () => {
+    it("uses maxInvoiceTotalMinor from tenant config instead of expectedMaxTotal", () => {
+      const signals = evaluator.evaluate({
+        parsed: baseParsed({ totalAmountMinor: 600000 }),
+        expectedMaxTotal: 100000,
+        expectedMaxDueDays: 90,
+        tenantConfig: { maxInvoiceTotalMinor: 500000 }
+      });
+      const signal = signals.find(s => s.code === "TOTAL_AMOUNT_ABOVE_EXPECTED");
+      expect(signal).toBeDefined();
+    });
+
+    it("skips amount-above check when maxInvoiceTotalMinor is undefined in config", () => {
+      const signals = evaluator.evaluate({
+        parsed: baseParsed({ totalAmountMinor: 5000000 }),
+        expectedMaxTotal: 0,
+        expectedMaxDueDays: 90,
+        tenantConfig: {}
+      });
+      expect(signals.find(s => s.code === "TOTAL_AMOUNT_ABOVE_EXPECTED")).toBeUndefined();
+    });
+
+    it("uses maxDueDays from tenant config", () => {
+      const referenceDate = new Date("2026-01-01");
+      const signals = evaluator.evaluate({
+        parsed: baseParsed({ dueDate: new Date("2026-02-15") }),
+        expectedMaxTotal: 100000,
+        expectedMaxDueDays: 90,
+        referenceDate,
+        tenantConfig: { maxDueDays: 30 }
+      });
+      const signal = signals.find(s => s.code === "DUE_DATE_TOO_FAR");
+      expect(signal).toBeDefined();
+      expect(signal!.message).toContain("expected max is 30 days");
+    });
+
+    it("skips due-date check when maxDueDays is undefined in config", () => {
+      const referenceDate = new Date("2026-01-01");
+      const signals = evaluator.evaluate({
+        parsed: baseParsed({ dueDate: new Date("2027-06-01") }),
+        expectedMaxTotal: 100000,
+        expectedMaxDueDays: 0,
+        referenceDate,
+        tenantConfig: {}
+      });
+      expect(signals.find(s => s.code === "DUE_DATE_TOO_FAR")).toBeUndefined();
+    });
+
+    it("uses minimumExpectedTotalMinor from tenant config", () => {
+      const signals = evaluator.evaluate({
+        parsed: baseParsed({ totalAmountMinor: 15000 }),
+        expectedMaxTotal: 100000,
+        expectedMaxDueDays: 90,
+        tenantConfig: { minimumExpectedTotalMinor: 20000 }
+      });
+      const signal = signals.find(s => s.code === "TOTAL_AMOUNT_BELOW_MINIMUM");
+      expect(signal).toBeDefined();
+    });
+
+    it("does not flag below-minimum when amount exceeds tenant-configured minimum", () => {
+      const signals = evaluator.evaluate({
+        parsed: baseParsed({ totalAmountMinor: 5000 }),
+        expectedMaxTotal: 100000,
+        expectedMaxDueDays: 90,
+        tenantConfig: { minimumExpectedTotalMinor: 2000 }
+      });
+      expect(signals.find(s => s.code === "TOTAL_AMOUNT_BELOW_MINIMUM")).toBeUndefined();
+    });
+
+    it("uses custom riskSignalPenaltyCap in sumPenalties", () => {
+      const penalty = RiskSignalEvaluator.sumPenalties([
+        createRiskSignal("A", "financial", "critical", "", 20),
+        createRiskSignal("B", "financial", "critical", "", 20)
+      ], 50);
+      expect(penalty).toBe(40);
+    });
+
+    it("falls back to default penalty cap when undefined", () => {
+      const penalty = RiskSignalEvaluator.sumPenalties([
+        createRiskSignal("A", "financial", "critical", "", 20),
+        createRiskSignal("B", "financial", "critical", "", 20)
+      ], undefined);
+      expect(penalty).toBe(30);
+    });
+  });
 });

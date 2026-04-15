@@ -3,12 +3,14 @@ import { InvoiceModel } from "@/models/invoice/Invoice.ts";
 import { BankTransactionModel } from "@/models/bank/BankTransaction.ts";
 import { BankStatementModel } from "@/models/bank/BankStatement.ts";
 import { TenantTcsConfigModel } from "@/models/integration/TenantTcsConfig.ts";
+import { TenantComplianceConfigModel } from "@/models/integration/TenantComplianceConfig.ts";
 import { toUUID } from "@/types/uuid.js";
 
 jest.mock("@/models/invoice/Invoice.ts");
 jest.mock("@/models/bank/BankTransaction.ts");
 jest.mock("@/models/bank/BankStatement.ts");
 jest.mock("@/models/integration/TenantTcsConfig.ts");
+jest.mock("@/models/integration/TenantComplianceConfig.ts");
 
 function makeTxn(overrides: Partial<{
   _id: string;
@@ -56,6 +58,7 @@ describe("ReconciliationService", () => {
     service = new ReconciliationService();
     jest.clearAllMocks();
     (TenantTcsConfigModel.findOne as jest.Mock).mockReturnValue({ lean: jest.fn().mockResolvedValue(null) });
+    (TenantComplianceConfigModel.findOne as jest.Mock).mockReturnValue({ lean: jest.fn().mockResolvedValue(null) });
   });
 
   it("auto-matches when amount exactly equals netPayable", async () => {
