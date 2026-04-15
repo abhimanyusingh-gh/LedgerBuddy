@@ -107,10 +107,6 @@ export interface RuntimeManifest {
       forcePathStyle: boolean;
     };
   };
-  extraction: {
-    ocrHighConfidenceThreshold: number;
-    llmAssistConfidenceThreshold: number;
-  };
   export: {
     tallyEndpoint: string;
     tallyCompany: string;
@@ -152,10 +148,6 @@ export function loadRuntimeManifest(): RuntimeManifest {
     },
     fileStore: {
       configuration: parsed.fileStore?.s3
-    },
-    extraction: {
-      ocrHighConfidenceThreshold: parsed.extraction?.ocrHighConfidenceThreshold,
-      llmAssistConfidenceThreshold: parsed.extraction?.llmAssistConfidenceThreshold
     },
     export: {
       tallyEndpoint: parsed.export?.tallyEndpoint,

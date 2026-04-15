@@ -116,8 +116,6 @@ async function buildExtractionPipeline(manifest: RuntimeManifest, learningStore:
       mappingService
     },
     {
-      ocrHighConfidenceThreshold: manifest.extraction.ocrHighConfidenceThreshold,
-      llmAssistConfidenceThreshold: manifest.extraction.llmAssistConfidenceThreshold,
       learningMode: env.LEARNING_MODE,
       llamaExtractEnabled: env.LLAMA_PARSE_EXTRACT_ENABLED
     }

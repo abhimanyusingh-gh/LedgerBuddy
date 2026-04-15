@@ -60,10 +60,6 @@ export function createDefaultManifest(defaultTenantId: UUID, defaultWorkloadTier
         forcePathStyle: env.S3_FILE_STORE_FORCE_PATH_STYLE
       }
     },
-    extraction: {
-      ocrHighConfidenceThreshold: env.OCR_HIGH_CONFIDENCE_THRESHOLD,
-      llmAssistConfidenceThreshold: env.LLM_ASSIST_CONFIDENCE_THRESHOLD
-    },
     export: {
       tallyEndpoint: env.TALLY_ENDPOINT ?? "",
       tallyCompany: env.TALLY_COMPANY ?? "",

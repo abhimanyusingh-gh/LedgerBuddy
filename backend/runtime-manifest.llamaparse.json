@@ -13,9 +13,6 @@
     "provider": "http",
     "http": {}
   },
-  "extraction": {
-    "ocrHighConfidenceThreshold": 0.92
-  },
   "sources": [],
   "export": {
     "tallyEndpoint": "http://tally.example.local",

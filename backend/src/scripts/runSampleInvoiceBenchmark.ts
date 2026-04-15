@@ -344,8 +344,6 @@ async function run(): Promise<void> {
       learningStore: new InMemoryExtractionLearningStore()
     },
     {
-      ocrHighConfidenceThreshold: 0.88,
-      llmAssistConfidenceThreshold: 85,
       llamaExtractEnabled
     }
   );

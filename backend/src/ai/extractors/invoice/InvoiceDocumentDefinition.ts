@@ -10,11 +10,6 @@ import type {
   InvoiceLineItemProvenance,
   ParsedInvoiceData
 } from "@/types/invoice.js";
-import type { DocumentMimeType } from "@/types/mime.js";
-import type { EnhancedOcrResult } from "@/ai/ocr/ocrPostProcessor.js";
-import type { RankedOcrTextCandidate } from "@/ai/extractors/stages/ocrTextCandidates.js";
-import type { DetectedInvoiceLanguage } from "@/ai/extractors/invoice/languageDetection.js";
-import type { VendorTemplateSnapshot } from "@/ai/extractors/invoice/learning/vendorTemplateStore.js";
 import { validateInvoiceFields } from "@/ai/extractors/invoice/deterministicValidation.js";
 import { parseLlamaExtractFields } from "@/ai/extractors/invoice/adapters/LlamaExtractAdapter.js";
 import { normalizeInvoiceFields } from "@/ai/extractors/invoice/normalizeInvoiceFields.js";
@@ -28,29 +23,6 @@ export interface InvoiceSlmOutput {
   fieldProvenance?: Partial<Record<InvoiceFieldKey, InvoiceFieldProvenance>>;
   lineItemProvenance: InvoiceLineItemProvenance[];
   classification?: InvoiceExtractionData["classification"];
-}
-
-interface InvoiceSlmContext {
-  mimeType: DocumentMimeType;
-  attachmentName: string;
-  template: VendorTemplateSnapshot | undefined;
-  language: {
-    preOcr: DetectedInvoiceLanguage;
-    postOcr: DetectedInvoiceLanguage;
-    resolved: DetectedInvoiceLanguage;
-  };
-  enhanced: EnhancedOcrResult;
-  primaryCandidate: RankedOcrTextCandidate;
-  rankedCandidates: RankedOcrTextCandidate[];
-  augmentedText: string;
-  ocrConfidence: number;
-  ocrPageImages: OcrPageImage[];
-  baselineParsed: ParsedInvoiceData;
-  fieldCandidates: Record<string, string[]>;
-  fieldRegions: Record<string, OcrBlock[]>;
-  ocrHighConfidenceThreshold: number;
-  llmAssistConfidenceThreshold: number;
-  learningMode: string;
 }
 
 export class InvoiceDocumentDefinition implements SinglePassDocumentDefinition<InvoiceSlmOutput> {

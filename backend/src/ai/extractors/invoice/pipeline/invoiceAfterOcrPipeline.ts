@@ -12,7 +12,6 @@ import { AugmentPromptBuilderStep } from "@/ai/extractors/invoice/pipeline/steps
 
 interface AfterOcrPipelineParams {
   definition: InvoiceDocumentDefinition;
-  enableKeyValueGrounding: boolean;
   template?: VendorTemplateSnapshot;
   llamaExtractEnabled?: boolean;
 }
@@ -23,7 +22,7 @@ export function buildInvoiceAfterOcrPipeline(
   return new ComposablePipeline<void>(() => undefined)
     .add(new CaptureOcrMetadataStep())                            // Stage 1
     .add(new PostProcessOcrStep())                                // Stage 2
-    .add(new BuildTextCandidatesStep(params.enableKeyValueGrounding)) // Stage 3
+    .add(new BuildTextCandidatesStep()) // Stage 3
     .add(new CalibrateConfidenceStep())                           // Stage 4
     .add(new DetectLanguageStep())                                // Stage 5
     .add(new CheckExtractFieldsGateStep(params.llamaExtractEnabled ?? false)) // Gate

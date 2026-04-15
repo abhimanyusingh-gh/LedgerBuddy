@@ -1,7 +1,6 @@
 import type { FieldVerifier } from "@/core/interfaces/FieldVerifier.js";
 import type { OcrBlock, OcrPageImage, OcrProvider, OcrResult } from "@/core/interfaces/OcrProvider.js";
 import type { DocumentMimeType } from "@/types/mime.js";
-import type { EnhancedOcrResult } from "@/ai/ocr/ocrPostProcessor.js";
 import type {
   InvoiceExtractionData,
   ParsedInvoiceData
@@ -21,8 +20,6 @@ import { INVOICE_CTX } from "@/ai/extractors/invoice/pipeline/contextKeys.js";
 import { POST_ENGINE_CTX } from "@/ai/extractors/invoice/pipeline/postEngineContextKeys.js";
 import { buildInvoiceAfterOcrPipeline } from "@/ai/extractors/invoice/pipeline/invoiceAfterOcrPipeline.js";
 import { createInvoicePostEnginePipeline } from "@/ai/extractors/invoice/pipeline/invoicePostEnginePipeline.js";
-import * as fs from "fs/promises";
-import * as path from "path";
 
 export interface ParseResult {
   parsed: ParsedInvoiceData;
@@ -58,7 +55,7 @@ export interface PipelineExtractionResult {
   compliance?: import("@/types/invoice.js").InvoiceCompliance;
   extraction?: InvoiceExtractionData;
 }
-import { clampProbability, formatConfidence } from "@/ai/extractors/stages/fieldParsingUtils.js";
+import { formatConfidence } from "@/ai/extractors/stages/fieldParsingUtils.js";
 import { computeVendorFingerprint } from "@/ai/extractors/invoice/learning/vendorFingerprint.js";
 import { DocumentProcessingEngine } from "@/core/engine/DocumentProcessingEngine.js";
 import {
@@ -69,7 +66,6 @@ import { type ExtractionSource } from "@/core/engine/extractionSource.js";
 import { PIPELINE_ERROR_CODE, type PipelineErrorCode } from "@/core/engine/types.js";
 import { LEARNING_MODE, type LearningMode } from "@/types/pipeline.js";
 import type { UUID } from "@/types/uuid.js";
-import { logger } from "@/utils/logger.js";
 
 interface ExtractionPipelineInput {
   tenantId: UUID;
@@ -80,11 +76,7 @@ interface ExtractionPipelineInput {
 }
 
 interface ExtractionPipelineOptions {
-  ocrHighConfidenceThreshold?: number;
-  enableOcrKeyValueGrounding?: boolean;
-  llmAssistConfidenceThreshold?: number;
   learningMode?: LearningMode;
-  ocrDumpEnabled?: boolean;
   llamaExtractEnabled?: boolean;
 }
 
@@ -111,11 +103,7 @@ export class InvoiceExtractionPipeline {
   private readonly learningStore?: ExtractionLearningStore;
   private readonly complianceEnricher?: ComplianceEnricher;
   private readonly mappingService?: ExtractionMappingService;
-  private readonly ocrHighConfidenceThreshold: number;
-  private readonly enableOcrKeyValueGrounding: boolean;
-  private readonly llmAssistConfidenceThreshold: number;
   private readonly learningMode: LearningMode;
-  private readonly ocrDumpEnabled: boolean;
   private readonly llamaExtractEnabled: boolean;
 
   constructor(deps: ExtractionPipelineDeps, options?: ExtractionPipelineOptions) {
@@ -125,11 +113,7 @@ export class InvoiceExtractionPipeline {
     this.learningStore = deps.learningStore;
     this.complianceEnricher = deps.complianceEnricher;
     this.mappingService = deps.mappingService;
-    this.ocrHighConfidenceThreshold = clampProbability(options?.ocrHighConfidenceThreshold ?? 0.88);
-    this.enableOcrKeyValueGrounding = options?.enableOcrKeyValueGrounding ?? true;
-    this.llmAssistConfidenceThreshold = options?.llmAssistConfidenceThreshold ?? 85;
     this.learningMode = options?.learningMode ?? LEARNING_MODE.ASSISTIVE;
-    this.ocrDumpEnabled = options?.ocrDumpEnabled ?? process.env.OCR_DUMP_ENABLED === "true";
     this.llamaExtractEnabled = options?.llamaExtractEnabled ?? false;
   }
 
@@ -202,7 +186,6 @@ export class InvoiceExtractionPipeline {
 
     const afterOcrPipeline = buildInvoiceAfterOcrPipeline({
       definition,
-      enableKeyValueGrounding: this.enableOcrKeyValueGrounding,
       template,
       llamaExtractEnabled: this.llamaExtractEnabled,
     });
@@ -210,11 +193,6 @@ export class InvoiceExtractionPipeline {
     const afterOcr = async (ocrResult: OcrResult, _ocrText: string) => {
       ctx.store.set(INVOICE_CTX.OCR_RESULT, ocrResult);
       await afterOcrPipeline.executeWithContext(ctx);
-
-      if (this.ocrDumpEnabled) {
-        const enhanced = ctx.store.require<EnhancedOcrResult>(INVOICE_CTX.ENHANCED_OCR);
-        await this.saveOcrResult(ocrResult, enhanced);
-      }
     };
 
     const preOcrLanguageHint = ctx.metadata.preOcrLanguageHint;
@@ -264,13 +242,6 @@ export class InvoiceExtractionPipeline {
 
     const postEngineResult = await postEnginePipeline.executeWithContext(ctx);
     return postEngineResult.output;
-  }
-
-  async saveOcrResult(result: OcrResult, enhanced: EnhancedOcrResult) {
-    const filePath = path.join("/tmp", "ocr_dumps", `${Date.now()}.json`);
-    await fs.mkdir(path.dirname(filePath), { recursive: true });
-    await fs.writeFile(filePath, JSON.stringify({ raw: result, enhanced }, null, 2));
-    logger.info("ocr.dump.saved", { filePath });
   }
 
 }

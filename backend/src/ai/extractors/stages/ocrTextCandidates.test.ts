@@ -41,7 +41,6 @@ describe("buildRankedOcrTextCandidates", () => {
       rawText: "%%%%\ninvoice ???\n....",
       blocks,
       layoutLines: lines,
-      enableKeyValueGrounding: true
     });
 
     expect(ranked.primary.text).toContain("Invoice Number");
@@ -61,7 +60,6 @@ describe("buildRankedOcrTextCandidates", () => {
       rawText: "Invoice Number INV-2026-88",
       blocks,
       layoutLines: [],
-      enableKeyValueGrounding: true
     });
 
     expect(ranked.keyValueText).toContain("Invoice Number");

@@ -82,11 +82,12 @@ describeIf("LocalStack deployment smoke test", () => {
     const fieldVerifier = new NoopFieldVerifier();
 
     const pipeline = new InvoiceExtractionPipeline(
-      ocrProvider,
-      fieldVerifier,
-      new MongoVendorTemplateStore(),
-      new MongoExtractionLearningStore(),
-      { ocrHighConfidenceThreshold: 0.88, llmAssistConfidenceThreshold: 85 }
+      {
+        ocrProvider,
+        fieldVerifier,
+        templateStore: new MongoVendorTemplateStore(),
+        learningStore: new MongoExtractionLearningStore()
+      }
     );
 
     const approvalWorkflowService = new ApprovalWorkflowService();

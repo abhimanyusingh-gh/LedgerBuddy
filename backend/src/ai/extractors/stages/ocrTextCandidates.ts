@@ -33,14 +33,11 @@ export function buildRankedOcrTextCandidates(params: {
   rawText: string;
   blocks: OcrBlock[];
   layoutLines: OcrLine[];
-  enableKeyValueGrounding: boolean;
 }): RankedOcrTextCandidates {
   const rawText = normalizeOcrTextForSlm(params.rawText);
   const blockText = normalizeOcrTextForSlm(buildBlocksText(params.blocks));
   const layoutText = normalizeOcrTextForSlm(buildLayoutText(params.layoutLines));
-  const keyValueText = params.enableKeyValueGrounding
-    ? normalizeOcrTextForSlm(buildKeyValueGroundingText(params.blocks))
-    : "";
+  const keyValueText = normalizeOcrTextForSlm(buildKeyValueGroundingText(params.blocks));
   const augmentedText = normalizeOcrTextForSlm(buildAugmentedGroundingText(keyValueText, layoutText || blockText, rawText));
 
   const ranked = rankUniqueCandidates([

@@ -7,9 +7,6 @@
   },
   "ocr": {},
   "verifier": {},
-  "extraction": {
-    "ocrHighConfidenceThreshold": 0.92
-  },
   "sources": [
     {
       "type": "folder",

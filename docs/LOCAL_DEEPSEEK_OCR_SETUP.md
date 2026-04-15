@@ -147,7 +147,6 @@ Set `LLAMA_EXTRACT_SYSTEM_PROMPT` to provide a custom system prompt for LlamaExt
 | `OCR_PROVIDER_BASE_URL` | URL | (local: `http://localhost:8200/v1`) | DeepSeek OCR endpoint |
 | `OCR_MODEL` | string | `mlx-community/DeepSeek-OCR-4bit` | DeepSeek model identifier |
 | `OCR_TIMEOUT_MS` | number | `3600000` | OCR request timeout in milliseconds |
-| `OCR_HIGH_CONFIDENCE_THRESHOLD` | number | `0.88` | Minimum OCR confidence to skip SLM fallback |
 
 ### LlamaCloud Variables
 

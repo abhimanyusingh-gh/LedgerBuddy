@@ -74,7 +74,7 @@ describe("InvoiceExtractionPipeline", () => {
 
     const pipeline = new InvoiceExtractionPipeline(
       { ocrProvider, fieldVerifier, templateStore },
-      { ocrHighConfidenceThreshold: 0.88, llmAssistConfidenceThreshold: 85, ocrDumpEnabled: false }
+      {}
     );
 
     const result = await pipeline.extract(defaultInput);
@@ -115,7 +115,7 @@ describe("InvoiceExtractionPipeline", () => {
 
     const pipeline = new InvoiceExtractionPipeline(
       { ocrProvider, fieldVerifier, templateStore },
-      { ocrDumpEnabled: false, llamaExtractEnabled: true }
+      { llamaExtractEnabled: true }
     );
 
     const result = await pipeline.extract(defaultInput);
@@ -134,7 +134,7 @@ describe("InvoiceExtractionPipeline", () => {
 
     const pipeline = new InvoiceExtractionPipeline(
       { ocrProvider, fieldVerifier, templateStore },
-      { ocrDumpEnabled: false }
+      {}
     );
 
     const result = await pipeline.extract(defaultInput);

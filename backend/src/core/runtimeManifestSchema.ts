@@ -59,12 +59,6 @@ export const runtimeManifestSchema = z.object({
         .optional()
     })
     .optional(),
-  extraction: z
-    .object({
-      ocrHighConfidenceThreshold: z.coerce.number().min(0).max(1).optional(),
-      llmAssistConfidenceThreshold: z.coerce.number().int().min(0).max(100).optional()
-    })
-    .optional(),
   database: z
     .object({
       provider: z.literal("mongo").optional(),

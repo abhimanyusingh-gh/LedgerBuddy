@@ -63,7 +63,6 @@ const mockEnv = {
   S3_FILE_STORE_PREFIX: "billforge",
   S3_FILE_STORE_ENDPOINT: undefined as string | undefined,
   S3_FILE_STORE_FORCE_PATH_STYLE: false,
-  OCR_HIGH_CONFIDENCE_THRESHOLD: 0.92,
   TALLY_ENDPOINT: undefined as string | undefined,
   TALLY_COMPANY: undefined as string | undefined,
   TALLY_PURCHASE_LEDGER: "Purchase",

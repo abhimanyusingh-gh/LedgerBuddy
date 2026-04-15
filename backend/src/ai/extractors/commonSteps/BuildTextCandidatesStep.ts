@@ -8,8 +8,6 @@ import { INVOICE_CTX } from "@/ai/extractors/invoice/pipeline/contextKeys.js";
 export class BuildTextCandidatesStep implements PipelineStep {
   readonly name = "build-text-candidates";
 
-  constructor(private enableKeyValueGrounding: boolean) {}
-
   async execute(ctx: PipelineContext): Promise<StepOutput> {
     const ocrResult = ctx.store.require<OcrResult>(INVOICE_CTX.OCR_RESULT);
     const enhanced = ctx.store.require<EnhancedOcrResult>(INVOICE_CTX.ENHANCED_OCR);
@@ -20,7 +18,6 @@ export class BuildTextCandidatesStep implements PipelineStep {
       rawText,
       blocks,
       layoutLines: enhanced.lines,
-      enableKeyValueGrounding: this.enableKeyValueGrounding,
     });
 
     ctx.store.set(INVOICE_CTX.RANKED_CANDIDATES, textCandidates.ranked);

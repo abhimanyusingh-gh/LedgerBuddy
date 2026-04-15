@@ -148,8 +148,6 @@ const envSchema = z.object({
   LLAMA_PARSE_CUSTOM_PROMPT: z.string().optional(),
   LLAMA_PARSE_EXTRACT_ENABLED: z.coerce.boolean().default(false),
   LLAMA_PARSE_EXTRACT_TIER: z.enum(["cost_effective", "agentic"]).default("cost_effective"),
-  OCR_HIGH_CONFIDENCE_THRESHOLD: z.coerce.number().default(0.88),
-
   FIELD_VERIFIER_PROVIDER: z.enum(["none", "http"]).default("http"),
   FIELD_VERIFIER_BASE_URL: z.string().optional(),
   FIELD_VERIFIER_TIMEOUT_MS: z.coerce.number().default(600000),
@@ -164,7 +162,6 @@ const envSchema = z.object({
     .default("true")
     .transform((value) => value === "true"),
 
-  LLM_ASSIST_CONFIDENCE_THRESHOLD: z.coerce.number().int().min(0).max(100).default(85),
   LEARNING_MODE: z.enum(["active", "assistive"]).default("assistive"),
 
   TALLY_ENDPOINT: z.string().optional(),
