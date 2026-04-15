@@ -210,7 +210,13 @@ const envSchema = z.object({
 
   REDIS_URL: z.string().default("redis://localhost:6379"),
 
-  WEBHOOK_SIGNING_SECRET: z.string().default("")
+  WEBHOOK_SIGNING_SECRET: z.string().default(""),
+
+  OTEL_ENABLED: z
+    .string()
+    .default("false")
+    .transform((value) => value === "true"),
+  OTEL_EXPORTER_OTLP_ENDPOINT: z.string().optional()
 });
 
 const parsed = envSchema.safeParse(process.env);

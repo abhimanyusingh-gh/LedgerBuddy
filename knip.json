@@ -4,7 +4,7 @@
   "workspaces": {
     "backend": {
       "project": ["src/**/*.ts"],
-      "entry": ["src/server.ts", "src/scripts/seedPlatformAdmin.ts", "src/scripts/runSampleInvoiceBenchmark.ts", "src/scripts/runWorkerOnce.ts"],
+      "entry": ["src/server.ts", "src/tracing.ts", "src/scripts/seedPlatformAdmin.ts", "src/scripts/runSampleInvoiceBenchmark.ts", "src/scripts/runWorkerOnce.ts"],
       "ignoreBinaries": [],
       "ignoreDependencies": ["vitest", "form-data"],
       "ignore": [

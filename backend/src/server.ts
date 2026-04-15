@@ -1,3 +1,4 @@
+import "./tracing.js";
 import type { Server } from "node:http";
 import { createApp } from "@/app.js";
 import { connectToDatabase, disconnectFromDatabase } from "@/db/connect.js";
@@ -8,6 +9,7 @@ import { seedLocalDemoData } from "@/bootstrap/seedLocalDemoData.js";
 import { buildDependencies } from "@/core/dependencies.js";
 import { TenantModel } from "@/models/core/Tenant.js";
 import { toUUID } from "@/types/uuid.js";
+import { shutdownTracing } from "@/tracing.js";
 
 let server: Server | undefined;
 let shuttingDown = false;
@@ -94,6 +96,9 @@ async function shutdown(signal: string) {
 
   await closeRedisClient();
   logger.info("shutdown.redis.disconnected");
+
+  await shutdownTracing();
+  logger.info("shutdown.tracing.flushed");
 
   process.exit(0);
 }

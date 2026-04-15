@@ -3,6 +3,7 @@ import type { PipelineInput, PipelineContext } from "@/core/pipeline/PipelineCon
 import { ContextStore } from "@/core/pipeline/PipelineContext.js";
 import type { PipelineResult } from "@/core/pipeline/PipelineResult.js";
 import { PIPELINE_STEP_STATUS } from "@/types/pipeline.js";
+import { tracePipelineStep, tracePipelineExecution } from "@/core/pipeline/tracing.js";
 
 export class ComposablePipeline<T> {
   private steps: PipelineStep[] = [];
@@ -36,31 +37,33 @@ export class ComposablePipeline<T> {
   }
 
   async executeWithContext(ctx: PipelineContext): Promise<PipelineResult<T>> {
-    const stepsExecuted: PipelineStep[] = [];
-    const start = performance.now();
+    return tracePipelineExecution("ComposablePipeline", async () => {
+      const stepsExecuted: PipelineStep[] = [];
+      const start = performance.now();
 
-    for (const step of this.steps) {
-      const stepStart = performance.now();
-      try {
-        const result = await step.execute(ctx);
-        stepsExecuted.push(step);
-        ctx.metadata[`step_${step.name}_ms`] = (performance.now() - stepStart).toFixed(0);
+      for (const step of this.steps) {
+        const stepStart = performance.now();
+        try {
+          const result = await tracePipelineStep(step.name, () => step.execute(ctx));
+          stepsExecuted.push(step);
+          ctx.metadata[`step_${step.name}_ms`] = (performance.now() - stepStart).toFixed(0);
 
-        if (result.status === PIPELINE_STEP_STATUS.HALT) {
-          break;
+          if (result.status === PIPELINE_STEP_STATUS.HALT) {
+            break;
+          }
+        } catch (error) {
+          ctx.metadata[`step_${step.name}_error`] = error instanceof Error ? error.message : String(error);
+          throw error;
         }
-      } catch (error) {
-        ctx.metadata[`step_${step.name}_error`] = error instanceof Error ? error.message : String(error);
-        throw error;
       }
-    }
 
-    return {
-      output: this.outputExtractor(ctx),
-      metadata: ctx.metadata,
-      issues: ctx.issues,
-      stepsExecuted,
-      durationMs: performance.now() - start,
-    };
+      return {
+        output: this.outputExtractor(ctx),
+        metadata: ctx.metadata,
+        issues: ctx.issues,
+        stepsExecuted,
+        durationMs: performance.now() - start,
+      };
+    });
   }
 }

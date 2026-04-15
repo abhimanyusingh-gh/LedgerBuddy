@@ -1,6 +1,7 @@
 /* eslint-disable no-console */
 
 import { AsyncLocalStorage } from "node:async_hooks";
+import { trace } from "@opentelemetry/api";
 import { LOG_LEVEL, type LogLevel } from "@/types/logging.js";
 
 type LogContext = Record<string, unknown>;
@@ -42,7 +43,13 @@ function write(level: LogLevel, message: string, context?: LogContext) {
 }
 
 export function runWithLogContext<T>(correlationId: string, callback: () => T): T {
-  return contextStore.run({ correlationId }, callback);
+  return contextStore.run({ correlationId }, () => {
+    const activeSpan = trace.getActiveSpan();
+    if (activeSpan) {
+      activeSpan.setAttribute("correlation.id", correlationId);
+    }
+    return callback();
+  });
 }
 
 export function getCorrelationId(): string | undefined {

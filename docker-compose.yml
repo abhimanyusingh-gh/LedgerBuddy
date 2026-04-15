@@ -22,6 +22,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_started
+      jaeger:
+        condition: service_started
     env_file:
       - path: ./backend/.env.example
         required: true
@@ -131,6 +133,8 @@ services:
       INVITE_FROM: ${INVITE_FROM:-no-reply@invoice.local}
       INVITE_BASE_URL: ${INVITE_BASE_URL:-http://localhost:5177}
       REDIS_URL: ${REDIS_URL:-redis://redis:6379}
+      OTEL_ENABLED: ${OTEL_ENABLED:-true}
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-http://jaeger:4318}
     volumes:
       - ${INVOICE_INBOX_PATH:-./dev/sample-invoices/inbox}:/app/sample-invoices/inbox:ro
       - ./.local-run/artifacts:/app/.local-run/artifacts
@@ -363,6 +367,20 @@ services:
       timeout: 5s
       retries: 3
       start_period: 10s
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+  jaeger:
+    image: jaegertracing/all-in-one:1.56
+    container_name: billforge-jaeger
+    restart: unless-stopped
+    ports:
+      - "16686:16686"
+      - "4318:4318"
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
     deploy:
       resources:
         limits:

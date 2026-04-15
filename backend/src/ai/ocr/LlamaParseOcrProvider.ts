@@ -6,6 +6,7 @@ import { env } from "@/config/env.js";
 import { buildOcrRequestError } from "@/ai/ocr/OcrProviderSupport.js";
 import { LLAMA_EXTRACT_INVOICE_SCHEMA } from "@/ai/schemas/invoice/llamaExtractInvoiceSchema.js";
 import { DOCUMENT_MIME_TYPE, IMAGE_MIME_TYPE, type DocumentMimeType, type ImageMimeType } from "@/types/mime.js";
+import { traceOcrExtract, traceExtractRun } from "@/ai/ocr/tracing.js";
 
 const SUPPORTED_MIME_TYPES = new Set<string>([
   DOCUMENT_MIME_TYPE.PDF,
@@ -77,93 +78,105 @@ export class LlamaParseOcrProvider implements OcrProvider {
     if (!SUPPORTED_MIME_TYPES.has(mimeType)) {
       return { text: "", confidence: 0, provider: this.name };
     }
-    const startedAt = Date.now();
-    logger.info("ocr.request.start", { provider: this.name, mimeType, tier: this.tier, payloadBytes: buffer.length });
-    try {
-      const file = new File([new Uint8Array(buffer)], "invoice.pdf", { type: mimeType });
-      const fileObj = await this.client.files.create({ file, purpose: "parse" });
-      const supportsAgenticOptions = this.tier === "cost_effective" || this.tier === "agentic" ;
-      const result = await this.client.parsing.parse({
-        file_id: fileObj.id,
-        tier: this.tier,
-        version: "latest",
-        expand: ["markdown_full", "items", "images_content_metadata"],
-        output_options: {
-          images_to_save: ["screenshot"],
-          markdown: {
-            tables: {
-              merge_continued_tables: true,
-              output_tables_as_markdown: true,
+    return traceOcrExtract(
+      this.name,
+      this.tier,
+      async () => {
+        const startedAt = Date.now();
+        logger.info("ocr.request.start", { provider: this.name, mimeType, tier: this.tier, payloadBytes: buffer.length });
+        try {
+          const file = new File([new Uint8Array(buffer)], "invoice.pdf", { type: mimeType });
+          const fileObj = await this.client.files.create({ file, purpose: "parse" });
+          const supportsAgenticOptions = this.tier === "cost_effective" || this.tier === "agentic" ;
+          const result = await this.client.parsing.parse({
+            file_id: fileObj.id,
+            tier: this.tier,
+            version: "latest",
+            expand: ["markdown_full", "items", "images_content_metadata"],
+            output_options: {
+              images_to_save: ["screenshot"],
+              markdown: {
+                tables: {
+                  merge_continued_tables: true,
+                  output_tables_as_markdown: true,
+                },
+              },
             },
-          },
-        },
-        processing_options: {
-          aggressive_table_extraction: true,
-          ignore: { ignore_text_in_image: true },
-        },
-        ...(supportsAgenticOptions && this.customPrompt !== undefined
-          ? { agentic_options: { custom_prompt: this.customPrompt } }
-          : {}),
-      });
-      const text = result.markdown_full ?? "";
-      const blocks = buildBlocks(result.items);
-      const pageImages = await downloadScreenshots(result.images_content_metadata);
+            processing_options: {
+              aggressive_table_extraction: true,
+              ignore: { ignore_text_in_image: true },
+            },
+            ...(supportsAgenticOptions && this.customPrompt !== undefined
+              ? { agentic_options: { custom_prompt: this.customPrompt } }
+              : {}),
+          });
+          const text = result.markdown_full ?? "";
+          const blocks = buildBlocks(result.items);
+          const pageImages = await downloadScreenshots(result.images_content_metadata);
 
-      let fields: ExtractedField[] | undefined;
-      let extractedLineItems: Array<Record<string, unknown>> | undefined;
-      if (this.extractEnabled) {
-        const parseJobId = result.job?.id ?? fileObj.id;
-        const extracted = await this.runExtract(parseJobId);
-        if (extracted.fields.length > 0) {
-          fields = extracted.fields;
-        }
-        if (extracted.lineItems.length > 0) {
-          extractedLineItems = extracted.lineItems;
-        }
-      }
+          let fields: ExtractedField[] | undefined;
+          let extractedLineItems: Array<Record<string, unknown>> | undefined;
+          if (this.extractEnabled) {
+            const parseJobId = result.job?.id ?? fileObj.id;
+            const extracted = await this.runExtract(parseJobId);
+            if (extracted.fields.length > 0) {
+              fields = extracted.fields;
+            }
+            if (extracted.lineItems.length > 0) {
+              extractedLineItems = extracted.lineItems;
+            }
+          }
 
-      try {
-        await this.client.files.delete(fileObj.id);
-        logger.info("ocr.file.deleted", { provider: this.name, fileId: fileObj.id });
-      } catch (deleteErr) {
-        logger.warn("ocr.file.delete.failed", { provider: this.name, fileId: fileObj.id, error: String(deleteErr) });
-      }
-      const { confidence, parsingConfidence, extractionConfidence } = computeDocumentConfidences(fields);
-      logger.info("ocr.request.end", { provider: this.name, mimeType, latencyMs: Date.now() - startedAt, chars: text.length, blockCount: blocks.length, pageImageCount: pageImages.length });
-      return { text, confidence, parsingConfidence, extractionConfidence, provider: this.name, blocks, pageImages, fields, extractedLineItems };
-    } catch (error) {
-      logger.error("ocr.request.failed", { provider: this.name, mimeType, latencyMs: Date.now() - startedAt, error: buildOcrRequestError(this.name, error) });
-      throw new Error(buildOcrRequestError(this.name, error));
-    }
+          try {
+            await this.client.files.delete(fileObj.id);
+            logger.info("ocr.file.deleted", { provider: this.name, fileId: fileObj.id });
+          } catch (deleteErr) {
+            logger.warn("ocr.file.delete.failed", { provider: this.name, fileId: fileObj.id, error: String(deleteErr) });
+          }
+          const { confidence, parsingConfidence, extractionConfidence } = computeDocumentConfidences(fields);
+          logger.info("ocr.request.end", { provider: this.name, mimeType, latencyMs: Date.now() - startedAt, chars: text.length, blockCount: blocks.length, pageImageCount: pageImages.length });
+          return { text, confidence, parsingConfidence, extractionConfidence, provider: this.name, blocks, pageImages, fields, extractedLineItems };
+        } catch (error) {
+          logger.error("ocr.request.failed", { provider: this.name, mimeType, latencyMs: Date.now() - startedAt, error: buildOcrRequestError(this.name, error) });
+          throw new Error(buildOcrRequestError(this.name, error));
+        }
+      },
+      (result) => ({
+        chars: result.text.length,
+        blocks: result.blocks?.length ?? 0,
+      }),
+    );
   }
 
   private async runExtract(fileInput: string): Promise<{ fields: ExtractedField[]; lineItems: Array<Record<string, unknown>> }> {
-    try {
-      const job = await this.client.extract.create({
-        file_input: fileInput,
-        configuration: {
-          data_schema: LLAMA_EXTRACT_INVOICE_SCHEMA,
-          cite_sources: true,
-          confidence_scores: true,
-          tier: this.extractTier,
-          extraction_target: "per_doc",
-          system_prompt: this.extractSystemPrompt,
-          ...(this.extractTargetPages ? { target_pages: this.extractTargetPages } : {})
-        },
-      });
-      const completed = await this.client.extract.waitForCompletion(job.id, { expand: ["extract_metadata"] });
-      const result = mapExtractResult(completed.extract_result, completed.extract_metadata?.field_metadata?.document_metadata);
+    return traceExtractRun(async () => {
       try {
-        await this.client.extract.delete(job.id);
-        logger.info("ocr.extract.deleted", { provider: this.name, jobId: job.id });
-      } catch (deleteErr) {
-        logger.warn("ocr.extract.delete.failed", { provider: this.name, jobId: job.id, error: String(deleteErr) });
+        const job = await this.client.extract.create({
+          file_input: fileInput,
+          configuration: {
+            data_schema: LLAMA_EXTRACT_INVOICE_SCHEMA,
+            cite_sources: true,
+            confidence_scores: true,
+            tier: this.extractTier,
+            extraction_target: "per_doc",
+            system_prompt: this.extractSystemPrompt,
+            ...(this.extractTargetPages ? { target_pages: this.extractTargetPages } : {})
+          },
+        });
+        const completed = await this.client.extract.waitForCompletion(job.id, { expand: ["extract_metadata"] });
+        const result = mapExtractResult(completed.extract_result, completed.extract_metadata?.field_metadata?.document_metadata);
+        try {
+          await this.client.extract.delete(job.id);
+          logger.info("ocr.extract.deleted", { provider: this.name, jobId: job.id });
+        } catch (deleteErr) {
+          logger.warn("ocr.extract.delete.failed", { provider: this.name, jobId: job.id, error: String(deleteErr) });
+        }
+        return result;
+      } catch (err) {
+        logger.warn("ocr.extract.failed", { provider: this.name, fileInput, error: String(err) });
+        return { fields: [], lineItems: [] };
       }
-      return result;
-    } catch (err) {
-      logger.warn("ocr.extract.failed", { provider: this.name, fileInput, error: String(err) });
-      return { fields: [], lineItems: [] };
-    }
+    });
   }
 }
 
