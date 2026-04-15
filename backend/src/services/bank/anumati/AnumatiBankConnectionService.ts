@@ -4,6 +4,7 @@ import { aesDecrypt, aesEncrypt } from "@/services/bank/anumati/AnumatiCrypto.js
 import { AnumatiClient } from "@/services/bank/anumati/AnumatiClient.js";
 import type { IBankConnectionService, InitiateConsentResult, FetchFiResult } from "@/services/bank/anumati/IBankConnectionService.js";
 import { env } from "@/config/env.js";
+import { BANK_ACCOUNT_STATUS } from "@/types/bankAccount.js";
 
 export class AnumatiBankConnectionService implements IBankConnectionService {
   private readonly client: AnumatiClient;
@@ -46,7 +47,7 @@ export class AnumatiBankConnectionService implements IBankConnectionService {
     await BankAccountModel.findByIdAndUpdate(params.bankAccountId, {
       sessionId,
       consentHandle: result.consentHandle,
-      status: "pending_consent"
+      status: BANK_ACCOUNT_STATUS.PENDING_CONSENT
     });
 
     return { redirectUrl, sessionId, consentHandle: result.consentHandle };
@@ -57,7 +58,7 @@ export class AnumatiBankConnectionService implements IBankConnectionService {
     if (!account) return;
 
     if (!params.success) {
-      account.status = "error";
+      account.status = BANK_ACCOUNT_STATUS.ERROR;
       account.lastErrorReason = "User denied or cancelled consent.";
       await account.save();
       return;
@@ -71,14 +72,14 @@ export class AnumatiBankConnectionService implements IBankConnectionService {
           account.consentId = payload.consentId;
         }
       } catch {
-        account.status = "error";
+        account.status = BANK_ACCOUNT_STATUS.ERROR;
         account.lastErrorReason = "Failed to decrypt consent callback params.";
         await account.save();
         return;
       }
     }
 
-    account.status = "active";
+    account.status = BANK_ACCOUNT_STATUS.ACTIVE;
     await account.save();
   }
 
@@ -92,14 +93,14 @@ export class AnumatiBankConnectionService implements IBankConnectionService {
     if (!account) return;
 
     if (status === "ACTIVE") {
-      account.status = "active";
+      account.status = BANK_ACCOUNT_STATUS.ACTIVE;
       account.consentId = typeof p.consentId === "string" ? p.consentId : account.consentId;
     } else if (status === "REVOKED") {
-      account.status = "revoked";
+      account.status = BANK_ACCOUNT_STATUS.REVOKED;
     } else if (status === "EXPIRED") {
-      account.status = "expired";
+      account.status = BANK_ACCOUNT_STATUS.EXPIRED;
     } else if (status === "PAUSED") {
-      account.status = "paused";
+      account.status = BANK_ACCOUNT_STATUS.PAUSED;
     }
     await account.save();
   }
@@ -150,7 +151,7 @@ export class AnumatiBankConnectionService implements IBankConnectionService {
       await this.client.post("/consent/revoke", { consentId: account.consentId }).catch(() => {});
     }
 
-    account.status = "revoked";
+    account.status = BANK_ACCOUNT_STATUS.REVOKED;
     await account.save();
   }
 }

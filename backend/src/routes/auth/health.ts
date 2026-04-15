@@ -3,6 +3,7 @@ import mongoose from "mongoose";
 import axios from "axios";
 import { env } from "@/config/env.js";
 import { OCR_PROVIDER_NAME } from "@/constants.js";
+import { HEALTH_CHECK_STATUS } from "@/types/health.js";
 
 export const healthRouter = Router();
 
@@ -19,9 +20,9 @@ healthRouter.get("/health", async (_req, res) => {
     env: env.ENV,
     timestamp: new Date().toISOString(),
     checks: {
-      mongo: mongoOk ? "ok" : "fail",
-      ocr: ocrOk ? "ok" : "fail",
-      slm: slmOk ? "ok" : "fail"
+      mongo: mongoOk ? HEALTH_CHECK_STATUS.OK : HEALTH_CHECK_STATUS.FAIL,
+      ocr: ocrOk ? HEALTH_CHECK_STATUS.OK : HEALTH_CHECK_STATUS.FAIL,
+      slm: slmOk ? HEALTH_CHECK_STATUS.OK : HEALTH_CHECK_STATUS.FAIL
     }
   });
 });
@@ -36,9 +37,9 @@ healthRouter.get("/health/ready", async (_req, res) => {
   res.status(ready ? 200 : 503).json({
     ready,
     checks: {
-      mongo: mongoOk ? "ok" : "fail",
-      ocr: ocrOk ? "ok" : "fail",
-      slm: slmOk ? "ok" : "fail"
+      mongo: mongoOk ? HEALTH_CHECK_STATUS.OK : HEALTH_CHECK_STATUS.FAIL,
+      ocr: ocrOk ? HEALTH_CHECK_STATUS.OK : HEALTH_CHECK_STATUS.FAIL,
+      slm: slmOk ? HEALTH_CHECK_STATUS.OK : HEALTH_CHECK_STATUS.FAIL
     }
   });
 });

@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { BankAccountModel } from "@/models/bank/BankAccount.js";
 import type { IBankConnectionService, InitiateConsentResult, FetchFiResult } from "@/services/bank/anumati/IBankConnectionService.js";
+import { BANK_ACCOUNT_STATUS } from "@/types/bankAccount.js";
 
 const MOCK_BALANCE_MINOR = 12345600;
 const MOCK_BANK_NAME = "Demo Bank";
@@ -19,7 +20,7 @@ export class MockBankConnectionService implements IBankConnectionService {
     await BankAccountModel.findByIdAndUpdate(params.bankAccountId, {
       sessionId,
       consentHandle: `mock-handle-${sessionId}`,
-      status: "pending_consent"
+      status: BANK_ACCOUNT_STATUS.PENDING_CONSENT
     });
 
     const redirectUrl = `/api/bank/mock-callback?sessionId=${sessionId}&success=true`;
@@ -32,10 +33,10 @@ export class MockBankConnectionService implements IBankConnectionService {
     if (!account) return;
 
     if (!params.success) {
-      account.status = "error";
+      account.status = BANK_ACCOUNT_STATUS.ERROR;
       account.lastErrorReason = "Mock consent denied.";
     } else {
-      account.status = "active";
+      account.status = BANK_ACCOUNT_STATUS.ACTIVE;
       account.consentId = `mock-consent-${randomUUID()}`;
       account.bankName = MOCK_BANK_NAME;
       account.maskedAccNumber = MOCK_MASKED_ACC;
@@ -69,6 +70,6 @@ export class MockBankConnectionService implements IBankConnectionService {
   }
 
   async revokeConsent(bankAccountId: string): Promise<void> {
-    await BankAccountModel.findByIdAndUpdate(bankAccountId, { status: "revoked" });
+    await BankAccountModel.findByIdAndUpdate(bankAccountId, { status: BANK_ACCOUNT_STATUS.REVOKED });
   }
 }

@@ -2,11 +2,12 @@ import type { Response, Request } from "express";
 import { SSE_HEARTBEAT_INTERVAL_MS } from "@/constants.js";
 import { logger } from "@/utils/logger.js";
 import { getRedisClient } from "@/db/redis.js";
+import type { ParseEventType, BankParseStage } from "@/types/bankParsing.js";
 
-export type BankParseStage = "ocr" | "text-extraction" | "slm-chunk" | "validation";
+export type { BankParseStage } from "@/types/bankParsing.js";
 
 export interface BankParseProgressEvent {
-  type: "start" | "progress" | "complete" | "error";
+  type: ParseEventType;
   fileName?: string;
   statementId?: string;
   stage?: BankParseStage;

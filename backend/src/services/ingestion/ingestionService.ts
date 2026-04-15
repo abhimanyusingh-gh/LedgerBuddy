@@ -17,6 +17,7 @@ import { NoopFieldVerifier } from "@/ai/verifiers/NoopFieldVerifier.js";
 import { MongoVendorTemplateStore } from "@/ai/extractors/invoice/learning/vendorTemplateStore.js";
 import { buildFailureData, buildSuccessData, isDuplicateKeyError, upsertFromPending } from "@/services/ingestion/persistence.js";
 import { persistFieldArtifacts } from "@/services/ingestion/artifacts.js";
+import { INGESTION_FILE_RESULT, type IngestionFileResult } from "@/types/ingestion.js";
 const MAX_FILE_PROCESSING_CONCURRENCY = env.INGESTION_CONCURRENCY;
 
 interface IngestionRunSummary {
@@ -39,7 +40,7 @@ interface IngestionServiceOptions {
     workloadTier: WorkloadTier;
     sourceKey: string;
     checkpointValue: string;
-    result: "created" | "duplicate" | "failed";
+    result: IngestionFileResult;
   }) => Promise<void> | void;
   pipeline?: InvoiceExtractionPipeline;
   fileStore?: FileStore;
@@ -169,15 +170,15 @@ export class IngestionService {
             attachmentName: scopedFile.attachmentName,
             result
           });
-          if (result === "created") {
+          if (result === INGESTION_FILE_RESULT.CREATED) {
             summary.newInvoices += 1;
           }
 
-          if (result === "duplicate") {
+          if (result === INGESTION_FILE_RESULT.DUPLICATE) {
             summary.duplicates += 1;
           }
 
-          if (result === "failed") {
+          if (result === INGESTION_FILE_RESULT.FAILED) {
             summary.failures += 1;
           }
           processedFiles += 1;
@@ -247,14 +248,14 @@ export class IngestionService {
     return files.filter((file) => !existingDocumentIds.has(file.sourceDocumentId));
   }
 
-  private async processFile(file: IngestedFile): Promise<{ result: "created" | "duplicate" | "failed"; systemAlert?: string }> {
+  private async processFile(file: IngestedFile): Promise<{ result: IngestionFileResult; systemAlert?: string }> {
     const gmailMessageId = file.sourceType === INGESTION_SOURCE_TYPE.EMAIL && file.metadata?.messageId
       ? String(file.metadata.messageId).trim()
       : undefined;
 
     if (gmailMessageId) {
       const msgDup = await InvoiceModel.findOne({ tenantId: file.tenantId, gmailMessageId }).lean();
-      if (msgDup) return { result: "duplicate" };
+      if (msgDup) return { result: INGESTION_FILE_RESULT.DUPLICATE };
     }
 
     const pendingDoc = await InvoiceModel.findOne({
@@ -309,7 +310,7 @@ export class IngestionService {
           ? "AI processing is rate-limited. Please wait a moment before retrying."
           : undefined;
 
-      const result = successData.status === INVOICE_STATUS.PARSED || successData.status === INVOICE_STATUS.NEEDS_REVIEW ? "created" : "failed";
+      const result = successData.status === INVOICE_STATUS.PARSED || successData.status === INVOICE_STATUS.NEEDS_REVIEW ? INGESTION_FILE_RESULT.CREATED : INGESTION_FILE_RESULT.FAILED;
       return { result, systemAlert };
     } catch (error) {
       if (isDuplicateKeyError(error)) {
@@ -317,12 +318,12 @@ export class IngestionService {
           sourceDocumentId: file.sourceDocumentId,
           attachmentName: file.attachmentName
         });
-        return { result: "created" };
+        return { result: INGESTION_FILE_RESULT.CREATED };
       }
 
       const failureData = buildFailureData(file, normalizedMimeType, baseOcrState, error);
       await this.persistFailure(file, failureData, error);
-      return { result: "failed" };
+      return { result: INGESTION_FILE_RESULT.FAILED };
     }
   }
 

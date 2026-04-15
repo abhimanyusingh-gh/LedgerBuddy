@@ -12,6 +12,7 @@ import { TenantIntegrationModel } from "@/models/integration/TenantIntegration.j
 import { HttpError } from "@/errors/HttpError.js";
 import type { KeycloakAdminClient } from "@/keycloak/KeycloakAdminClient.js";
 import { mergeCapabilitiesWithDefaults } from "@/auth/personaDefaults.js";
+import type { OnboardingStatus } from "@/types/onboarding.js";
 
 interface LoginCallbackResult {
   sessionToken: string;
@@ -335,7 +336,7 @@ export class AuthService {
 
 function buildContext(
   user: { _id: unknown; email: string; tenantId: string },
-  tenant: { _id?: unknown; name: string; onboardingStatus: "pending" | "completed" },
+  tenant: { _id?: unknown; name: string; onboardingStatus: OnboardingStatus },
   role: string
 ): AuthenticatedRequestContext {
   const tenantId = user.tenantId || String(tenant._id);

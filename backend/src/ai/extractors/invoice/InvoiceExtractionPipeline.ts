@@ -67,6 +67,7 @@ import {
 } from "@/ai/extractors/invoice/InvoiceDocumentDefinition.js";
 import { type ExtractionSource } from "@/core/engine/extractionSource.js";
 import { PIPELINE_ERROR_CODE, type PipelineErrorCode } from "@/core/engine/types.js";
+import { LEARNING_MODE, type LearningMode } from "@/types/pipeline.js";
 import { logger } from "@/utils/logger.js";
 
 interface ExtractionPipelineInput {
@@ -85,7 +86,7 @@ interface ExtractionPipelineOptions {
   ocrHighConfidenceThreshold?: number;
   enableOcrKeyValueGrounding?: boolean;
   llmAssistConfidenceThreshold?: number;
-  learningMode?: "active" | "assistive";
+  learningMode?: LearningMode;
   ocrDumpEnabled?: boolean;
   llamaExtractEnabled?: boolean;
 }
@@ -116,7 +117,7 @@ export class InvoiceExtractionPipeline {
   private readonly ocrHighConfidenceThreshold: number;
   private readonly enableOcrKeyValueGrounding: boolean;
   private readonly llmAssistConfidenceThreshold: number;
-  private readonly learningMode: "active" | "assistive";
+  private readonly learningMode: LearningMode;
   private readonly ocrDumpEnabled: boolean;
   private readonly llamaExtractEnabled: boolean;
 
@@ -130,7 +131,7 @@ export class InvoiceExtractionPipeline {
     this.ocrHighConfidenceThreshold = clampProbability(options?.ocrHighConfidenceThreshold ?? 0.88);
     this.enableOcrKeyValueGrounding = options?.enableOcrKeyValueGrounding ?? true;
     this.llmAssistConfidenceThreshold = options?.llmAssistConfidenceThreshold ?? 85;
-    this.learningMode = options?.learningMode ?? "assistive";
+    this.learningMode = options?.learningMode ?? LEARNING_MODE.ASSISTIVE;
     this.ocrDumpEnabled = options?.ocrDumpEnabled ?? process.env.OCR_DUMP_ENABLED === "true";
     this.llamaExtractEnabled = options?.llamaExtractEnabled ?? false;
   }

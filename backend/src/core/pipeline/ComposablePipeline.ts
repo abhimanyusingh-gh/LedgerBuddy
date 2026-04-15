@@ -2,6 +2,7 @@ import type { PipelineStep } from "@/core/pipeline/PipelineStep.js";
 import type { PipelineInput, PipelineContext } from "@/core/pipeline/PipelineContext.js";
 import { ContextStore } from "@/core/pipeline/PipelineContext.js";
 import type { PipelineResult } from "@/core/pipeline/PipelineResult.js";
+import { PIPELINE_STEP_STATUS } from "@/types/pipeline.js";
 
 export class ComposablePipeline<T> {
   private steps: PipelineStep[] = [];
@@ -45,7 +46,7 @@ export class ComposablePipeline<T> {
         stepsExecuted.push(step);
         ctx.metadata[`step.${step.name}.ms`] = (performance.now() - stepStart).toFixed(0);
 
-        if (result.status === "halt") {
+        if (result.status === PIPELINE_STEP_STATUS.HALT) {
           break;
         }
       } catch (error) {

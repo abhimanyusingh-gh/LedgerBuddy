@@ -31,6 +31,7 @@ import {
 } from "@/services/invoice/invoiceHelpers.js";
 export { InvoiceUpdateError } from "@/services/invoice/invoiceHelpers.js";
 import { EXTRACTION_GROUP_TYPE } from "@/ai/extractors/invoice/learning/extractionLearningStore.js";
+import type { SortDirection } from "@/types/sorting.js";
 
 interface ListInvoicesParams {
   status?: string;
@@ -41,7 +42,7 @@ interface ListInvoicesParams {
   to?: Date;
   approvedBy?: string;
   sortBy?: string;
-  sortDir?: "asc" | "desc";
+  sortDir?: SortDirection;
 }
 
 const SORT_COLUMN_MAP: Record<string, string> = {

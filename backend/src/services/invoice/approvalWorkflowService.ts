@@ -5,17 +5,18 @@ import { HttpError } from "@/errors/HttpError.js";
 import { logger } from "@/utils/logger.js";
 import type { AuthenticatedRequestContext } from "@/types/auth.js";
 import { INVOICE_STATUS } from "@/types/invoice.js";
+import type { ApprovalStepType, ApproverType, ApprovalRule, ApprovalWorkflowMode } from "@/types/approvalWorkflow.js";
 
 interface WorkflowStep {
   order: number;
   name: string;
-  type?: "approval" | "compliance_signoff" | "escalation";
-  approverType: "any_member" | "role" | "specific_users" | "persona" | "capability";
+  type?: ApprovalStepType;
+  approverType: ApproverType;
   approverRole?: string;
   approverUserIds?: string[];
   approverPersona?: string;
   approverCapability?: string;
-  rule: "any" | "all";
+  rule: ApprovalRule;
   condition?: { field: string; operator: string; value: unknown } | null;
   timeoutHours?: number | null;
   escalateTo?: string | null;
@@ -23,7 +24,7 @@ interface WorkflowStep {
 
 interface WorkflowConfig {
   enabled: boolean;
-  mode: "simple" | "advanced";
+  mode: ApprovalWorkflowMode;
   simpleConfig: { requireManagerReview: boolean; requireFinalSignoff: boolean };
   steps: WorkflowStep[];
 }
@@ -49,7 +50,7 @@ const ANY_MEMBER_DB_ROLES = [...TenantAssignableRoles];
 function mapStepsFromDoc(steps: Array<{
   order: number;
   name: string;
-  type?: "approval" | "compliance_signoff" | "escalation" | null;
+  type?: ApprovalStepType | null;
   approverType: string;
   approverRole?: string | null;
   approverUserIds?: string[];
@@ -69,7 +70,7 @@ function mapStepsFromDoc(steps: Array<{
     approverUserIds: s.approverUserIds ?? [],
     approverPersona: s.approverPersona ?? undefined,
     approverCapability: s.approverCapability ?? undefined,
-    rule: s.rule as "any" | "all",
+    rule: s.rule as ApprovalRule,
     condition: s.condition?.field
       ? { field: s.condition.field, operator: s.condition.operator!, value: s.condition.value! }
       : null,

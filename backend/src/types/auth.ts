@@ -1,12 +1,13 @@
 import type { Request } from "express";
 import type { TenantRole } from "@/models/core/TenantUserRole.js";
+import type { OnboardingStatus } from "@/types/onboarding.js";
 
 export interface AuthenticatedRequestContext {
   userId: string;
   email: string;
   tenantId: string;
   tenantName: string;
-  onboardingStatus: "pending" | "completed";
+  onboardingStatus: OnboardingStatus;
   role: TenantRole;
   isPlatformAdmin: boolean;
 }

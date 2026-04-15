@@ -17,7 +17,7 @@ import { InvoiceService } from "@/services/invoice/invoiceService.js";
 import { ExportService } from "@/services/export/exportService.js";
 import { TallyExporter } from "@/services/export/tallyExporter.js";
 import { logger } from "@/utils/logger.js";
-import { loadRuntimeManifest, type RuntimeManifest } from "@/core/runtimeManifest.js";
+import { loadRuntimeManifest, type RuntimeManifest, type LlamaParseTier } from "@/core/runtimeManifest.js";
 import { NoopFieldVerifier } from "@/ai/verifiers/NoopFieldVerifier.js";
 import { HttpFieldVerifier } from "@/ai/verifiers/HttpFieldVerifier.js";
 import { S3FileStore } from "@/storage/S3FileStore.js";
@@ -212,7 +212,7 @@ export async function resolveOcrProvider(runtimeManifest = loadRuntimeManifest()
     const cfg = runtimeManifest.ocr.llamaparse;
     if (!cfg.apiKey) throw new Error("LLAMA_CLOUD_API_KEY is not configured.");
     logger.info("Using OCR provider", { provider: OCR_PROVIDER_NAME.LLAMAPARSE, tier: cfg.tier });
-    return new LlamaParseOcrProvider({ apiKey: cfg.apiKey, tier: cfg.tier as "fast" | "cost_effective" | "agentic" });
+    return new LlamaParseOcrProvider({ apiKey: cfg.apiKey, tier: cfg.tier as LlamaParseTier });
   }
 
   if (runtimeManifest.ocr.provider === OCR_PROVIDER_NAME.DEEPSEEK || runtimeManifest.ocr.provider === OCR_PROVIDER_NAME.AUTO) {

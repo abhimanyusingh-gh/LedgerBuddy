@@ -3,6 +3,8 @@ import type { ParsedInvoiceData } from "@/types/invoice.js";
 import { parseAmountTokenWithOcrRepair } from "@/ai/parsers/invoiceParser.js";
 import { normalizeInvoiceNumberValue, normalizeVendorText } from "@/ai/extractors/invoice/stages/documentFieldRecovery.js";
 import { detectExplicitCurrency } from "@/ai/extractors/stages/fieldParsingUtils.js";
+import { OCR_RECOVERY_STRATEGY, type OcrRecoveryStrategy } from "@/types/ocrRecovery.js";
+import { AMOUNT_SEARCH_PREFERENCE, type AmountSearchPreference } from "@/types/approvalWorkflow.js";
 
 export function normalizeParsedAgainstOcrText(
   parsed: ParsedInvoiceData,
@@ -62,10 +64,10 @@ export function recoverGstSummaryFromOcr(
   ocrBlocks: OcrBlock[]
 ): { subtotalMinor?: number; cgstMinor?: number; sgstMinor?: number; igstMinor?: number; totalTaxMinor?: number } | undefined {
   const subtotalMinor = findSummaryAmountByLabel(ocrBlocks, /^(sub\s*total|subtotal|total excluding tax|taxable amount|taxable value)$/i);
-  const cgstMinor = findSummaryAmountByLabel(ocrBlocks, /\bcgst(?:\d+)?\b/i, "last");
-  const sgstMinor = findSummaryAmountByLabel(ocrBlocks, /\bsgst(?:\d+)?\b/i, "last");
-  const igstMinor = findSummaryAmountByLabel(ocrBlocks, /\bigst(?:\d+)?\b/i, "last");
-  const taxLineMinor = findSummaryAmountByLabel(ocrBlocks, /^(tax\b|gst\b|gst\s*-|tax \()/i, "last");
+  const cgstMinor = findSummaryAmountByLabel(ocrBlocks, /\bcgst(?:\d+)?\b/i, AMOUNT_SEARCH_PREFERENCE.LAST);
+  const sgstMinor = findSummaryAmountByLabel(ocrBlocks, /\bsgst(?:\d+)?\b/i, AMOUNT_SEARCH_PREFERENCE.LAST);
+  const igstMinor = findSummaryAmountByLabel(ocrBlocks, /\bigst(?:\d+)?\b/i, AMOUNT_SEARCH_PREFERENCE.LAST);
+  const taxLineMinor = findSummaryAmountByLabel(ocrBlocks, /^(tax\b|gst\b|gst\s*-|tax \()/i, AMOUNT_SEARCH_PREFERENCE.LAST);
   const totalTaxMinor =
     sumDefined(cgstMinor, sgstMinor, igstMinor) ??
     taxLineMinor;
@@ -83,10 +85,10 @@ export function recoverGstSummaryFromOcr(
 
 function findPreferredTotalAmountBlockForStrategy(
   ocrBlocks: OcrBlock[],
-  strategy: "generic" | "invoice_table" | "receipt_statement",
+  strategy: OcrRecoveryStrategy,
   totalAmountMinor?: number
 ): { block: OcrBlock; index: number } | undefined {
-  if (strategy === "receipt_statement") {
+  if (strategy === OCR_RECOVERY_STRATEGY.RECEIPT_STATEMENT) {
     return (
       findBottomMostMatchingAmountBlock(totalAmountMinor, ocrBlocks) ??
       findBestMatchingAmountBlock(totalAmountMinor, ocrBlocks, [
@@ -94,7 +96,7 @@ function findPreferredTotalAmountBlockForStrategy(
         /\b(taxable amount|taxable value)\b/i
       ]) ??
       findAmountBlockByLabel(ocrBlocks, /^total$/i) ??
-      findAmountBlockByLabel(ocrBlocks, /taxable amount/i, "last")
+      findAmountBlockByLabel(ocrBlocks, /taxable amount/i, AMOUNT_SEARCH_PREFERENCE.LAST)
     );
   }
   return (
@@ -118,9 +120,9 @@ export function recoverPreferredTotalAmountMinor(ocrBlocks: OcrBlock[]): number 
     }
   }
   const subtotalMinor = findSummaryAmountByLabel(ocrBlocks, /^(sub\s*total|subtotal|taxable amount|taxable value)$/i);
-  const cgstMinor = findSummaryAmountByLabel(ocrBlocks, /\bcgst(?:\d+)?\b/i, "last");
-  const sgstMinor = findSummaryAmountByLabel(ocrBlocks, /\bsgst(?:\d+)?\b/i, "last");
-  const igstMinor = findSummaryAmountByLabel(ocrBlocks, /\bigst(?:\d+)?\b/i, "last");
+  const cgstMinor = findSummaryAmountByLabel(ocrBlocks, /\bcgst(?:\d+)?\b/i, AMOUNT_SEARCH_PREFERENCE.LAST);
+  const sgstMinor = findSummaryAmountByLabel(ocrBlocks, /\bsgst(?:\d+)?\b/i, AMOUNT_SEARCH_PREFERENCE.LAST);
+  const igstMinor = findSummaryAmountByLabel(ocrBlocks, /\bigst(?:\d+)?\b/i, AMOUNT_SEARCH_PREFERENCE.LAST);
   const computed = computeSummaryTotalMinor({
     ...(subtotalMinor !== undefined ? { subtotalMinor } : {}),
     ...(cgstMinor !== undefined ? { cgstMinor } : {}),
@@ -286,7 +288,7 @@ function findNearestSameRowLabelText(
 function findAmountBlockByLabel(
   ocrBlocks: OcrBlock[],
   labelPattern: RegExp,
-  preference: "first" | "last" = "first"
+  preference: AmountSearchPreference = AMOUNT_SEARCH_PREFERENCE.FIRST
 ): { block: OcrBlock; index: number } | undefined {
   const labelEntries = ocrBlocks
     .map((block, index) => ({ block, index }))
@@ -344,14 +346,14 @@ function findAmountBlockByLabel(
     const rightBox = right.labelEntry.block.bboxNormalized ?? [0, 0, 0, 0];
     return leftBox[1] - rightBox[1];
   });
-  const selected = preference === "last" ? ordered[ordered.length - 1] : ordered[0];
+  const selected = preference === AMOUNT_SEARCH_PREFERENCE.LAST ? ordered[ordered.length - 1] : ordered[0];
   return selected.amountEntry;
 }
 
 export function findSummaryAmountByLabel(
   ocrBlocks: OcrBlock[],
   labelPattern: RegExp,
-  preference: "first" | "last" = "first"
+  preference: AmountSearchPreference = AMOUNT_SEARCH_PREFERENCE.FIRST
 ): number | undefined {
   const amountEntry = findAmountBlockByLabel(ocrBlocks, labelPattern, preference);
   if (!amountEntry) {

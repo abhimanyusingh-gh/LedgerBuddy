@@ -1,12 +1,11 @@
 import { Schema, model, type InferSchemaType } from "mongoose";
-
-const BankAccountStatuses = ["pending_consent", "active", "paused", "revoked", "expired", "error"] as const;
+import { BankAccountStatuses, BANK_ACCOUNT_STATUS } from "@/types/bankAccount.js";
 
 const bankAccountSchema = new Schema(
   {
     tenantId: { type: String, required: true },
     createdByUserId: { type: String, required: true },
-    status: { type: String, enum: BankAccountStatuses, required: true, default: "pending_consent" },
+    status: { type: String, enum: BankAccountStatuses, required: true, default: BANK_ACCOUNT_STATUS.PENDING_CONSENT },
     consentHandle: { type: String },
     consentId: { type: String },
     consentArtefact: { type: String },

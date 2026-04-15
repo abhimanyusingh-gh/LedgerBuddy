@@ -2,13 +2,14 @@ import { TdsRateTableModel } from "@/models/compliance/TdsRateTable.js";
 import { TdsSectionMappingModel } from "@/models/compliance/TdsSectionMapping.js";
 import { TenantComplianceConfigModel } from "@/models/integration/TenantComplianceConfig.js";
 import type { ComplianceTdsResult, ComplianceRiskSignal, ParsedInvoiceData } from "@/types/invoice.js";
+import { TDS_CONFIDENCE, type TdsConfidence } from "@/types/invoice.js";
 
 const PAN_FORMAT = /^[A-Z]{5}[0-9]{4}[A-Z]$/;
 const VALID_PAN_CATEGORIES = new Set(["C", "P", "H", "F", "T", "A", "B", "L", "J", "G"]);
 
 interface TdsDetectionResult {
   section: string | null;
-  confidence: "high" | "medium" | "low";
+  confidence: TdsConfidence;
 }
 
 interface TdsRateLookup {
@@ -35,7 +36,7 @@ export class TdsCalculationService {
     tenantId: string
   ): Promise<TdsDetectionResult> {
     if (!glCategory) {
-      return { section: null, confidence: "low" };
+      return { section: null, confidence: TDS_CONFIDENCE.LOW };
     }
 
     const effectivePanCategory = panCategory ?? "*";
@@ -50,14 +51,14 @@ export class TdsCalculationService {
       const mappings = await TdsSectionMappingModel.find(query).sort({ priority: -1 }).limit(2).lean();
       if (mappings.length === 0) continue;
 
-      const confidence: "high" | "medium" = mappings.length > 1 && mappings[0].priority === mappings[1].priority
-        ? "medium"
-        : "high";
+      const confidence: TdsConfidence = mappings.length > 1 && mappings[0].priority === mappings[1].priority
+        ? TDS_CONFIDENCE.MEDIUM
+        : TDS_CONFIDENCE.HIGH;
 
       return { section: mappings[0].tdsSection, confidence };
     }
 
-    return { section: null, confidence: "low" };
+    return { section: null, confidence: TDS_CONFIDENCE.LOW };
   }
 
   async lookupRate(
@@ -150,13 +151,13 @@ export class TdsCalculationService {
           amountMinor: null,
           netPayableMinor: null,
           source: "auto",
-          confidence: "low"
+          confidence: TDS_CONFIDENCE.LOW
         },
         riskSignals
       };
     }
 
-    if (detection.confidence === "medium") {
+    if (detection.confidence === TDS_CONFIDENCE.MEDIUM) {
       riskSignals.push({
         code: "TDS_SECTION_AMBIGUOUS",
         category: "compliance",

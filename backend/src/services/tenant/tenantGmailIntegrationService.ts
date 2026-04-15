@@ -13,12 +13,13 @@ import { GmailMailboxNeedsReauthError } from "@/sources/email/errors.js";
 import { decryptSecret, encryptSecret } from "@/utils/secretCrypto.js";
 import { MailboxNotificationService } from "@/services/platform/mailboxNotificationService.js";
 import { HttpError } from "@/errors/HttpError.js";
+import { GMAIL_CONNECTION_STATUS, type GmailConnectionStatus as GmailConnectionStatusValue } from "@/types/gmail.js";
 
 const PROVIDER = "gmail";
 
 interface GmailConnectionStatus {
   provider: "gmail";
-  status: "connected" | "requires_reauth" | "error";
+  status: GmailConnectionStatusValue;
   emailAddress: string;
   lastErrorReason: string;
   lastSyncedAt: string;
@@ -102,7 +103,7 @@ export class TenantGmailIntegrationService {
       {
         tenantId: oauthState.tenantId,
         provider: PROVIDER,
-        status: "connected",
+        status: GMAIL_CONNECTION_STATUS.CONNECTED,
         emailAddress,
         encryptedRefreshToken,
         createdByUserId: oauthState.userId,
@@ -135,7 +136,7 @@ export class TenantGmailIntegrationService {
     if (!integration) {
       return {
         provider: PROVIDER,
-        status: "error",
+        status: GMAIL_CONNECTION_STATUS.ERROR,
         emailAddress: "",
         lastErrorReason: "",
         lastSyncedAt: ""
@@ -158,13 +159,13 @@ export class TenantGmailIntegrationService {
     if (!integration) {
       return null;
     }
-    if (integration.status === "requires_reauth") {
+    if (integration.status === GMAIL_CONNECTION_STATUS.REQUIRES_REAUTH) {
       throw new GmailMailboxNeedsReauthError(integration.lastErrorReason ?? "Mailbox requires reauthorization.");
     }
 
     const encryptedRefreshToken = integration.encryptedRefreshToken ?? "";
     if (!encryptedRefreshToken) {
-      integration.status = "error";
+      integration.status = GMAIL_CONNECTION_STATUS.ERROR;
       integration.lastErrorReason = "Missing refresh token.";
       await integration.save();
       throw new GmailMailboxNeedsReauthError("Missing refresh token.");
@@ -209,7 +210,7 @@ export class TenantGmailIntegrationService {
         provider: PROVIDER
       },
       {
-        status: "connected",
+        status: GMAIL_CONNECTION_STATUS.CONNECTED,
         lastErrorReason: undefined,
         lastSyncedAt: new Date()
       }
@@ -218,20 +219,20 @@ export class TenantGmailIntegrationService {
 
   buildSuccessRedirectUrl(): string {
     return buildRedirectUrl(env.GMAIL_OAUTH_SUCCESS_REDIRECT_URL, {
-      gmail: "connected"
+      gmail: GMAIL_CONNECTION_STATUS.CONNECTED
     });
   }
 
   buildFailureRedirectUrl(reason: string): string {
     return buildRedirectUrl(env.GMAIL_OAUTH_FAILURE_REDIRECT_URL, {
-      gmail: "error",
+      gmail: GMAIL_CONNECTION_STATUS.ERROR,
       reason
     });
   }
 
   private async transitionToNeedsReauth(
     integration: {
-      status: "connected" | "requires_reauth" | "error";
+      status: GmailConnectionStatusValue;
       tenantId: string;
       createdByUserId: string;
       emailAddress?: string | null;
@@ -242,10 +243,10 @@ export class TenantGmailIntegrationService {
     reason: string
   ): Promise<void> {
     const previousStatus = integration.status;
-    integration.status = "requires_reauth";
+    integration.status = GMAIL_CONNECTION_STATUS.REQUIRES_REAUTH;
     integration.lastErrorReason = reason;
 
-    if (previousStatus === "connected") {
+    if (previousStatus === GMAIL_CONNECTION_STATUS.CONNECTED) {
       integration.reauthNotifiedAt = new Date();
       await integration.save();
       await this.notificationService.notifyNeedsReauth({
@@ -269,7 +270,7 @@ export class TenantGmailIntegrationService {
     if (!integration) {
       throw new HttpError("Integration not found.", 404, "integration_not_found");
     }
-    if (integration.status !== "connected") {
+    if (integration.status !== GMAIL_CONNECTION_STATUS.CONNECTED) {
       throw new HttpError("Polling can only be enabled on connected integrations.", 400, "integration_not_connected");
     }
 
@@ -294,7 +295,7 @@ export class TenantGmailIntegrationService {
     const now = new Date();
     const integrations = await TenantIntegrationModel.find({
       provider: "gmail",
-      status: "connected",
+      status: GMAIL_CONNECTION_STATUS.CONNECTED,
       "pollingConfig.enabled": true,
       "pollingConfig.nextPollAfter": { $lte: now }
     }).select({ tenantId: 1 }).lean();

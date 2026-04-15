@@ -9,8 +9,9 @@ import type {
 } from "@/types/invoice.js";
 import type { DocumentMimeType, ImageMimeType } from "@/types/mime.js";
 import type { MergedBlock, OcrLine } from "@/ai/ocr/ocrPostProcessor.js";
+import type { FieldVerificationMode } from "@/types/pipeline.js";
 
-export type FieldVerificationMode = "strict" | "relaxed";
+export type { FieldVerificationMode } from "@/types/pipeline.js";
 
 export interface FieldVerifierInput {
   parsed: ParsedInvoiceData;

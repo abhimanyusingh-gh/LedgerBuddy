@@ -3,6 +3,7 @@ import type { ParsedInvoiceData } from "@/types/invoice.js";
 import { isWeakVendorValue } from "@/ai/extractors/invoice/stages/fieldCandidates.js";
 import { findBlockByLabelProximity, findVendorBlock } from "@/ai/extractors/invoice/stages/groundingText.js";
 import { normalizeDateToken, detectExplicitCurrency } from "@/ai/extractors/stages/fieldParsingUtils.js";
+import { OCR_RECOVERY_STRATEGY, type OcrRecoveryStrategy } from "@/types/ocrRecovery.js";
 
 type BoxedBlock = { block: OcrBlock; index: number; box: [number, number, number, number] };
 
@@ -111,7 +112,7 @@ export function recoverHeaderFieldsFromOcr(
 
 function findPreferredVendorBlockForStrategy(
   ocrBlocks: OcrBlock[],
-  strategy: "generic" | "invoice_table" | "receipt_statement"
+  strategy: OcrRecoveryStrategy
 ): { block: OcrBlock; index: number } | undefined {
   const corporateBrandVendorBlock = findCorporateBrandVendorBlock(ocrBlocks);
   if (corporateBrandVendorBlock) {
@@ -121,7 +122,7 @@ function findPreferredVendorBlockForStrategy(
   if (brandBlock && /\b(makemytrip|make my trip)\b/i.test(brandBlock.block.text)) {
     return brandBlock;
   }
-  if (strategy === "receipt_statement") {
+  if (strategy === OCR_RECOVERY_STRATEGY.RECEIPT_STATEMENT) {
     return findIssuedByVendorBlock(ocrBlocks) ?? findVendorBlock(ocrBlocks);
   }
   return findVendorBlock(ocrBlocks);

@@ -16,8 +16,10 @@ const SUPPORTED_MIME_TYPES = new Set<string>([
   "image/x-png"
 ]);
 
-type LlamaParseOcrTier = "fast" | "cost_effective" | "agentic" ;
-type LlamaExtractTier = "cost_effective" | "agentic";
+import { LLAMA_PARSE_TIER, type LlamaParseTier } from "@/core/runtimeManifest.js";
+
+type LlamaParseOcrTier = LlamaParseTier;
+type LlamaExtractTier = Extract<LlamaParseTier, "cost_effective" | "agentic">;
 
 type AnyItem =
   | ParsingGetResponse.Items.StructuredResultPage["items"][number];

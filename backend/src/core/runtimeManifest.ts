@@ -6,6 +6,7 @@ import { createDefaultManifest, deepMerge, resolveRuntimeManifestPath, resolveSo
 import { runtimeManifestSchema, type RuntimeManifestInput, type RuntimeSourceInput } from "@/core/runtimeManifestSchema.js";
 
 import type { IngestionSourceType } from "@/core/interfaces/IngestionSource.js";
+import type { EmailTransportType, EmailAuthMode } from "@/types/email.js";
 
 type OcrProviderType = "auto" | "deepseek" | "mock" | "llamaparse";
 type VerifierProviderType = "none" | "http";
@@ -31,7 +32,7 @@ interface SourceBaseManifest {
 export interface EmailSourceManifest extends SourceBaseManifest {
   type: "email";
   oauthUserId: string;
-  transport: "imap" | "mailhog_oauth";
+  transport: EmailTransportType;
   mailhogApiBaseUrl: string;
   host: string;
   port: number;
@@ -41,7 +42,7 @@ export interface EmailSourceManifest extends SourceBaseManifest {
   smtpSecure: boolean;
   smtpTimeoutMs: number;
   username: string;
-  authMode: "password" | "oauth2";
+  authMode: EmailAuthMode;
   password: string;
   oauth2: {
     clientId: string;
