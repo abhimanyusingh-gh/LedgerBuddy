@@ -1,4 +1,5 @@
 import axios from "axios";
+import { isRecord } from "@/utils/validation.js";
 
 interface TokenApiResponse {
   access_token?: unknown;
@@ -205,6 +206,3 @@ function normalizePositiveInteger(value: unknown, fallback: number): number {
   return fallback;
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
-}

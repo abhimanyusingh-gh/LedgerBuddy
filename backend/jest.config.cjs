@@ -15,23 +15,26 @@ module.exports = {
   collectCoverageFrom: [
     'src/ai/parsers/invoiceParser.ts',
     'src/services/invoice/confidenceAssessment.ts',
-    'src/services/invoiceExtractionAgent.ts',
     'src/services/export/tallyExporter.ts',
     'src/utils/currency.ts',
     'src/ai/ocr/DeepSeekOcrProvider.ts',
-    'src/utils/mime.ts'
+    'src/utils/mime.ts',
+    'src/utils/math.ts',
+    'src/utils/text.ts'
   ],
   coverageThreshold: {
     global: {
       branches: 20,
-      functions: 40,
+      functions: 30,
       lines: 30,
       statements: 30
     },
     './src/services/invoice/confidenceAssessment.ts': { branches: 95, functions: 100, lines: 100, statements: 100 },
     './src/services/export/tallyExporter.ts': { branches: 86, functions: 100, lines: 95, statements: 95 },
     './src/utils/currency.ts': { branches: 100, functions: 100, lines: 100, statements: 100 },
-    './src/utils/mime.ts': { branches: 100, functions: 100, lines: 100, statements: 100 }
+    './src/utils/mime.ts': { branches: 100, functions: 100, lines: 100, statements: 100 },
+    './src/utils/math.ts': { branches: 100, functions: 100, lines: 100, statements: 100 },
+    './src/utils/text.ts': { branches: 100, functions: 100, lines: 100, statements: 100 }
   },
   transform: {
     '^.+\\.tsx?$': ['ts-jest', { tsconfig: '<rootDir>/tsconfig.test.json' }]

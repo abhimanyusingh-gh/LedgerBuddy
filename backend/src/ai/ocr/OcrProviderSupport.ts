@@ -1,6 +1,7 @@
 import axios from "axios";
 import type { OcrBlock, OcrPageImage } from "@/core/interfaces/OcrProvider.js";
 import { IMAGE_MIME_TYPE, type ImageMimeType } from "@/types/mime.js";
+import { isRecord } from "@/utils/validation.js";
 
 export const DEFAULT_PROMPT =
   "Transcribe all visible text exactly as written. Preserve numbers, punctuation, spacing, and line breaks. Do not summarize. Do not format as key-value pairs. In Indian invoices, /- or /= after a number means 'rupees only' — transcribe as separate characters (e.g., 300/- not 3001).";
@@ -358,9 +359,6 @@ function mergeBlockText(label: string | undefined, text: string | undefined, typ
   return normalizedText ?? normalizedLabel;
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
 
 function isAxiosLikeError(error: unknown): error is {
   message: string;

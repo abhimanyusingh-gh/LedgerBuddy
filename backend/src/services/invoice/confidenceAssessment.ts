@@ -1,6 +1,7 @@
 import type { ParsedInvoiceData } from "@/types/invoice.js";
 import type { ConfidenceTone, RiskFlag } from "@/types/confidence.js";
 import { minorUnitsToMajorString, toMinorUnits } from "@/utils/currency.js";
+import { clamp } from "@/utils/math.js";
 
 interface ConfidenceInput {
   ocrConfidence?: number;
@@ -162,6 +163,3 @@ function daysBetween(from: Date, to: Date): number {
   return Math.round((end - start) / oneDayMs);
 }
 
-function clamp(value: number, min: number, max: number): number {
-  return Math.min(max, Math.max(min, value));
-}

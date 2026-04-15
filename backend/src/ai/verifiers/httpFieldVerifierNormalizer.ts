@@ -6,6 +6,7 @@ import type {
   ParsedInvoiceData
 } from "@/types/invoice.js";
 import { normalizeVerifierFieldProvenance, normalizeVerifierSingleProvenance } from "@/ai/verifiers/VerifierProvenanceNormalizer.js";
+import { isRecord } from "@/utils/validation.js";
 
 export function parseVerifierParsedResponse(value: unknown): ParsedInvoiceData | undefined {
   if (!isRecord(value)) {
@@ -292,6 +293,3 @@ function normalizeContractScalarInt(
   };
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}

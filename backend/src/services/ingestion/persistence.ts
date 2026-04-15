@@ -11,6 +11,7 @@ import type { ArtifactResults } from "@/services/ingestion/artifacts.js";
 import { normalizeExtractionData, encodeExtractionFieldKey } from "@/services/ingestion/provenance.js";
 import { ExtractionPipelineError } from "@/ai/extractors/invoice/InvoiceExtractionPipeline.js";
 import { PIPELINE_ERROR_CODE } from "@/core/engine/types.js";
+import { uniqueStrings } from "@/utils/text.js";
 
 interface ExtractionResult {
   provider: string;
@@ -108,7 +109,7 @@ export function buildSuccessData(
     confidenceScore: confidence.score, confidenceTone: confidence.tone,
     autoSelectForApproval: confidence.autoSelectForApproval,
     riskFlags: confidence.riskFlags, riskMessages: confidence.riskMessages,
-    processingIssues: uniqueIssues([...processingIssues, ...parsedResult.warnings, ...confidence.riskMessages]),
+    processingIssues: uniqueStrings([...processingIssues, ...parsedResult.warnings, ...confidence.riskMessages]),
     ...(extractionData ? { extraction: extractionData } : {}),
     ...(extraction.compliance ? { compliance: extraction.compliance } : {})
   };
@@ -156,10 +157,6 @@ export async function upsertFromPending(file: IngestedFile, data: Record<string,
   if (overwritten) return;
 
   await InvoiceModel.create(data);
-}
-
-function uniqueIssues(values: string[]): string[] {
-  return Array.from(new Set(values.filter((value) => typeof value === "string" && value.trim().length > 0)));
 }
 
 function isDuplicateKeyError(error: unknown): boolean {

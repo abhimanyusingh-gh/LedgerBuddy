@@ -1,10 +1,9 @@
 import type { OcrBlock } from "@/core/interfaces/OcrProvider.js";
 import { PROVENANCE_SOURCE } from "@/types/invoice.js";
 import type { InvoiceExtractionData, InvoiceFieldKey, InvoiceFieldProvenance, InvoiceLineItemProvenance, ParsedInvoiceData } from "@/types/invoice.js";
-import { clampProbability } from "@/ai/extractors/stages/fieldParsingUtils.js";
+import { clampProbability } from "@/utils/math.js";
 import { findBlockByAmountValue } from "@/ai/extractors/invoice/stages/groundingAmounts.js";
-
-type Box4 = [number, number, number, number];
+import { normalizeBoxTuple, type Box4 } from "@/services/ingestion/box.js";
 
 type LineItemField = "row" | "description" | "hsnSac" | "quantity" | "rate" | "amountMinor" | "taxRate" | "cgstMinor" | "sgstMinor" | "igstMinor";
 
@@ -423,20 +422,5 @@ function normalizeProvenanceEntry(value: unknown): InvoiceFieldProvenance | unde
       ? { confidence: Number(clampProbability(confidenceCandidate > 1 ? confidenceCandidate / 100 : confidenceCandidate).toFixed(4)) }
       : {})
   };
-}
-
-function normalizeBoxTuple(value: unknown): Box4 | undefined {
-  if (!Array.isArray(value) || value.length !== 4) {
-    return undefined;
-  }
-  const numbers = value.map((entry) => Number(entry));
-  if (!numbers.every((entry) => Number.isFinite(entry))) {
-    return undefined;
-  }
-  const [x1, y1, x2, y2] = numbers as Box4;
-  if (x2 <= x1 || y2 <= y1) {
-    return undefined;
-  }
-  return [x1, y1, x2, y2];
 }
 

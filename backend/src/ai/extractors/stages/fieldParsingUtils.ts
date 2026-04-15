@@ -1,9 +1,10 @@
 import type { OcrBlock } from "@/core/interfaces/OcrProvider.js";
 import { currencyBySymbol } from "@/ai/parsers/invoiceParser.js";
+import { clampProbability } from "@/utils/math.js";
+import { uniqueStrings } from "@/utils/text.js";
 
-/**
- * Canonical month-name-to-number map, shared across date parsing utilities.
- */
+export { clampProbability } from "@/utils/math.js";
+
 export function resolveMonthNumber(value: string): string | undefined {
   const months: Record<string, string> = {
     jan: "01",
@@ -34,10 +35,6 @@ export function resolveMonthNumber(value: string): string | undefined {
   return months[value.trim().toLowerCase()];
 }
 
-/**
- * Normalize a raw text block into an ISO-style date (YYYY-MM-DD) if it contains
- * a recognisable named-date pattern (e.g. "January 15, 2024" or "15 Jan 2024").
- */
 export function normalizeDateToken(text: string): Date | undefined {
   const normalizedText = text.trim().replace(/[|]/g, "I");
   const patterns = [
@@ -58,10 +55,6 @@ export function normalizeDateToken(text: string): Date | undefined {
   return undefined;
 }
 
-/**
- * Parse a named date string like "January 15 2024" or "15 January 2024"
- * into ISO format "2024-01-15".
- */
 function normalizeDateValue(value: string): Date | undefined {
   const sanitized = value.replace(/,/g, "").trim();
   const monthNameFirst = sanitized.match(/^([A-Za-z]{3,9})\s+(\d{1,2})\s+(\d{4})$/);
@@ -85,10 +78,6 @@ function normalizeDateValue(value: string): Date | undefined {
   return undefined;
 }
 
-/**
- * Detect an explicit currency from OCR text and blocks. Shared between
- * documentFieldRecovery and totalsRecovery stages.
- */
 export function detectExplicitCurrency(text: string, ocrBlocks: OcrBlock[] = []): string | undefined {
   const hasIndiaTaxContext = /\b(place of supply|gstin|cgst|sgst|igst|gst|tax invoice)\b/i.test(text) ||
     /\b\d{2}[A-Z]{5}\d{4}[A-Z][A-Z0-9]Z[A-Z0-9]\b/i.test(text) ||
@@ -116,26 +105,10 @@ export function detectExplicitCurrency(text: string, ocrBlocks: OcrBlock[] = [])
   return undefined;
 }
 
-/**
- * Clamp a numeric value to the [0, 1] probability range.
- */
-export function clampProbability(value: number): number {
-  if (!Number.isFinite(value)) {
-    return 0;
-  }
-  return Math.max(0, Math.min(1, value));
-}
-
-/**
- * Deduplicate and trim an array of issue/signal strings.
- */
 export function uniqueIssues(issues: string[]): string[] {
-  return [...new Set(issues.map((issue) => issue.trim()).filter((issue) => issue.length > 0))];
+  return uniqueStrings(issues);
 }
 
-/**
- * Format a confidence value as a 4-decimal string after clamping to [0, 1].
- */
 export function formatConfidence(value: number): string {
   return clampProbability(value).toFixed(4);
 }

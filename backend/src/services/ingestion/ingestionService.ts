@@ -357,10 +357,6 @@ export class IngestionService {
   }
 }
 
-function uniqueIssues(issues: string[]): string[] {
-  return [...new Set(issues.filter((issue) => issue.trim().length > 0))];
-}
-
 function compareSourcePriority(left: IngestionSource, right: IngestionSource): number {
   return priorityForTier(left.workloadTier) - priorityForTier(right.workloadTier);
 }

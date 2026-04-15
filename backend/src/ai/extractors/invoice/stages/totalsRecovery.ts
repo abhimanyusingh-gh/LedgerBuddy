@@ -5,6 +5,7 @@ import { normalizeInvoiceNumberValue, normalizeVendorText } from "@/ai/extractor
 import { detectExplicitCurrency } from "@/ai/extractors/stages/fieldParsingUtils.js";
 import { OCR_RECOVERY_STRATEGY, type OcrRecoveryStrategy } from "@/types/ocrRecovery.js";
 import { AMOUNT_SEARCH_PREFERENCE, type AmountSearchPreference } from "@/types/approvalWorkflow.js";
+import { escapeRegex } from "@/utils/text.js";
 
 export function normalizeParsedAgainstOcrText(
   parsed: ParsedInvoiceData,
@@ -588,6 +589,3 @@ function uniqueIntegers(values: number[]): number[] {
   return output;
 }
 
-function escapeRegex(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}

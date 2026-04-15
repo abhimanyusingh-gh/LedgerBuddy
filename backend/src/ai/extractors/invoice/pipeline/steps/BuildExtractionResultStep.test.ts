@@ -38,7 +38,7 @@ function buildCtx(overrides?: { engineStrategy?: string }): PipelineContext {
 
   return {
     input: {
-      tenantId: "t-1",
+      tenantId: "t-1" as import("@/types/uuid.js").UUID,
       fileName: "test.pdf",
       mimeType: "application/pdf" as const,
       fileBuffer: Buffer.from(""),

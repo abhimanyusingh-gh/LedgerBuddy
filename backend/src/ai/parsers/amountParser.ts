@@ -1,3 +1,5 @@
+import { splitTextLines } from "@/utils/text.js";
+
 interface AmountCandidate {
   amount: number;
   score: number;
@@ -12,7 +14,7 @@ const negativeTotalPattern =
 const amountTokenPattern = /[-+]?(?:\d{1,3}(?:[,\s.]\d{2,3})+|\d+)(?:[.,]\d{1,2})?/g;
 
 export function extractTotalAmount(text: string): number | undefined {
-  const lines = splitLines(text);
+  const lines = splitTextLines(text);
   if (lines.length === 0) {
     return undefined;
   }
@@ -23,14 +25,6 @@ export function extractTotalAmount(text: string): number | undefined {
   }
 
   return pickBestFallbackAmount(lines);
-}
-
-function splitLines(text: string): string[] {
-  return text
-    .replace(/\r/g, "\n")
-    .split(/\n+/)
-    .map((line) => line.trim())
-    .filter(Boolean);
 }
 
 function collectLabeledAmountCandidates(lines: string[]): AmountCandidate[] {

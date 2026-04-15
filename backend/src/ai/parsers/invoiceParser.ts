@@ -1,5 +1,6 @@
 import type { ParsedInvoiceData } from "@/types/invoice.js";
 import { toMinorUnits } from "@/utils/currency.js";
+import { splitTextLines } from "@/utils/text.js";
 import { extractTotalAmount, parseAmountToken } from "@/ai/parsers/amountParser.js";
 import { normalizeDate, shouldPreferDayFirstDates } from "@/ai/parsers/dateParser.js";
 import { extractCurrency, currencyBySymbol } from "@/ai/parsers/currencyParser.js";
@@ -189,7 +190,7 @@ function extractInvoiceNumber(text: string, patterns: RegExp[]): string | undefi
     return direct;
   }
 
-  const lines = splitParsedLines(text);
+  const lines = splitTextLines(text);
 
   for (let index = 0; index < lines.length; index += 1) {
     const line = lines[index];
@@ -305,14 +306,6 @@ function extractHeaderFields(
     dueDate,
     warnings
   };
-}
-
-function splitParsedLines(text: string): string[] {
-  return text
-    .replace(/\r/g, "\n")
-    .split(/\n+/)
-    .map((line) => line.trim())
-    .filter(Boolean);
 }
 
 function normalizeForParsing(text: string): string {

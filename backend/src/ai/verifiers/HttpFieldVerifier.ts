@@ -15,6 +15,7 @@ import {
   parsedFromVerifierContract
 } from "@/ai/verifiers/httpFieldVerifierNormalizer.js";
 import { getCorrelationId, logger } from "@/utils/logger.js";
+import { isRecord } from "@/utils/validation.js";
 
 interface HttpFieldVerifierOptions {
   baseUrl: string;
@@ -259,6 +260,3 @@ function estimateTextTokenCount(text: string): number {
   return normalized.split(/\s+/).filter((entry) => entry.length > 0).length;
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
