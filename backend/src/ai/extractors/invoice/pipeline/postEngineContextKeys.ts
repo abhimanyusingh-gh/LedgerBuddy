@@ -1,5 +1,6 @@
 export const POST_ENGINE_CTX = {
   SLM_OUTPUT: "invoice.slmOutput",
+  ENGINE_STRATEGY: "invoice.engineStrategy",
   MERGED_PARSED: "invoice.mergedParsed",
   RECOVERED_PARSED: "invoice.recoveredParsed",
   RECOVERY_STRATEGY: "invoice.recoveryStrategy",

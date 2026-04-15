@@ -3,14 +3,10 @@ import type { OcrBlock, OcrPageImage, OcrProvider, OcrResult } from "@/core/inte
 import type { DocumentMimeType } from "@/types/mime.js";
 import type { EnhancedOcrResult } from "@/ai/ocr/ocrPostProcessor.js";
 import type {
-  InvoiceCompliance,
   InvoiceExtractionData,
   ParsedInvoiceData
 } from "@/types/invoice.js";
-import { logger } from "@/utils/logger.js";
-import { assessInvoiceConfidence } from "@/services/invoice/confidenceAssessment.js";
 import type { ComplianceEnricher } from "@/services/compliance/ComplianceEnricher.js";
-import { RiskSignalEvaluator } from "@/services/compliance/RiskSignalEvaluator.js";
 import type { ExtractionLearningStore } from "@/ai/extractors/invoice/learning/extractionLearningStore.js";
 import type { ExtractionMappingService } from "@/ai/extractors/invoice/learning/extractionMappingService.js";
 import {
@@ -25,7 +21,6 @@ import { INVOICE_CTX } from "@/ai/extractors/invoice/pipeline/contextKeys.js";
 import { POST_ENGINE_CTX } from "@/ai/extractors/invoice/pipeline/postEngineContextKeys.js";
 import { buildInvoiceAfterOcrPipeline } from "@/ai/extractors/invoice/pipeline/invoiceAfterOcrPipeline.js";
 import { createInvoicePostEnginePipeline } from "@/ai/extractors/invoice/pipeline/invoicePostEnginePipeline.js";
-import type { RankedOcrTextCandidate } from "@/ai/extractors/stages/ocrTextCandidates.js";
 import * as fs from "fs/promises";
 import * as path from "path";
 
@@ -60,18 +55,19 @@ export interface PipelineExtractionResult {
   metadata: Record<string, string>;
   ocrTokens?: number;
   slmTokens?: number;
-  compliance?: InvoiceCompliance;
+  compliance?: import("@/types/invoice.js").InvoiceCompliance;
   extraction?: InvoiceExtractionData;
 }
-import { clampProbability, formatConfidence, uniqueIssues } from "@/ai/extractors/stages/fieldParsingUtils.js";
+import { clampProbability, formatConfidence } from "@/ai/extractors/stages/fieldParsingUtils.js";
 import { computeVendorFingerprint } from "@/ai/extractors/invoice/learning/vendorFingerprint.js";
 import { DocumentProcessingEngine } from "@/core/engine/DocumentProcessingEngine.js";
 import {
   InvoiceDocumentDefinition,
   type InvoiceSlmOutput,
 } from "@/ai/extractors/invoice/InvoiceDocumentDefinition.js";
-import { EXTRACTION_SOURCE, type ExtractionSource } from "@/core/engine/extractionSource.js";
-import { ENGINE_STRATEGY, PIPELINE_ERROR_CODE, type PipelineErrorCode } from "@/core/engine/types.js";
+import { type ExtractionSource } from "@/core/engine/extractionSource.js";
+import { PIPELINE_ERROR_CODE, type PipelineErrorCode } from "@/core/engine/types.js";
+import { logger } from "@/utils/logger.js";
 
 interface ExtractionPipelineInput {
   tenantId: string;
@@ -140,6 +136,12 @@ export class InvoiceExtractionPipeline {
   }
 
   async extract(input: ExtractionPipelineInput): Promise<PipelineExtractionResult> {
+    const ctx = await this.buildContext(input);
+    const engineResult = await this.runEngine(ctx, input);
+    return this.runPostEnginePipeline(ctx, engineResult);
+  }
+
+  private async buildContext(input: ExtractionPipelineInput): Promise<PipelineContext> {
     const metadata: Record<string, string> = {};
     const processingIssues: string[] = [];
 
@@ -152,6 +154,7 @@ export class InvoiceExtractionPipeline {
 
     metadata.vendorFingerprint = fingerprint.key;
     metadata.layoutSignature = fingerprint.layoutSignature;
+    metadata.vendorContentHash = fingerprint.hash;
 
     const template = await this.templateStore.findByFingerprint(input.tenantId, fingerprint.key);
     metadata.vendorTemplateMatched = template ? "true" : "false";
@@ -165,14 +168,6 @@ export class InvoiceExtractionPipeline {
       metadata.preOcrLanguageHint = preOcrLanguageHint.hint;
     }
 
-    const definition = new InvoiceDocumentDefinition();
-    const engine = new DocumentProcessingEngine<InvoiceSlmOutput>(
-      definition,
-      this.fieldVerifier,
-      this.ocrProvider
-    );
-
-    // Build a shared PipelineContext that afterOcr stages populate and post-engine stages consume
     const pipelineCtx: PipelineContext = {
       input: {
         tenantId: input.tenantId,
@@ -191,15 +186,26 @@ export class InvoiceExtractionPipeline {
       issues: processingIssues,
     };
 
-    // Pre-populate context with data that stages need
     pipelineCtx.store.set(INVOICE_CTX.PRE_OCR_LANGUAGE, preOcrLanguage);
     if (template) {
       pipelineCtx.store.set(INVOICE_CTX.VENDOR_TEMPLATE, template);
     }
 
-    // Build the afterOcr sub-pipeline (stages 1-8)
-    // Stages 6-8 (baseline parse, augment prompt, set validation) are skipped when
-    // LlamaExtract produces structured fields — handled via the early-exit check stage.
+    return pipelineCtx;
+  }
+
+  private async runEngine(
+    ctx: PipelineContext,
+    input: ExtractionPipelineInput
+  ): Promise<import("@/core/engine/types.js").ProcessingResult<InvoiceSlmOutput>> {
+    const template = ctx.store.get<import("@/ai/extractors/invoice/learning/vendorTemplateStore.js").VendorTemplateSnapshot>(INVOICE_CTX.VENDOR_TEMPLATE);
+    const definition = new InvoiceDocumentDefinition();
+    const engine = new DocumentProcessingEngine<InvoiceSlmOutput>(
+      definition,
+      this.fieldVerifier,
+      this.ocrProvider
+    );
+
     const afterOcrPipeline = buildInvoiceAfterOcrPipeline({
       definition,
       enableKeyValueGrounding: this.enableOcrKeyValueGrounding,
@@ -210,17 +216,17 @@ export class InvoiceExtractionPipeline {
       llamaExtractEnabled: this.llamaExtractEnabled,
     });
 
-    // The afterOcr callback delegates to the composable pipeline stages
     const afterOcr = async (ocrResult: OcrResult, _ocrText: string) => {
-      pipelineCtx.store.set(INVOICE_CTX.OCR_RESULT, ocrResult);
-      await afterOcrPipeline.executeWithContext(pipelineCtx);
+      ctx.store.set(INVOICE_CTX.OCR_RESULT, ocrResult);
+      await afterOcrPipeline.executeWithContext(ctx);
 
-      // Save OCR dump if enabled (side-effect, not part of pipeline data flow)
       if (this.ocrDumpEnabled) {
-        const enhanced = pipelineCtx.store.require<EnhancedOcrResult>(INVOICE_CTX.ENHANCED_OCR);
+        const enhanced = ctx.store.require<EnhancedOcrResult>(INVOICE_CTX.ENHANCED_OCR);
         await this.saveOcrResult(ocrResult, enhanced);
       }
     };
+
+    const preOcrLanguageHint = ctx.metadata.preOcrLanguageHint;
 
     let engineResult: import("@/core/engine/types.js").ProcessingResult<InvoiceSlmOutput> | undefined;
     try {
@@ -230,7 +236,7 @@ export class InvoiceExtractionPipeline {
           fileName: input.attachmentName,
           mimeType: input.mimeType,
           fileBuffer: input.fileBuffer,
-          ocrLanguageHint: preOcrLanguageHint.hint
+          ocrLanguageHint: preOcrLanguageHint
         },
         undefined,
         afterOcr
@@ -246,103 +252,27 @@ export class InvoiceExtractionPipeline {
       throw new ExtractionPipelineError(PIPELINE_ERROR_CODE.FAILED_OCR, "Engine returned no result.");
     }
 
-    // Read values populated by afterOcr pipeline stages from the shared context
-    const primaryCandidate = pipelineCtx.store.get<RankedOcrTextCandidate>(INVOICE_CTX.PRIMARY_CANDIDATE);
-    const primaryText: string = primaryCandidate !== null && primaryCandidate !== undefined
-      ? primaryCandidate.text
-      : engineResult.ocrText;
-    const ocrBlocks = pipelineCtx.store.get<OcrBlock[]>(INVOICE_CTX.OCR_BLOCKS) ?? [];
-    const ocrPageImages = pipelineCtx.store.get<OcrPageImage[]>(INVOICE_CTX.OCR_PAGE_IMAGES) ?? [];
-    const ocrConfidence = pipelineCtx.store.get<number>(INVOICE_CTX.OCR_CONFIDENCE) ?? 0;
-    const ocrTokens = pipelineCtx.store.get<number>(INVOICE_CTX.OCR_TOKENS) ?? 0;
+    return engineResult;
+  }
 
-    // Handle LlamaExtract early return path (bypass post-engine pipeline)
-    if (engineResult.strategy === ENGINE_STRATEGY.LLAMA_EXTRACT) {
-      const slmOutput = engineResult.output;
-      const parsed = slmOutput.parsed;
-      const fieldProvenance = slmOutput.fieldProvenance ?? {};
-
-      const compliance = await this.runCompliance(parsed, input, fingerprint);
-      const llamaPenalty = compliance?.riskSignals?.length
-        ? RiskSignalEvaluator.sumPenalties(compliance.riskSignals)
-        : 0;
-      const confidence = this.assessConfidenceWithPenalty(input, parsed, processingIssues, ocrConfidence, llamaPenalty);
-
-      const extraction: InvoiceExtractionData = {
-        source: EXTRACTION_SOURCE.LLAMA_EXTRACT,
-        strategy: EXTRACTION_SOURCE.LLAMA_EXTRACT,
-        ...(Object.keys(fieldProvenance).length > 0 ? { fieldProvenance } : {})
-      };
-
-      return {
-        provider: this.ocrProvider.name,
-        text: primaryText,
-        confidence: ocrConfidence,
-        source: EXTRACTION_SOURCE.LLAMA_EXTRACT,
-        strategy: EXTRACTION_SOURCE.LLAMA_EXTRACT,
-        parseResult: { parsed, warnings: processingIssues },
-        confidenceAssessment: confidence,
-        attempts: [],
-        ocrBlocks,
-        ocrPageImages,
-        processingIssues: uniqueIssues(processingIssues),
-        metadata,
-        ocrTokens,
-        slmTokens: 0,
-        compliance,
-        extraction
-      };
+  private async runPostEnginePipeline(
+    ctx: PipelineContext,
+    engineResult: import("@/core/engine/types.js").ProcessingResult<InvoiceSlmOutput>
+  ): Promise<PipelineExtractionResult> {
+    if (!ctx.store.has(INVOICE_CTX.PRIMARY_TEXT)) {
+      ctx.store.set(INVOICE_CTX.PRIMARY_TEXT, engineResult.ocrText);
     }
 
-    // --- Post-engine pipeline (stages 9-16) ---
-    // Populate context with engine output and OCR provider name for the post-engine stages
-    pipelineCtx.store.set(POST_ENGINE_CTX.SLM_OUTPUT, engineResult.output);
-    pipelineCtx.store.set("invoice.ocrProviderName", this.ocrProvider.name);
+    ctx.store.set(POST_ENGINE_CTX.SLM_OUTPUT, engineResult.output);
+    ctx.store.set(POST_ENGINE_CTX.ENGINE_STRATEGY, engineResult.strategy);
+    ctx.store.set("invoice.ocrProviderName", this.ocrProvider.name);
 
     const postEnginePipeline = createInvoicePostEnginePipeline({
       complianceEnricher: this.complianceEnricher,
     });
 
-    // Store vendor content hash for compliance enrichment stage
-    metadata.vendorContentHash = fingerprint.hash;
-
-    const postEngineResult = await postEnginePipeline.executeWithContext(pipelineCtx);
+    const postEngineResult = await postEnginePipeline.executeWithContext(ctx);
     return postEngineResult.output;
-  }
-
-  private async runCompliance(
-    parsed: ParsedInvoiceData,
-    input: ExtractionPipelineInput,
-    fingerprint: ReturnType<typeof computeVendorFingerprint>
-  ) {
-    if (!this.complianceEnricher) return;
-    try {
-      return await this.complianceEnricher.enrich(parsed, input.tenantId, fingerprint.key, {
-        contentHash: fingerprint.hash
-      });
-    } catch (error) {
-      logger.warn("compliance.enrich.failed", { tenantId: input.tenantId, error: error instanceof Error ? error.message : String(error) });
-      return;
-    }
-  }
-
-  private assessConfidenceWithPenalty(
-      input: ExtractionPipelineInput,
-      parsed: ParsedInvoiceData,
-      warnings: string[],
-      ocrConfidence: number | undefined,
-      penalty: number
-  ) {
-    return assessInvoiceConfidence({
-      ocrConfidence,
-      parsed,
-      warnings,
-      expectedMaxTotal: input.expectedMaxTotal,
-      expectedMaxDueDays: input.expectedMaxDueDays,
-      autoSelectMin: input.autoSelectMin,
-      referenceDate: input.referenceDate,
-      complianceRiskPenalty: penalty
-    });
   }
 
   async saveOcrResult(result: OcrResult, enhanced: EnhancedOcrResult) {

@@ -11,6 +11,8 @@ import type {
 import type { ConfidenceAssessment } from "@/services/invoice/confidenceAssessment.js";
 import type { InvoiceSlmOutput } from "@/ai/extractors/invoice/InvoiceDocumentDefinition.js";
 import type { OcrRecoveryStrategy } from "@/ai/extractors/invoice/stages/lineItemRecovery.js";
+import type { EngineStrategy } from "@/core/engine/types.js";
+import { ENGINE_STRATEGY } from "@/core/engine/types.js";
 import { EXTRACTION_SOURCE, type ExtractionSource } from "@/core/engine/extractionSource.js";
 import { uniqueIssues } from "@/ai/extractors/stages/fieldParsingUtils.js";
 import { POST_ENGINE_CTX } from "@/ai/extractors/invoice/pipeline/postEngineContextKeys.js";
@@ -22,9 +24,6 @@ const OCR_RECOVERY_STRATEGY_SOURCE: Record<OcrRecoveryStrategy, ExtractionSource
   receipt_statement: EXTRACTION_SOURCE.SLM_RECEIPT_STATEMENT,
 };
 
-/**
- * Stage 16: Assembles the final PipelineExtractionResult from all context store values.
- */
 export class BuildExtractionResultStep implements PipelineStep {
   readonly name = "build-extraction-result";
 
@@ -43,11 +42,21 @@ export class BuildExtractionResultStep implements PipelineStep {
     const fieldProvenance = ctx.store.get<Partial<Record<InvoiceFieldKey, InvoiceFieldProvenance>>>(POST_ENGINE_CTX.FIELD_PROVENANCE) ?? {};
     const lineItemProvenance = ctx.store.get<InvoiceLineItemProvenance[]>(POST_ENGINE_CTX.LINE_ITEM_PROVENANCE) ?? [];
     const classification = ctx.store.get<InvoiceExtractionData["classification"]>(POST_ENGINE_CTX.CLASSIFICATION);
+    const engineStrategy = ctx.store.get<EngineStrategy>(POST_ENGINE_CTX.ENGINE_STRATEGY);
+
+    const isLlamaExtract = engineStrategy === ENGINE_STRATEGY.LLAMA_EXTRACT;
+    const source: ExtractionSource = isLlamaExtract
+      ? EXTRACTION_SOURCE.LLAMA_EXTRACT
+      : EXTRACTION_SOURCE.SLM_DIRECT;
+
     const recoveryStrategy = ctx.store.get<OcrRecoveryStrategy>(POST_ENGINE_CTX.RECOVERY_STRATEGY) ?? "generic";
+    const strategy: ExtractionSource = isLlamaExtract
+      ? EXTRACTION_SOURCE.LLAMA_EXTRACT
+      : OCR_RECOVERY_STRATEGY_SOURCE[recoveryStrategy];
 
     const extraction: InvoiceExtractionData = {
-      source: EXTRACTION_SOURCE.SLM_DIRECT,
-      strategy: OCR_RECOVERY_STRATEGY_SOURCE[recoveryStrategy],
+      source,
+      strategy,
       ...(classification ? { classification } : {}),
       ...(classification?.invoiceType ? { invoiceType: classification.invoiceType } : {}),
       ...(Object.keys(fieldConfidence).length > 0 ? { fieldConfidence } : {}),
@@ -59,8 +68,8 @@ export class BuildExtractionResultStep implements PipelineStep {
       provider: ocrProviderName,
       text: primaryText,
       confidence: ocrConfidence,
-      source: EXTRACTION_SOURCE.SLM_DIRECT,
-      strategy: extraction.strategy ?? EXTRACTION_SOURCE.SLM_DIRECT,
+      source,
+      strategy,
       parseResult: { parsed, warnings: ctx.issues },
       confidenceAssessment,
       attempts: [],
