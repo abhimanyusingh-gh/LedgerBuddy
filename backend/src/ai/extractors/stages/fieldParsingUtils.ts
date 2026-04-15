@@ -1,5 +1,6 @@
 import type { OcrBlock } from "@/core/interfaces/OcrProvider.js";
 import { currencyBySymbol } from "@/ai/parsers/invoiceParser.js";
+import { normalizeDate } from "@/ai/parsers/dateParser.js";
 import { clampProbability } from "@/utils/math.js";
 import { uniqueStrings } from "@/utils/text.js";
 
@@ -47,34 +48,11 @@ export function normalizeDateToken(text: string): Date | undefined {
     if (!match) {
       continue;
     }
-    const normalizedDate = normalizeDateValue(match[1]);
-    if (normalizedDate) {
-      return normalizedDate;
+    const result = normalizeDate(match[1]);
+    if (result) {
+      return result;
     }
   }
-  return undefined;
-}
-
-function normalizeDateValue(value: string): Date | undefined {
-  const sanitized = value.replace(/,/g, "").trim();
-  const monthNameFirst = sanitized.match(/^([A-Za-z]{3,9})\s+(\d{1,2})\s+(\d{4})$/);
-  if (monthNameFirst) {
-    const month = resolveMonthNumber(monthNameFirst[1]);
-    if (month) {
-      const d = new Date(`${monthNameFirst[3]}-${month}-${monthNameFirst[2].padStart(2, "0")}`);
-      return isNaN(d.getTime()) ? undefined : d;
-    }
-  }
-
-  const dayFirst = sanitized.match(/^(\d{1,2})\s+([A-Za-z]{3,9})\s+(\d{4})$/);
-  if (dayFirst) {
-    const month = resolveMonthNumber(dayFirst[2]);
-    if (month) {
-      const d = new Date(`${dayFirst[3]}-${month}-${dayFirst[1].padStart(2, "0")}`);
-      return isNaN(d.getTime()) ? undefined : d;
-    }
-  }
-
   return undefined;
 }
 
@@ -113,7 +91,43 @@ export function formatConfidence(value: number): string {
   return clampProbability(value).toFixed(4);
 }
 
-export function buildDateTerms(value: Date): string[] {
+export function candidateTerms(field: string, value: string): string[] {
+  const base = value.trim().toLowerCase();
+  if (!base) {
+    return [];
+  }
+
+  if ((field === "invoiceDate" || field === "dueDate") && /^\d{4}-\d{2}-\d{2}$/.test(base)) {
+    const d = new Date(base);
+    return isNaN(d.getTime()) ? [base] : buildDateTerms(d);
+  }
+
+  if (field !== "totalAmountMinor") {
+    return [base];
+  }
+
+  const amount = Number(base);
+  if (!Number.isFinite(amount) || amount <= 0) {
+    return [base];
+  }
+
+  const withDecimals = amount.toFixed(2);
+  const noDecimals = Number.isInteger(amount) ? String(amount) : "";
+  const digitsOnly = base.replace(/[^0-9]/g, "");
+
+  const terms: string[] = [];
+  const seen = new Set<string>();
+  for (const raw of [base, withDecimals, noDecimals, digitsOnly]) {
+    const entry = raw.trim().toLowerCase();
+    if (entry.length >= 3 && !seen.has(entry)) {
+      seen.add(entry);
+      terms.push(entry);
+    }
+  }
+  return terms;
+}
+
+function buildDateTerms(value: Date): string[] {
   const iso = value.toISOString().slice(0, 10);
   const [year, month, day] = iso.split("-");
   const monthIndex = Number(month) - 1;

@@ -1,7 +1,7 @@
 import type { OcrBlock } from "@/core/interfaces/OcrProvider.js";
 import type { ParsedInvoiceData } from "@/types/invoice.js";
 import { looksLikeAddress } from "@/ai/extractors/invoice/stages/fieldCandidates.js";
-import { normalizeDateToken, buildDateTerms } from "@/ai/extractors/stages/fieldParsingUtils.js";
+import { normalizeDateToken, candidateTerms } from "@/ai/extractors/stages/fieldParsingUtils.js";
 
 export const DEFAULT_FIELD_LABEL_PATTERNS: Record<string, RegExp> = {
   invoiceNumber: /^((?:pro(?:forma|perma)?|performa)\s+invoice\s*(?:number|no\.?|#)?|invoice\s*(?:number|no\.?|#)|bill\s*(?:number|no\.?|#)|inv\s*(?:no\.?|#))$/i,
@@ -364,41 +364,6 @@ export function findBlockForField(
 
 export function findBlockIndexByExactText(blocks: OcrBlock[], pattern: RegExp): number {
   return blocks.findIndex((block) => pattern.test(block.text.trim()));
-}
-
-function candidateTerms(field: keyof ParsedInvoiceData, value: string): string[] {
-  const base = value.trim().toLowerCase();
-  if (!base) {
-    return [];
-  }
-
-  if ((field === "invoiceDate" || field === "dueDate") && /^\d{4}-\d{2}-\d{2}$/.test(base)) {
-    return buildDateTerms(new Date(base));
-  }
-
-  if (field !== "totalAmountMinor") {
-    return [base];
-  }
-
-  const amount = Number(base);
-  if (!Number.isFinite(amount) || amount <= 0) {
-    return [base];
-  }
-
-  const withDecimals = amount.toFixed(2);
-  const noDecimals = Number.isInteger(amount) ? String(amount) : "";
-  const digitsOnly = base.replace(/[^0-9]/g, "");
-
-  const terms: string[] = [];
-  const seen = new Set<string>();
-  for (const raw of [base, withDecimals, noDecimals, digitsOnly]) {
-    const entry = raw.trim().toLowerCase();
-    if (entry.length >= 3 && !seen.has(entry)) {
-      seen.add(entry);
-      terms.push(entry);
-    }
-  }
-  return terms;
 }
 
 function normalizeFieldValue(field: keyof ParsedInvoiceData, value: unknown): string {
