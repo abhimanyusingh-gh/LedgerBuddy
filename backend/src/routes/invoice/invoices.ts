@@ -16,6 +16,7 @@ import {
 import { env } from "@/config/env.js";
 import { loadRuntimeManifest, type FolderSourceManifest } from "@/core/runtimeManifest.js";
 import { INVOICE_STATUS, GL_CODE_SOURCE, TDS_SOURCE, RISK_SIGNAL_STATUS } from "@/types/invoice.js";
+import { RISK_SIGNAL_CODE } from "@/types/riskSignals.js";
 import { INGESTION_SOURCE_TYPE } from "@/core/interfaces/IngestionSource.js";
 import type { FileStore } from "@/core/interfaces/FileStore.js";
 import { requireCap, resolveCapabilities } from "@/auth/requireCapability.js";
@@ -177,7 +178,7 @@ export function createInvoiceRouter(invoiceService: InvoiceService, fileStore?: 
             vendorBank.isChanged = false;
           }
           const signals = ((compliance as Record<string, unknown>).riskSignals as Array<Record<string, unknown>>) ?? [];
-          const bankSignal = signals.find(s => s.code === "VENDOR_BANK_CHANGED");
+          const bankSignal = signals.find(s => s.code === RISK_SIGNAL_CODE.VENDOR_BANK_CHANGED);
           if (bankSignal) {
             bankSignal.status = RISK_SIGNAL_STATUS.ACTED_ON;
             bankSignal.resolvedBy = authContext.userId;

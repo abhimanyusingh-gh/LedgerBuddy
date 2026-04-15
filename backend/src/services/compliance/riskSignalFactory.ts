@@ -1,8 +1,9 @@
 import type { RiskSignalCategory, RiskSignalSeverity, ComplianceRiskSignal } from "@/types/invoice.js";
 import { RISK_SIGNAL_STATUS } from "@/types/invoice.js";
+import type { RiskSignalCode } from "@/types/riskSignals.js";
 
 export function createRiskSignal(
-  code: string,
+  code: RiskSignalCode,
   category: RiskSignalCategory,
   severity: RiskSignalSeverity,
   message: string,

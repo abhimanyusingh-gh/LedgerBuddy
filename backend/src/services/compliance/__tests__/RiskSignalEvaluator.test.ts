@@ -1,6 +1,7 @@
 import { RiskSignalEvaluator } from "@/services/compliance/RiskSignalEvaluator";
 import type { ParsedInvoiceData } from "@/types/invoice";
 import { createRiskSignal } from "@/services/compliance/riskSignalFactory";
+import { RISK_SIGNAL_CODE } from "@/types/riskSignals";
 
 const evaluator = new RiskSignalEvaluator();
 
@@ -23,7 +24,7 @@ describe("RiskSignalEvaluator", () => {
         expectedMaxTotal: 100000,
         expectedMaxDueDays: 90
       });
-      const signal = signals.find(s => s.code === "TOTAL_AMOUNT_ABOVE_EXPECTED");
+      const signal = signals.find(s => s.code === RISK_SIGNAL_CODE.TOTAL_AMOUNT_ABOVE_EXPECTED);
       expect(signal).toBeDefined();
       expect(signal!.category).toBe("financial");
       expect(signal!.severity).toBe("warning");
@@ -36,7 +37,7 @@ describe("RiskSignalEvaluator", () => {
         expectedMaxTotal: 100000,
         expectedMaxDueDays: 90
       });
-      expect(signals.find(s => s.code === "TOTAL_AMOUNT_ABOVE_EXPECTED")).toBeUndefined();
+      expect(signals.find(s => s.code === RISK_SIGNAL_CODE.TOTAL_AMOUNT_ABOVE_EXPECTED)).toBeUndefined();
     });
   });
 
@@ -47,7 +48,7 @@ describe("RiskSignalEvaluator", () => {
         expectedMaxTotal: 100000,
         expectedMaxDueDays: 90
       });
-      const signal = signals.find(s => s.code === "TOTAL_AMOUNT_BELOW_MINIMUM");
+      const signal = signals.find(s => s.code === RISK_SIGNAL_CODE.TOTAL_AMOUNT_BELOW_MINIMUM);
       expect(signal).toBeDefined();
       expect(signal!.severity).toBe("info");
       expect(signal!.confidencePenalty).toBe(0);
@@ -59,7 +60,7 @@ describe("RiskSignalEvaluator", () => {
         expectedMaxTotal: 100000,
         expectedMaxDueDays: 90
       });
-      expect(signals.find(s => s.code === "TOTAL_AMOUNT_BELOW_MINIMUM")).toBeUndefined();
+      expect(signals.find(s => s.code === RISK_SIGNAL_CODE.TOTAL_AMOUNT_BELOW_MINIMUM)).toBeUndefined();
     });
   });
 
@@ -72,7 +73,7 @@ describe("RiskSignalEvaluator", () => {
         expectedMaxDueDays: 90,
         referenceDate
       });
-      const signal = signals.find(s => s.code === "DUE_DATE_TOO_FAR");
+      const signal = signals.find(s => s.code === RISK_SIGNAL_CODE.DUE_DATE_TOO_FAR);
       expect(signal).toBeDefined();
       expect(signal!.category).toBe("data-quality");
     });
@@ -85,7 +86,7 @@ describe("RiskSignalEvaluator", () => {
         expectedMaxDueDays: 90,
         referenceDate
       });
-      expect(signals.find(s => s.code === "DUE_DATE_TOO_FAR")).toBeUndefined();
+      expect(signals.find(s => s.code === RISK_SIGNAL_CODE.DUE_DATE_TOO_FAR)).toBeUndefined();
     });
   });
 
@@ -96,7 +97,7 @@ describe("RiskSignalEvaluator", () => {
         expectedMaxTotal: 100000,
         expectedMaxDueDays: 90
       });
-      const signal = signals.find(s => s.code === "MISSING_MANDATORY_FIELDS");
+      const signal = signals.find(s => s.code === RISK_SIGNAL_CODE.MISSING_MANDATORY_FIELDS);
       expect(signal).toBeDefined();
       expect(signal!.message).toContain("vendor name");
     });
@@ -107,7 +108,7 @@ describe("RiskSignalEvaluator", () => {
         expectedMaxTotal: 100000,
         expectedMaxDueDays: 90
       });
-      const signal = signals.find(s => s.code === "MISSING_MANDATORY_FIELDS");
+      const signal = signals.find(s => s.code === RISK_SIGNAL_CODE.MISSING_MANDATORY_FIELDS);
       expect(signal).toBeDefined();
       expect(signal!.message).toContain("total amount");
     });
@@ -118,23 +119,23 @@ describe("RiskSignalEvaluator", () => {
         expectedMaxTotal: 100000,
         expectedMaxDueDays: 90
       });
-      expect(signals.find(s => s.code === "MISSING_MANDATORY_FIELDS")).toBeUndefined();
+      expect(signals.find(s => s.code === RISK_SIGNAL_CODE.MISSING_MANDATORY_FIELDS)).toBeUndefined();
     });
   });
 
   describe("sumPenalties", () => {
     it("sums penalties from multiple signals", () => {
       const penalty = RiskSignalEvaluator.sumPenalties([
-        createRiskSignal("A", "financial", "warning", "", 10),
-        createRiskSignal("B", "financial", "warning", "", 8)
+        createRiskSignal(RISK_SIGNAL_CODE.TOTAL_AMOUNT_ABOVE_EXPECTED, "financial", "warning", "", 10),
+        createRiskSignal(RISK_SIGNAL_CODE.TOTAL_AMOUNT_BELOW_MINIMUM, "financial", "warning", "", 8)
       ]);
       expect(penalty).toBe(18);
     });
 
     it("caps at 30", () => {
       const penalty = RiskSignalEvaluator.sumPenalties([
-        createRiskSignal("A", "financial", "critical", "", 20),
-        createRiskSignal("B", "financial", "critical", "", 20)
+        createRiskSignal(RISK_SIGNAL_CODE.VENDOR_BANK_CHANGED, "financial", "critical", "", 20),
+        createRiskSignal(RISK_SIGNAL_CODE.DUPLICATE_INVOICE_NUMBER, "financial", "critical", "", 20)
       ]);
       expect(penalty).toBe(30);
     });
@@ -163,7 +164,7 @@ describe("RiskSignalEvaluator", () => {
         expectedMaxDueDays: 90,
         tenantConfig: { maxInvoiceTotalMinor: 500000 }
       });
-      const signal = signals.find(s => s.code === "TOTAL_AMOUNT_ABOVE_EXPECTED");
+      const signal = signals.find(s => s.code === RISK_SIGNAL_CODE.TOTAL_AMOUNT_ABOVE_EXPECTED);
       expect(signal).toBeDefined();
     });
 
@@ -174,7 +175,7 @@ describe("RiskSignalEvaluator", () => {
         expectedMaxDueDays: 90,
         tenantConfig: {}
       });
-      expect(signals.find(s => s.code === "TOTAL_AMOUNT_ABOVE_EXPECTED")).toBeUndefined();
+      expect(signals.find(s => s.code === RISK_SIGNAL_CODE.TOTAL_AMOUNT_ABOVE_EXPECTED)).toBeUndefined();
     });
 
     it("uses maxDueDays from tenant config", () => {
@@ -186,7 +187,7 @@ describe("RiskSignalEvaluator", () => {
         referenceDate,
         tenantConfig: { maxDueDays: 30 }
       });
-      const signal = signals.find(s => s.code === "DUE_DATE_TOO_FAR");
+      const signal = signals.find(s => s.code === RISK_SIGNAL_CODE.DUE_DATE_TOO_FAR);
       expect(signal).toBeDefined();
       expect(signal!.message).toContain("expected max is 30 days");
     });
@@ -200,7 +201,7 @@ describe("RiskSignalEvaluator", () => {
         referenceDate,
         tenantConfig: {}
       });
-      expect(signals.find(s => s.code === "DUE_DATE_TOO_FAR")).toBeUndefined();
+      expect(signals.find(s => s.code === RISK_SIGNAL_CODE.DUE_DATE_TOO_FAR)).toBeUndefined();
     });
 
     it("uses minimumExpectedTotalMinor from tenant config", () => {
@@ -210,7 +211,7 @@ describe("RiskSignalEvaluator", () => {
         expectedMaxDueDays: 90,
         tenantConfig: { minimumExpectedTotalMinor: 20000 }
       });
-      const signal = signals.find(s => s.code === "TOTAL_AMOUNT_BELOW_MINIMUM");
+      const signal = signals.find(s => s.code === RISK_SIGNAL_CODE.TOTAL_AMOUNT_BELOW_MINIMUM);
       expect(signal).toBeDefined();
     });
 
@@ -221,21 +222,21 @@ describe("RiskSignalEvaluator", () => {
         expectedMaxDueDays: 90,
         tenantConfig: { minimumExpectedTotalMinor: 2000 }
       });
-      expect(signals.find(s => s.code === "TOTAL_AMOUNT_BELOW_MINIMUM")).toBeUndefined();
+      expect(signals.find(s => s.code === RISK_SIGNAL_CODE.TOTAL_AMOUNT_BELOW_MINIMUM)).toBeUndefined();
     });
 
     it("uses custom riskSignalPenaltyCap in sumPenalties", () => {
       const penalty = RiskSignalEvaluator.sumPenalties([
-        createRiskSignal("A", "financial", "critical", "", 20),
-        createRiskSignal("B", "financial", "critical", "", 20)
+        createRiskSignal(RISK_SIGNAL_CODE.MSME_PAYMENT_OVERDUE, "financial", "critical", "", 20),
+        createRiskSignal(RISK_SIGNAL_CODE.TDS_NO_PAN_PENALTY_RATE, "financial", "critical", "", 20)
       ], 50);
       expect(penalty).toBe(40);
     });
 
     it("falls back to default penalty cap when undefined", () => {
       const penalty = RiskSignalEvaluator.sumPenalties([
-        createRiskSignal("A", "financial", "critical", "", 20),
-        createRiskSignal("B", "financial", "critical", "", 20)
+        createRiskSignal(RISK_SIGNAL_CODE.MSME_PAYMENT_OVERDUE, "financial", "critical", "", 20),
+        createRiskSignal(RISK_SIGNAL_CODE.TDS_NO_PAN_PENALTY_RATE, "financial", "critical", "", 20)
       ], undefined);
       expect(penalty).toBe(30);
     });

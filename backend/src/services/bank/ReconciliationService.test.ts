@@ -5,6 +5,7 @@ import { BankStatementModel } from "@/models/bank/BankStatement.ts";
 import { TenantTcsConfigModel } from "@/models/integration/TenantTcsConfig.ts";
 import { TenantComplianceConfigModel } from "@/models/integration/TenantComplianceConfig.ts";
 import { toUUID } from "@/types/uuid.js";
+import { RISK_SIGNAL_CODE } from "@/types/riskSignals.js";
 
 jest.mock("@/models/invoice/Invoice.ts");
 jest.mock("@/models/bank/BankTransaction.ts");
@@ -169,7 +170,7 @@ describe("ReconciliationService", () => {
     const push = updateDoc.$push as Record<string, unknown>;
 
     expect(push["compliance.riskSignals"]).toMatchObject({
-      code: "BANK_PAYMENT_VERIFIED",
+      code: RISK_SIGNAL_CODE.BANK_PAYMENT_VERIFIED,
       category: "financial",
       severity: "info",
       confidencePenalty: 0,

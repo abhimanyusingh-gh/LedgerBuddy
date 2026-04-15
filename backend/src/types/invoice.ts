@@ -1,4 +1,5 @@
 import type { ExtractionSource } from "@/core/engine/extractionSource.js";
+import type { RiskSignalCode } from "@/types/riskSignals.js";
 
 export const INVOICE_STATUS = {
   PENDING: "PENDING",
@@ -305,7 +306,7 @@ export type RiskSignalSeverity = (typeof RISK_SIGNAL_SEVERITY)[keyof typeof RISK
 export type RiskSignalStatus = (typeof RISK_SIGNAL_STATUS)[keyof typeof RISK_SIGNAL_STATUS];
 
 export interface ComplianceRiskSignal {
-  code: string;
+  code: RiskSignalCode;
   category: RiskSignalCategory;
   severity: RiskSignalSeverity;
   message: string;

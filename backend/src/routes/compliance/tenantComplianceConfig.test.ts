@@ -122,7 +122,7 @@ describe("compliance config routes", () => {
           body: {
             tdsEnabled: true,
             riskSignalsEnabled: true,
-            activeRiskSignals: ["PAN_FORMAT_INVALID", "DUPLICATE_INVOICE"]
+            activeRiskSignals: ["PAN_FORMAT_INVALID", "DUPLICATE_INVOICE_NUMBER"]
           }
         }),
         res,
@@ -132,7 +132,7 @@ describe("compliance config routes", () => {
       const body = res.jsonBody as Record<string, unknown>;
       expect(body.tdsEnabled).toBe(true);
       expect(body.riskSignalsEnabled).toBe(true);
-      expect(body.activeRiskSignals).toEqual(["PAN_FORMAT_INVALID", "DUPLICATE_INVOICE"]);
+      expect(body.activeRiskSignals).toEqual(["PAN_FORMAT_INVALID", "DUPLICATE_INVOICE_NUMBER"]);
       expect(body.updatedBy).toBe("admin@test.com");
     });
 
@@ -274,7 +274,7 @@ describe("compliance config routes", () => {
             panValidationEnabled: true,
             panValidationLevel: "format",
             riskSignalsEnabled: true,
-            activeRiskSignals: ["PAN_FORMAT_INVALID", "DUPLICATE_INVOICE", "MISSING_IRN"]
+            activeRiskSignals: ["PAN_FORMAT_INVALID", "DUPLICATE_INVOICE_NUMBER", "IRN_MISSING"]
           }
         }),
         res,
@@ -1270,8 +1270,8 @@ describe("compliance config routes", () => {
       expect(body.items.length).toBeGreaterThan(5);
       const codes = body.items.map((s) => s.code);
       expect(codes).toContain("PAN_FORMAT_INVALID");
-      expect(codes).toContain("DUPLICATE_INVOICE");
-      expect(codes).toContain("MISSING_IRN");
+      expect(codes).toContain("DUPLICATE_INVOICE_NUMBER");
+      expect(codes).toContain("IRN_MISSING");
     });
   });
 });

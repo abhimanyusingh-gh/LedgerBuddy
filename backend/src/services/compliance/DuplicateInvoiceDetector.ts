@@ -2,6 +2,7 @@ import { InvoiceModel } from "@/models/invoice/Invoice.js";
 import { INVOICE_STATUS } from "@/types/invoice.js";
 import type { ComplianceRiskSignal } from "@/types/invoice.js";
 import { createRiskSignal } from "@/services/compliance/riskSignalFactory.js";
+import { RISK_SIGNAL_CODE } from "@/types/riskSignals.js";
 
 export class DuplicateInvoiceDetector {
   async check(
@@ -34,7 +35,7 @@ export class DuplicateInvoiceDetector {
     const existingDate = existing.parsed?.invoiceDate;
 
     return [createRiskSignal(
-      "DUPLICATE_INVOICE_NUMBER",
+      RISK_SIGNAL_CODE.DUPLICATE_INVOICE_NUMBER,
       "fraud",
       "critical",
       `Vendor "${vendorName}" previously submitted invoice "${invoiceNumber}"${existingDate ? ` on ${existingDate instanceof Date ? existingDate.toISOString().slice(0, 10) : String(existingDate)}` : ""}${existingAmount ? ` for ${existingAmount}` : ""}. This submission has different content.`,

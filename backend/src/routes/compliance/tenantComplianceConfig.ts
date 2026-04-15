@@ -3,6 +3,7 @@ import { z } from "zod";
 import { TenantComplianceConfigModel } from "@/models/integration/TenantComplianceConfig.js";
 import { requireAuth } from "@/auth/requireAuth.js";
 import { requireCap } from "@/auth/requireCapability.js";
+import { RISK_SIGNAL_CODE } from "@/types/riskSignals.js";
 
 const VALID_PAN_LEVELS = new Set(["format", "format_and_checksum", "disabled"]);
 
@@ -19,23 +20,28 @@ const DEFAULT_TDS_SECTIONS = [
 ];
 
 const AVAILABLE_RISK_SIGNALS = [
-  { code: "PAN_FORMAT_INVALID", description: "PAN format is invalid", category: "compliance" },
-  { code: "PAN_GSTIN_MISMATCH", description: "PAN does not match GSTIN cross-reference", category: "compliance" },
-  { code: "TDS_NO_PAN_PENALTY_RATE", description: "No PAN available - penalty TDS rate applies", category: "compliance" },
-  { code: "TDS_SECTION_AMBIGUOUS", description: "Multiple TDS sections could apply", category: "compliance" },
-  { code: "TDS_BELOW_THRESHOLD", description: "Invoice amount below TDS threshold", category: "compliance" },
-  { code: "TOTAL_AMOUNT_ABOVE_EXPECTED", description: "Total amount exceeds expected maximum", category: "financial" },
-  { code: "TOTAL_AMOUNT_BELOW_MINIMUM", description: "Total amount is unusually low", category: "financial" },
-  { code: "DUE_DATE_TOO_FAR", description: "Due date is unusually far in the future", category: "data-quality" },
-  { code: "MISSING_MANDATORY_FIELDS", description: "Required fields are missing from invoice", category: "data-quality" },
-  { code: "DUPLICATE_INVOICE", description: "Possible duplicate of an existing invoice", category: "data-quality" },
-  { code: "VENDOR_BANK_CHANGED", description: "Vendor bank details have changed recently", category: "financial" },
-  { code: "MSME_OVERDUE", description: "Payment to MSME vendor is overdue", category: "compliance" },
-  { code: "MISSING_IRN", description: "Invoice Reference Number (IRN) is missing", category: "compliance" },
-  { code: "GSTIN_INVALID", description: "GSTIN format is invalid", category: "compliance" }
+  { code: RISK_SIGNAL_CODE.PAN_FORMAT_INVALID, description: "PAN format is invalid", category: "compliance" },
+  { code: RISK_SIGNAL_CODE.PAN_GSTIN_MISMATCH, description: "PAN does not match GSTIN cross-reference", category: "compliance" },
+  { code: RISK_SIGNAL_CODE.TDS_NO_PAN_PENALTY_RATE, description: "No PAN available — penalty TDS rate applies", category: "compliance" },
+  { code: RISK_SIGNAL_CODE.TDS_SECTION_AMBIGUOUS, description: "Multiple TDS sections could apply", category: "compliance" },
+  { code: RISK_SIGNAL_CODE.TDS_BELOW_THRESHOLD, description: "Invoice amount below TDS threshold", category: "compliance" },
+  { code: RISK_SIGNAL_CODE.TOTAL_AMOUNT_ABOVE_EXPECTED, description: "Total amount exceeds expected maximum", category: "financial" },
+  { code: RISK_SIGNAL_CODE.TOTAL_AMOUNT_BELOW_MINIMUM, description: "Total amount is unusually low", category: "financial" },
+  { code: RISK_SIGNAL_CODE.DUE_DATE_TOO_FAR, description: "Due date is unusually far in the future", category: "data-quality" },
+  { code: RISK_SIGNAL_CODE.MISSING_MANDATORY_FIELDS, description: "Required fields are missing from invoice", category: "data-quality" },
+  { code: RISK_SIGNAL_CODE.DUPLICATE_INVOICE_NUMBER, description: "Possible duplicate of an existing invoice", category: "fraud" },
+  { code: RISK_SIGNAL_CODE.VENDOR_BANK_CHANGED, description: "Vendor bank details have changed recently", category: "fraud" },
+  { code: RISK_SIGNAL_CODE.IRN_MISSING, description: "Invoice Reference Number (IRN) is missing", category: "compliance" },
+  { code: RISK_SIGNAL_CODE.IRN_FORMAT_INVALID, description: "IRN does not match expected 64-character hex format", category: "compliance" },
+  { code: RISK_SIGNAL_CODE.MSME_PAYMENT_OVERDUE, description: "Payment to MSME vendor is overdue", category: "compliance" },
+  { code: RISK_SIGNAL_CODE.MSME_PAYMENT_DUE_SOON, description: "MSME vendor payment deadline approaching", category: "compliance" },
+  { code: RISK_SIGNAL_CODE.SENDER_FREEMAIL, description: "Invoice sent from freemail provider but vendor uses corporate email", category: "fraud" },
+  { code: RISK_SIGNAL_CODE.SENDER_DOMAIN_MISMATCH, description: "Sender email domain does not match vendor's known domains", category: "fraud" },
+  { code: RISK_SIGNAL_CODE.SENDER_FIRST_TIME, description: "First invoice from this email domain for vendor", category: "fraud" },
+  { code: RISK_SIGNAL_CODE.BANK_PAYMENT_VERIFIED, description: "Payment verified against bank statement transaction", category: "financial" },
 ];
 
-const ALL_RISK_SIGNAL_CODES = new Set(AVAILABLE_RISK_SIGNALS.map((s) => s.code));
+const ALL_RISK_SIGNAL_CODES: Set<string> = new Set(AVAILABLE_RISK_SIGNALS.map((s) => s.code));
 
 interface TdsRateEntry {
   section: string;

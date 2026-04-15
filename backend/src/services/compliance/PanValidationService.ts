@@ -1,6 +1,7 @@
 import { PAN_FORMAT, GSTIN_FORMAT, extractPanFromGstin } from "@/constants/indianCompliance.js";
 import type { CompliancePanResult, ComplianceRiskSignal } from "@/types/invoice.js";
 import { createRiskSignal } from "@/services/compliance/riskSignalFactory.js";
+import { RISK_SIGNAL_CODE } from "@/types/riskSignals.js";
 
 interface PanValidationResult {
   pan: CompliancePanResult;
@@ -45,7 +46,7 @@ export class PanValidationService {
 
     if (!formatValid) {
       riskSignals.push(createRiskSignal(
-        "PAN_FORMAT_INVALID",
+        RISK_SIGNAL_CODE.PAN_FORMAT_INVALID,
         "compliance",
         "warning",
         `Extracted PAN "${upperPan}" does not match expected format (ABCDE1234F).`,
@@ -82,7 +83,7 @@ export class PanValidationService {
 
     if (!crossRefMatch) {
       riskSignals.push(createRiskSignal(
-        "PAN_GSTIN_MISMATCH",
+        RISK_SIGNAL_CODE.PAN_GSTIN_MISMATCH,
         "compliance",
         "warning",
         `PAN "${upperPan}" does not match PAN embedded in GSTIN "${gstin}" (expected "${panFromGstin}").`,

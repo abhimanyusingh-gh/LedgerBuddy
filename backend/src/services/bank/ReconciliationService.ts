@@ -6,6 +6,8 @@ import { logger } from "@/utils/logger.js";
 import { isRecord } from "@/utils/validation.js";
 import { type UUID, toUUID } from "@/types/uuid.js";
 import { resolveTenantComplianceConfig } from "@/services/compliance/tenantConfigResolver.js";
+import { createRiskSignal } from "@/services/compliance/riskSignalFactory.js";
+import { RISK_SIGNAL_CODE } from "@/types/riskSignals.js";
 
 const DEFAULT_AUTO_MATCH_THRESHOLD = 50;
 const DEFAULT_SUGGEST_THRESHOLD = 30;
@@ -227,14 +229,13 @@ export class ReconciliationService {
         },
         $push: {
           processingIssues: `Bank payment verified: matched to transaction ${transactionId} (confidence ${confidence})`,
-          "compliance.riskSignals": {
-            code: "BANK_PAYMENT_VERIFIED",
-            category: "financial",
-            severity: "info",
-            message: `Payment verified against bank statement transaction (confidence: ${confidence})`,
-            confidencePenalty: 0,
-            status: "open"
-          }
+          "compliance.riskSignals": createRiskSignal(
+            RISK_SIGNAL_CODE.BANK_PAYMENT_VERIFIED,
+            "financial",
+            "info",
+            `Payment verified against bank statement transaction (confidence: ${confidence})`,
+            0
+          )
         }
       }
     );
@@ -264,7 +265,7 @@ export class ReconciliationService {
         { _id: invoiceId, tenantId },
         {
           $unset: { "compliance.reconciliation": 1 },
-          $pull: { "compliance.riskSignals": { code: "BANK_PAYMENT_VERIFIED" } } as unknown as Record<string, unknown>
+          $pull: { "compliance.riskSignals": { code: RISK_SIGNAL_CODE.BANK_PAYMENT_VERIFIED } } as unknown as Record<string, unknown>
         }
       );
     }

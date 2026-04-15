@@ -3,6 +3,7 @@ import { VendorMasterModel } from "@/models/compliance/VendorMaster.js";
 import type { ComplianceRiskSignal } from "@/types/invoice.js";
 import type { MsmeClassification } from "@/types/invoice.js";
 import { createRiskSignal } from "@/services/compliance/riskSignalFactory.js";
+import { RISK_SIGNAL_CODE } from "@/types/riskSignals.js";
 const DEFAULT_MSME_PAYMENT_WARNING_DAYS = 30;
 const DEFAULT_MSME_PAYMENT_OVERDUE_DAYS = 45;
 
@@ -56,7 +57,7 @@ export class MsmeTrackingService {
 
         if (daysSinceInvoice > overdueDays) {
           riskSignals.push(createRiskSignal(
-            "MSME_PAYMENT_OVERDUE",
+            RISK_SIGNAL_CODE.MSME_PAYMENT_OVERDUE,
             "compliance",
             "critical",
             `MSME vendor — invoice is ${daysSinceInvoice} days old, exceeds ${overdueDays}-day payment deadline.`,
@@ -64,7 +65,7 @@ export class MsmeTrackingService {
           ));
         } else if (daysSinceInvoice > warningDays) {
           riskSignals.push(createRiskSignal(
-            "MSME_PAYMENT_DUE_SOON",
+            RISK_SIGNAL_CODE.MSME_PAYMENT_DUE_SOON,
             "compliance",
             "warning",
             `MSME vendor — invoice is ${daysSinceInvoice} days old, approaching ${overdueDays}-day payment deadline.`,

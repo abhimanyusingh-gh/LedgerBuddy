@@ -1,6 +1,7 @@
 import type { ComplianceRiskSignal, ParsedInvoiceData } from "@/types/invoice.js";
 import { toMinorUnits, minorUnitsToMajorString } from "@/utils/currency.js";
 import { createRiskSignal } from "@/services/compliance/riskSignalFactory.js";
+import { RISK_SIGNAL_CODE } from "@/types/riskSignals.js";
 
 const DEFAULT_RISK_SIGNAL_PENALTY_CAP = 30;
 
@@ -54,7 +55,7 @@ export class RiskSignalEvaluator {
       const penalty = Math.min(30, Math.round(15 + overRatio * 25));
 
       signals.push(createRiskSignal(
-        "TOTAL_AMOUNT_ABOVE_EXPECTED",
+        RISK_SIGNAL_CODE.TOTAL_AMOUNT_ABOVE_EXPECTED,
         "financial",
         "warning",
         `Total amount ${currencyPrefix}${minorUnitsToMajorString(parsed.totalAmountMinor, parsed.currency)} exceeds expected max ${currencyPrefix}${minorUnitsToMajorString(maxTotalMinor, parsed.currency)}.`,
@@ -78,7 +79,7 @@ export class RiskSignalEvaluator {
     const penalty = Math.min(30, Math.round(15 + overRatio * 25));
 
     signals.push(createRiskSignal(
-      "TOTAL_AMOUNT_ABOVE_EXPECTED",
+      RISK_SIGNAL_CODE.TOTAL_AMOUNT_ABOVE_EXPECTED,
       "financial",
       "warning",
       `Total amount ${currencyPrefix}${minorUnitsToMajorString(parsed.totalAmountMinor, parsed.currency)} exceeds expected max ${currencyPrefix}${minorUnitsToMajorString(expectedMaxTotalMinor, parsed.currency)}.`,
@@ -97,7 +98,7 @@ export class RiskSignalEvaluator {
 
     if (parsed.totalAmountMinor > 0) {
       signals.push(createRiskSignal(
-        "TOTAL_AMOUNT_BELOW_MINIMUM",
+        RISK_SIGNAL_CODE.TOTAL_AMOUNT_BELOW_MINIMUM,
         "financial",
         "info",
         `Total amount is unusually low (${minorUnitsToMajorString(parsed.totalAmountMinor, parsed.currency)}).`,
@@ -125,7 +126,7 @@ export class RiskSignalEvaluator {
 
       const penalty = Math.min(20, Math.round(8 + (daysToDue - maxDueDays) / 4));
       signals.push(createRiskSignal(
-        "DUE_DATE_TOO_FAR",
+        RISK_SIGNAL_CODE.DUE_DATE_TOO_FAR,
         "data-quality",
         "warning",
         `Due date is ${daysToDue} days away, expected max is ${maxDueDays} days.`,
@@ -149,7 +150,7 @@ export class RiskSignalEvaluator {
 
     const penalty = Math.min(20, Math.round(8 + (daysToDue - expectedMaxDueDays) / 4));
     signals.push(createRiskSignal(
-      "DUE_DATE_TOO_FAR",
+      RISK_SIGNAL_CODE.DUE_DATE_TOO_FAR,
       "data-quality",
       "warning",
       `Due date is ${daysToDue} days away, expected max is ${expectedMaxDueDays} days.`,
@@ -165,7 +166,7 @@ export class RiskSignalEvaluator {
 
     if (missing.length > 0) {
       signals.push(createRiskSignal(
-        "MISSING_MANDATORY_FIELDS",
+        RISK_SIGNAL_CODE.MISSING_MANDATORY_FIELDS,
         "data-quality",
         "warning",
         `Missing mandatory fields: ${missing.join(", ")}.`,

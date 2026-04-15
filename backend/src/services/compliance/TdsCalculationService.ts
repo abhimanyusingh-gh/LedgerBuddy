@@ -5,6 +5,7 @@ import { resolveTdsRatesConfig } from "@/services/compliance/tenantConfigResolve
 import type { ComplianceTdsResult, ComplianceRiskSignal, ParsedInvoiceData } from "@/types/invoice.js";
 import { TDS_CONFIDENCE, type TdsConfidence } from "@/types/invoice.js";
 import { createRiskSignal } from "@/services/compliance/riskSignalFactory.js";
+import { RISK_SIGNAL_CODE } from "@/types/riskSignals.js";
 
 interface TdsDetectionResult {
   section: string | null;
@@ -157,7 +158,7 @@ export class TdsCalculationService {
 
     if (detection.confidence === TDS_CONFIDENCE.MEDIUM) {
       riskSignals.push(createRiskSignal(
-        "TDS_SECTION_AMBIGUOUS",
+        RISK_SIGNAL_CODE.TDS_SECTION_AMBIGUOUS,
         "compliance",
         "warning",
         `Multiple TDS sections could apply for category "${glCategory}" — please verify section ${detection.section}.`,
@@ -182,7 +183,7 @@ export class TdsCalculationService {
 
     if (!panValid && invoice.pan !== undefined && invoice.pan !== null) {
       riskSignals.push(createRiskSignal(
-        "TDS_NO_PAN_PENALTY_RATE",
+        RISK_SIGNAL_CODE.TDS_NO_PAN_PENALTY_RATE,
         "compliance",
         "critical",
         `No valid PAN — TDS at 20% penalty rate (Section 206AA) applies instead of ${rateLookup.rateBps / 100}%.`,
@@ -190,7 +191,7 @@ export class TdsCalculationService {
       ));
     } else if (!invoice.pan) {
       riskSignals.push(createRiskSignal(
-        "TDS_NO_PAN_PENALTY_RATE",
+        RISK_SIGNAL_CODE.TDS_NO_PAN_PENALTY_RATE,
         "compliance",
         "critical",
         "No PAN available — TDS at 20% penalty rate (Section 206AA) applies.",
@@ -217,7 +218,7 @@ export class TdsCalculationService {
 
     if (rateLookup.thresholdSingleMinor > 0 && taxableAmount < rateLookup.thresholdSingleMinor) {
       riskSignals.push(createRiskSignal(
-        "TDS_BELOW_THRESHOLD",
+        RISK_SIGNAL_CODE.TDS_BELOW_THRESHOLD,
         "compliance",
         "info",
         `Invoice amount below single-transaction TDS threshold for section ${detection.section}.`,
