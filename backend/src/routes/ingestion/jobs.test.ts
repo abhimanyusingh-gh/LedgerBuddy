@@ -235,6 +235,72 @@ describe("jobs routes", () => {
     });
   });
 
+  describe("POST /jobs/upload/by-keys", () => {
+    it("registers S3 keys and creates invoice records", async () => {
+      const fileStore = createMockFileStore();
+      const router = createJobsRouter(createMockIngestionService(), undefined, fileStore);
+      const keys = [
+        `uploads/${defaultAuth.tenantId}/abc-123.pdf`,
+        `uploads/${defaultAuth.tenantId}/def-456.png`
+      ];
+      const res = mockResponse();
+
+      await findHandler(router, "post", "/jobs/upload/by-keys")(
+        mockRequest({ authContext: defaultAuth, body: { keys } }),
+        res, jest.fn()
+      );
+
+      expect(res.statusCode).toBe(201);
+      expect((res.jsonBody as { count: number }).count).toBe(2);
+      expect(fileStore.getObject).toHaveBeenCalledTimes(2);
+    });
+
+    it("returns 400 when file store is not configured", async () => {
+      const router = createJobsRouter(createMockIngestionService());
+      const res = mockResponse();
+      await findHandler(router, "post", "/jobs/upload/by-keys")(
+        mockRequest({ authContext: defaultAuth, body: { keys: ["uploads/tenant-a/f.pdf"] } }),
+        res, jest.fn()
+      );
+      expect(res.statusCode).toBe(400);
+    });
+
+    it("returns 400 when keys array is empty", async () => {
+      const router = createJobsRouter(createMockIngestionService(), undefined, createMockFileStore());
+      const res = mockResponse();
+      await findHandler(router, "post", "/jobs/upload/by-keys")(
+        mockRequest({ authContext: defaultAuth, body: { keys: [] } }),
+        res, jest.fn()
+      );
+      expect(res.statusCode).toBe(400);
+    });
+
+    it("returns 403 when key does not belong to tenant", async () => {
+      const router = createJobsRouter(createMockIngestionService(), undefined, createMockFileStore());
+      const res = mockResponse();
+      await findHandler(router, "post", "/jobs/upload/by-keys")(
+        mockRequest({ authContext: defaultAuth, body: { keys: ["uploads/other-tenant/f.pdf"] } }),
+        res, jest.fn()
+      );
+      expect(res.statusCode).toBe(403);
+    });
+
+    it("handles duplicate key errors gracefully", async () => {
+      const fileStore = createMockFileStore();
+      const router = createJobsRouter(createMockIngestionService(), undefined, fileStore);
+      const { InvoiceModel } = await import("../../models/invoice/Invoice.ts");
+      const dupError = Object.assign(new Error("E11000 duplicate key error"), { code: 11000 });
+      (InvoiceModel.create as jest.Mock).mockRejectedValueOnce(dupError);
+
+      const res = mockResponse();
+      await findHandler(router, "post", "/jobs/upload/by-keys")(
+        mockRequest({ authContext: defaultAuth, body: { keys: [`uploads/${defaultAuth.tenantId}/a.pdf`] } }),
+        res, jest.fn()
+      );
+      expect(res.statusCode).toBe(201);
+    });
+  });
+
   describe("POST /jobs/ingest/pause", () => {
     it("pauses running job and clears pendingRerun", async () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any

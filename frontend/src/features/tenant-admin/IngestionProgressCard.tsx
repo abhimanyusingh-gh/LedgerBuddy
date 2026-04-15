@@ -7,6 +7,7 @@ interface IngestionProgressCardProps {
   successfulFiles: number;
   fading?: boolean;
   label?: string;
+  uploadProgress?: Map<string, number>;
 }
 
 function formatElapsed(startedAt?: string): string {
@@ -70,7 +71,42 @@ function initOverlay(el: HTMLDivElement) {
   });
 }
 
-export function IngestionProgressCard({ status, progressPercent, successfulFiles, fading, label }: IngestionProgressCardProps) {
+function FileUploadProgress({ uploadProgress }: { uploadProgress: Map<string, number> }) {
+  const entries = [...uploadProgress.entries()];
+  const totalPercent = entries.length > 0
+    ? Math.round(entries.reduce((sum, [, pct]) => sum + pct, 0) / entries.length)
+    : 0;
+
+  return (
+    <div className="ingestion-overlay ingestion-progress-running" role="status" aria-live="polite" style={{ cursor: "default" }}>
+      <div className="ingestion-overlay-header">
+        <div className="ingestion-overlay-toggle">
+          <span className="ingestion-spinner" aria-hidden="true" />
+          <span className="ingestion-overlay-headline">Uploading {entries.length} file{entries.length !== 1 ? "s" : ""} ({totalPercent}%)</span>
+        </div>
+      </div>
+      <div className="ingestion-overlay-body">
+        <div className="ingestion-progress-track">
+          <div className="ingestion-progress-fill ingestion-progress-fill-shimmer" style={{ width: `${totalPercent}%` }} />
+        </div>
+        <div style={{ maxHeight: "8rem", overflowY: "auto", marginTop: "0.25rem" }}>
+          {entries.map(([name, pct]) => (
+            <div key={name} style={{ display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "0.75rem", padding: "0.125rem 0" }}>
+              <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{name}</span>
+              <span style={{ minWidth: "2.5rem", textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{pct}%</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function IngestionProgressCard({ status, progressPercent, successfulFiles, fading, label, uploadProgress }: IngestionProgressCardProps) {
+  if (uploadProgress && uploadProgress.size > 0) {
+    return <FileUploadProgress uploadProgress={uploadProgress} />;
+  }
+
   if (!status || status.state === "idle" || status.state === "completed") {
     return null;
   }

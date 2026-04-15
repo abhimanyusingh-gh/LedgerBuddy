@@ -17,7 +17,9 @@ import {
   subscribeIngestionSSE,
   updateInvoiceParsedFields,
   renameInvoiceAttachment,
-  uploadInvoiceFiles
+  uploadInvoiceFiles,
+  requestPresignedUrls,
+  registerUploadedKeys
 } from "@/api";
 import type { IngestionJobStatus, Invoice, TenantRole, UserCapabilities } from "@/types";
 import { ConfidenceBadge } from "@/components/invoice/ConfidenceBadge";
@@ -165,6 +167,7 @@ export function TenantInvoicesView({
   const [activeExtractedFieldsExpanded, setActiveExtractedFieldsExpanded] = useState(true);
   const [activeLineItemsExpanded, setActiveLineItemsExpanded] = useState(false);
   const [uploadDragActive, setUploadDragActive] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<Map<string, number>>(new Map());
   const uploadInputRef = useRef<HTMLInputElement>(null);
   const popupRef = useRef<HTMLElement>(null);
   const ingestionWasRunningRef = useRef(false);
@@ -912,7 +915,7 @@ export function TenantInvoicesView({
 
     const MAX_FILES = 50;
     const MAX_FILE_SIZE = 20 * 1024 * 1024;
-    const ALLOWED_EXTENSIONS = [".pdf", ".jpg", ".jpeg", ".png"];
+    const ALLOWED_EXTENSIONS = [".pdf", ".jpg", ".jpeg", ".png", ".webp"];
 
     if (files.length > MAX_FILES) {
       addToast("error", "Maximum 50 files per upload");
@@ -926,18 +929,72 @@ export function TenantInvoicesView({
       }
       const ext = file.name.slice(file.name.lastIndexOf(".")).toLowerCase();
       if (!ALLOWED_EXTENSIONS.includes(ext)) {
-        addToast("error", `File ${file.name} has an unsupported format. Supported: PDF, JPG, PNG`);
+        addToast("error", `File ${file.name} has an unsupported format. Supported: PDF, JPG, PNG, WEBP`);
         return;
       }
     }
 
     try {
       setError(null);
-      await uploadInvoiceFiles(files);
+
+      const fileMeta = files.map((f) => ({
+        name: f.name,
+        contentType: f.type || "application/octet-stream",
+        sizeBytes: f.size
+      }));
+
+      let presignResponse: Awaited<ReturnType<typeof requestPresignedUrls>> | null = null;
+      try {
+        presignResponse = await requestPresignedUrls(fileMeta);
+      } catch {
+        presignResponse = null;
+      }
+
+      if (presignResponse && presignResponse.uploads.length === files.length) {
+        const progressMap = new Map<string, number>();
+        for (const file of files) progressMap.set(file.name, 0);
+        setUploadProgress(new Map(progressMap));
+
+        const uploadPromises = presignResponse.uploads.map((entry, idx) => {
+          const file = files[idx];
+          return new Promise<void>((resolve, reject) => {
+            const xhr = new XMLHttpRequest();
+            xhr.open("PUT", entry.uploadUrl);
+            xhr.setRequestHeader("Content-Type", file.type || "application/octet-stream");
+            xhr.upload.onprogress = (event) => {
+              if (event.lengthComputable) {
+                progressMap.set(file.name, Math.round((event.loaded / event.total) * 100));
+                setUploadProgress(new Map(progressMap));
+              }
+            };
+            xhr.onload = () => {
+              if (xhr.status >= 200 && xhr.status < 300) {
+                progressMap.set(file.name, 100);
+                setUploadProgress(new Map(progressMap));
+                resolve();
+              } else {
+                reject(new Error(`Upload failed for ${file.name}: ${xhr.status}`));
+              }
+            };
+            xhr.onerror = () => reject(new Error(`Upload failed for ${file.name}`));
+            xhr.send(file);
+          });
+        });
+
+        await Promise.all(uploadPromises);
+
+        const keys = presignResponse.uploads.map((entry) => entry.key);
+        await registerUploadedKeys(keys);
+        setUploadProgress(new Map());
+      } else {
+        await uploadInvoiceFiles(files);
+      }
+
       await loadInvoices();
       const status = await runIngestion();
       setIngestionStatus(status);
     } catch (uploadError) {
+      setUploadProgress(new Map());
       addToast("error", getUserFacingErrorMessage(uploadError, "File upload failed."));
     }
   }
@@ -1180,6 +1237,7 @@ export function TenantInvoicesView({
         successfulFiles={ingestionSuccessfulFiles}
         fading={ingestionFading}
         label="Invoice Ingestion"
+        uploadProgress={uploadProgress}
       />
       {error ? <p className="error">{error}</p> : null}
       <main ref={contentRef} className={contentClassName} style={contentStyle}>

@@ -21,6 +21,28 @@ function sanitizeIngestionStatus(value: unknown): IngestionJobStatus {
   };
 }
 
+interface PresignedUploadEntry {
+  key: string;
+  uploadUrl: string;
+  expiresAt: string;
+}
+
+interface PresignedUploadResponse {
+  uploads: PresignedUploadEntry[];
+}
+
+export async function requestPresignedUrls(
+  files: Array<{ name: string; contentType: string; sizeBytes: number }>
+): Promise<PresignedUploadResponse> {
+  return (await apiClient.post<PresignedUploadResponse>("/uploads/presign", { files })).data;
+}
+
+export async function registerUploadedKeys(
+  keys: string[]
+): Promise<{ uploaded: string[]; count: number }> {
+  return (await apiClient.post<{ uploaded: string[]; count: number }>("/jobs/upload/by-keys", { keys })).data;
+}
+
 export async function runIngestion() {
   return sanitizeIngestionStatus((await apiClient.post<IngestionJobStatus>("/jobs/ingest")).data);
 }

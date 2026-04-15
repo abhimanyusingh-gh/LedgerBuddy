@@ -14,6 +14,7 @@ import { requireCap } from "@/auth/requireCapability.js";
 import { IngestionJobOrchestrator } from "@/services/ingestion/IngestionJobOrchestrator.js";
 import { MAX_UPLOAD_FILE_COUNT, MAX_UPLOAD_FILE_SIZE_BYTES } from "@/constants.js";
 import { isAllowedFileExtension } from "@/utils/validation.js";
+import { guessMimeTypeFromKey } from "@/utils/mime.js";
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -162,6 +163,81 @@ export function createJobsRouter(
             logger.warn("jobs.upload.duplicate.skipped", {
               key,
               originalName: file.originalname,
+              tenantId: context.tenantId
+            });
+          } else {
+            throw error;
+          }
+        }
+
+        uploaded.push(key);
+      }
+
+      if (orchestrator.getCurrentStatus(context.tenantId).running && newlyCreated > 0) {
+        orchestrator.setPendingRerun(context.tenantId);
+      }
+
+      res.status(201).json({ uploaded, count: uploaded.length });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  router.post("/jobs/upload/by-keys", requireCap("canUploadFiles"), async (req, res, next) => {
+    try {
+      const context = getAuth(req);
+      if (!fileStore) {
+        res.status(400).json({ message: "File storage is not configured." });
+        return;
+      }
+
+      const body = req.body as { keys?: unknown };
+      if (!Array.isArray(body.keys) || body.keys.length === 0) {
+        res.status(400).json({ message: "Request body must include a non-empty 'keys' array." });
+        return;
+      }
+
+      if (body.keys.length > MAX_UPLOAD_FILE_COUNT) {
+        res.status(400).json({ message: `Maximum ${MAX_UPLOAD_FILE_COUNT} keys per request.` });
+        return;
+      }
+
+      const keys = body.keys as string[];
+      const tenantPrefix = `uploads/${context.tenantId}/`;
+      const invalid = keys.filter((k) => typeof k !== "string" || !k.startsWith(tenantPrefix));
+      if (invalid.length > 0) {
+        res.status(403).json({ message: "One or more keys do not belong to your tenant." });
+        return;
+      }
+
+      const uploaded: string[] = [];
+      let newlyCreated = 0;
+
+      for (const key of keys) {
+        const { body: fileBuffer, contentType } = await fileStore.getObject(key);
+        const contentHash = createHash("sha256").update(fileBuffer).digest("base64url");
+        const mimeType = contentType !== "application/octet-stream" ? contentType : guessMimeTypeFromKey(key);
+        const fileName = key.split("/").pop() ?? key;
+
+        try {
+          await InvoiceModel.create({
+            tenantId: context.tenantId,
+            workloadTier: "standard",
+            sourceType: INGESTION_SOURCE_TYPE.S3_UPLOAD,
+            sourceKey: `s3-upload-${context.tenantId}`,
+            sourceDocumentId: key,
+            attachmentName: fileName,
+            mimeType,
+            receivedAt: new Date(),
+            status: INVOICE_STATUS.PENDING,
+            contentHash,
+            metadata: { uploadKey: key, systemFileName: fileName }
+          });
+          newlyCreated++;
+        } catch (error) {
+          if (isDuplicateKeyError(error)) {
+            logger.warn("jobs.upload-by-keys.duplicate.skipped", {
+              key,
               tenantId: context.tenantId
             });
           } else {

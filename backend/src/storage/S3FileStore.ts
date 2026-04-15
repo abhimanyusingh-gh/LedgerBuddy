@@ -1,4 +1,5 @@
 import { DeleteObjectCommand, GetObjectCommand, ListObjectsV2Command, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import type { FileStore, FileStoreGetResult, FileStoreObjectRef, FileStorePutInput } from "@/core/interfaces/FileStore.js";
 
 interface S3FileStoreOptions {
@@ -88,6 +89,15 @@ export class S3FileStore implements FileStore {
         Bucket: this.bucket,
         Key: fullKey
       })
+    );
+  }
+
+  async generatePresignedPutUrl(key: string, contentType: string, expiresInSeconds: number): Promise<string> {
+    const fullKey = this.prefix ? `${this.prefix}/${normalizeKey(key)}` : normalizeKey(key);
+    return getSignedUrl(
+      this.client,
+      new PutObjectCommand({ Bucket: this.bucket, Key: fullKey, ContentType: contentType }),
+      { expiresIn: expiresInSeconds }
     );
   }
 

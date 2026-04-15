@@ -7,6 +7,7 @@ import { createInvoiceRouter } from "@/routes/invoice/invoices.js";
 import { createExportRouter } from "@/routes/export/export.js";
 import { createAnalyticsRouter } from "@/routes/invoice/analytics.js";
 import { createJobsRouter } from "@/routes/ingestion/jobs.js";
+import { createUploadsRouter } from "@/routes/ingestion/uploads.js";
 import { createGmailConnectionRouter, createGmailPublicRouter } from "@/routes/tenant/gmailConnection.js";
 import { createAuthRouter } from "@/routes/auth/auth.js";
 import { createSessionRouter } from "@/routes/auth/session.js";
@@ -111,6 +112,12 @@ export async function createApp(prebuiltDependencies?: Awaited<ReturnType<typeof
     requireNonPlatformAdmin,
     requireTenantSetupCompleted,
     createJobsRouter(dependencies.ingestionService, dependencies.emailSimulationService, dependencies.fileStore)
+  );
+  app.use(
+    "/api",
+    requireNonPlatformAdmin,
+    requireTenantSetupCompleted,
+    createUploadsRouter(dependencies.fileStore)
   );
   app.use("/api", requireNonPlatformAdmin, requireTenantSetupCompleted, createExportRouter(dependencies.exportService));
   app.use("/api", requireNonPlatformAdmin, requireTenantSetupCompleted, createAnalyticsRouter());

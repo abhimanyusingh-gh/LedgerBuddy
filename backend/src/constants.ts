@@ -14,4 +14,11 @@ export const RERUN_MAX_COUNT = 5;
 export const EXPORT_SAVE_CONCURRENCY = 20;
 export const OCR_BOOTSTRAP_TIMEOUT_MS = 5_000;
 export const VERIFIER_BOOTSTRAP_TIMEOUT_MS = 5_000;
-export const ALLOWED_UPLOAD_EXTENSIONS = [".pdf", ".jpg", ".jpeg", ".png"];
+export const ALLOWED_UPLOAD_EXTENSIONS = [".pdf", ".jpg", ".jpeg", ".png", ".webp"];
+export const ALLOWED_UPLOAD_CONTENT_TYPES = new Set([
+  "application/pdf",
+  "image/png",
+  "image/jpeg",
+  "image/webp"
+]);
+export const PRESIGNED_URL_EXPIRY_SECONDS = 900;
