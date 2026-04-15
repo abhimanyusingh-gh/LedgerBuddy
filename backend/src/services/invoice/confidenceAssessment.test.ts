@@ -308,6 +308,52 @@ describe("assessInvoiceConfidence", () => {
     expect(result).not.toHaveProperty("riskFlags");
     expect(result).not.toHaveProperty("riskMessages");
   });
+
+  describe("NaN safety", () => {
+    it("never returns NaN for Infinity ocrConfidence", () => {
+      const result = assess({ ocrConfidence: Infinity });
+      expect(Number.isFinite(result.score)).toBe(true);
+    });
+
+    it("never returns NaN for -Infinity ocrConfidence", () => {
+      const result = assess({ ocrConfidence: -Infinity });
+      expect(Number.isFinite(result.score)).toBe(true);
+    });
+
+    it("never returns NaN when complianceRiskPenalty is NaN", () => {
+      const result = assess({ complianceRiskPenalty: NaN });
+      expect(Number.isFinite(result.score)).toBe(true);
+    });
+
+    it("returns finite score when all inputs are extreme", () => {
+      const result = assessInvoiceConfidence({
+        ocrConfidence: NaN,
+        parsed: {} as ParsedInvoiceData,
+        warnings: [],
+        complianceRiskPenalty: Infinity,
+        tenantConfig: {
+          ocrWeight: NaN,
+          completenessWeight: NaN,
+          warningPenalty: NaN,
+          warningPenaltyCap: NaN,
+          requiredFields: [],
+        },
+      });
+      expect(Number.isFinite(result.score)).toBe(true);
+      expect(result.score).toBeGreaterThanOrEqual(0);
+      expect(result.score).toBeLessThanOrEqual(100);
+    });
+
+    it("handles empty requiredFields without division by zero", () => {
+      const result = assessInvoiceConfidence({
+        ocrConfidence: 0.95,
+        parsed: fullParsed(),
+        warnings: [],
+        tenantConfig: { requiredFields: [] },
+      });
+      expect(Number.isFinite(result.score)).toBe(true);
+    });
+  });
 });
 
 describe("getConfidenceTone", () => {

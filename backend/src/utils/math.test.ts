@@ -60,6 +60,18 @@ describe("clamp", () => {
     expect(clamp(-3, -10, -5)).toBe(-5);
     expect(clamp(-7, -10, -5)).toBe(-7);
   });
+
+  it("returns min for NaN", () => {
+    expect(clamp(NaN, 0, 100)).toBe(0);
+  });
+
+  it("returns min for Infinity", () => {
+    expect(clamp(Infinity, 0, 100)).toBe(0);
+  });
+
+  it("returns min for -Infinity", () => {
+    expect(clamp(-Infinity, 0, 100)).toBe(0);
+  });
 });
 
 describe("normalizeConfidence", () => {

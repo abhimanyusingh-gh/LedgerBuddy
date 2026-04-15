@@ -109,8 +109,9 @@ export class LlamaParseOcrProvider implements OcrProvider {
       } catch (deleteErr) {
         logger.warn("ocr.file.delete.failed", { provider: this.name, fileId: fileObj.id, error: String(deleteErr) });
       }
+      const confidence = computeDocumentConfidence(fields);
       logger.info("ocr.request.end", { provider: this.name, mimeType, latencyMs: Date.now() - startedAt, chars: text.length, blockCount: blocks.length, pageImageCount: pageImages.length });
-      return { text, provider: this.name, blocks, pageImages, fields, extractedLineItems };
+      return { text, confidence, provider: this.name, blocks, pageImages, fields, extractedLineItems };
     } catch (error) {
       logger.error("ocr.request.failed", { provider: this.name, mimeType, latencyMs: Date.now() - startedAt, error: buildOcrRequestError(this.name, error) });
       throw new Error(buildOcrRequestError(this.name, error));
@@ -332,4 +333,17 @@ async function downloadScreenshots(
   );
   results.sort((a, b) => a.page - b.page);
   return results;
+}
+
+function computeDocumentConfidence(fields: ExtractedField[] | undefined): number | undefined {
+  if (!fields || fields.length === 0) {
+    return undefined;
+  }
+  const confidences = fields
+    .map((f) => f.confidence)
+    .filter((c): c is number => typeof c === "number" && Number.isFinite(c));
+  if (confidences.length === 0) {
+    return undefined;
+  }
+  return confidences.reduce((sum, v) => sum + v, 0) / confidences.length;
 }

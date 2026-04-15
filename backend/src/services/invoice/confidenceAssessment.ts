@@ -60,11 +60,8 @@ export function assessInvoiceConfidence(input: ConfidenceInput): ConfidenceAsses
   const warningsPenalty = Math.min(warnCap, input.warnings.length * warnPenalty);
   const compliancePenalty = input.complianceRiskPenalty ?? 0;
 
-  const score = clamp(
-    Math.round(ocrScore * ocrWeight + completenessScore * completenessWeight - warningsPenalty - compliancePenalty),
-    0,
-    100
-  );
+  const rawScore = ocrScore * ocrWeight + completenessScore * completenessWeight - warningsPenalty - compliancePenalty;
+  const score = clamp(Number.isFinite(rawScore) ? Math.round(rawScore) : 0, 0, 100);
 
   const greenThreshold = input.autoApprovalThreshold ?? DEFAULT_AUTO_SELECT_MIN;
   const tone = getConfidenceTone(score, greenThreshold);
@@ -90,6 +87,7 @@ export function getConfidenceTone(score: number, greenThreshold = DEFAULT_AUTO_S
 }
 
 function scoreCompleteness(parsed: ParsedInvoiceData, requiredFields: Array<keyof ParsedInvoiceData> = DEFAULT_REQUIRED_FIELDS): number {
+  if (requiredFields.length === 0) return 100;
   let present = 0;
   for (const field of requiredFields) {
     const value = parsed[field];

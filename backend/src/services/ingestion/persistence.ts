@@ -108,7 +108,7 @@ export function buildSuccessData(
     ocrTokens: extraction.ocrTokens, slmTokens: extraction.slmTokens,
     status, metadata,
     parsed: parsedResult.parsed,
-    confidenceScore: confidence.score, confidenceTone: confidence.tone,
+    confidenceScore: Number.isFinite(confidence.score) ? confidence.score : 0, confidenceTone: confidence.tone,
     autoSelectForApproval: confidence.autoSelectForApproval,
     riskFlags: complianceRiskSignals.map(s => s.code),
     riskMessages: complianceRiskSignals.map(s => s.message),

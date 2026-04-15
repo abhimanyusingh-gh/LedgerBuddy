@@ -130,12 +130,17 @@ export function calibrateDocumentConfidence(
 
   const printableCount = [...sourceText].filter((char) => (char >= " " && char <= "~") || char === "\n").length;
   const printableRatio = printableCount / Math.max(1, sourceText.length);
-  const score = clampProbability(baseConfidence ?? 0);
+  const safeBase = Number.isFinite(baseConfidence) ? baseConfidence! : 0;
+  const score = clampProbability(safeBase);
+
+  const finalScore = Number(score.toFixed(4));
+  const finalLowTokenRatio = Number(lowTokenRatio.toFixed(4));
+  const finalPrintableRatio = Number(printableRatio.toFixed(4));
 
   return {
-    score: Number(score.toFixed(4)),
-    lowTokenRatio: Number(lowTokenRatio.toFixed(4)),
-    printableRatio: Number(printableRatio.toFixed(4))
+    score: Number.isFinite(finalScore) ? finalScore : 0,
+    lowTokenRatio: Number.isFinite(finalLowTokenRatio) ? finalLowTokenRatio : 1,
+    printableRatio: Number.isFinite(finalPrintableRatio) ? finalPrintableRatio : 0
   };
 }
 
