@@ -86,9 +86,9 @@ export class BankStatementExtractionPipeline {
       return { statementId, transactionCount: 0, duplicatesSkipped: 0 };
     }
 
-    const dates = parsed.map(t => t.date);
-    const minDate = dates.reduce((a, b) => (a < b ? a : b));
-    const maxDate = dates.reduce((a, b) => (a > b ? a : b));
+    const timestamps = parsed.map(t => new Date(t.date).getTime());
+    const minDate = parsed[timestamps.indexOf(Math.min(...timestamps))]!.date;
+    const maxDate = parsed[timestamps.indexOf(Math.max(...timestamps))]!.date;
 
     const existing = await BankTransactionModel.find({
       tenantId,
