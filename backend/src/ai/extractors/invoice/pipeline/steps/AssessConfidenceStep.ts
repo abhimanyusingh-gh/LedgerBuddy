@@ -4,10 +4,6 @@ import { assessInvoiceConfidence } from "@/services/invoice/confidenceAssessment
 import { RiskSignalEvaluator } from "@/services/compliance/RiskSignalEvaluator.js";
 import { POST_ENGINE_CTX } from "@/ai/extractors/invoice/pipeline/postEngineContextKeys.js";
 
-/**
- * Stage 14: Assesses overall extraction confidence, applying risk signal penalties
- * from compliance enrichment. Wraps `assessInvoiceConfidence()`.
- */
 export class AssessConfidenceStep implements PipelineStep {
   readonly name = "assess-confidence";
 
@@ -15,10 +11,7 @@ export class AssessConfidenceStep implements PipelineStep {
     const parsed = ctx.store.require<ParsedInvoiceData>(POST_ENGINE_CTX.RECOVERED_PARSED);
     const ocrConfidence = ctx.store.get<number>("invoice.ocrConfidence");
     const compliance = ctx.store.get<InvoiceCompliance>(POST_ENGINE_CTX.COMPLIANCE);
-    const expectedMaxTotal = (ctx.input as Record<string, unknown>).expectedMaxTotal as number ?? 0;
-    const expectedMaxDueDays = (ctx.input as Record<string, unknown>).expectedMaxDueDays as number ?? 0;
     const autoSelectMin = (ctx.input as Record<string, unknown>).autoSelectMin as number ?? 0;
-    const referenceDate = (ctx.input as Record<string, unknown>).referenceDate as Date | undefined;
 
     const penalty = compliance?.riskSignals?.length
       ? RiskSignalEvaluator.sumPenalties(compliance.riskSignals)
@@ -28,10 +21,7 @@ export class AssessConfidenceStep implements PipelineStep {
       ocrConfidence,
       parsed,
       warnings: ctx.issues,
-      expectedMaxTotal,
-      expectedMaxDueDays,
       autoSelectMin,
-      referenceDate,
       complianceRiskPenalty: penalty,
     });
 

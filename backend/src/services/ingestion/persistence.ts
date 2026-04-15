@@ -22,7 +22,7 @@ interface ExtractionResult {
   ocrTokens?: number;
   slmTokens?: number;
   parseResult: { parsed: unknown; warnings: string[] };
-  confidenceAssessment: { score: number; tone: import("@/types/confidence.js").ConfidenceTone; autoSelectForApproval: boolean; riskFlags: import("@/types/confidence.js").RiskFlag[]; riskMessages: string[] };
+  confidenceAssessment: { score: number; tone: import("@/types/confidence.js").ConfidenceTone; autoSelectForApproval: boolean };
   processingIssues: string[];
   attempts: unknown[];
   source: import("@/core/engine/extractionSource.js").ExtractionSource;
@@ -48,8 +48,10 @@ export function buildSuccessData(
 
   const parsedResult = extraction.parseResult;
   const confidence = extraction.confidenceAssessment;
+  const complianceRiskSignals = extraction.compliance?.riskSignals ?? [];
+  const hasOpenRiskSignals = complianceRiskSignals.some(s => s.status === "open");
   const status: InvoiceStatus =
-    parsedResult.warnings.length > 0 || confidence.riskFlags.length > 0 ? INVOICE_STATUS.NEEDS_REVIEW : INVOICE_STATUS.PARSED;
+    parsedResult.warnings.length > 0 || hasOpenRiskSignals ? INVOICE_STATUS.NEEDS_REVIEW : INVOICE_STATUS.PARSED;
 
   const metadata: Record<string, string> = {
     ...file.metadata,
@@ -108,8 +110,9 @@ export function buildSuccessData(
     parsed: parsedResult.parsed,
     confidenceScore: confidence.score, confidenceTone: confidence.tone,
     autoSelectForApproval: confidence.autoSelectForApproval,
-    riskFlags: confidence.riskFlags, riskMessages: confidence.riskMessages,
-    processingIssues: uniqueStrings([...processingIssues, ...parsedResult.warnings, ...confidence.riskMessages]),
+    riskFlags: complianceRiskSignals.map(s => s.code),
+    riskMessages: complianceRiskSignals.map(s => s.message),
+    processingIssues: uniqueStrings([...processingIssues, ...parsedResult.warnings, ...complianceRiskSignals.map(s => s.message)]),
     ...(extractionData ? { extraction: extractionData } : {}),
     ...(extraction.compliance ? { compliance: extraction.compliance } : {})
   };

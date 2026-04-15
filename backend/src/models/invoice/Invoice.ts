@@ -1,6 +1,6 @@
 import { Schema, model, type InferSchemaType, type HydratedDocument } from "mongoose";
 import { InvoiceStatuses } from "@/types/invoice.js";
-import { ConfidenceTones, RiskFlags } from "@/types/confidence.js";
+import { ConfidenceTones } from "@/types/confidence.js";
 import { WorkloadTiers } from "@/types/tenant.js";
 
 const ocrBlockSchema = new Schema(
@@ -138,7 +138,7 @@ const invoiceSchema = new Schema(
     confidenceScore: { type: Number, default: 0 },
     confidenceTone: { type: String, enum: ConfidenceTones, default: "red" },
     autoSelectForApproval: { type: Boolean, default: false },
-    riskFlags: { type: [String], enum: RiskFlags, default: [] },
+    riskFlags: { type: [String], default: [] },
     riskMessages: { type: [String], default: [] },
 
     parsed: {

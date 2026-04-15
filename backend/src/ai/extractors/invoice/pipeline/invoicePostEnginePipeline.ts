@@ -32,7 +32,7 @@ export interface PostEnginePipelineDeps {
  * - "invoice.fieldRegions": Record<string, OcrBlock[]>
  * - POST_ENGINE_CTX.SLM_OUTPUT: InvoiceSlmOutput
  *
- * Pipeline input must include: expectedMaxTotal, expectedMaxDueDays, autoSelectMin, referenceDate?
+ * Pipeline input must include: autoSelectMin
  */
 export function createInvoicePostEnginePipeline(
   deps: PostEnginePipelineDeps = {},

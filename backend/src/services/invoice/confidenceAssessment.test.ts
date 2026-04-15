@@ -17,10 +17,7 @@ function assess(overrides?: Record<string, unknown>) {
     ocrConfidence: 0.95,
     parsed: fullParsed(),
     warnings: [],
-    expectedMaxTotal: 10000,
-    expectedMaxDueDays: 90,
     autoSelectMin: 80,
-    referenceDate: new Date("2026-01-20T00:00:00.000Z"),
     ...overrides
   });
 }
@@ -156,143 +153,31 @@ describe("assessInvoiceConfidence", () => {
     });
   });
 
-  describe("risk flags", () => {
-    it("produces no risk flags when amount and date are within limits", () => {
-      const result = assess({
-        parsed: fullParsed({ totalAmountMinor: 50000, dueDate: new Date("2026-02-01") }),
-        expectedMaxTotal: 10000,
-        expectedMaxDueDays: 90,
-        referenceDate: new Date("2026-01-20T00:00:00.000Z")
-      });
-      expect(result.riskFlags).toEqual([]);
-      expect(result.riskMessages).toEqual([]);
+  describe("complianceRiskPenalty", () => {
+    it("applies no penalty when complianceRiskPenalty is 0", () => {
+      const result = assess({ complianceRiskPenalty: 0 });
+      expect(result.score).toBe(Math.round(95 * 0.65 + 100 * 0.35));
     });
 
-    it("flags TOTAL_AMOUNT_ABOVE_EXPECTED when amount exceeds max", () => {
-      const result = assess({
-        parsed: fullParsed({ totalAmountMinor: 2000000, currency: "USD" }),
-        expectedMaxTotal: 10000
-      });
-      expect(result.riskFlags).toContain("TOTAL_AMOUNT_ABOVE_EXPECTED");
-      expect(result.riskMessages.length).toBeGreaterThan(0);
-      expect(result.riskMessages[0]).toContain("exceeds expected max");
+    it("applies no penalty when complianceRiskPenalty is undefined", () => {
+      const result = assess({ complianceRiskPenalty: undefined });
+      expect(result.score).toBe(Math.round(95 * 0.65 + 100 * 0.35));
     });
 
-    it("flags DUE_DATE_TOO_FAR when due date exceeds max days", () => {
-      const result = assess({
-        parsed: fullParsed({ dueDate: new Date("2027-06-01") }),
-        expectedMaxDueDays: 90,
-        referenceDate: new Date("2026-01-20T00:00:00.000Z")
-      });
-      expect(result.riskFlags).toContain("DUE_DATE_TOO_FAR");
-      expect(result.riskMessages.length).toBeGreaterThan(0);
-      expect(result.riskMessages[0]).toContain("days away");
+    it("subtracts complianceRiskPenalty from score", () => {
+      const result = assess({ complianceRiskPenalty: 15 });
+      const expectedScore = Math.round(95 * 0.65 + 100 * 0.35 - 15);
+      expect(result.score).toBe(expectedScore);
     });
 
-    it("flags both risks simultaneously", () => {
+    it("clamps score at 0 when penalty exceeds raw score", () => {
       const result = assess({
-        parsed: fullParsed({ totalAmountMinor: 2000000, currency: "USD", dueDate: new Date("2027-06-01") }),
-        expectedMaxTotal: 10000,
-        expectedMaxDueDays: 90,
-        referenceDate: new Date("2026-01-20T00:00:00.000Z")
+        ocrConfidence: 0.1,
+        parsed: {},
+        warnings: Array.from({ length: 10 }, (_, i) => `w${i}`),
+        complianceRiskPenalty: 30
       });
-      expect(result.riskFlags).toContain("TOTAL_AMOUNT_ABOVE_EXPECTED");
-      expect(result.riskFlags).toContain("DUE_DATE_TOO_FAR");
-      expect(result.riskMessages).toHaveLength(2);
-    });
-
-    it("does not flag amount when totalAmountMinor is undefined", () => {
-      const result = assess({
-        parsed: fullParsed({ totalAmountMinor: undefined }),
-        expectedMaxTotal: 10000
-      });
-      expect(result.riskFlags).not.toContain("TOTAL_AMOUNT_ABOVE_EXPECTED");
-    });
-
-    it("does not flag amount when totalAmountMinor is not an integer", () => {
-      const result = assess({
-        parsed: fullParsed({ totalAmountMinor: 1234.56 }),
-        expectedMaxTotal: 10
-      });
-      expect(result.riskFlags).not.toContain("TOTAL_AMOUNT_ABOVE_EXPECTED");
-    });
-
-    it("does not flag amount when expectedMaxTotal is 0", () => {
-      const result = assess({
-        parsed: fullParsed({ totalAmountMinor: 999999 }),
-        expectedMaxTotal: 0
-      });
-      expect(result.riskFlags).not.toContain("TOTAL_AMOUNT_ABOVE_EXPECTED");
-    });
-
-    it("does not flag due date when dueDate is undefined", () => {
-      const result = assess({
-        parsed: fullParsed({ dueDate: undefined }),
-        expectedMaxDueDays: 30
-      });
-      expect(result.riskFlags).not.toContain("DUE_DATE_TOO_FAR");
-    });
-
-    it("does not flag due date when dueDate is an invalid string", () => {
-      const result = assess({
-        parsed: fullParsed({ dueDate: new Date("not-a-date") }),
-        expectedMaxDueDays: 30
-      });
-      expect(result.riskFlags).not.toContain("DUE_DATE_TOO_FAR");
-    });
-
-    it("does not flag due date when due date is within expected range", () => {
-      const result = assess({
-        parsed: fullParsed({ dueDate: new Date("2026-02-10") }),
-        expectedMaxDueDays: 90,
-        referenceDate: new Date("2026-01-20T00:00:00.000Z")
-      });
-      expect(result.riskFlags).not.toContain("DUE_DATE_TOO_FAR");
-    });
-
-    it("does not flag due date when expectedMaxDueDays is 0", () => {
-      const result = assess({
-        parsed: fullParsed({ dueDate: new Date("2027-12-31") }),
-        expectedMaxDueDays: 0,
-        referenceDate: new Date("2026-01-20T00:00:00.000Z")
-      });
-      expect(result.riskFlags).not.toContain("DUE_DATE_TOO_FAR");
-    });
-
-    it("includes currency prefix in risk message when currency is set", () => {
-      const result = assess({
-        parsed: fullParsed({ totalAmountMinor: 2000000, currency: "USD" }),
-        expectedMaxTotal: 10000
-      });
-      expect(result.riskMessages[0]).toContain("USD ");
-    });
-
-    it("omits currency prefix in risk message when currency is undefined", () => {
-      const result = assess({
-        parsed: fullParsed({ totalAmountMinor: 2000000, currency: undefined }),
-        expectedMaxTotal: 10000
-      });
-      expect(result.riskMessages[0]).not.toMatch(/^Total amount [A-Z]{3} /);
-      expect(result.riskMessages[0]).toMatch(/^Total amount \d/);
-    });
-
-    it("penalty for amount is capped at 30", () => {
-      const result = assess({
-        parsed: fullParsed({ totalAmountMinor: 99999999, currency: "USD" }),
-        expectedMaxTotal: 1
-      });
-      expect(result.riskFlags).toContain("TOTAL_AMOUNT_ABOVE_EXPECTED");
-      expect(result.score).toBeGreaterThanOrEqual(0);
-    });
-
-    it("penalty for due date is capped at 20", () => {
-      const result = assess({
-        parsed: fullParsed({ dueDate: new Date("2036-01-01") }),
-        expectedMaxDueDays: 30,
-        referenceDate: new Date("2026-01-20T00:00:00.000Z")
-      });
-      expect(result.riskFlags).toContain("DUE_DATE_TOO_FAR");
-      expect(result.score).toBeGreaterThanOrEqual(0);
+      expect(result.score).toBe(0);
     });
   });
 
@@ -321,9 +206,8 @@ describe("assessInvoiceConfidence", () => {
         ocrConfidence: 0,
         parsed: {},
         warnings,
-        expectedMaxTotal: 1,
-        expectedMaxDueDays: 1,
-        autoSelectMin: 80
+        autoSelectMin: 80,
+        complianceRiskPenalty: 30
       });
       expect(result.score).toBe(0);
     });
@@ -333,8 +217,6 @@ describe("assessInvoiceConfidence", () => {
         ocrConfidence: 1.0,
         parsed: fullParsed(),
         warnings: [],
-        expectedMaxTotal: 10000,
-        expectedMaxDueDays: 90,
         autoSelectMin: 80
       });
       expect(result.score).toBeLessThanOrEqual(100);
@@ -367,16 +249,10 @@ describe("assessInvoiceConfidence", () => {
     });
   });
 
-  it("uses default referenceDate when not provided", () => {
-    const result = assessInvoiceConfidence({
-      ocrConfidence: 0.95,
-      parsed: fullParsed({ dueDate: new Date("2099-12-31") }),
-      warnings: [],
-      expectedMaxTotal: 10000,
-      expectedMaxDueDays: 30,
-      autoSelectMin: 80
-    });
-    expect(result.riskFlags).toContain("DUE_DATE_TOO_FAR");
+  it("does not include riskFlags or riskMessages in result", () => {
+    const result = assess();
+    expect(result).not.toHaveProperty("riskFlags");
+    expect(result).not.toHaveProperty("riskMessages");
   });
 });
 

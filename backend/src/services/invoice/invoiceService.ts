@@ -415,26 +415,30 @@ export class InvoiceService {
       }
     }
 
+    const invoiceObj = invoice.toObject() as Record<string, unknown>;
+    const existingCompliance = isRecord(invoiceObj.compliance) ? invoiceObj.compliance : {};
+    const existingRiskSignals = (existingCompliance.riskSignals ?? []) as Array<{ code: string; message: string; status: string }>;
+    const openRiskSignals = existingRiskSignals.filter(s => s.status === "open");
+
     const confidence = assessInvoiceConfidence({
       ocrConfidence: invoice.ocrConfidence ?? undefined,
       parsed: nextParsed,
       warnings: [],
-      expectedMaxTotal: env.CONFIDENCE_EXPECTED_MAX_TOTAL,
-      expectedMaxDueDays: env.CONFIDENCE_EXPECTED_MAX_DUE_DAYS,
-      autoSelectMin: env.CONFIDENCE_AUTO_SELECT_MIN
+      autoSelectMin: env.CONFIDENCE_AUTO_SELECT_MIN,
+      complianceRiskPenalty: 0
     });
 
     invoice.set("confidenceScore", confidence.score);
     invoice.set("confidenceTone", confidence.tone);
     invoice.set("autoSelectForApproval", confidence.autoSelectForApproval);
-    invoice.set("riskFlags", confidence.riskFlags);
-    invoice.set("riskMessages", confidence.riskMessages);
+    invoice.set("riskFlags", openRiskSignals.map(s => s.code));
+    invoice.set("riskMessages", openRiskSignals.map(s => s.message));
 
     if (invoice.status === INVOICE_STATUS.AWAITING_APPROVAL) {
       invoice.status = INVOICE_STATUS.NEEDS_REVIEW;
       invoice.set("workflowState", undefined);
     } else if (invoice.status !== INVOICE_STATUS.APPROVED) {
-      invoice.status = isCompleteParsedData(nextParsed) && confidence.riskFlags.length === 0 ? INVOICE_STATUS.PARSED : INVOICE_STATUS.NEEDS_REVIEW;
+      invoice.status = isCompleteParsedData(nextParsed) && openRiskSignals.length === 0 ? INVOICE_STATUS.PARSED : INVOICE_STATUS.NEEDS_REVIEW;
     }
 
     invoice.set("processingIssues", [
