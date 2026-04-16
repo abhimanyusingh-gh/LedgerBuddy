@@ -24,7 +24,6 @@ interface ExtractionResult {
   parseResult: { parsed: unknown; warnings: string[] };
   confidenceAssessment: { score: number; tone: import("@/types/confidence.js").ConfidenceTone; autoSelectForApproval: boolean };
   processingIssues: string[];
-  attempts: unknown[];
   source: import("@/core/engine/extractionSource.js").ExtractionSource;
   strategy: import("@/core/engine/extractionSource.js").ExtractionSource;
   metadata: Record<string, string>;
@@ -40,11 +39,6 @@ export function buildSuccessData(
   artifacts: ArtifactResults
 ): Record<string, unknown> {
   const processingIssues = [...extraction.processingIssues];
-  if (extraction.attempts.length > 1) {
-    processingIssues.push(
-      `Extraction agent selected ${extraction.source}/${extraction.strategy} from ${extraction.attempts.length} candidates.`
-    );
-  }
 
   const parsedResult = extraction.parseResult;
   const confidence = extraction.confidenceAssessment;
@@ -57,7 +51,6 @@ export function buildSuccessData(
     ...file.metadata,
     extractionSource: extraction.source,
     extractionStrategy: extraction.strategy,
-    extractionCandidates: String(extraction.attempts.length),
     ocrBlocksCount: String(ocrBlocks.length),
     ...extraction.metadata
   };
@@ -110,8 +103,6 @@ export function buildSuccessData(
     parsed: parsedResult.parsed,
     confidenceScore: Number.isFinite(confidence.score) ? confidence.score : 0, confidenceTone: confidence.tone,
     autoSelectForApproval: confidence.autoSelectForApproval,
-    riskFlags: complianceRiskSignals.map(s => s.code),
-    riskMessages: complianceRiskSignals.map(s => s.message),
     processingIssues: uniqueStrings([...processingIssues, ...parsedResult.warnings, ...complianceRiskSignals.map(s => s.message)]),
     ...(extractionData ? { extraction: extractionData } : {}),
     ...(extraction.compliance ? { compliance: extraction.compliance } : {})
@@ -132,7 +123,7 @@ export function buildFailureData(
     ocrProvider: ocrState.ocrProvider, ocrText: ocrState.ocrText,
     ocrConfidence: ocrState.ocrConfidence, ocrBlocks: ocrState.ocrBlocks,
     confidenceScore: 0, confidenceTone: "red" as const,
-    autoSelectForApproval: false, riskFlags: [] as string[], riskMessages: [] as string[]
+    autoSelectForApproval: false
   };
 
   if (error instanceof ExtractionPipelineError && error.code === PIPELINE_ERROR_CODE.FAILED_OCR) {

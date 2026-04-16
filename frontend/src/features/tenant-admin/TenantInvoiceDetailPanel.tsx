@@ -253,8 +253,6 @@ export function TenantInvoiceDetailPanel({
           />
           <RiskSignalList
             signals={invoice.compliance?.riskSignals ?? []}
-            legacyRiskFlags={invoice.riskFlags}
-            legacyRiskMessages={invoice.riskMessages}
             onDismiss={!canDismissRiskSignals ? undefined : onDismissRiskSignal}
           />
         </div>

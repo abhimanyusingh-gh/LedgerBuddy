@@ -69,8 +69,6 @@ export interface Invoice {
   confidenceScore: number;
   confidenceTone: "red" | "yellow" | "green";
   autoSelectForApproval: boolean;
-  riskFlags: Array<"TOTAL_AMOUNT_ABOVE_EXPECTED" | "DUE_DATE_TOO_FAR">;
-  riskMessages: string[];
   parsed?: {
     invoiceNumber?: string;
     vendorName?: string;

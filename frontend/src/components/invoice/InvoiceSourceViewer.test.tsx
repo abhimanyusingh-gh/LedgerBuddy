@@ -15,8 +15,6 @@ const baseInvoice: Invoice = {
   confidenceScore: 92,
   confidenceTone: "green",
   autoSelectForApproval: true,
-  riskFlags: [],
-  riskMessages: [],
   status: "PARSED",
   processingIssues: [],
   createdAt: "2026-02-24T00:00:00.000Z",

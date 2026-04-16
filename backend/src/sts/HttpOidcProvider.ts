@@ -200,17 +200,6 @@ export class HttpOidcProvider implements OidcProvider {
     return { accessToken, refreshToken: newRefreshToken };
   }
 
-  async fetchUserInfo(accessToken: string): Promise<Record<string, unknown>> {
-    const response = await this.http.get(this.config.userInfoUrl, {
-      headers: {
-        Authorization: `Bearer ${accessToken}`
-      }
-    });
-    if (response.status < 200 || response.status >= 300) {
-      throw new Error(`OIDC userinfo lookup failed with HTTP ${response.status}.`);
-    }
-    return asRecord(response.data);
-  }
 }
 
 function normalizeFirstString(...values: unknown[]): string {

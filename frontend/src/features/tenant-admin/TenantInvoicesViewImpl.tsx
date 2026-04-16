@@ -1377,7 +1377,7 @@ export function TenantInvoicesView({
                         </td>
                         <td
                           className={
-                            [invoice.riskFlags.includes("TOTAL_AMOUNT_ABOVE_EXPECTED") ? "value-risk" : null, "extracted-value-cell"].filter(Boolean).join(" ")
+                            [invoice.compliance?.riskSignals?.some(s => s.code === "TOTAL_AMOUNT_ABOVE_EXPECTED" && s.status === "open") ? "value-risk" : null, "extracted-value-cell"].filter(Boolean).join(" ")
                           }
                         >
                           {editingListCell?.invoiceId === invoice._id && editingListCell.field === "totalAmountMinor" ? (

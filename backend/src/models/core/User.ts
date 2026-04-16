@@ -8,11 +8,8 @@ const userSchema = new Schema(
     displayName: { type: String, required: true },
     encryptedRefreshToken: { type: String },
     lastLoginAt: { type: Date, required: true },
-    passwordHash: { type: String },
     tempPassword: { type: String },
     mustChangePassword: { type: Boolean, default: false },
-    emailVerified: { type: Date },
-    verificationTokenHash: { type: String },
     enabled: { type: Boolean, required: true, default: true }
   },
   {

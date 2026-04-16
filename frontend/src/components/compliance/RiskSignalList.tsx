@@ -5,8 +5,6 @@ type RiskSignal = NonNullable<InvoiceCompliance["riskSignals"]>[number];
 
 interface RiskSignalListProps {
   signals: RiskSignal[];
-  legacyRiskFlags?: string[];
-  legacyRiskMessages?: string[];
   onDismiss?: (signalCode: string) => void;
 }
 
@@ -17,26 +15,13 @@ const SEVERITY_COLORS: Record<string, string> = {
   info: "var(--color-info, #3b82f6)"
 };
 
-export function RiskSignalList({ signals, legacyRiskFlags, legacyRiskMessages, onDismiss }: RiskSignalListProps) {
+export function RiskSignalList({ signals, onDismiss }: RiskSignalListProps) {
   const [expanded, setExpanded] = useState(false);
 
-  const effectiveSignals: RiskSignal[] = signals.length > 0
-    ? signals
-    : (legacyRiskFlags ?? []).map((code, i) => ({
-        code,
-        category: "financial" as const,
-        severity: "warning" as const,
-        message: legacyRiskMessages?.[i] ?? code,
-        confidencePenalty: 0,
-        status: "open" as const,
-        resolvedBy: null,
-        resolvedAt: null
-      }));
+  if (signals.length === 0) return null;
 
-  if (effectiveSignals.length === 0) return null;
-
-  const openSignals = effectiveSignals.filter((s) => s.status === "open");
-  const sorted = [...effectiveSignals].sort((a, b) => (SEVERITY_ORDER[a.severity] ?? 9) - (SEVERITY_ORDER[b.severity] ?? 9));
+  const openSignals = signals.filter((s) => s.status === "open");
+  const sorted = [...signals].sort((a, b) => (SEVERITY_ORDER[a.severity] ?? 9) - (SEVERITY_ORDER[b.severity] ?? 9));
   const maxSeverity = sorted[0]?.severity ?? "info";
   const badgeColor = SEVERITY_COLORS[maxSeverity] ?? SEVERITY_COLORS.info;
 

@@ -303,12 +303,6 @@ describe("assessInvoiceConfidence", () => {
     });
   });
 
-  it("does not include riskFlags or riskMessages in result", () => {
-    const result = assess();
-    expect(result).not.toHaveProperty("riskFlags");
-    expect(result).not.toHaveProperty("riskMessages");
-  });
-
   describe("NaN safety", () => {
     it("never returns NaN for Infinity ocrConfidence", () => {
       const result = assess({ ocrConfidence: Infinity });

@@ -13,9 +13,4 @@ export const LEARNING_MODE = {
 
 export type LearningMode = (typeof LEARNING_MODE)[keyof typeof LEARNING_MODE];
 
-export const FIELD_VERIFICATION_MODE = {
-  STRICT: "strict",
-  RELAXED: "relaxed",
-} as const;
-
-export type FieldVerificationMode = (typeof FIELD_VERIFICATION_MODE)[keyof typeof FIELD_VERIFICATION_MODE];
+export type FieldVerificationMode = "strict" | "relaxed";

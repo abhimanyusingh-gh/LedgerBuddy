@@ -142,8 +142,6 @@ export function InvoiceDetailPage({ invoiceId }: InvoiceDetailPageProps) {
       <div className="editor-card">
         <RiskSignalList
           signals={invoice.compliance?.riskSignals ?? []}
-          legacyRiskFlags={invoice.riskFlags}
-          legacyRiskMessages={invoice.riskMessages}
         />
       </div>
     </div>

@@ -3,7 +3,6 @@ export const DOCUMENT_MIME_TYPE = {
   PNG: "image/png",
   JPEG: "image/jpeg",
   WEBP: "image/webp",
-  TIFF: "image/tiff",
 } as const;
 
 export type DocumentMimeType = (typeof DOCUMENT_MIME_TYPE)[keyof typeof DOCUMENT_MIME_TYPE];
@@ -18,11 +17,7 @@ export type ImageMimeType = (typeof IMAGE_MIME_TYPE)[keyof typeof IMAGE_MIME_TYP
 
 export const EXPORT_CONTENT_TYPE = {
   CSV: "text/csv",
-  XML: "application/xml",
   TEXT_XML: "text/xml",
-  JSON: "application/json",
-  ZIP: "application/zip",
-  XLSX: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
 } as const;
 
 export type ExportContentType = (typeof EXPORT_CONTENT_TYPE)[keyof typeof EXPORT_CONTENT_TYPE];

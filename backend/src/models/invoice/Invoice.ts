@@ -138,8 +138,6 @@ const invoiceSchema = new Schema(
     confidenceScore: { type: Number, default: 0 },
     confidenceTone: { type: String, enum: ConfidenceTones, default: "red" },
     autoSelectForApproval: { type: Boolean, default: false },
-    riskFlags: { type: [String], default: [] },
-    riskMessages: { type: [String], default: [] },
 
     parsed: {
       invoiceNumber: { type: String },

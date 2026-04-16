@@ -72,7 +72,6 @@ export class BuildExtractionResultStep implements PipelineStep {
       strategy,
       parseResult: { parsed, warnings: ctx.issues },
       confidenceAssessment,
-      attempts: [],
       ocrBlocks,
       ocrPageImages,
       processingIssues: uniqueStrings(ctx.issues),

@@ -239,7 +239,7 @@ export class AuthService {
         tenantId: context.tenantId,
         provider: "gmail"
       }).lean(),
-      UserModel.findById(context.userId).select({ mustChangePassword: 1, emailVerified: 1 }).lean(),
+      UserModel.findById(context.userId).select({ mustChangePassword: 1 }).lean(),
       TenantUserRoleModel.findOne({ tenantId: context.tenantId, userId: context.userId }).lean()
     ]);
     const requiresReauth = gmailIntegration?.status === "requires_reauth";

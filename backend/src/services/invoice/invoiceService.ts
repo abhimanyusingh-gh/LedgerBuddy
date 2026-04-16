@@ -430,9 +430,6 @@ export class InvoiceService {
     invoice.set("confidenceScore", confidence.score);
     invoice.set("confidenceTone", confidence.tone);
     invoice.set("autoSelectForApproval", confidence.autoSelectForApproval);
-    invoice.set("riskFlags", openRiskSignals.map(s => s.code));
-    invoice.set("riskMessages", openRiskSignals.map(s => s.message));
-
     if (invoice.status === INVOICE_STATUS.AWAITING_APPROVAL) {
       invoice.status = INVOICE_STATUS.NEEDS_REVIEW;
       invoice.set("workflowState", undefined);

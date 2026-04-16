@@ -26,17 +26,6 @@ export interface ParseResult {
   warnings: string[];
 }
 
-export interface ExtractionAttemptSummary {
-  provider: string;
-  source: ExtractionSource;
-  strategy: ExtractionSource;
-  score: number;
-  confidenceScore: number;
-  warningCount: number;
-  hasTotalAmountMinor: boolean;
-  textLength: number;
-}
-
 export interface PipelineExtractionResult {
   provider: string;
   text: string;
@@ -45,7 +34,6 @@ export interface PipelineExtractionResult {
   strategy: ExtractionSource;
   parseResult: ParseResult;
   confidenceAssessment: ConfidenceAssessment;
-  attempts: ExtractionAttemptSummary[];
   ocrBlocks: OcrBlock[];
   ocrPageImages: OcrPageImage[];
   processingIssues: string[];
