@@ -117,7 +117,6 @@ async function buildExtractionPipeline(manifest: RuntimeManifest, learningStore:
     },
     {
       learningMode: env.LEARNING_MODE,
-      llamaExtractEnabled: env.LLAMA_PARSE_EXTRACT_ENABLED
     }
   );
   return { ocrProvider, fieldVerifier, pipeline };

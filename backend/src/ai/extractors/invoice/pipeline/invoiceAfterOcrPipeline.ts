@@ -13,7 +13,6 @@ import { AugmentPromptBuilderStep } from "@/ai/extractors/invoice/pipeline/steps
 interface AfterOcrPipelineParams {
   definition: InvoiceDocumentDefinition;
   template?: VendorTemplateSnapshot;
-  llamaExtractEnabled?: boolean;
 }
 
 export function buildInvoiceAfterOcrPipeline(
@@ -25,7 +24,7 @@ export function buildInvoiceAfterOcrPipeline(
     .add(new BuildTextCandidatesStep()) // Stage 3
     .add(new CalibrateConfidenceStep())                           // Stage 4
     .add(new DetectLanguageStep())                                // Stage 5
-    .add(new CheckExtractFieldsGateStep(params.llamaExtractEnabled ?? false)) // Gate
+    .add(new CheckExtractFieldsGateStep()) // Gate
     .add(new BaselineTextParseStep(params.template))              // Stage 6
     .add(new AugmentPromptBuilderStep(params.definition));        // Stage 7
 }

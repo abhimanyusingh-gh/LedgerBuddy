@@ -67,7 +67,6 @@ interface ExtractionPipelineInput {
 
 interface ExtractionPipelineOptions {
   learningMode?: LearningMode;
-  llamaExtractEnabled?: boolean;
 }
 
 export class ExtractionPipelineError extends Error {
@@ -94,7 +93,6 @@ export class InvoiceExtractionPipeline {
   private readonly complianceEnricher?: ComplianceEnricher;
   private readonly mappingService?: ExtractionMappingService;
   private readonly defaultLearningMode: LearningMode;
-  private readonly llamaExtractEnabled: boolean;
 
   constructor(deps: ExtractionPipelineDeps, options?: ExtractionPipelineOptions) {
     this.ocrProvider = deps.ocrProvider;
@@ -104,7 +102,6 @@ export class InvoiceExtractionPipeline {
     this.complianceEnricher = deps.complianceEnricher;
     this.mappingService = deps.mappingService;
     this.defaultLearningMode = options?.learningMode ?? LEARNING_MODE.ASSISTIVE;
-    this.llamaExtractEnabled = options?.llamaExtractEnabled ?? false;
   }
 
   async extract(input: ExtractionPipelineInput): Promise<PipelineExtractionResult> {
@@ -185,7 +182,6 @@ export class InvoiceExtractionPipeline {
     const afterOcrPipeline = buildInvoiceAfterOcrPipeline({
       definition,
       template,
-      llamaExtractEnabled: this.llamaExtractEnabled,
     });
 
     const afterOcr = async (ocrResult: OcrResult, _ocrText: string) => {
