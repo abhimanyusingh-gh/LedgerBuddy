@@ -21,15 +21,10 @@ import { createGlCodesRouter } from "@/routes/compliance/glCodes.js";
 import { createTdsRatesRouter } from "@/routes/compliance/tdsRates.js";
 import { createVendorsRouter } from "@/routes/compliance/vendors.js";
 import { createTenantComplianceConfigRouter } from "@/routes/compliance/tenantComplianceConfig.js";
-import { createComplianceReportsRouter } from "@/routes/compliance/complianceReports.js";
-import { createComplianceAnalyticsRouter } from "@/routes/compliance/complianceAnalytics.js";
-import { createCostCentersRouter } from "@/routes/compliance/costCenters.js";
-import { createVendorCommunicationRouter } from "@/routes/compliance/vendorCommunication.js";
 import { createCsvExportRouter } from "@/routes/export/csvExport.js";
 import { createTenantExportConfigRouter } from "@/routes/export/tenantExportConfig.js";
 import { createBankStatementsRouter } from "@/routes/bank/bankStatements.js";
 import { createTcsConfigRouter } from "@/routes/compliance/tcsConfig.js";
-import { createExtractionMappingsRouter } from "@/routes/invoice/extractionMappings.js";
 import {
   createAuthenticationMiddleware,
   requireNonPlatformAdmin,
@@ -126,15 +121,10 @@ export async function createApp(prebuiltDependencies?: Awaited<ReturnType<typeof
   app.use("/api", requireNonPlatformAdmin, requireTenantSetupCompleted, createVendorsRouter());
   app.use("/api", requireNonPlatformAdmin, requireTenantSetupCompleted, createTenantComplianceConfigRouter());
   app.use("/api", createTdsRatesRouter());
-  app.use("/api", requireNonPlatformAdmin, requireTenantSetupCompleted, createCostCentersRouter());
-  app.use("/api", requireNonPlatformAdmin, requireTenantSetupCompleted, createComplianceReportsRouter());
-  app.use("/api", requireNonPlatformAdmin, requireTenantSetupCompleted, createComplianceAnalyticsRouter());
-  app.use("/api", requireNonPlatformAdmin, requireTenantSetupCompleted, createVendorCommunicationRouter());
   app.use("/api", requireNonPlatformAdmin, requireTenantSetupCompleted, createCsvExportRouter());
   app.use("/api", requireNonPlatformAdmin, requireTenantSetupCompleted, createTenantExportConfigRouter());
   app.use("/api", requireNonPlatformAdmin, requireTenantSetupCompleted, createBankStatementsRouter(dependencies.fileStore, dependencies.ocrProvider, dependencies.fieldVerifier));
   app.use("/api", requireNonPlatformAdmin, requireTenantSetupCompleted, createTcsConfigRouter());
-  app.use("/api", requireNonPlatformAdmin, requireTenantSetupCompleted, createExtractionMappingsRouter());
 
   app.use((error: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
     const message = error instanceof Error ? error.message : "Unknown server error";

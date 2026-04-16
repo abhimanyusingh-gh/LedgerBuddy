@@ -1,18 +1,18 @@
 import { Schema, model, type InferSchemaType, type HydratedDocument } from "mongoose";
 
-export const EXTRACTION_MAPPING_SOURCE = {
+const EXTRACTION_MAPPING_SOURCE = {
   MANUAL: "manual",
   USER_CORRECTION: "user-correction",
 } as const;
 
 type ExtractionMappingSource = (typeof EXTRACTION_MAPPING_SOURCE)[keyof typeof EXTRACTION_MAPPING_SOURCE];
 
-export const EXTRACTION_MAPPING_MATCH_TYPE = {
+const EXTRACTION_MAPPING_MATCH_TYPE = {
   GSTIN: "gstin",
   VENDOR_NAME_FUZZY: "vendorNameFuzzy",
 } as const;
 
-export type ExtractionMappingMatchType = (typeof EXTRACTION_MAPPING_MATCH_TYPE)[keyof typeof EXTRACTION_MAPPING_MATCH_TYPE];
+type ExtractionMappingMatchType = (typeof EXTRACTION_MAPPING_MATCH_TYPE)[keyof typeof EXTRACTION_MAPPING_MATCH_TYPE];
 
 const ExtractionMappingSources = Object.values(EXTRACTION_MAPPING_SOURCE);
 const ExtractionMappingMatchTypes = Object.values(EXTRACTION_MAPPING_MATCH_TYPE);
