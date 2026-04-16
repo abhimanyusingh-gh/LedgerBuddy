@@ -124,7 +124,6 @@ describe("InvoiceExtractionPipeline", () => {
 
     const pipeline = new InvoiceExtractionPipeline(
       { ocrProvider, fieldVerifier, templateStore },
-      { llamaExtractEnabled: true }
     );
 
     const result = await pipeline.extract(defaultInput);

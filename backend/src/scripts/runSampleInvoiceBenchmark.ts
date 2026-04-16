@@ -335,7 +335,6 @@ async function run(): Promise<void> {
     baseUrl: slmBaseUrl,
     timeoutMs: 240_000
   });
-  const llamaExtractEnabled = ocrChoice === "llamaparse" && process.env.LLAMA_PARSE_EXTRACT_ENABLED === "true";
   const pipeline = new InvoiceExtractionPipeline(
     {
       ocrProvider,
@@ -343,9 +342,6 @@ async function run(): Promise<void> {
       templateStore: new InMemoryVendorTemplateStore(),
       learningStore: new InMemoryExtractionLearningStore()
     },
-    {
-      llamaExtractEnabled
-    }
   );
 
   const fileFilters = new Set(argValues("--file"));
