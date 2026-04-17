@@ -77,6 +77,10 @@ export async function createGlCode(payload: { code: string; name: string; catego
   return (await apiClient.post<GlCode>("/admin/gl-codes", payload)).data;
 }
 
+async function updateGlCode(code: string, payload: Partial<{ name: string; category: string; linkedTdsSection: string | null; isActive: boolean }>): Promise<GlCode> {
+  return (await apiClient.put<GlCode>(`/admin/gl-codes/${encodeURIComponent(code)}`, payload)).data;
+}
+
 export async function deleteGlCode(code: string): Promise<GlCode> {
   return (await apiClient.delete<GlCode>(`/admin/gl-codes/${encodeURIComponent(code)}`)).data;
 }

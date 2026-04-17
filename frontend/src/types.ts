@@ -335,6 +335,16 @@ export interface ReconciliationMatchItem {
   } | null;
 }
 
+interface ReconciliationMatchesResponse {
+  items: ReconciliationMatchItem[];
+  summary: {
+    totalTransactions: number;
+    matched: number;
+    suggested: number;
+    unmatched: number;
+  };
+}
+
 export interface BankTransactionEntry {
   _id: string;
   statementId: string;
