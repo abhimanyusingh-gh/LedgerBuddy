@@ -28,11 +28,6 @@ export const STATUS_LABELS: Record<string, string> = {
   EXPORTED: "Exported"
 };
 
-export function normalizeInput(value: string): string | null {
-  const trimmed = value.trim();
-  return trimmed.length > 0 ? trimmed : null;
-}
-
 export function buildFieldCropUrlMap(
   invoiceId: string,
   highlights: SourceHighlight[],

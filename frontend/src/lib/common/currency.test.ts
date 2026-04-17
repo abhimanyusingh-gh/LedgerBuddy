@@ -1,16 +1,15 @@
 import {
   formatMinorAmountWithCurrency,
-  getCurrencyMinorUnitDigits,
   minorUnitsToMajorString
 } from "@/lib/common/currency.ts";
 
 describe("currency helpers", () => {
-  it("resolves minor-unit digits by currency", () => {
-    expect(getCurrencyMinorUnitDigits("USD")).toBe(2);
-    expect(getCurrencyMinorUnitDigits("JPY")).toBe(0);
-    expect(getCurrencyMinorUnitDigits("BHD")).toBe(3);
-    expect(getCurrencyMinorUnitDigits("xyz")).toBe(2);
-    expect(getCurrencyMinorUnitDigits(undefined)).toBe(2);
+  it("respects minor-unit digits per currency via minorUnitsToMajorString", () => {
+    expect(minorUnitsToMajorString(100, "USD")).toBe("1.00");
+    expect(minorUnitsToMajorString(100, "JPY")).toBe("100");
+    expect(minorUnitsToMajorString(1000, "BHD")).toBe("1.000");
+    expect(minorUnitsToMajorString(100, "xyz")).toBe("1.00");
+    expect(minorUnitsToMajorString(100, undefined)).toBe("1.00");
   });
 
   it("formats minor units into major-unit strings without floating math", () => {

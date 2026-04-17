@@ -12,10 +12,6 @@ export function isInvoiceApprovable(invoice: Invoice): boolean {
   return invoice.status === "PARSED" || invoice.status === "NEEDS_REVIEW" || invoice.status === "AWAITING_APPROVAL";
 }
 
-export function hasApprovalWarning(invoice: Invoice): boolean {
-  return invoice.status === "FAILED_PARSE" || invoice.status === "FAILED_OCR";
-}
-
 export function isInvoiceExportable(invoice: Invoice): boolean {
   return invoice.status === "APPROVED";
 }

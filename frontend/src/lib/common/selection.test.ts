@@ -1,7 +1,6 @@
 import type { Invoice } from "@/types";
 import {
   getAvailableRowActions,
-  hasApprovalWarning,
   isInvoiceApprovable,
   isInvoiceExportable,
   isInvoiceRetryable,
@@ -50,13 +49,6 @@ describe("selection helpers", () => {
     expect(isInvoiceApprovable({ ...baseInvoice, status: "FAILED_PARSE" })).toBe(false);
     expect(isInvoiceApprovable({ ...baseInvoice, status: "FAILED_OCR" })).toBe(false);
     expect(isInvoiceApprovable({ ...baseInvoice, status: "APPROVED" })).toBe(false);
-  });
-
-  it("flags FAILED_PARSE and FAILED_OCR as having approval warnings", () => {
-    expect(hasApprovalWarning({ ...baseInvoice, status: "FAILED_PARSE" })).toBe(true);
-    expect(hasApprovalWarning({ ...baseInvoice, status: "FAILED_OCR" })).toBe(true);
-    expect(hasApprovalWarning({ ...baseInvoice, status: "PARSED" })).toBe(false);
-    expect(hasApprovalWarning({ ...baseInvoice, status: "NEEDS_REVIEW" })).toBe(false);
   });
 
   it("marks only approved invoices as exportable", () => {

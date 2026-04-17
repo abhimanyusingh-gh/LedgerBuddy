@@ -314,12 +314,6 @@ export interface BankStatementSummary {
   createdAt: string;
 }
 
-interface VendorGstinOption {
-  gstin: string;
-  vendorName: string;
-  label: string;
-}
-
 export interface ReconciliationMatchItem {
   _id: string;
   date: string;
@@ -341,16 +335,6 @@ export interface ReconciliationMatchItem {
   } | null;
 }
 
-interface ReconciliationMatchesResponse {
-  items: ReconciliationMatchItem[];
-  summary: {
-    totalTransactions: number;
-    matched: number;
-    suggested: number;
-    unmatched: number;
-  };
-}
-
 export interface BankTransactionEntry {
   _id: string;
   statementId: string;
@@ -363,16 +347,6 @@ export interface BankTransactionEntry {
   matchedInvoiceId: string | null;
   matchConfidence: number | null;
   matchStatus: "matched" | "suggested" | "unmatched" | "manual";
-}
-
-interface CostCenter {
-  _id: string;
-  tenantId: string;
-  code: string;
-  name: string;
-  department: string | null;
-  linkedGlCodes: string[];
-  isActive: boolean;
 }
 
 export interface InvoiceListResponse {
@@ -392,13 +366,6 @@ export interface InvoiceListResponse {
   exportedAll?: number;
 }
 
-export interface ExportResultItem {
-  invoiceId: string;
-  success: boolean;
-  externalReference?: string;
-  error?: string;
-}
-
 export interface TallyFileExportResponse {
   batchId?: string;
   fileKey?: string;
@@ -406,7 +373,7 @@ export interface TallyFileExportResponse {
   total: number;
   includedCount: number;
   skippedCount: number;
-  skippedItems: ExportResultItem[];
+  skippedItems: Array<{ invoiceId: string; success: boolean; externalReference?: string; error?: string }>;
 }
 
 export interface ExportBatchSummary {
@@ -444,11 +411,8 @@ export interface IngestionJobStatus {
   systemAlert?: string;
 }
 
-export type GmailConnectionState = "DISCONNECTED" | "CONNECTED" | "NEEDS_REAUTH";
-
 export interface DailyStat { date: string; count: number; amountMinor?: number; }
 export interface VendorStat { vendor: string; count: number; amountMinor: number; }
-export interface StatusStat { status: string; count: number; }
 
 export interface AnalyticsOverview {
   kpis: {
@@ -462,7 +426,7 @@ export interface AnalyticsOverview {
   dailyApprovals: DailyStat[];
   dailyIngestion: DailyStat[];
   dailyExports: DailyStat[];
-  statusBreakdown: StatusStat[];
+  statusBreakdown: Array<{ status: string; count: number }>;
   topVendorsByApproved: VendorStat[];
   topVendorsByPending: VendorStat[];
 }
@@ -470,7 +434,7 @@ export interface AnalyticsOverview {
 export interface GmailConnectionStatus {
   provider: "gmail";
   emailAddress?: string;
-  connectionState: GmailConnectionState;
+  connectionState: "DISCONNECTED" | "CONNECTED" | "NEEDS_REAUTH";
   lastErrorReason?: string;
   lastSyncedAt?: string;
 }
@@ -490,12 +454,6 @@ export interface TenantMailbox {
   };
 }
 
-export interface WorkflowStepCondition {
-  field: string;
-  operator: "gt" | "gte" | "lt" | "lte";
-  value: number;
-}
-
 export interface WorkflowStep {
   order: number;
   name: string;
@@ -503,7 +461,7 @@ export interface WorkflowStep {
   approverRole?: string;
   approverUserIds?: string[];
   rule: "any" | "all";
-  condition?: WorkflowStepCondition | null;
+  condition?: { field: string; operator: "gt" | "gte" | "lt" | "lte"; value: number } | null;
 }
 
 export interface ApprovalWorkflowConfig {

@@ -1,10 +1,8 @@
 import { getConfidenceLabel, getConfidenceTone } from "@/lib/invoice/confidence";
 
-type ConfidenceTone = "red" | "yellow" | "green";
-
 interface ConfidenceBadgeProps {
   score: number;
-  tone?: ConfidenceTone;
+  tone?: ReturnType<typeof getConfidenceTone>;
 }
 
 export function ConfidenceBadge({ score, tone }: ConfidenceBadgeProps) {

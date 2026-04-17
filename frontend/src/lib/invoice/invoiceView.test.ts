@@ -1,20 +1,12 @@
 import {
   buildFieldCropUrlMap,
   buildFieldOverlayUrlMap,
-  normalizeInput,
   STATUS_LABELS,
   STATUSES
 } from "@/lib/invoice/invoiceView";
 import type { SourceHighlight } from "@/lib/invoice/sourceHighlights";
 
 describe("invoiceView", () => {
-  it("normalizes input, trimming whitespace and returning null for blanks", () => {
-    expect(normalizeInput("  hello ")).toBe("hello");
-    expect(normalizeInput("   ")).toBeNull();
-    expect(normalizeInput(" 42.10 ")).toBe("42.10");
-    expect(normalizeInput("")).toBeNull();
-  });
-
   it("maps only valid field crop urls", () => {
     const highlights = [
       {

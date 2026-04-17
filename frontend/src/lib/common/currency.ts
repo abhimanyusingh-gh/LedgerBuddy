@@ -27,7 +27,7 @@ const CURRENCY_MINOR_UNIT_DIGITS: Record<string, number> = {
 
 const DEFAULT_MINOR_UNIT_DIGITS = 2;
 
-export function getCurrencyMinorUnitDigits(currency?: string): number {
+function getCurrencyMinorUnitDigits(currency?: string): number {
   if (!currency) {
     return DEFAULT_MINOR_UNIT_DIGITS;
   }

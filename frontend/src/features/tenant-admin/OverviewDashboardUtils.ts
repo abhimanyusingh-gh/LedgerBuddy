@@ -96,14 +96,6 @@ export function collapseVendors(vendors: VendorStat[]): VendorStat[] {
   ];
 }
 
-const KPI_ICONS: Record<string, string> = {
-  total: "receipt_long",
-  approved: "check_circle",
-  pending: "schedule",
-  exported: "upload",
-  review: "flag"
-};
-
 export const PRESETS: Array<{ key: PresetKey; label: string; range: () => { from: string; to: string } }> = [
   { key: "this-month", label: "This Month", range: () => ({ from: firstOfMonthStr(), to: todayStr() }) },
   { key: "last-month", label: "Last Month", range: lastMonthRange },

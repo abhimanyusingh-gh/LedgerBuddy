@@ -5,7 +5,6 @@ import type {
   GlCode,
   GmailConnectionStatus,
   RiskSignalDefinition,
-  TallyFileExportResponse,
   TdsRate,
   TdsRateEntry,
   TenantComplianceConfig
@@ -76,10 +75,6 @@ export async function fetchGlCodes(params?: { search?: string; category?: string
 
 export async function createGlCode(payload: { code: string; name: string; category: string; linkedTdsSection?: string }): Promise<GlCode> {
   return (await apiClient.post<GlCode>("/admin/gl-codes", payload)).data;
-}
-
-async function updateGlCode(code: string, payload: Partial<{ name: string; category: string; linkedTdsSection: string | null; isActive: boolean }>): Promise<GlCode> {
-  return (await apiClient.put<GlCode>(`/admin/gl-codes/${encodeURIComponent(code)}`, payload)).data;
 }
 
 export async function deleteGlCode(code: string): Promise<GlCode> {

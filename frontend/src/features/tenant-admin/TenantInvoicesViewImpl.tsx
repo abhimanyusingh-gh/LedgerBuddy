@@ -158,14 +158,16 @@ export function TenantInvoicesView({
       return stored ? JSON.parse(stored) : {};
     } catch { return {}; }
   });
-  const [popupSourcePreviewExpanded, setPopupSourcePreviewExpanded] = useState(false);
-  const [popupExtractedFieldsExpanded, setPopupExtractedFieldsExpanded] = useState(true);
-  const [popupLineItemsExpanded, setPopupLineItemsExpanded] = useState(false);
-  const [popupRawOcrExpanded, setPopupRawOcrExpanded] = useState(false);
-  const [popupMappingExpanded, setPopupMappingExpanded] = useState(false);
-  const [activeSourcePreviewExpanded, setActiveSourcePreviewExpanded] = useState(false);
-  const [activeExtractedFieldsExpanded, setActiveExtractedFieldsExpanded] = useState(true);
-  const [activeLineItemsExpanded, setActiveLineItemsExpanded] = useState(false);
+  const [sectionExpanded, setSectionExpanded] = useState<Record<string, boolean>>({
+    popupExtractedFields: true,
+    activeExtractedFields: true
+  });
+  const setSection = useCallback((key: string, value: boolean | ((prev: boolean) => boolean)) => {
+    setSectionExpanded((prev) => {
+      const resolved = typeof value === "function" ? value(!!prev[key]) : value;
+      return { ...prev, [key]: resolved };
+    });
+  }, []);
   const [uploadDragActive, setUploadDragActive] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<Map<string, number>>(new Map());
   const uploadInputRef = useRef<HTMLInputElement>(null);
@@ -191,7 +193,6 @@ export function TenantInvoicesView({
   const canOverrideGlCode = capabilities.canOverrideGlCode === true;
   const canOverrideTds = capabilities.canOverrideTds === true;
   const canDismissRiskSignals = capabilities.canSignOffCompliance === true || canEditInvoiceFields;
-  const canUseToolbarActions = canApproveInvoices || canDeleteInvoices || canRetryInvoices || canUploadFiles || canStartIngestion;
 
   const {
     detail: activeInvoiceDetail,
@@ -239,15 +240,11 @@ export function TenantInvoicesView({
     if (!popupInvoiceId) {
       return;
     }
-    setPopupSourcePreviewExpanded(false);
-    setPopupExtractedFieldsExpanded(true);
-    setPopupLineItemsExpanded(false);
+    setSectionExpanded((prev) => ({ ...prev, popupSourcePreview: false, popupExtractedFields: true, popupLineItems: false }));
   }, [popupInvoiceId]);
 
   useEffect(() => {
-    setActiveSourcePreviewExpanded(false);
-    setActiveExtractedFieldsExpanded(true);
-    setActiveLineItemsExpanded(false);
+    setSectionExpanded((prev) => ({ ...prev, activeSourcePreview: false, activeExtractedFields: true, activeLineItems: false }));
   }, [activeId]);
 
   useEffect(() => {
@@ -419,15 +416,13 @@ export function TenantInvoicesView({
     );
   }, [popupInvoice]);
 
-  const ingestionProgressPercent = useMemo(() => {
-    if (!ingestionStatus || ingestionStatus.totalFiles <= 0) return 0;
-    return Math.min(100, Math.round((ingestionStatus.processedFiles / ingestionStatus.totalFiles) * 100));
-  }, [ingestionStatus]);
+  const ingestionProgressPercent = !ingestionStatus || ingestionStatus.totalFiles <= 0
+    ? 0
+    : Math.min(100, Math.round((ingestionStatus.processedFiles / ingestionStatus.totalFiles) * 100));
 
-  const ingestionSuccessfulFiles = useMemo(() => {
-    if (!ingestionStatus) return 0;
-    return Math.max(0, ingestionStatus.processedFiles - ingestionStatus.failures);
-  }, [ingestionStatus]);
+  const ingestionSuccessfulFiles = !ingestionStatus
+    ? 0
+    : Math.max(0, ingestionStatus.processedFiles - ingestionStatus.failures);
 
   const selectedInvoices = useMemo(() => {
     if (selectedIds.length === 0 || invoices.length === 0) {
@@ -483,12 +478,7 @@ export function TenantInvoicesView({
     return selectableVisibleIds.every((id) => selectedIdSet.has(id));
   }, [selectableVisibleIds, selectedIds]);
 
-  const contentClassName = useMemo(() => {
-    if (!detailsPanelVisible) {
-      return "content content-list-expanded";
-    }
-    return "content";
-  }, [detailsPanelVisible]);
+  const contentClassName = detailsPanelVisible ? "content" : "content content-list-expanded";
 
   const contentStyle = useMemo(() => {
     if (!detailsPanelVisible) return undefined;
@@ -1561,12 +1551,12 @@ export function TenantInvoicesView({
                   activeOverlayUrlByField={activeOverlayUrlByField}
                   activeCropUrlByField={activeCropUrlByField}
                   resolvePreviewUrl={(page) => getInvoicePreviewUrl(activeInvoice._id, page)}
-                  activeSourcePreviewExpanded={activeSourcePreviewExpanded}
-                  setActiveSourcePreviewExpanded={setActiveSourcePreviewExpanded}
-                  activeExtractedFieldsExpanded={activeExtractedFieldsExpanded}
-                  setActiveExtractedFieldsExpanded={setActiveExtractedFieldsExpanded}
-                  activeLineItemsExpanded={activeLineItemsExpanded}
-                  setActiveLineItemsExpanded={setActiveLineItemsExpanded}
+                  activeSourcePreviewExpanded={!!sectionExpanded.activeSourcePreview}
+                  setActiveSourcePreviewExpanded={(v) => setSection("activeSourcePreview", v)}
+                  activeExtractedFieldsExpanded={sectionExpanded.activeExtractedFields !== false}
+                  setActiveExtractedFieldsExpanded={(v) => setSection("activeExtractedFields", v)}
+                  activeLineItemsExpanded={!!sectionExpanded.activeLineItems}
+                  setActiveLineItemsExpanded={(v) => setSection("activeLineItems", v)}
                   onWorkflowApproveSingle={(invoiceId) => void handleWorkflowApproveSingle(invoiceId)}
                   onWorkflowRejectSingle={(invoiceId) => void handleWorkflowRejectSingle(invoiceId)}
                   onSaveField={(fieldKey, value, refreshDetail) => handleSaveField(activeInvoice, fieldKey, value, refreshDetail)}
@@ -1651,16 +1641,16 @@ export function TenantInvoicesView({
           loading={popupInvoiceDetailLoading}
           tenantMode={tenantMode}
           popupRef={popupRef}
-          popupSourcePreviewExpanded={popupSourcePreviewExpanded}
-          setPopupSourcePreviewExpanded={setPopupSourcePreviewExpanded}
-          popupExtractedFieldsExpanded={popupExtractedFieldsExpanded}
-          setPopupExtractedFieldsExpanded={setPopupExtractedFieldsExpanded}
-          popupLineItemsExpanded={popupLineItemsExpanded}
-          setPopupLineItemsExpanded={setPopupLineItemsExpanded}
-          popupRawOcrExpanded={popupRawOcrExpanded}
-          setPopupRawOcrExpanded={setPopupRawOcrExpanded}
-          popupMappingExpanded={popupMappingExpanded}
-          setPopupMappingExpanded={setPopupMappingExpanded}
+          popupSourcePreviewExpanded={!!sectionExpanded.popupSourcePreview}
+          setPopupSourcePreviewExpanded={(v) => setSection("popupSourcePreview", v)}
+          popupExtractedFieldsExpanded={sectionExpanded.popupExtractedFields !== false}
+          setPopupExtractedFieldsExpanded={(v) => setSection("popupExtractedFields", v)}
+          popupLineItemsExpanded={!!sectionExpanded.popupLineItems}
+          setPopupLineItemsExpanded={(v) => setSection("popupLineItems", v)}
+          popupRawOcrExpanded={!!sectionExpanded.popupRawOcr}
+          setPopupRawOcrExpanded={(v) => setSection("popupRawOcr", v)}
+          popupMappingExpanded={!!sectionExpanded.popupMapping}
+          setPopupMappingExpanded={(v) => setSection("popupMapping", v)}
           popupOverlayUrlByField={popupOverlayUrlByField}
           popupCropUrlByField={popupCropUrlByField}
           popupExtractedRows={popupExtractedRows}
