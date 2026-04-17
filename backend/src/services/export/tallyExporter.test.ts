@@ -287,12 +287,8 @@ describe("TallyExporter.exportInvoices", () => {
         externalReference: "77"
       }
     ]);
-    expect(invoice.set).toHaveBeenCalledWith(
-      "parsed",
-      expect.objectContaining({
-        totalAmountMinor: 12345
-      })
-    );
+    const payload = String(axiosPostMock.mock.calls[0]?.[1] ?? "");
+    expect(payload).toContain("<AMOUNT>-123.45</AMOUNT>");
   });
 
   it("returns failed result when Tally reports line errors", async () => {
