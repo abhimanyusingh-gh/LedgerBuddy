@@ -1,4 +1,4 @@
-import type { WorkflowStep, WorkflowStepCondition } from "@/types";
+import type { WorkflowStep } from "@/types";
 import { ApproverSelector } from "./ApproverSelector";
 import { StepConditionEditor } from "./StepConditionEditor";
 
@@ -50,7 +50,7 @@ export function StepCard({ step, stepCount, tenantUsers, onUpdate, onRemove }: S
 
         <StepConditionEditor
           condition={step.condition}
-          onChange={(condition: WorkflowStepCondition | null) => onUpdate({ condition })}
+          onChange={(condition: WorkflowStep["condition"]) => onUpdate({ condition })}
         />
       </div>
     </div>

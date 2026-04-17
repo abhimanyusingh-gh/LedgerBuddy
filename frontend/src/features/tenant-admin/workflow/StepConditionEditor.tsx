@@ -1,8 +1,10 @@
-import type { WorkflowStepCondition } from "@/types";
+import type { WorkflowStep } from "@/types";
+
+type StepCondition = NonNullable<WorkflowStep["condition"]>;
 
 interface StepConditionEditorProps {
-  condition: WorkflowStepCondition | null | undefined;
-  onChange: (condition: WorkflowStepCondition | null) => void;
+  condition: WorkflowStep["condition"];
+  onChange: (condition: WorkflowStep["condition"]) => void;
 }
 
 export function StepConditionEditor({ condition, onChange }: StepConditionEditorProps) {
@@ -19,7 +21,7 @@ export function StepConditionEditor({ condition, onChange }: StepConditionEditor
               const [field, operator] = e.target.value.split(":");
               onChange({
                 field,
-                operator: operator as WorkflowStepCondition["operator"],
+                operator: operator as StepCondition["operator"],
                 value: condition?.value ?? 5000000,
               });
             }
