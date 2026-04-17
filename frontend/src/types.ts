@@ -245,6 +245,11 @@ export interface TenantComplianceConfig {
   activeRiskSignals: string[];
   disabledSignals: string[];
   defaultTdsSection: string | null;
+  reconciliationWeightExactAmount?: number;
+  reconciliationWeightCloseAmount?: number;
+  reconciliationWeightInvoiceNumber?: number;
+  reconciliationWeightVendorName?: number;
+  reconciliationWeightDateProximity?: number;
   updatedBy: string | null;
   updatedAt?: string;
 }

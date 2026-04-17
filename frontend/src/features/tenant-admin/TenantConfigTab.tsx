@@ -6,9 +6,10 @@ import { GlCodeManager } from "@/features/tenant-admin/GlCodeManager";
 import { EmptyState } from "@/components/common/EmptyState";
 import { TcsConfigPanel } from "@/features/tenant-admin/TcsConfigPanel";
 import { ComplianceConfigPanel } from "@/features/tenant-admin/ComplianceConfigPanel";
+import { ReconciliationWeightsSection } from "@/features/tenant-admin/ReconciliationWeightsSection";
 import { useReorderableSections } from "@/hooks/useReorderableSections";
 
-const CONFIG_SECTION_IDS = ["workflow", "gl-codes", "compliance", "tcs", "users"] as const;
+const CONFIG_SECTION_IDS = ["workflow", "gl-codes", "compliance", "tcs", "reconciliation-weights", "users"] as const;
 const STORAGE_KEY = "billforge:config-section-order";
 
 interface TenantConfigTabProps {
@@ -45,6 +46,7 @@ export function TenantConfigTab({
   const canConfigureWorkflow = capabilities.canConfigureWorkflow === true;
   const canConfigureGlCodes = capabilities.canConfigureGlCodes === true;
   const canConfigureCompliance = capabilities.canConfigureCompliance === true;
+  const canApproveInvoices = capabilities.canApproveInvoices === true;
 
   const { order, dragHandlers, dragOverId, draggingId } = useReorderableSections(
     STORAGE_KEY,
@@ -72,6 +74,10 @@ export function TenantConfigTab({
     tcs: {
       visible: canConfigureCompliance,
       node: <TcsConfigPanel canConfigureCompliance={canConfigureCompliance} />,
+    },
+    "reconciliation-weights": {
+      visible: canConfigureCompliance || canApproveInvoices,
+      node: <ReconciliationWeightsSection />,
     },
     users: {
       visible: canManageUsers,
