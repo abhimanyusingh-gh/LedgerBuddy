@@ -201,12 +201,12 @@ interface InvoiceValidationResult {
   resolvedTotalAmountMinor?: number;
 }
 
-export interface ExportValidationRule {
+interface ExportValidationRule {
   name: string;
   validate(invoice: InvoiceDocument, config: TallyExporterConfig): { valid: boolean; error?: string; logLevel?: "warn" };
 }
 
-export class AmountValidationRule implements ExportValidationRule {
+class AmountValidationRule implements ExportValidationRule {
   readonly name = "amount";
 
   validate(invoice: InvoiceDocument): { valid: boolean; error?: string; logLevel?: "warn" } {
@@ -222,7 +222,7 @@ export class AmountValidationRule implements ExportValidationRule {
   }
 }
 
-export class VendorNameValidationRule implements ExportValidationRule {
+class VendorNameValidationRule implements ExportValidationRule {
   readonly name = "vendorName";
 
   validate(invoice: InvoiceDocument): { valid: boolean; error?: string } {
@@ -234,7 +234,7 @@ export class VendorNameValidationRule implements ExportValidationRule {
   }
 }
 
-export class InvoiceNumberValidationRule implements ExportValidationRule {
+class InvoiceNumberValidationRule implements ExportValidationRule {
   readonly name = "invoiceNumber";
 
   validate(invoice: InvoiceDocument): { valid: boolean; error?: string } {

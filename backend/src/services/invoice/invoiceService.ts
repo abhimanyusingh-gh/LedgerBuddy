@@ -449,7 +449,7 @@ export class InvoiceService {
   }
 }
 
-export function applyFieldUpdates(currentParsed: ParsedInvoiceData, input: UpdateParsedFieldInput): ParsedInvoiceData {
+function applyFieldUpdates(currentParsed: ParsedInvoiceData, input: UpdateParsedFieldInput): ParsedInvoiceData {
   const nextParsed = { ...currentParsed };
 
   for (const field of STRING_FIELDS) {
@@ -492,7 +492,7 @@ export function applyFieldUpdates(currentParsed: ParsedInvoiceData, input: Updat
   return nextParsed;
 }
 
-export function reassessConfidenceAfterEdit(invoice: InvoiceDocument, nextParsed: ParsedInvoiceData): void {
+function reassessConfidenceAfterEdit(invoice: InvoiceDocument, nextParsed: ParsedInvoiceData): void {
   const confidence = assessInvoiceConfidence({
     ocrConfidence: invoice.ocrConfidence ?? undefined,
     parsed: nextParsed,
@@ -505,7 +505,7 @@ export function reassessConfidenceAfterEdit(invoice: InvoiceDocument, nextParsed
   invoice.set("autoSelectForApproval", confidence.autoSelectForApproval);
 }
 
-export function determineStatusAfterEdit(invoice: InvoiceDocument, nextParsed: ParsedInvoiceData): void {
+function determineStatusAfterEdit(invoice: InvoiceDocument, nextParsed: ParsedInvoiceData): void {
   const invoiceObj = invoice.toObject() as Record<string, unknown>;
   const existingCompliance = isRecord(invoiceObj.compliance) ? invoiceObj.compliance : {};
   const existingRiskSignals = (existingCompliance.riskSignals ?? []) as Array<{ code: string; message: string; status: string }>;

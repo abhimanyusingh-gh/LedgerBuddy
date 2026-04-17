@@ -21,7 +21,7 @@ const WEIGHT_DATE_WITHIN_3_DAYS = 10;
 const WEIGHT_DATE_WITHIN_7_DAYS = 5;
 const WEIGHT_DATE_WITHIN_30_DAYS = 2;
 
-export interface ReconciliationScoringWeights {
+interface ReconciliationScoringWeights {
   exactAmountMatch: number;
   closeAmountMatch: number;
   invoiceNumberMatch: number;
