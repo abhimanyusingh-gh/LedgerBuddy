@@ -48,6 +48,11 @@ const tenantComplianceConfigSchema = new Schema(
     reconciliationAutoMatchThreshold: { type: Number },
     reconciliationSuggestThreshold: { type: Number },
     reconciliationAmountToleranceMinor: { type: Number },
+    reconciliationWeightExactAmount: { type: Number, default: 50 },
+    reconciliationWeightCloseAmount: { type: Number, default: 10 },
+    reconciliationWeightInvoiceNumber: { type: Number, default: 30 },
+    reconciliationWeightVendorName: { type: Number, default: 20 },
+    reconciliationWeightDateProximity: { type: Number, default: 10 },
     invoiceDateWindowDays: { type: Number },
     defaultCurrency: { type: String },
     approvalLimitOverrides: { type: Map, of: Number },
@@ -103,6 +108,11 @@ export interface TenantComplianceConfigFields {
   reconciliationAutoMatchThreshold?: number;
   reconciliationSuggestThreshold?: number;
   reconciliationAmountToleranceMinor?: number;
+  reconciliationWeightExactAmount?: number;
+  reconciliationWeightCloseAmount?: number;
+  reconciliationWeightInvoiceNumber?: number;
+  reconciliationWeightVendorName?: number;
+  reconciliationWeightDateProximity?: number;
   invoiceDateWindowDays?: number;
   defaultCurrency?: string;
   approvalLimitOverrides?: Record<string, number>;

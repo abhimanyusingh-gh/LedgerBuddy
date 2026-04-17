@@ -13,15 +13,7 @@ const DEFAULT_AUTO_MATCH_THRESHOLD = 50;
 const DEFAULT_SUGGEST_THRESHOLD = 30;
 const DEFAULT_AMOUNT_TOLERANCE_MINOR = 100;
 
-const WEIGHT_EXACT_AMOUNT = 50;
-const WEIGHT_CLOSE_AMOUNT = 10;
-const WEIGHT_INVOICE_NUMBER = 30;
-const WEIGHT_VENDOR_NAME = 20;
-const WEIGHT_DATE_WITHIN_3_DAYS = 10;
-const WEIGHT_DATE_WITHIN_7_DAYS = 5;
-const WEIGHT_DATE_WITHIN_30_DAYS = 2;
-
-interface ReconciliationScoringWeights {
+export interface ReconciliationScoringWeights {
   exactAmountMatch: number;
   closeAmountMatch: number;
   invoiceNumberMatch: number;
@@ -32,14 +24,27 @@ interface ReconciliationScoringWeights {
 }
 
 export const DEFAULT_SCORING_WEIGHTS: ReconciliationScoringWeights = {
-  exactAmountMatch: WEIGHT_EXACT_AMOUNT,
-  closeAmountMatch: WEIGHT_CLOSE_AMOUNT,
-  invoiceNumberMatch: WEIGHT_INVOICE_NUMBER,
-  vendorNameMatch: WEIGHT_VENDOR_NAME,
-  dateWithin3Days: WEIGHT_DATE_WITHIN_3_DAYS,
-  dateWithin7Days: WEIGHT_DATE_WITHIN_7_DAYS,
-  dateWithin30Days: WEIGHT_DATE_WITHIN_30_DAYS
+  exactAmountMatch: 50,
+  closeAmountMatch: 10,
+  invoiceNumberMatch: 30,
+  vendorNameMatch: 20,
+  dateWithin3Days: 10,
+  dateWithin7Days: 5,
+  dateWithin30Days: 2
 };
+
+function resolveWeightsFromConfig(config: Awaited<ReturnType<typeof resolveTenantComplianceConfig>>): ReconciliationScoringWeights {
+  const dateProximity = config?.reconciliationWeightDateProximity ?? DEFAULT_SCORING_WEIGHTS.dateWithin3Days;
+  return {
+    exactAmountMatch: config?.reconciliationWeightExactAmount ?? DEFAULT_SCORING_WEIGHTS.exactAmountMatch,
+    closeAmountMatch: config?.reconciliationWeightCloseAmount ?? DEFAULT_SCORING_WEIGHTS.closeAmountMatch,
+    invoiceNumberMatch: config?.reconciliationWeightInvoiceNumber ?? DEFAULT_SCORING_WEIGHTS.invoiceNumberMatch,
+    vendorNameMatch: config?.reconciliationWeightVendorName ?? DEFAULT_SCORING_WEIGHTS.vendorNameMatch,
+    dateWithin3Days: dateProximity,
+    dateWithin7Days: Math.round(dateProximity / 2),
+    dateWithin30Days: Math.round(dateProximity / 5)
+  };
+}
 
 interface MatchCandidate {
   invoiceId: UUID;
@@ -89,12 +94,6 @@ export function scoreDateProximity(txnDate: Date, refDates: Array<Date | null>, 
 }
 
 export class ReconciliationService {
-  private readonly weights: ReconciliationScoringWeights;
-
-  constructor(weights?: Partial<ReconciliationScoringWeights>) {
-    this.weights = { ...DEFAULT_SCORING_WEIGHTS, ...weights };
-  }
-
   async reconcileStatement(tenantId: UUID, statementId: string): Promise<{ matched: number; suggested: number; unmatched: number }> {
     const transactions = await BankTransactionModel.find({
       tenantId,
@@ -114,6 +113,7 @@ export class ReconciliationService {
     const autoMatchThreshold = tenantConfig?.reconciliationAutoMatchThreshold ?? DEFAULT_AUTO_MATCH_THRESHOLD;
     const suggestThreshold = tenantConfig?.reconciliationSuggestThreshold ?? DEFAULT_SUGGEST_THRESHOLD;
     const tolerance = tenantConfig?.reconciliationAmountToleranceMinor ?? DEFAULT_AMOUNT_TOLERANCE_MINOR;
+    const weights = resolveWeightsFromConfig(tenantConfig);
 
     let matched = 0;
     let suggested = 0;
@@ -122,7 +122,7 @@ export class ReconciliationService {
     const allCandidateInvoices = await this.batchFetchCandidateInvoices(tenantId, transactions, tcsRatePercent, statementGstin, tolerance);
 
     for (const txn of transactions) {
-      const candidates = this.scoreMatchCandidates(txn, allCandidateInvoices, tcsRatePercent, tolerance);
+      const candidates = this.scoreMatchCandidates(txn, allCandidateInvoices, tcsRatePercent, tolerance, weights);
 
       if (candidates.length === 0) {
         unmatched++;
@@ -191,7 +191,8 @@ export class ReconciliationService {
     txn: Pick<BankTransaction, "debitMinor" | "description" | "date">,
     invoices: Record<string, unknown>[],
     tcsRatePercent: number,
-    tolerance: number = DEFAULT_AMOUNT_TOLERANCE_MINOR
+    tolerance: number = DEFAULT_AMOUNT_TOLERANCE_MINOR,
+    weights: ReconciliationScoringWeights = DEFAULT_SCORING_WEIGHTS
   ): MatchCandidate[] {
     if (!txn.debitMinor || txn.debitMinor <= 0) return [];
 
@@ -219,10 +220,10 @@ export class ReconciliationService {
       const approvedAt = approval?.approvedAt instanceof Date ? approval.approvedAt : null;
 
       const score =
-        scoreAmountMatch(netPayable, txn.debitMinor, this.weights) +
-        scoreInvoiceNumberMatch(invoiceNumber, descLower, this.weights) +
-        scoreVendorNameMatch(vendorName, descLower, this.weights) +
-        scoreDateProximity(txnDate, [approvedAt, invoiceDate, dueDate], this.weights);
+        scoreAmountMatch(netPayable, txn.debitMinor, weights) +
+        scoreInvoiceNumberMatch(invoiceNumber, descLower, weights) +
+        scoreVendorNameMatch(vendorName, descLower, weights) +
+        scoreDateProximity(txnDate, [approvedAt, invoiceDate, dueDate], weights);
 
       candidates.push({
         invoiceId: toUUID(String((inv as Record<string, unknown>)._id)),
@@ -243,8 +244,11 @@ export class ReconciliationService {
     tcsRatePercent: number = 0,
     gstin?: string
   ): Promise<MatchCandidate[]> {
-    const invoices = await this.batchFetchCandidateInvoices(tenantId, [txn], tcsRatePercent, gstin);
-    return this.scoreMatchCandidates(txn, invoices, tcsRatePercent);
+    const tenantConfig = await resolveTenantComplianceConfig(tenantId);
+    const weights = resolveWeightsFromConfig(tenantConfig);
+    const tolerance = tenantConfig?.reconciliationAmountToleranceMinor ?? DEFAULT_AMOUNT_TOLERANCE_MINOR;
+    const invoices = await this.batchFetchCandidateInvoices(tenantId, [txn], tcsRatePercent, gstin, tolerance);
+    return this.scoreMatchCandidates(txn, invoices, tcsRatePercent, tolerance, weights);
   }
 
   async applyMatch(tenantId: UUID, transactionId: string, invoiceId: string, confidence: number): Promise<void> {

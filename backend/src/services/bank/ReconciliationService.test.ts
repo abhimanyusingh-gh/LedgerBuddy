@@ -254,14 +254,18 @@ describe("ReconciliationService", () => {
     expect(setDoc).toHaveProperty("suggestedCount");
   });
 
-  it("accepts custom scoring weights via constructor", async () => {
-    const customService = new ReconciliationService({ exactAmountMatch: 100 });
+  it("uses tenant-configured weights from TenantComplianceConfig", async () => {
     const invoice = makeInvoice();
     (InvoiceModel.find as jest.Mock).mockReturnValue({ lean: jest.fn().mockResolvedValue([invoice]) });
 
     const defaultCandidates = await service.findMatchCandidates(toUUID("t1"), { debitMinor: 100000, description: "Wire transfer", date: new Date("2026-06-15") });
+
+    (TenantComplianceConfigModel.findOne as jest.Mock).mockReturnValue({
+      lean: jest.fn().mockResolvedValue({ tenantId: "t1", reconciliationWeightExactAmount: 100 })
+    });
     (InvoiceModel.find as jest.Mock).mockReturnValue({ lean: jest.fn().mockResolvedValue([invoice]) });
-    const customCandidates = await customService.findMatchCandidates(toUUID("t1"), { debitMinor: 100000, description: "Wire transfer", date: new Date("2026-06-15") });
+
+    const customCandidates = await service.findMatchCandidates(toUUID("t1"), { debitMinor: 100000, description: "Wire transfer", date: new Date("2026-06-15") });
 
     expect(defaultCandidates).toHaveLength(1);
     expect(customCandidates).toHaveLength(1);
