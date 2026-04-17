@@ -1,5 +1,5 @@
 import { Types } from "mongoose";
-import { InvoiceModel } from "@/models/invoice/Invoice.js";
+import { InvoiceModel, type InvoiceDocument } from "@/models/invoice/Invoice.js";
 import { env } from "@/config/env.js";
 import { INVOICE_STATUS, GL_CODE_SOURCE, TCS_SOURCE, RISK_SIGNAL_STATUS, RISK_SIGNAL_SEVERITY } from "@/types/invoice.js";
 import type { GstBreakdown, ParsedInvoiceData, ComplianceRiskSignal } from "@/types/invoice.js";
@@ -321,44 +321,7 @@ export class InvoiceService {
     if (invoice.status === INVOICE_STATUS.EXPORTED) throw new InvoiceUpdateError("Cannot modify an exported invoice.", 403);
 
     const currentParsed = sanitizeParsedData(invoice.toObject().parsed);
-    const nextParsed = { ...currentParsed };
-
-    for (const field of STRING_FIELDS) {
-      const val = normalizeNullable(input, field, "string") as string | null | undefined;
-      if (val === undefined) continue;
-      if (val === null) delete nextParsed[field]; else nextParsed[field] = val;
-    }
-
-    for (const field of DATE_FIELDS) {
-      if (!Object.prototype.hasOwnProperty.call(input, field)) continue;
-      const raw = (input as Record<string, unknown>)[field];
-      if (raw === null) { delete nextParsed[field]; continue; }
-      const d = raw instanceof Date ? raw : typeof raw === "string" ? new Date(raw) : undefined;
-      if (d && !isNaN(d.getTime())) nextParsed[field] = d;
-    }
-
-    applyNullableField(nextParsed, "currency", normalizeNullableCurrency(input));
-    applyNullableField(nextParsed, "totalAmountMinor", normalizeNullableMinorAmount(input));
-
-    const majorVal = normalizeNullableMajorAmount(input);
-    if (majorVal !== undefined) {
-      if (majorVal === null) delete nextParsed.totalAmountMinor;
-      else nextParsed.totalAmountMinor = toMinorUnits(majorVal, nextParsed.currency);
-    }
-
-    const notesVal = normalizeNullableNotes(input);
-    if (notesVal !== undefined) {
-      if (notesVal === null || notesVal.length === 0) delete nextParsed.notes; else nextParsed.notes = notesVal;
-    }
-
-    if (Object.prototype.hasOwnProperty.call(input, "gst")) {
-      const gstInput = input.gst;
-      if (gstInput === null) {
-        delete nextParsed.gst;
-      } else if (isPlainObject(gstInput)) {
-        nextParsed.gst = { ...(nextParsed.gst ?? {}), ...gstInput } as GstBreakdown;
-      }
-    }
+    const nextParsed = applyFieldUpdates(currentParsed, input);
 
     const parsedFields: Array<keyof ParsedInvoiceData> = [
       "invoiceNumber", "vendorName", "invoiceDate", "dueDate",
@@ -369,6 +332,21 @@ export class InvoiceService {
       invoice.set(`parsed.${field}`, getParsedField(nextParsed, field));
     }
 
+    this.recordFieldCorrections(tenantId, id, invoice, currentParsed, nextParsed, updatedBy);
+
+    reassessConfidenceAfterEdit(invoice, nextParsed);
+    determineStatusAfterEdit(invoice, nextParsed);
+
+    invoice.set("processingIssues", [
+      ...((invoice.get("processingIssues") as string[] | undefined) ?? []).filter((e) => !e.startsWith("Manual parsed field update:")),
+      `Manual parsed field update: ${new Date().toISOString()} by ${updatedBy}.`
+    ]);
+
+    await invoice.save();
+    return sanitizeForApi(invoice.toObject());
+  }
+
+  private recordFieldCorrections(tenantId: UUID, invoiceId: string, invoice: InvoiceDocument, currentParsed: ParsedInvoiceData, nextParsed: ParsedInvoiceData, updatedBy: string): void {
     if (this.learningStore) {
       const correctionFields = ["invoiceNumber", "vendorName", "invoiceDate", "dueDate", "currency", "totalAmountMinor"] as const;
       const corrections = correctionFields
@@ -388,7 +366,7 @@ export class InvoiceService {
         const vendorFingerprint = invoice.metadata?.get("vendorFingerprint");
         const invoiceType = invoice.metadata?.get("invoiceType");
         logger.info("extraction.learning.correction.recorded", {
-          tenantId, invoiceId: id,
+          tenantId, invoiceId,
           correctedFields: corrections.map(c => c.field),
           vendorFingerprint: vendorFingerprint ?? null,
           invoiceType: invoiceType ?? null
@@ -410,40 +388,10 @@ export class InvoiceService {
       const gstin = nextParsed.gst?.gstin;
       const vendorNameChanged = String(nextParsed.vendorName ?? "") !== String(currentParsed.vendorName ?? "");
       if (gstin && vendorNameChanged && nextParsed.vendorName) {
-        this.mappingService.maybeSeedMappingFromCorrection(tenantId, id, currentParsed, nextParsed, updatedBy)
-          .catch(err => logger.warn("extraction.mapping.seed.failed", { tenantId, invoiceId: id, err }));
+        this.mappingService.maybeSeedMappingFromCorrection(tenantId, invoiceId, currentParsed, nextParsed, updatedBy)
+          .catch(err => logger.warn("extraction.mapping.seed.failed", { tenantId, invoiceId, err }));
       }
     }
-
-    const invoiceObj = invoice.toObject() as Record<string, unknown>;
-    const existingCompliance = isRecord(invoiceObj.compliance) ? invoiceObj.compliance : {};
-    const existingRiskSignals = (existingCompliance.riskSignals ?? []) as Array<{ code: string; message: string; status: string }>;
-    const openRiskSignals = existingRiskSignals.filter(s => s.status === "open");
-
-    const confidence = assessInvoiceConfidence({
-      ocrConfidence: invoice.ocrConfidence ?? undefined,
-      parsed: nextParsed,
-      warnings: [],
-      complianceRiskPenalty: 0
-    });
-
-    invoice.set("confidenceScore", confidence.score);
-    invoice.set("confidenceTone", confidence.tone);
-    invoice.set("autoSelectForApproval", confidence.autoSelectForApproval);
-    if (invoice.status === INVOICE_STATUS.AWAITING_APPROVAL) {
-      invoice.status = INVOICE_STATUS.NEEDS_REVIEW;
-      invoice.set("workflowState", undefined);
-    } else if (invoice.status !== INVOICE_STATUS.APPROVED) {
-      invoice.status = isCompleteParsedData(nextParsed) && openRiskSignals.length === 0 ? INVOICE_STATUS.PARSED : INVOICE_STATUS.NEEDS_REVIEW;
-    }
-
-    invoice.set("processingIssues", [
-      ...((invoice.get("processingIssues") as string[] | undefined) ?? []).filter((e) => !e.startsWith("Manual parsed field update:")),
-      `Manual parsed field update: ${new Date().toISOString()} by ${updatedBy}.`
-    ]);
-
-    await invoice.save();
-    return sanitizeForApi(invoice.toObject());
   }
 
   async renameAttachmentName(id: string, attachmentName: string, tenantId: UUID) {
@@ -491,11 +439,76 @@ export class InvoiceService {
   }
 }
 
-/**
- * Shared helper: recompute TDS and TCS on a compliance object after a GL code
- * change. Mutates `compliance` in place. Used by both the PATCH inline handler
- * and the dedicated retriggerCompliance service method.
- */
+export function applyFieldUpdates(currentParsed: ParsedInvoiceData, input: UpdateParsedFieldInput): ParsedInvoiceData {
+  const nextParsed = { ...currentParsed };
+
+  for (const field of STRING_FIELDS) {
+    const val = normalizeNullable(input, field, "string") as string | null | undefined;
+    if (val === undefined) continue;
+    if (val === null) delete nextParsed[field]; else nextParsed[field] = val;
+  }
+
+  for (const field of DATE_FIELDS) {
+    if (!Object.prototype.hasOwnProperty.call(input, field)) continue;
+    const raw = (input as Record<string, unknown>)[field];
+    if (raw === null) { delete nextParsed[field]; continue; }
+    const d = raw instanceof Date ? raw : typeof raw === "string" ? new Date(raw) : undefined;
+    if (d && !isNaN(d.getTime())) nextParsed[field] = d;
+  }
+
+  applyNullableField(nextParsed, "currency", normalizeNullableCurrency(input));
+  applyNullableField(nextParsed, "totalAmountMinor", normalizeNullableMinorAmount(input));
+
+  const majorVal = normalizeNullableMajorAmount(input);
+  if (majorVal !== undefined) {
+    if (majorVal === null) delete nextParsed.totalAmountMinor;
+    else nextParsed.totalAmountMinor = toMinorUnits(majorVal, nextParsed.currency);
+  }
+
+  const notesVal = normalizeNullableNotes(input);
+  if (notesVal !== undefined) {
+    if (notesVal === null || notesVal.length === 0) delete nextParsed.notes; else nextParsed.notes = notesVal;
+  }
+
+  if (Object.prototype.hasOwnProperty.call(input, "gst")) {
+    const gstInput = input.gst;
+    if (gstInput === null) {
+      delete nextParsed.gst;
+    } else if (isPlainObject(gstInput)) {
+      nextParsed.gst = { ...(nextParsed.gst ?? {}), ...gstInput } as GstBreakdown;
+    }
+  }
+
+  return nextParsed;
+}
+
+export function reassessConfidenceAfterEdit(invoice: InvoiceDocument, nextParsed: ParsedInvoiceData): void {
+  const confidence = assessInvoiceConfidence({
+    ocrConfidence: invoice.ocrConfidence ?? undefined,
+    parsed: nextParsed,
+    warnings: [],
+    complianceRiskPenalty: 0
+  });
+
+  invoice.set("confidenceScore", confidence.score);
+  invoice.set("confidenceTone", confidence.tone);
+  invoice.set("autoSelectForApproval", confidence.autoSelectForApproval);
+}
+
+export function determineStatusAfterEdit(invoice: InvoiceDocument, nextParsed: ParsedInvoiceData): void {
+  const invoiceObj = invoice.toObject() as Record<string, unknown>;
+  const existingCompliance = isRecord(invoiceObj.compliance) ? invoiceObj.compliance : {};
+  const existingRiskSignals = (existingCompliance.riskSignals ?? []) as Array<{ code: string; message: string; status: string }>;
+  const openRiskSignals = existingRiskSignals.filter(s => s.status === "open");
+
+  if (invoice.status === INVOICE_STATUS.AWAITING_APPROVAL) {
+    invoice.status = INVOICE_STATUS.NEEDS_REVIEW;
+    invoice.set("workflowState", undefined);
+  } else if (invoice.status !== INVOICE_STATUS.APPROVED) {
+    invoice.status = isCompleteParsedData(nextParsed) && openRiskSignals.length === 0 ? INVOICE_STATUS.PARSED : INVOICE_STATUS.NEEDS_REVIEW;
+  }
+}
+
 export async function retriggerTdsAndTcs(
   compliance: Record<string, unknown>,
   parsed: ParsedInvoiceData,

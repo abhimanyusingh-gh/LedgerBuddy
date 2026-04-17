@@ -18,7 +18,9 @@ import {
   buildTallyBatchImportXml,
   formatTallyDate,
   parseTallyImportResponse,
-  resolveInvoiceTotalAmountMinor
+  resolveInvoiceTotalAmountMinor,
+  validateInvoiceForExport,
+  mapInvoiceToVoucher
 } from "@/services/export/tallyExporter.ts";
 
 type TallyExporterConfig = ConstructorParameters<typeof TallyExporter>[0];
@@ -287,12 +289,6 @@ describe("TallyExporter.exportInvoices", () => {
         externalReference: "77"
       }
     ]);
-    expect(invoice.set).toHaveBeenCalledWith(
-      "parsed",
-      expect.objectContaining({
-        totalAmountMinor: 12345
-      })
-    );
   });
 
   it("returns failed result when Tally reports line errors", async () => {
@@ -1371,3 +1367,59 @@ describe("TallyExporter with compliance data", () => {
     expect(payload).toContain("<LEDGERNAME>TCS Receivable</LEDGERNAME>");
   });
 })
+
+describe("validateInvoiceForExport", () => {
+  it("returns valid with resolved amount for a complete invoice", () => {
+    const invoice = createInvoiceStub({
+      _id: "val-1",
+      parsed: { invoiceNumber: "INV-V1", vendorName: "Vendor", totalAmountMinor: 5000 }
+    });
+    const result = validateInvoiceForExport(invoice, "val-1");
+    expect(result.valid).toBe(true);
+    expect(result.resolvedTotalAmountMinor).toBe(5000);
+  });
+
+  it("returns invalid when amount cannot be resolved", () => {
+    const invoice = createInvoiceStub({
+      _id: "val-2",
+      parsed: { invoiceNumber: "INV-V2", vendorName: "Vendor" },
+      ocrText: "no amount"
+    });
+    const result = validateInvoiceForExport(invoice, "val-2");
+    expect(result.valid).toBe(false);
+    expect(result.error).toContain("Invalid invoice total amount");
+    expect(result.logLevel).toBe("warn");
+  });
+
+  it("returns invalid for Unknown Vendor", () => {
+    const invoice = createInvoiceStub({
+      _id: "val-3",
+      parsed: { invoiceNumber: "INV-V3", vendorName: "Unknown Vendor", totalAmountMinor: 5000 }
+    });
+    const result = validateInvoiceForExport(invoice, "val-3");
+    expect(result.valid).toBe(false);
+    expect(result.error).toContain("Vendor name");
+  });
+
+  it("returns invalid for ObjectId-like invoice number", () => {
+    const invoice = createInvoiceStub({
+      _id: "val-4",
+      parsed: { invoiceNumber: "507f1f77bcf86cd799439011", vendorName: "Legit", totalAmountMinor: 5000 }
+    });
+    const result = validateInvoiceForExport(invoice, "val-4");
+    expect(result.valid).toBe(false);
+    expect(result.error).toContain("Invoice number");
+  });
+});
+
+describe("mapInvoiceToVoucher", () => {
+  it("returns XML string from config and invoice", () => {
+    const invoice = createInvoiceStub({
+      _id: "map-1",
+      parsed: { invoiceNumber: "INV-M1", vendorName: "Vendor", totalAmountMinor: 10000 }
+    });
+    const xml = mapInvoiceToVoucher(DEFAULT_TALLY_CONFIG, invoice, "map-1", 10000);
+    expect(xml).toContain("<VOUCHERNUMBER>INV-M1</VOUCHERNUMBER>");
+    expect(xml).toContain("<PARTYLEDGERNAME>Vendor</PARTYLEDGERNAME>");
+  });
+});

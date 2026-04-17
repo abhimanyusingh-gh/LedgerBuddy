@@ -1,4 +1,11 @@
-import { ReconciliationService } from "@/services/bank/ReconciliationService.ts";
+import {
+  ReconciliationService,
+  DEFAULT_SCORING_WEIGHTS,
+  scoreAmountMatch,
+  scoreInvoiceNumberMatch,
+  scoreVendorNameMatch,
+  scoreDateProximity
+} from "@/services/bank/ReconciliationService.ts";
 import { InvoiceModel } from "@/models/invoice/Invoice.ts";
 import { BankTransactionModel } from "@/models/bank/BankTransaction.ts";
 import { BankStatementModel } from "@/models/bank/BankStatement.ts";
@@ -245,5 +252,63 @@ describe("ReconciliationService", () => {
     const updateCall = (BankStatementModel.updateOne as jest.Mock).mock.calls[0];
     const setDoc = (updateCall[1] as Record<string, unknown>).$set as Record<string, unknown>;
     expect(setDoc).toHaveProperty("suggestedCount");
+  });
+
+  it("accepts custom scoring weights via constructor", async () => {
+    const customService = new ReconciliationService({ exactAmountMatch: 100 });
+    const invoice = makeInvoice();
+    (InvoiceModel.find as jest.Mock).mockReturnValue({ lean: jest.fn().mockResolvedValue([invoice]) });
+
+    const defaultCandidates = await service.findMatchCandidates(toUUID("t1"), { debitMinor: 100000, description: "Wire transfer", date: new Date("2026-06-15") });
+    (InvoiceModel.find as jest.Mock).mockReturnValue({ lean: jest.fn().mockResolvedValue([invoice]) });
+    const customCandidates = await customService.findMatchCandidates(toUUID("t1"), { debitMinor: 100000, description: "Wire transfer", date: new Date("2026-06-15") });
+
+    expect(defaultCandidates).toHaveLength(1);
+    expect(customCandidates).toHaveLength(1);
+    expect(customCandidates[0].score).toBeGreaterThan(defaultCandidates[0].score);
+  });
+});
+
+describe("Reconciliation scoring functions", () => {
+  it("scoreAmountMatch returns exactAmountMatch weight for exact match", () => {
+    expect(scoreAmountMatch(100000, 100000, DEFAULT_SCORING_WEIGHTS)).toBe(50);
+  });
+
+  it("scoreAmountMatch returns closeAmountMatch weight for near match", () => {
+    expect(scoreAmountMatch(100050, 100000, DEFAULT_SCORING_WEIGHTS)).toBe(30);
+  });
+
+  it("scoreInvoiceNumberMatch returns weight when invoice number is in description", () => {
+    expect(scoreInvoiceNumberMatch("INV-001", "payment inv-001 ref", DEFAULT_SCORING_WEIGHTS)).toBe(30);
+  });
+
+  it("scoreInvoiceNumberMatch returns 0 when invoice number is not in description", () => {
+    expect(scoreInvoiceNumberMatch("INV-001", "wire transfer unknown", DEFAULT_SCORING_WEIGHTS)).toBe(0);
+  });
+
+  it("scoreVendorNameMatch returns weight when vendor words overlap", () => {
+    expect(scoreVendorNameMatch("Acme Corporation", "payment acme ref", DEFAULT_SCORING_WEIGHTS)).toBe(20);
+  });
+
+  it("scoreVendorNameMatch returns 0 with no overlap", () => {
+    expect(scoreVendorNameMatch("Acme Corporation", "wire transfer xyz", DEFAULT_SCORING_WEIGHTS)).toBe(0);
+  });
+
+  it("scoreDateProximity returns highest weight for closest date", () => {
+    const txnDate = new Date("2026-01-15");
+    const closeDate = new Date("2026-01-14");
+    const farDate = new Date("2025-12-01");
+    expect(scoreDateProximity(txnDate, [closeDate, farDate], DEFAULT_SCORING_WEIGHTS)).toBe(10);
+  });
+
+  it("scoreDateProximity returns 0 for dates > 30 days apart", () => {
+    const txnDate = new Date("2026-01-15");
+    const farDate = new Date("2025-06-01");
+    expect(scoreDateProximity(txnDate, [farDate], DEFAULT_SCORING_WEIGHTS)).toBe(0);
+  });
+
+  it("scoreDateProximity handles null dates gracefully", () => {
+    const txnDate = new Date("2026-01-15");
+    expect(scoreDateProximity(txnDate, [null, null], DEFAULT_SCORING_WEIGHTS)).toBe(0);
   });
 });

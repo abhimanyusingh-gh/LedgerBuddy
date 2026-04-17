@@ -13,6 +13,26 @@ const DEFAULT_AUTO_MATCH_THRESHOLD = 50;
 const DEFAULT_SUGGEST_THRESHOLD = 30;
 const DEFAULT_AMOUNT_TOLERANCE_MINOR = 100;
 
+export interface ReconciliationScoringWeights {
+  exactAmountMatch: number;
+  closeAmountMatch: number;
+  invoiceNumberMatch: number;
+  vendorNameMatch: number;
+  dateWithin3Days: number;
+  dateWithin7Days: number;
+  dateWithin30Days: number;
+}
+
+export const DEFAULT_SCORING_WEIGHTS: ReconciliationScoringWeights = {
+  exactAmountMatch: 50,
+  closeAmountMatch: 30,
+  invoiceNumberMatch: 30,
+  vendorNameMatch: 20,
+  dateWithin3Days: 10,
+  dateWithin7Days: 5,
+  dateWithin30Days: 2
+};
+
 interface MatchCandidate {
   invoiceId: UUID;
   invoiceNumber: string;
@@ -31,7 +51,41 @@ function wordOverlap(a: string, b: string): number {
   return matches;
 }
 
+export function scoreAmountMatch(netPayable: number, debitMinor: number, weights: ReconciliationScoringWeights): number {
+  if (Math.abs(netPayable - debitMinor) <= 1) return weights.exactAmountMatch;
+  return weights.closeAmountMatch;
+}
+
+export function scoreInvoiceNumberMatch(invoiceNumber: string, descLower: string, weights: ReconciliationScoringWeights): number {
+  if (invoiceNumber && descLower.includes(invoiceNumber.toLowerCase())) return weights.invoiceNumberMatch;
+  return 0;
+}
+
+export function scoreVendorNameMatch(vendorName: string, descLower: string, weights: ReconciliationScoringWeights): number {
+  if (vendorName && wordOverlap(vendorName, descLower) >= 1) return weights.vendorNameMatch;
+  return 0;
+}
+
+export function scoreDateProximity(txnDate: Date, refDates: Array<Date | null>, weights: ReconciliationScoringWeights): number {
+  if (isNaN(txnDate.getTime())) return 0;
+  let bestScore = 0;
+  for (const refDate of refDates) {
+    if (!refDate || isNaN(refDate.getTime())) continue;
+    const daysDiff = Math.abs((txnDate.getTime() - refDate.getTime()) / 86400000);
+    if (daysDiff <= 3) bestScore = Math.max(bestScore, weights.dateWithin3Days);
+    else if (daysDiff <= 7) bestScore = Math.max(bestScore, weights.dateWithin7Days);
+    else if (daysDiff <= 30) bestScore = Math.max(bestScore, weights.dateWithin30Days);
+  }
+  return bestScore;
+}
+
 export class ReconciliationService {
+  private readonly weights: ReconciliationScoringWeights;
+
+  constructor(weights?: Partial<ReconciliationScoringWeights>) {
+    this.weights = { ...DEFAULT_SCORING_WEIGHTS, ...weights };
+  }
+
   async reconcileStatement(tenantId: UUID, statementId: string): Promise<{ matched: number; suggested: number; unmatched: number }> {
     const transactions = await BankTransactionModel.find({
       tenantId,
@@ -90,10 +144,6 @@ export class ReconciliationService {
     return { matched, suggested, unmatched };
   }
 
-  /**
-   * Batch-fetch all candidate invoices for a set of transactions in a single DB query.
-   * Computes the global min/max amount range across all transactions to avoid N+1 queries.
-   */
   private async batchFetchCandidateInvoices(
     tenantId: UUID,
     transactions: Pick<BankTransaction, "debitMinor" | "description" | "date">[],
@@ -128,9 +178,6 @@ export class ReconciliationService {
     return InvoiceModel.find(invoiceQuery).lean();
   }
 
-  /**
-   * Score pre-fetched candidate invoices against a single transaction in-memory.
-   */
   private scoreMatchCandidates(
     txn: Pick<BankTransaction, "debitMinor" | "description" | "date">,
     invoices: Record<string, unknown>[],
@@ -145,7 +192,6 @@ export class ReconciliationService {
 
     for (const inv of invoices) {
       const parsed = (inv as Record<string, unknown>).parsed as Record<string, unknown> | undefined;
-      let score = 0;
       const invObj = inv as unknown as Record<string, unknown>;
       const compliance = isRecord(invObj.compliance) ? invObj.compliance : undefined;
       const tds = isRecord(compliance?.tds) ? compliance.tds : undefined;
@@ -155,38 +201,19 @@ export class ReconciliationService {
 
       if (Math.abs(netPayable - txn.debitMinor) > tolerance) continue;
 
-      if (Math.abs(netPayable - txn.debitMinor) <= 1) {
-        score += 50;
-      } else {
-        score += 30;
-      }
-
       const invoiceNumber = (parsed?.invoiceNumber as string) ?? "";
-      if (invoiceNumber && descLower.includes(invoiceNumber.toLowerCase())) {
-        score += 30;
-      }
-
       const vendorName = (parsed?.vendorName as string) ?? "";
-      if (vendorName && wordOverlap(vendorName, descLower) >= 1) {
-        score += 20;
-      }
 
       const invoiceDate = parsed?.invoiceDate instanceof Date ? parsed.invoiceDate : null;
       const dueDate = parsed?.dueDate instanceof Date ? parsed.dueDate : null;
       const approval = isRecord(invObj.approval) ? invObj.approval : undefined;
       const approvedAt = approval?.approvedAt instanceof Date ? approval.approvedAt : null;
 
-      if (!isNaN(txnDate.getTime())) {
-        let bestDateScore = 0;
-        for (const refDate of [approvedAt, invoiceDate, dueDate]) {
-          if (!refDate || isNaN(refDate.getTime())) continue;
-          const daysDiff = Math.abs((txnDate.getTime() - refDate.getTime()) / 86400000);
-          if (daysDiff <= 3) bestDateScore = Math.max(bestDateScore, 10);
-          else if (daysDiff <= 7) bestDateScore = Math.max(bestDateScore, 5);
-          else if (daysDiff <= 30) bestDateScore = Math.max(bestDateScore, 2);
-        }
-        score += bestDateScore;
-      }
+      const score =
+        scoreAmountMatch(netPayable, txn.debitMinor, this.weights) +
+        scoreInvoiceNumberMatch(invoiceNumber, descLower, this.weights) +
+        scoreVendorNameMatch(vendorName, descLower, this.weights) +
+        scoreDateProximity(txnDate, [approvedAt, invoiceDate, dueDate], this.weights);
 
       candidates.push({
         invoiceId: toUUID(String((inv as Record<string, unknown>)._id)),
