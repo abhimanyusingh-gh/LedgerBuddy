@@ -1,4 +1,10 @@
-import { ReconciliationService } from "@/services/bank/ReconciliationService.ts";
+import {
+  ReconciliationService,
+  scoreAmountMatch,
+  scoreInvoiceNumberMatch,
+  scoreVendorNameMatch,
+  scoreDateProximity
+} from "@/services/bank/ReconciliationService.ts";
 import { InvoiceModel } from "@/models/invoice/Invoice.ts";
 import { BankTransactionModel } from "@/models/bank/BankTransaction.ts";
 import { BankStatementModel } from "@/models/bank/BankStatement.ts";
@@ -12,6 +18,20 @@ jest.mock("@/models/bank/BankTransaction.ts");
 jest.mock("@/models/bank/BankStatement.ts");
 jest.mock("@/models/integration/TenantTcsConfig.ts");
 jest.mock("@/models/integration/TenantComplianceConfig.ts");
+
+import { resolveTenantComplianceConfig } from "@/services/compliance/tenantConfigResolver.js";
+
+jest.mock("@/services/compliance/tenantConfigResolver.js");
+
+const mockResolveTenantComplianceConfig = resolveTenantComplianceConfig as jest.MockedFunction<typeof resolveTenantComplianceConfig>;
+
+const DEFAULT_WEIGHTS = {
+  exactAmount: 50,
+  closeAmount: 10,
+  invoiceNumber: 30,
+  vendorName: 20,
+  dateProximity: 10
+};
 
 function makeTxn(overrides: Partial<{
   _id: string;
@@ -52,6 +72,112 @@ function makeInvoice(overrides: Partial<{
   };
 }
 
+describe("scoreAmountMatch", () => {
+  it("returns exactAmount weight for penny-exact match", () => {
+    expect(scoreAmountMatch(100000, 100000, 100, DEFAULT_WEIGHTS)).toBe(50);
+  });
+
+  it("returns exactAmount weight when diff is 1 minor unit", () => {
+    expect(scoreAmountMatch(100000, 100001, 100, DEFAULT_WEIGHTS)).toBe(50);
+  });
+
+  it("returns closeAmount weight when within tolerance but not exact", () => {
+    expect(scoreAmountMatch(100000, 100050, 100, DEFAULT_WEIGHTS)).toBe(10);
+  });
+
+  it("returns -1 when difference exceeds tolerance", () => {
+    expect(scoreAmountMatch(100000, 200000, 100, DEFAULT_WEIGHTS)).toBe(-1);
+  });
+
+  it("respects custom weights", () => {
+    const custom = { ...DEFAULT_WEIGHTS, exactAmount: 80, closeAmount: 25 };
+    expect(scoreAmountMatch(100000, 100000, 100, custom)).toBe(80);
+    expect(scoreAmountMatch(100000, 100050, 100, custom)).toBe(25);
+  });
+});
+
+describe("scoreInvoiceNumberMatch", () => {
+  it("returns full weight when invoice number is found in description", () => {
+    expect(scoreInvoiceNumberMatch("Payment for INV-001 completed", "INV-001", 30)).toBe(30);
+  });
+
+  it("returns 0 when invoice number is not found", () => {
+    expect(scoreInvoiceNumberMatch("Wire transfer ref unknown", "INV-001", 30)).toBe(0);
+  });
+
+  it("returns 0 for empty invoice number", () => {
+    expect(scoreInvoiceNumberMatch("Payment for INV-001", "", 30)).toBe(0);
+  });
+
+  it("matches case-insensitively", () => {
+    expect(scoreInvoiceNumberMatch("payment inv-001 completed", "INV-001", 30)).toBe(30);
+  });
+});
+
+describe("scoreVendorNameMatch", () => {
+  it("returns full weight for word overlap match", () => {
+    expect(scoreVendorNameMatch("Payment Acme Corporation ref", "Acme Corporation", 20)).toBe(20);
+  });
+
+  it("returns 0 when vendor name does not match", () => {
+    expect(scoreVendorNameMatch("Wire transfer xyz", "Acme Corporation", 20)).toBe(0);
+  });
+
+  it("returns 0 for empty vendor name", () => {
+    expect(scoreVendorNameMatch("Payment Acme", "", 20)).toBe(0);
+  });
+
+  it("handles bank-cropped names via prefix matching", () => {
+    expect(scoreVendorNameMatch("Sprinto Technology Pr", "Sprinto Technology Private Limited", 20)).toBe(20);
+  });
+
+  it("handles sequential character matching for truncated names", () => {
+    expect(scoreVendorNameMatch("SprintoTechPvt", "Sprinto Technology Private Limited", 20)).toBe(15);
+  });
+
+  it("returns 0 when no matching strategy succeeds", () => {
+    expect(scoreVendorNameMatch("HDFC Bank NEFT", "Sprinto Technology Private Limited", 20)).toBe(0);
+  });
+});
+
+describe("scoreDateProximity", () => {
+  const baseDate = new Date("2026-01-15");
+
+  it("returns full weight when transaction date is within 3 days of a reference date", () => {
+    const invoiceDate = new Date("2026-01-14");
+    expect(scoreDateProximity(baseDate, invoiceDate, null, null, 10)).toBe(10);
+  });
+
+  it("returns half weight when within 7 days", () => {
+    const invoiceDate = new Date("2026-01-09");
+    expect(scoreDateProximity(baseDate, invoiceDate, null, null, 10)).toBe(5);
+  });
+
+  it("returns 20% weight when within 30 days", () => {
+    const invoiceDate = new Date("2025-12-20");
+    expect(scoreDateProximity(baseDate, invoiceDate, null, null, 10)).toBe(2);
+  });
+
+  it("returns 0 when beyond 30 days", () => {
+    const invoiceDate = new Date("2025-06-01");
+    expect(scoreDateProximity(baseDate, invoiceDate, null, null, 10)).toBe(0);
+  });
+
+  it("returns 0 for invalid transaction date", () => {
+    expect(scoreDateProximity(new Date("invalid"), new Date("2026-01-14"), null, null, 10)).toBe(0);
+  });
+
+  it("returns 0 when all reference dates are null", () => {
+    expect(scoreDateProximity(baseDate, null, null, null, 10)).toBe(0);
+  });
+
+  it("picks the best score across multiple reference dates", () => {
+    const farDate = new Date("2025-12-01");
+    const closeDate = new Date("2026-01-14");
+    expect(scoreDateProximity(baseDate, farDate, closeDate, null, 10)).toBe(10);
+  });
+});
+
 describe("ReconciliationService", () => {
   let service: ReconciliationService;
 
@@ -60,6 +186,7 @@ describe("ReconciliationService", () => {
     jest.clearAllMocks();
     (TenantTcsConfigModel.findOne as jest.Mock).mockReturnValue({ lean: jest.fn().mockResolvedValue(null) });
     (TenantComplianceConfigModel.findOne as jest.Mock).mockReturnValue({ lean: jest.fn().mockResolvedValue(null) });
+    mockResolveTenantComplianceConfig.mockResolvedValue(null);
   });
 
   it("auto-matches when amount exactly equals netPayable", async () => {
@@ -245,5 +372,25 @@ describe("ReconciliationService", () => {
     const updateCall = (BankStatementModel.updateOne as jest.Mock).mock.calls[0];
     const setDoc = (updateCall[1] as Record<string, unknown>).$set as Record<string, unknown>;
     expect(setDoc).toHaveProperty("suggestedCount");
+  });
+
+  it("applies tenant-specific scoring weights from compliance config", async () => {
+    const customWeightConfig = {
+      tenantId: "t1",
+      reconciliationWeightExactAmount: 70,
+      reconciliationWeightCloseAmount: 5,
+      reconciliationWeightInvoiceNumber: 0,
+      reconciliationWeightVendorName: 0,
+      reconciliationWeightDateProximity: 0
+    };
+    mockResolveTenantComplianceConfig.mockResolvedValue(customWeightConfig);
+
+    const invoice = makeInvoice();
+    (InvoiceModel.find as jest.Mock).mockReturnValue({ lean: jest.fn().mockResolvedValue([invoice]) });
+
+    const candidates = await service.findMatchCandidates(toUUID("t1"), { debitMinor: 100000, description: "Payment INV-001", date: new Date("2026-01-15") });
+
+    expect(candidates).toHaveLength(1);
+    expect(candidates[0].score).toBe(70);
   });
 });

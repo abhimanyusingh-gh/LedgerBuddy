@@ -247,6 +247,11 @@ export interface TenantComplianceConfig {
   defaultTdsSection: string | null;
   updatedBy: string | null;
   updatedAt?: string;
+  reconciliationWeightExactAmount?: number;
+  reconciliationWeightCloseAmount?: number;
+  reconciliationWeightInvoiceNumber?: number;
+  reconciliationWeightVendorName?: number;
+  reconciliationWeightDateProximity?: number;
 }
 
 export type TenantRole =

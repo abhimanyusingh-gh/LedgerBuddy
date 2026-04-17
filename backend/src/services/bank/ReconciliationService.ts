@@ -13,6 +13,22 @@ const DEFAULT_AUTO_MATCH_THRESHOLD = 50;
 const DEFAULT_SUGGEST_THRESHOLD = 30;
 const DEFAULT_AMOUNT_TOLERANCE_MINOR = 100;
 
+interface ReconciliationWeights {
+  exactAmount: number;
+  closeAmount: number;
+  invoiceNumber: number;
+  vendorName: number;
+  dateProximity: number;
+}
+
+const DEFAULT_WEIGHTS: ReconciliationWeights = {
+  exactAmount: 50,
+  closeAmount: 10,
+  invoiceNumber: 30,
+  vendorName: 20,
+  dateProximity: 10
+};
+
 interface MatchCandidate {
   invoiceId: UUID;
   invoiceNumber: string;
@@ -29,6 +45,73 @@ function wordOverlap(a: string, b: string): number {
     if (wordsB.has(w)) matches++;
   }
   return matches;
+}
+
+function prefixMatch(candidate: string, reference: string): boolean {
+  const candidateLower = candidate.toLowerCase().trim();
+  const referenceLower = reference.toLowerCase().trim();
+  if (candidateLower.length < 3 || referenceLower.length < 3) return false;
+  return referenceLower.startsWith(candidateLower) || candidateLower.startsWith(referenceLower);
+}
+
+function sequentialCharMatch(candidate: string, reference: string): boolean {
+  const candidateLower = candidate.toLowerCase().replace(/\s+/g, "");
+  const referenceLower = reference.toLowerCase().replace(/\s+/g, "");
+  if (candidateLower.length < 3 || referenceLower.length < 3) return false;
+  const shorter = candidateLower.length <= referenceLower.length ? candidateLower : referenceLower;
+  const longer = candidateLower.length <= referenceLower.length ? referenceLower : candidateLower;
+  let matchCount = 0;
+  let longerIdx = 0;
+  for (const ch of shorter) {
+    while (longerIdx < longer.length) {
+      if (longer[longerIdx] === ch) {
+        matchCount++;
+        longerIdx++;
+        break;
+      }
+      longerIdx++;
+    }
+  }
+  return matchCount / shorter.length >= 0.8;
+}
+
+export function scoreAmountMatch(debitMinor: number, netPayable: number, tolerance: number, weights: ReconciliationWeights): number {
+  if (Math.abs(netPayable - debitMinor) > tolerance) return -1;
+  if (Math.abs(netPayable - debitMinor) <= 1) return weights.exactAmount;
+  return weights.closeAmount;
+}
+
+export function scoreInvoiceNumberMatch(description: string, invoiceNumber: string, weight: number): number {
+  if (!invoiceNumber) return 0;
+  if (description.toLowerCase().includes(invoiceNumber.toLowerCase())) return weight;
+  return 0;
+}
+
+export function scoreVendorNameMatch(description: string, vendorName: string, weight: number): number {
+  if (!vendorName) return 0;
+  if (wordOverlap(vendorName, description) >= 1) return weight;
+  if (prefixMatch(vendorName, description)) return weight;
+  if (sequentialCharMatch(vendorName, description)) return Math.round(weight * 0.75);
+  return 0;
+}
+
+export function scoreDateProximity(
+  txnDate: Date,
+  invoiceDate: Date | null,
+  approvalDate: Date | null,
+  dueDate: Date | null,
+  weight: number
+): number {
+  if (isNaN(txnDate.getTime())) return 0;
+  let bestScore = 0;
+  for (const refDate of [approvalDate, invoiceDate, dueDate]) {
+    if (!refDate || isNaN(refDate.getTime())) continue;
+    const daysDiff = Math.abs((txnDate.getTime() - refDate.getTime()) / 86400000);
+    if (daysDiff <= 3) bestScore = Math.max(bestScore, weight);
+    else if (daysDiff <= 7) bestScore = Math.max(bestScore, Math.round(weight * 0.5));
+    else if (daysDiff <= 30) bestScore = Math.max(bestScore, Math.round(weight * 0.2));
+  }
+  return bestScore;
 }
 
 export class ReconciliationService {
@@ -51,6 +134,7 @@ export class ReconciliationService {
     const autoMatchThreshold = tenantConfig?.reconciliationAutoMatchThreshold ?? DEFAULT_AUTO_MATCH_THRESHOLD;
     const suggestThreshold = tenantConfig?.reconciliationSuggestThreshold ?? DEFAULT_SUGGEST_THRESHOLD;
     const tolerance = tenantConfig?.reconciliationAmountToleranceMinor ?? DEFAULT_AMOUNT_TOLERANCE_MINOR;
+    const weights = resolveWeights(tenantConfig);
 
     let matched = 0;
     let suggested = 0;
@@ -59,7 +143,7 @@ export class ReconciliationService {
     const allCandidateInvoices = await this.batchFetchCandidateInvoices(tenantId, transactions, tcsRatePercent, statementGstin, tolerance);
 
     for (const txn of transactions) {
-      const candidates = this.scoreMatchCandidates(txn, allCandidateInvoices, tcsRatePercent, tolerance);
+      const candidates = this.scoreMatchCandidates(txn, allCandidateInvoices, tcsRatePercent, tolerance, weights);
 
       if (candidates.length === 0) {
         unmatched++;
@@ -90,10 +174,6 @@ export class ReconciliationService {
     return { matched, suggested, unmatched };
   }
 
-  /**
-   * Batch-fetch all candidate invoices for a set of transactions in a single DB query.
-   * Computes the global min/max amount range across all transactions to avoid N+1 queries.
-   */
   private async batchFetchCandidateInvoices(
     tenantId: UUID,
     transactions: Pick<BankTransaction, "debitMinor" | "description" | "date">[],
@@ -128,24 +208,20 @@ export class ReconciliationService {
     return InvoiceModel.find(invoiceQuery).lean();
   }
 
-  /**
-   * Score pre-fetched candidate invoices against a single transaction in-memory.
-   */
   private scoreMatchCandidates(
     txn: Pick<BankTransaction, "debitMinor" | "description" | "date">,
     invoices: Record<string, unknown>[],
     tcsRatePercent: number,
-    tolerance: number = DEFAULT_AMOUNT_TOLERANCE_MINOR
+    tolerance: number = DEFAULT_AMOUNT_TOLERANCE_MINOR,
+    weights: ReconciliationWeights = DEFAULT_WEIGHTS
   ): MatchCandidate[] {
     if (!txn.debitMinor || txn.debitMinor <= 0) return [];
 
     const candidates: MatchCandidate[] = [];
-    const descLower = txn.description.toLowerCase();
     const txnDate = txn.date instanceof Date ? txn.date : new Date(txn.date);
 
     for (const inv of invoices) {
       const parsed = (inv as Record<string, unknown>).parsed as Record<string, unknown> | undefined;
-      let score = 0;
       const invObj = inv as unknown as Record<string, unknown>;
       const compliance = isRecord(invObj.compliance) ? invObj.compliance : undefined;
       const tds = isRecord(compliance?.tds) ? compliance.tds : undefined;
@@ -153,40 +229,21 @@ export class ReconciliationService {
       const tcsAdjustment = tcsRatePercent > 0 ? Math.round(baseNetPayable * tcsRatePercent / 100) : 0;
       const netPayable = baseNetPayable + tcsAdjustment;
 
-      if (Math.abs(netPayable - txn.debitMinor) > tolerance) continue;
-
-      if (Math.abs(netPayable - txn.debitMinor) <= 1) {
-        score += 50;
-      } else {
-        score += 30;
-      }
+      const amountScore = scoreAmountMatch(txn.debitMinor, netPayable, tolerance, weights);
+      if (amountScore < 0) continue;
 
       const invoiceNumber = (parsed?.invoiceNumber as string) ?? "";
-      if (invoiceNumber && descLower.includes(invoiceNumber.toLowerCase())) {
-        score += 30;
-      }
-
       const vendorName = (parsed?.vendorName as string) ?? "";
-      if (vendorName && wordOverlap(vendorName, descLower) >= 1) {
-        score += 20;
-      }
-
       const invoiceDate = parsed?.invoiceDate instanceof Date ? parsed.invoiceDate : null;
       const dueDate = parsed?.dueDate instanceof Date ? parsed.dueDate : null;
       const approval = isRecord(invObj.approval) ? invObj.approval : undefined;
       const approvedAt = approval?.approvedAt instanceof Date ? approval.approvedAt : null;
 
-      if (!isNaN(txnDate.getTime())) {
-        let bestDateScore = 0;
-        for (const refDate of [approvedAt, invoiceDate, dueDate]) {
-          if (!refDate || isNaN(refDate.getTime())) continue;
-          const daysDiff = Math.abs((txnDate.getTime() - refDate.getTime()) / 86400000);
-          if (daysDiff <= 3) bestDateScore = Math.max(bestDateScore, 10);
-          else if (daysDiff <= 7) bestDateScore = Math.max(bestDateScore, 5);
-          else if (daysDiff <= 30) bestDateScore = Math.max(bestDateScore, 2);
-        }
-        score += bestDateScore;
-      }
+      const score =
+        amountScore +
+        scoreInvoiceNumberMatch(txn.description, invoiceNumber, weights.invoiceNumber) +
+        scoreVendorNameMatch(txn.description, vendorName, weights.vendorName) +
+        scoreDateProximity(txnDate, invoiceDate, approvedAt, dueDate, weights.dateProximity);
 
       candidates.push({
         invoiceId: toUUID(String((inv as Record<string, unknown>)._id)),
@@ -207,8 +264,11 @@ export class ReconciliationService {
     tcsRatePercent: number = 0,
     gstin?: string
   ): Promise<MatchCandidate[]> {
-    const invoices = await this.batchFetchCandidateInvoices(tenantId, [txn], tcsRatePercent, gstin);
-    return this.scoreMatchCandidates(txn, invoices, tcsRatePercent);
+    const tenantConfig = await resolveTenantComplianceConfig(tenantId);
+    const tolerance = tenantConfig?.reconciliationAmountToleranceMinor ?? DEFAULT_AMOUNT_TOLERANCE_MINOR;
+    const weights = resolveWeights(tenantConfig);
+    const invoices = await this.batchFetchCandidateInvoices(tenantId, [txn], tcsRatePercent, gstin, tolerance);
+    return this.scoreMatchCandidates(txn, invoices, tcsRatePercent, tolerance, weights);
   }
 
   async applyMatch(tenantId: UUID, transactionId: string, invoiceId: string, confidence: number): Promise<void> {
@@ -270,4 +330,16 @@ export class ReconciliationService {
       );
     }
   }
+}
+
+function resolveWeights(
+  config: { reconciliationWeightExactAmount?: number; reconciliationWeightCloseAmount?: number; reconciliationWeightInvoiceNumber?: number; reconciliationWeightVendorName?: number; reconciliationWeightDateProximity?: number } | null
+): ReconciliationWeights {
+  return {
+    exactAmount: config?.reconciliationWeightExactAmount ?? DEFAULT_WEIGHTS.exactAmount,
+    closeAmount: config?.reconciliationWeightCloseAmount ?? DEFAULT_WEIGHTS.closeAmount,
+    invoiceNumber: config?.reconciliationWeightInvoiceNumber ?? DEFAULT_WEIGHTS.invoiceNumber,
+    vendorName: config?.reconciliationWeightVendorName ?? DEFAULT_WEIGHTS.vendorName,
+    dateProximity: config?.reconciliationWeightDateProximity ?? DEFAULT_WEIGHTS.dateProximity
+  };
 }

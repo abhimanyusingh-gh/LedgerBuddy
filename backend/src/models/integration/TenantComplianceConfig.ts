@@ -52,7 +52,12 @@ const tenantComplianceConfigSchema = new Schema(
     defaultCurrency: { type: String },
     approvalLimitOverrides: { type: Map, of: Number },
     additionalFreemailDomains: { type: [String], default: undefined },
-    learningMode: { type: String, enum: ["active", "assistive"], default: undefined }
+    learningMode: { type: String, enum: ["active", "assistive"], default: undefined },
+    reconciliationWeightExactAmount: { type: Number, default: 50 },
+    reconciliationWeightCloseAmount: { type: Number, default: 10 },
+    reconciliationWeightInvoiceNumber: { type: Number, default: 30 },
+    reconciliationWeightVendorName: { type: Number, default: 20 },
+    reconciliationWeightDateProximity: { type: Number, default: 10 }
   },
   { timestamps: true }
 );
@@ -108,6 +113,11 @@ export interface TenantComplianceConfigFields {
   approvalLimitOverrides?: Record<string, number>;
   additionalFreemailDomains?: string[];
   learningMode?: "active" | "assistive";
+  reconciliationWeightExactAmount?: number;
+  reconciliationWeightCloseAmount?: number;
+  reconciliationWeightInvoiceNumber?: number;
+  reconciliationWeightVendorName?: number;
+  reconciliationWeightDateProximity?: number;
 }
 
 export const TenantComplianceConfigModel = model<TenantComplianceConfig>("TenantComplianceConfig", tenantComplianceConfigSchema);
