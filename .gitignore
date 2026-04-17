@@ -26,3 +26,6 @@ sample-invoices/e2e-inbox/
 frontend/playwright-report/
 frontend/test-results/
 .claude/
+
+.husky/
+.junie/
