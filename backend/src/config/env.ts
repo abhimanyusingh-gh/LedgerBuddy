@@ -290,6 +290,13 @@ if (values.OCR_PROVIDER === "llamaparse" && !values.LLAMA_CLOUD_API_KEY?.trim())
   process.exit(1);
 }
 
+if (values.MAILBOX_ALERT_SMTP_HOST.trim()) {
+  // eslint-disable-next-line no-console
+  console.warn(
+    "DEPRECATED: MAILBOX_ALERT_* env vars are deprecated. Notifications now use INVITE_SMTP_* configuration. Remove MAILBOX_ALERT_* vars from your environment."
+  );
+}
+
 const apiBaseUrl = normalizeUrl(values.API_BASE_URL);
 
 export const env = {
