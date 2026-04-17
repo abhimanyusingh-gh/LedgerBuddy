@@ -2,11 +2,11 @@ import { ContextStore } from "@/core/pipeline/PipelineContext.ts";
 import type { PipelineContext } from "@/core/pipeline/PipelineContext.ts";
 import { BuildExtractionResultStep } from "@/ai/extractors/invoice/pipeline/steps/BuildExtractionResultStep.ts";
 import { POST_ENGINE_CTX } from "@/ai/extractors/invoice/pipeline/postEngineContextKeys.ts";
-import { EXTRACTION_SOURCE } from "@/core/engine/extractionSource.ts";
+import { EXTRACTION_SOURCE, type ExtractionSource } from "@/core/engine/extractionSource.ts";
 import type { InvoiceSlmOutput } from "@/ai/extractors/invoice/InvoiceDocumentDefinition.ts";
 import type { PipelineExtractionResult } from "@/ai/extractors/invoice/InvoiceExtractionPipeline.ts";
 
-function buildCtx(overrides?: { source?: string; resolvedStrategy?: string }): PipelineContext {
+function buildCtx(overrides?: { source?: ExtractionSource; resolvedStrategy?: ExtractionSource }): PipelineContext {
   const store = new ContextStore();
   const parsed = { invoiceNumber: "INV-001", totalAmountMinor: 500000 };
   const slmOutput: InvoiceSlmOutput = {

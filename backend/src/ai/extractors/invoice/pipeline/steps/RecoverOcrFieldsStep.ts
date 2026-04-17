@@ -38,9 +38,9 @@ export class RecoverOcrFieldsStep implements PipelineStep {
     ctx.store.set(POST_ENGINE_CTX.RECOVERY_STRATEGY, strategy);
     ctx.metadata.ocrRecoveryStrategy = strategy;
 
-    const engineStrategy = ctx.store.get<ExtractionSource>(POST_ENGINE_CTX.ENGINE_STRATEGY);
-    const isEngineExtract = engineStrategy === EXTRACTION_SOURCE.LLAMA_EXTRACT;
-    const resolvedStrategy = isEngineExtract ? EXTRACTION_SOURCE.LLAMA_EXTRACT : OCR_RECOVERY_STRATEGY_SOURCE[strategy];
+    const extractionStrategy = ctx.store.get<ExtractionSource>(POST_ENGINE_CTX.ENGINE_STRATEGY);
+    const isLlamaExtract = extractionStrategy === EXTRACTION_SOURCE.LLAMA_EXTRACT;
+    const resolvedStrategy = isLlamaExtract ? EXTRACTION_SOURCE.LLAMA_EXTRACT : OCR_RECOVERY_STRATEGY_SOURCE[strategy];
     ctx.store.set(POST_ENGINE_CTX.RESOLVED_STRATEGY, resolvedStrategy);
 
     const recovered = recoverOcrFields(merged, ocrBlocks, primaryText, strategy);
