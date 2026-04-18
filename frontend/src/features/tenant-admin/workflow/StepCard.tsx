@@ -15,6 +15,11 @@ export function StepCard({ step, stepCount, tenantUsers, onUpdate, onRemove }: S
     <div className="workflow-step-card">
       <div className="workflow-step-card-header">
         <span>Step {step.order}</span>
+        {step.type === "compliance_signoff" ? (
+          <span style={{ fontSize: "0.72rem", padding: "0.1rem 0.4rem", background: "var(--accent)", color: "#fff", borderRadius: "0.2rem" }}>
+            Compliance Sign-off
+          </span>
+        ) : null}
         {stepCount > 1 ? (
           <button
             type="button"
@@ -31,10 +36,14 @@ export function StepCard({ step, stepCount, tenantUsers, onUpdate, onRemove }: S
           approverType={step.approverType}
           approverRole={step.approverRole}
           approverUserIds={step.approverUserIds}
+          approverPersona={step.approverPersona}
+          approverCapability={step.approverCapability}
           tenantUsers={tenantUsers}
           onApproverTypeChange={(approverType) => onUpdate({ approverType })}
           onApproverRoleChange={(approverRole) => onUpdate({ approverRole })}
           onApproverUserIdsChange={(approverUserIds) => onUpdate({ approverUserIds })}
+          onApproverPersonaChange={(approverPersona) => onUpdate({ approverPersona })}
+          onApproverCapabilityChange={(approverCapability) => onUpdate({ approverCapability })}
         />
 
         <label>

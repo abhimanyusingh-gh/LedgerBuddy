@@ -277,6 +277,52 @@ export const TENANT_ROLE_OPTIONS: Array<{ value: TenantRole; label: string }> = 
   { value: "audit_clerk", label: "Audit Clerk" }
 ];
 
+export const PERSONA_ROLE_OPTIONS: Array<{ value: string; label: string }> = [
+  { value: "ap_clerk", label: "AP Clerk" },
+  { value: "senior_accountant", label: "Senior Accountant" },
+  { value: "ca", label: "Chartered Accountant" },
+  { value: "tax_specialist", label: "Tax Specialist" },
+  { value: "firm_partner", label: "Firm Partner" },
+  { value: "ops_admin", label: "IT/Ops Admin" },
+  { value: "audit_clerk", label: "Audit Clerk" },
+];
+
+export const CAPABILITY_FLAG_OPTIONS: Array<{ value: string; label: string }> = [
+  { value: "canApproveInvoices", label: "Can Approve Invoices" },
+  { value: "canEditInvoiceFields", label: "Can Edit Invoice Fields" },
+  { value: "canDeleteInvoices", label: "Can Delete Invoices" },
+  { value: "canRetryInvoices", label: "Can Retry Invoices" },
+  { value: "canUploadFiles", label: "Can Upload Files" },
+  { value: "canStartIngestion", label: "Can Start Ingestion" },
+  { value: "canOverrideTds", label: "Can Override TDS" },
+  { value: "canOverrideGlCode", label: "Can Override GL Code" },
+  { value: "canSignOffCompliance", label: "Can Sign Off Compliance" },
+  { value: "canConfigureTdsMappings", label: "Can Configure TDS Mappings" },
+  { value: "canConfigureGlCodes", label: "Can Configure GL Codes" },
+  { value: "canManageUsers", label: "Can Manage Users" },
+  { value: "canManageConnections", label: "Can Manage Connections" },
+  { value: "canExportToTally", label: "Can Export to Tally" },
+  { value: "canExportToCsv", label: "Can Export to CSV" },
+  { value: "canDownloadComplianceReports", label: "Can Download Compliance Reports" },
+  { value: "canViewAllInvoices", label: "Can View All Invoices" },
+  { value: "canConfigureWorkflow", label: "Can Configure Workflow" },
+  { value: "canConfigureCompliance", label: "Can Configure Compliance" },
+  { value: "canManageCostCenters", label: "Can Manage Cost Centers" },
+  { value: "canSendVendorEmails", label: "Can Send Vendor Emails" },
+];
+
+export const RISK_SEVERITY_OPTIONS: Array<{ value: string; label: string }> = [
+  { value: "info", label: "Info" },
+  { value: "warning", label: "Warning" },
+  { value: "critical", label: "Critical" },
+];
+
+export const GL_CODE_SOURCE_OPTIONS: Array<{ value: string; label: string }> = [
+  { value: "manual", label: "Manual" },
+  { value: "auto", label: "Auto" },
+  { value: "override", label: "Override" },
+];
+
 export interface UserCapabilities {
   approvalLimitMinor: number | null;
   canApproveInvoices: boolean;
@@ -469,14 +515,33 @@ export interface TenantMailbox {
   };
 }
 
+export type WorkflowStepType = "approval" | "compliance_signoff" | "escalation";
+
+export type WorkflowApproverType = "any_member" | "role" | "specific_users" | "persona" | "capability";
+
+export type WorkflowConditionField = "totalAmountMinor" | "tdsAmountMinor" | "riskSignalMaxSeverity" | "glCodeSource";
+
+export type WorkflowConditionOperator = "gt" | "gte" | "lt" | "lte" | "eq" | "in";
+
+export interface WorkflowStepCondition {
+  field: WorkflowConditionField;
+  operator: WorkflowConditionOperator;
+  value: number | string | string[];
+}
+
 export interface WorkflowStep {
   order: number;
   name: string;
-  approverType: "any_member" | "role" | "specific_users";
+  type?: WorkflowStepType;
+  approverType: WorkflowApproverType;
   approverRole?: string;
   approverUserIds?: string[];
+  approverPersona?: string;
+  approverCapability?: string;
   rule: "any" | "all";
-  condition?: { field: string; operator: "gt" | "gte" | "lt" | "lte"; value: number } | null;
+  condition?: WorkflowStepCondition | null;
+  timeoutHours?: number | null;
+  escalateTo?: string | null;
 }
 
 export interface ApprovalWorkflowConfig {
