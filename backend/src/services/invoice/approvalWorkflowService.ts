@@ -29,20 +29,25 @@ interface WorkflowConfig {
   steps: WorkflowStep[];
 }
 
+interface StepResult {
+  step: number;
+  name: string;
+  action: WorkflowStepAction;
+  userId?: string;
+  email?: string;
+  role?: string;
+  timestamp: Date;
+  note?: string;
+  qualifyingCapability?: string;
+  approvalLimitAtApproval?: number | null;
+  invoiceAmountMinor?: number;
+}
+
 interface WorkflowStateData {
   workflowId: string;
   currentStep: number;
   status: WorkflowStatus;
-  stepResults: Array<{
-    step: number;
-    name: string;
-    action: WorkflowStepAction;
-    userId?: string;
-    email?: string;
-    role?: string;
-    timestamp: Date;
-    note?: string;
-  }>;
+  stepResults: StepResult[];
 }
 
 const ANY_MEMBER_DB_ROLES = [...TenantAssignableRoles];
@@ -147,6 +152,27 @@ export class ApprovalWorkflowService {
   }
 
   async canUserApproveStep(userId: string, tenantId: string, step: WorkflowStep): Promise<boolean> {
+    if (step.type === "compliance_signoff") {
+      const roleRecord = await TenantUserRoleModel.findOne({ tenantId, userId }).lean();
+      if (!roleRecord) return false;
+      const capabilities = (roleRecord as Record<string, unknown>).capabilities as Record<string, boolean> | undefined;
+      if (!capabilities?.canSignOffCompliance) return false;
+      const userRole = normalizeTenantRole(roleRecord.role);
+      if (step.approverType === "specific_users") {
+        return (step.approverUserIds ?? []).includes(userId);
+      }
+      if (step.approverType === "role") {
+        return step.approverRole ? userRole === normalizeTenantRole(step.approverRole) : false;
+      }
+      if (step.approverType === "persona") {
+        return step.approverPersona ? userRole === normalizeTenantRole(step.approverPersona) : false;
+      }
+      if (step.approverType === "capability") {
+        return capabilities[step.approverCapability ?? ""] === true;
+      }
+      return userRole !== "PLATFORM_ADMIN";
+    }
+
     if (step.approverType === "specific_users") {
       return (step.approverUserIds ?? []).includes(userId);
     }
@@ -265,9 +291,34 @@ export class ApprovalWorkflowService {
       throw new HttpError("Current workflow step not found.", 400, "step_missing");
     }
 
-    const canApprove = await this.canUserApproveStep(authContext.userId, authContext.tenantId, currentStep as WorkflowStep);
+    const mappedStep = currentStep as WorkflowStep;
+
+    const userRoleRecord = await TenantUserRoleModel.findOne({ tenantId: authContext.tenantId, userId: authContext.userId }).lean();
+    const userCapabilities = (userRoleRecord as Record<string, unknown> | null)?.capabilities as Record<string, unknown> | undefined;
+
+    if (mappedStep.type === "compliance_signoff") {
+      if (!(userCapabilities as Record<string, boolean> | undefined)?.canSignOffCompliance) {
+        throw new HttpError("Compliance sign-off requires the compliance sign-off capability.", 403, "compliance_signoff_required");
+      }
+    }
+
+    const canApprove = await this.canUserApproveStep(authContext.userId, authContext.tenantId, mappedStep);
     if (!canApprove) {
       throw new HttpError("You are not eligible to approve this step.", 403, "not_eligible");
+    }
+
+    const approvalLimitMinor = (userCapabilities?.approvalLimitMinor as number | null | undefined) ?? null;
+    const parsed = invoice.parsed as { totalAmountMinor?: number | null } | undefined;
+    const invoiceAmountMinor = parsed?.totalAmountMinor as number | undefined;
+
+    if (approvalLimitMinor !== null && invoiceAmountMinor !== undefined && invoiceAmountMinor !== null && invoiceAmountMinor > approvalLimitMinor) {
+      const limitRs = Math.floor(approvalLimitMinor / 100);
+      const amountRs = Math.floor(invoiceAmountMinor / 100);
+      throw new HttpError(
+        `Invoice amount Rs ${amountRs} exceeds your approval limit of Rs ${limitRs}. Requires approval from a user with sufficient limit.`,
+        403,
+        "approval_limit_exceeded"
+      );
     }
 
     const alreadyApprovedThisStep = workflowState.stepResults.some(
@@ -277,15 +328,23 @@ export class ApprovalWorkflowService {
       throw new HttpError("You have already approved this step.", 400, "already_approved");
     }
 
-    workflowState.stepResults.push({
+    const stepResult: StepResult = {
       step: workflowState.currentStep,
       name: currentStep.name,
       action: WORKFLOW_STEP_ACTION.APPROVED,
       userId: authContext.userId,
       email: authContext.email,
       role: authContext.role,
-      timestamp: new Date()
-    });
+      timestamp: new Date(),
+      approvalLimitAtApproval: approvalLimitMinor,
+      invoiceAmountMinor: invoiceAmountMinor ?? undefined
+    };
+
+    if (mappedStep.type === "compliance_signoff") {
+      stepResult.qualifyingCapability = "canSignOffCompliance";
+    }
+
+    workflowState.stepResults.push(stepResult);
 
     if (currentStep.rule === "all") {
       let requiredCount = 0;

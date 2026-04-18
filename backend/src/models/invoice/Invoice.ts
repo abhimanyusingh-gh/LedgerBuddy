@@ -112,7 +112,10 @@ const workflowStepResultSchema = new Schema(
     email: { type: String },
     role: { type: String },
     timestamp: { type: Date, required: true },
-    note: { type: String }
+    note: { type: String },
+    qualifyingCapability: { type: String },
+    approvalLimitAtApproval: { type: Number, default: null },
+    invoiceAmountMinor: { type: Number }
   },
   { _id: false }
 );
