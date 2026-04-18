@@ -8,7 +8,7 @@ test("Screenshot detail panel with bounding boxes", async ({ page }) => {
   await page.getByLabel("Email Address").fill("firm-partner@local.test");
   await page.locator('input[type="password"]').fill("DemoPass!1");
   await page.getByRole("button", { name: "Sign In" }).click();
-  await expect(page.getByRole("heading", { name: "BillForge" })).toBeVisible({ timeout: 20000 });
+  await expect(page.getByRole("heading", { name: "LedgerBuddy" })).toBeVisible({ timeout: 20000 });
 
   await page.getByRole("button", { name: "Invoices" }).click();
   await page.waitForTimeout(2000);

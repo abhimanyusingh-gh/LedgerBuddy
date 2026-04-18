@@ -14,7 +14,7 @@ apiClient.interceptors.request.use((config) => {
   }
   // CSRF protection: custom header that proves the request came from our SPA,
   // not a cross-origin form submission or similar browser-initiated attack.
-  config.headers["X-Requested-With"] = "BillForge";
+  config.headers["X-Requested-With"] = "LedgerBuddy";
   return config;
 });
 

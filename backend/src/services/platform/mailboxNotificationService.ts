@@ -48,14 +48,14 @@ export class MailboxNotificationService {
     await this.emailSender.send({
       from,
       to: recipient,
-      subject: "BillForge mailbox requires reconnection",
+      subject: "LedgerBuddy mailbox requires reconnection",
       text: [
         "We lost access to your Gmail mailbox.",
         "",
         `Account: ${input.emailAddress}`,
         `Reason: ${input.reason}`,
         "",
-        "Please reconnect the mailbox from the BillForge UI."
+        "Please reconnect the mailbox from the LedgerBuddy UI."
       ].join("\n")
     });
 

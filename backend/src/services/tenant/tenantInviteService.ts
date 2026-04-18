@@ -120,13 +120,13 @@ export class TenantInviteService {
     const inviteUrl = `${env.INVITE_BASE_URL.replace(/\/+$/, "")}/invite?token=${encodeURIComponent(input.token)}`;
     const expiresAt = input.expiresAt.toISOString();
     const textBody = [
-      "You were invited to join a tenant in BillForge.",
+      "You were invited to join a tenant in LedgerBuddy.",
       "",
       `Accept invite: ${inviteUrl}`,
       `Expires at: ${expiresAt}`
     ].join("\n");
     const htmlBody = [
-      "<p>You were invited to join a tenant in BillForge.</p>",
+      "<p>You were invited to join a tenant in LedgerBuddy.</p>",
       `<p><strong>Accept invite:</strong> <a href="${inviteUrl}">${inviteUrl}</a></p>`,
       `<p><strong>Expires at:</strong> ${expiresAt}</p>`
     ].join("");
@@ -134,7 +134,7 @@ export class TenantInviteService {
     await this.inviteEmailSender.send({
       from: env.INVITE_FROM,
       to: input.email,
-      subject: "You were invited to BillForge",
+      subject: "You were invited to LedgerBuddy",
       text: textBody,
       html: htmlBody
     });

@@ -100,7 +100,7 @@ describe("buildTallyPurchaseVoucherPayload", () => {
       date: new Date("2026-02-20")
     });
 
-    expect(xml).toContain("<NARRATION>Invoice import from BillForge</NARRATION>");
+    expect(xml).toContain("<NARRATION>Invoice import from LedgerBuddy</NARRATION>");
   });
 });
 

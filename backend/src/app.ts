@@ -59,12 +59,12 @@ export async function createApp(prebuiltDependencies?: Awaited<ReturnType<typeof
     }
 
     const xRequestedWith = req.header("x-requested-with");
-    if (xRequestedWith === "BillForge") return next();
+    if (xRequestedWith === "LedgerBuddy") return next();
 
     // In local dev, warn but don't block to avoid breaking dev tools / curl
     if (env.ENV === "local") return next();
 
-    res.status(403).json({ message: "Missing CSRF header. Set X-Requested-With: BillForge on all mutating requests." });
+    res.status(403).json({ message: "Missing CSRF header. Set X-Requested-With: LedgerBuddy on all mutating requests." });
   });
   app.use((req, res, next) => {
     const incoming = req.header("x-correlation-id");

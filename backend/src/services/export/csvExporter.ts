@@ -87,7 +87,7 @@ export async function generateCsvExport(
 
   return {
     content: header + "\n" + rows.join("\n") + "\n",
-    filename: `billforge-export-${new Date().toISOString().slice(0, 10)}.csv`,
+    filename: `ledgerbuddy-export-${new Date().toISOString().slice(0, 10)}.csv`,
     includedCount: rows.length,
     skippedCount
   };

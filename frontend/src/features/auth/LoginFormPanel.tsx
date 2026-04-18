@@ -27,12 +27,12 @@ export function LoginFormPanel({
       <div className="login-form-container">
         <div className="login-mobile-brand">
           <span className="material-symbols-outlined">analytics</span>
-          <span>BillForge</span>
+          <span>LedgerBuddy</span>
         </div>
 
         <header className="login-form-header">
           <h2>Welcome back</h2>
-          <p>Please enter your details to access your BillForge account.</p>
+          <p>Please enter your details to access your LedgerBuddy account.</p>
         </header>
 
         <form
@@ -106,7 +106,7 @@ export function LoginFormPanel({
             <span className="material-symbols-outlined">shield_lock</span>
             <p>Enterprise-Grade Security</p>
           </div>
-          <p>Your data is protected by 256-bit AES encryption. BillForge is SOC2 Type II compliant and GDPR ready.</p>
+          <p>Your data is protected by 256-bit AES encryption. LedgerBuddy is SOC2 Type II compliant and GDPR ready.</p>
         </footer>
 
         <nav className="login-foot-links" aria-label="Support links">

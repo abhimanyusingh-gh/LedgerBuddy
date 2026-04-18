@@ -30,7 +30,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
             <div style={{ width: 48, height: 48, borderRadius: 12, background: "var(--accent)", color: "#fff", display: "inline-flex", alignItems: "center", justifyContent: "center", marginBottom: "1.2rem" }}>
               <span className="material-symbols-outlined" style={{ fontSize: "1.5rem" }}>receipt_long</span>
             </div>
-            <h1 style={{ margin: "0 0 0.5rem", fontSize: "1.5rem", fontWeight: 800 }}>BillForge</h1>
+            <h1 style={{ margin: "0 0 0.5rem", fontSize: "1.5rem", fontWeight: 800 }}>LedgerBuddy</h1>
             <p style={{ margin: "0 0 1.5rem", color: "var(--ink-soft)", lineHeight: 1.5 }}>Something went wrong. Please reload the page to continue.</p>
             <button
               type="button"

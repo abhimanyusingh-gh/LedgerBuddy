@@ -50,7 +50,7 @@ export async function loginViaUI(page: Page, email: string, password: string): P
   await page.locator('input[type="password"]').fill(password);
   await page.getByRole("button", { name: "Sign In" }).click();
 
-  await expect(page.getByRole("heading", { name: "BillForge" })).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByRole("heading", { name: "LedgerBuddy" })).toBeVisible({ timeout: 20_000 });
 }
 
 export async function logoutViaUI(page: Page): Promise<void> {

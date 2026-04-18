@@ -102,7 +102,7 @@ function buildVoucherElement(input: VoucherPayloadInput): string {
   const voucherNumber = xmlEscape(input.voucherNumber);
   const partyLedgerName = xmlEscape(input.partyLedgerName);
   const purchaseLedgerName = xmlEscape(input.purchaseLedgerName);
-  const narration = xmlEscape(input.narration ?? "Invoice import from BillForge");
+  const narration = xmlEscape(input.narration ?? "Invoice import from LedgerBuddy");
   const tcsAmountMinor = (input.tcs && input.tcs.amountMinor > 0) ? input.tcs.amountMinor : 0;
   const partyTotalMinor = Math.abs(input.amountMinor) + tcsAmountMinor;
   const totalAmount = formatAmount(partyTotalMinor, input.currency);

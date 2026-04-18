@@ -74,7 +74,7 @@ describe("MailboxNotificationService", () => {
       expect.objectContaining({
         from: "no-reply@billforge.local",
         to: "creator@example.com",
-        subject: "BillForge mailbox requires reconnection"
+        subject: "LedgerBuddy mailbox requires reconnection"
       })
     );
   });
