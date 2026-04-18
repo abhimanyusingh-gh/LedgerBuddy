@@ -60,6 +60,7 @@ jobs:
         module:
           - aws_documentdb_cluster
           - aws_iam_instance_profile
+          - aws_keycloak
           - aws_s3_bucket
           - aws_scheduled_ec2_service
           - aws_sts_access_role
@@ -87,10 +88,10 @@ jobs:
           terraform_wrapper: false
 
       - name: Run LocalStack integration tests
-        run: infra/tests/localstack-test.sh
+        run: infra/terraform/tests/localstack-test.sh
 
       - name: Cleanup LocalStack (fallback)
         if: always()
         run: |
-          terraform -chdir=infra/tests destroy -auto-approve -input=false 2>/dev/null || true
-          docker compose -f infra/tests/docker-compose.localstack.yml down -v 2>/dev/null || true
+          terraform -chdir=infra/terraform/tests destroy -auto-approve -input=false 2>/dev/null || true
+          docker compose -f infra/terraform/tests/docker-compose.localstack.yml down -v 2>/dev/null || true
