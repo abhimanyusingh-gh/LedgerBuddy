@@ -137,6 +137,49 @@ export async function saveApprovalLimits(limits: Record<string, number | null>):
   return (await apiClient.put<{ updated: boolean }>("/admin/approval-limits", { limits })).data;
 }
 
+export interface NotificationConfig {
+  mailboxReauthEnabled: boolean;
+  escalationEnabled: boolean;
+  inAppEnabled: boolean;
+  primaryRecipientType: "integration_creator" | "all_tenant_admins" | "specific_user";
+  specificRecipientUserId: string | null;
+}
+
+export interface NotificationLogEvent {
+  _id: string;
+  userId: string;
+  provider: string;
+  emailAddress: string;
+  eventType: string;
+  reason: string;
+  delivered: boolean;
+  deliveryFailed: boolean;
+  failureReason: string | null;
+  skippedReason: string | null;
+  recipient: string | null;
+  retryCount: number;
+  createdAt: string;
+}
+
+export interface NotificationLogResponse {
+  items: NotificationLogEvent[];
+  page: number;
+  limit: number;
+  total: number;
+}
+
+export async function fetchNotificationConfig(): Promise<NotificationConfig> {
+  return (await apiClient.get<NotificationConfig>("/admin/notification-config")).data;
+}
+
+export async function saveNotificationConfig(config: Partial<NotificationConfig>): Promise<NotificationConfig> {
+  return (await apiClient.patch<NotificationConfig>("/admin/notification-config", config)).data;
+}
+
+export async function fetchNotificationLog(page = 1, limit = 20): Promise<NotificationLogResponse> {
+  return (await apiClient.get<NotificationLogResponse>("/admin/notifications/log", { params: { page, limit } })).data;
+}
+
 export async function fetchGmailConnectionStatus() {
   const data = stripNulls((await apiClient.get<GmailConnectionStatus>("/integrations/gmail")).data) as Partial<GmailConnectionStatus>;
   const validStates = ["CONNECTED", "NEEDS_REAUTH", "DISCONNECTED"] as const;
