@@ -71,35 +71,35 @@ locals {
     }
   ]
 
-  manifest_ingestion_sources                = coalesce(try(var.app_manifest.ingestion_sources, null), var.ingestion_sources)
-  manifest_ocr_provider                     = coalesce(try(var.app_manifest.ocr_provider, null), var.ocr_provider)
-  manifest_tally_endpoint                   = coalesce(try(var.app_manifest.tally_endpoint, null), var.tally_endpoint)
-  manifest_tally_company                    = coalesce(try(var.app_manifest.tally_company, null), var.tally_company)
-  manifest_tally_purchase_ledger            = coalesce(try(var.app_manifest.tally_purchase_ledger, null), var.tally_purchase_ledger)
+  manifest_ingestion_sources     = coalesce(try(var.app_manifest.ingestion_sources, null), var.ingestion_sources)
+  manifest_ocr_provider          = coalesce(try(var.app_manifest.ocr_provider, null), var.ocr_provider)
+  manifest_tally_endpoint        = coalesce(try(var.app_manifest.tally_endpoint, null), var.tally_endpoint)
+  manifest_tally_company         = coalesce(try(var.app_manifest.tally_company, null), var.tally_company)
+  manifest_tally_purchase_ledger = coalesce(try(var.app_manifest.tally_purchase_ledger, null), var.tally_purchase_ledger)
 
   worker_env = merge(
     {
-      ENV                              = "prod"
-      NODE_ENV                         = "production"
-      MONGO_URI                        = local.resolved_mongo_uri
-      INGESTION_SOURCES                = local.manifest_ingestion_sources
-      EMAIL_SOURCE_KEY                 = var.email_source_key
-      EMAIL_HOST                       = var.email_host
-      EMAIL_PORT                       = tostring(var.email_port)
-      EMAIL_SECURE                     = tostring(var.email_secure)
-      EMAIL_USERNAME                   = var.email_username
-      EMAIL_PASSWORD                   = var.email_password
-      EMAIL_MAILBOX                    = var.email_mailbox
-      EMAIL_FROM_FILTER                = var.email_from_filter
-      OCR_PROVIDER                     = local.manifest_ocr_provider
-      S3_FILE_STORE_BUCKET             = local.resolved_artifact_bucket_name
-      S3_FILE_STORE_REGION             = var.aws_region
-      S3_FILE_STORE_PREFIX             = local.artifact_bucket_prefix
-      S3_FILE_STORE_FORCE_PATH_STYLE   = "false"
-      TALLY_ENDPOINT                   = local.manifest_tally_endpoint
-      TALLY_COMPANY                    = local.manifest_tally_company
-      TALLY_PURCHASE_LEDGER            = local.manifest_tally_purchase_ledger
-      DEFAULT_APPROVER                 = "worker"
+      ENV                            = "prod"
+      NODE_ENV                       = "production"
+      MONGO_URI                      = local.resolved_mongo_uri
+      INGESTION_SOURCES              = local.manifest_ingestion_sources
+      EMAIL_SOURCE_KEY               = var.email_source_key
+      EMAIL_HOST                     = var.email_host
+      EMAIL_PORT                     = tostring(var.email_port)
+      EMAIL_SECURE                   = tostring(var.email_secure)
+      EMAIL_USERNAME                 = var.email_username
+      EMAIL_PASSWORD                 = var.email_password
+      EMAIL_MAILBOX                  = var.email_mailbox
+      EMAIL_FROM_FILTER              = var.email_from_filter
+      OCR_PROVIDER                   = local.manifest_ocr_provider
+      S3_FILE_STORE_BUCKET           = local.resolved_artifact_bucket_name
+      S3_FILE_STORE_REGION           = var.aws_region
+      S3_FILE_STORE_PREFIX           = local.artifact_bucket_prefix
+      S3_FILE_STORE_FORCE_PATH_STYLE = "false"
+      TALLY_ENDPOINT                 = local.manifest_tally_endpoint
+      TALLY_COMPANY                  = local.manifest_tally_company
+      TALLY_PURCHASE_LEDGER          = local.manifest_tally_purchase_ledger
+      DEFAULT_APPROVER               = "worker"
     },
     coalesce(try(var.app_manifest.env, null), {}),
     var.extra_env

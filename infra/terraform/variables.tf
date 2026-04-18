@@ -229,12 +229,12 @@ variable "extra_env" {
 
 variable "app_manifest" {
   type = object({
-    ingestion_sources                = optional(string)
-    ocr_provider                     = optional(string)
-    tally_endpoint                   = optional(string)
-    tally_company                    = optional(string)
-    tally_purchase_ledger            = optional(string)
-    env                              = optional(map(string))
+    ingestion_sources     = optional(string)
+    ocr_provider          = optional(string)
+    tally_endpoint        = optional(string)
+    tally_company         = optional(string)
+    tally_purchase_ledger = optional(string)
+    env                   = optional(map(string))
   })
   description = "Optional app-level manifest overrides for reusable module wiring."
   default     = {}
