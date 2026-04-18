@@ -9,9 +9,10 @@ import { TcsConfigPanel } from "@/features/tenant-admin/TcsConfigPanel";
 import { ComplianceConfigPanel } from "@/features/tenant-admin/ComplianceConfigPanel";
 import { ReconciliationWeightsSection } from "@/features/tenant-admin/ReconciliationWeightsSection";
 import { NotificationPreferencesSection } from "@/features/tenant-admin/NotificationPreferencesSection";
+import { VendorMsmeSection } from "@/features/tenant-admin/VendorMsmeSection";
 import { useReorderableSections } from "@/hooks/useReorderableSections";
 
-const CONFIG_SECTION_IDS = ["workflow", "approval-limits", "gl-codes", "compliance", "reconciliation", "tcs", "notifications", "users"] as const;
+const CONFIG_SECTION_IDS = ["workflow", "approval-limits", "gl-codes", "compliance", "reconciliation", "tcs", "vendor-msme", "notifications", "users"] as const;
 const STORAGE_KEY = "billforge:config-section-order";
 
 interface TenantConfigTabProps {
@@ -85,6 +86,10 @@ export function TenantConfigTab({
     tcs: {
       visible: canConfigureCompliance,
       node: <TcsConfigPanel canConfigureCompliance={canConfigureCompliance} />,
+    },
+    "vendor-msme": {
+      visible: canConfigureCompliance,
+      node: <VendorMsmeSection />,
     },
     notifications: {
       visible: canManageConnections,

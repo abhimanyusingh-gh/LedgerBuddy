@@ -36,7 +36,8 @@ const vendorMasterSchema = new Schema(
         enum: ["micro", "small", "medium", null],
         default: null
       },
-      verifiedAt: { type: Date, default: null }
+      verifiedAt: { type: Date, default: null },
+      agreedPaymentDays: { type: Number, default: null }
     },
     emailDomains: { type: [String], default: [] },
     invoiceCount: { type: Number, required: true, default: 0 },

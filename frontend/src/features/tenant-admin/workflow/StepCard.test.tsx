@@ -337,18 +337,46 @@ describe("StepCard", () => {
       expect(header.textContent).toContain("Escalation");
     });
 
-    it("sets timeoutHours to null when timeout input is cleared", () => {
-      const onUpdate = jest.fn();
+    it("shows helper text for escalation timeout", () => {
       render(
         <StepCard
           {...baseProps}
-          step={{ ...baseStep, type: "escalation", timeoutHours: 24 }}
-          onUpdate={onUpdate}
+          step={{ ...baseStep, type: "escalation" }}
         />
       );
-      const input = screen.getByLabelText("Timeout (hours):");
-      fireEvent.change(input, { target: { value: "" } });
-      expect(onUpdate).toHaveBeenCalledWith({ timeoutHours: null });
+      expect(screen.getByText("Time before this step auto-escalates. Uses wall-clock hours.")).toBeInTheDocument();
+    });
+
+    it("shows validation warning when timeoutHours is set but escalateTo is missing", () => {
+      render(
+        <StepCard
+          {...baseProps}
+          step={{ ...baseStep, type: "escalation", timeoutHours: 24, escalateTo: null }}
+        />
+      );
+      expect(screen.getByRole("alert")).toHaveTextContent(
+        "Escalation target is required when a timeout is set."
+      );
+    });
+
+    it("does not show validation warning when both timeoutHours and escalateTo are set", () => {
+      render(
+        <StepCard
+          {...baseProps}
+          step={{ ...baseStep, type: "escalation", timeoutHours: 24, escalateTo: "u1" }}
+        />
+      );
+      expect(screen.queryByText("Escalation target is required when a timeout is set.")).not.toBeInTheDocument();
+    });
+
+    it("does not show validation warning when timeoutHours is not set", () => {
+      render(
+        <StepCard
+          {...baseProps}
+          step={{ ...baseStep, type: "escalation", timeoutHours: null, escalateTo: null }}
+        />
+      );
+      expect(screen.queryByText("Escalation target is required when a timeout is set.")).not.toBeInTheDocument();
     });
 
     it("rejects non-integer timeout values", () => {
@@ -365,7 +393,7 @@ describe("StepCard", () => {
       expect(onUpdate).not.toHaveBeenCalled();
     });
 
-    it("rejects timeout values out of range", () => {
+    it("rejects timeout values below 1", () => {
       const onUpdate = jest.fn();
       render(
         <StepCard
@@ -377,8 +405,34 @@ describe("StepCard", () => {
       const input = screen.getByLabelText("Timeout (hours):");
       fireEvent.change(input, { target: { value: "0" } });
       expect(onUpdate).not.toHaveBeenCalled();
+    });
+
+    it("rejects timeout values above 720", () => {
+      const onUpdate = jest.fn();
+      render(
+        <StepCard
+          {...baseProps}
+          step={{ ...baseStep, type: "escalation" }}
+          onUpdate={onUpdate}
+        />
+      );
+      const input = screen.getByLabelText("Timeout (hours):");
       fireEvent.change(input, { target: { value: "721" } });
       expect(onUpdate).not.toHaveBeenCalled();
+    });
+
+    it("accepts clearing the timeout value", () => {
+      const onUpdate = jest.fn();
+      render(
+        <StepCard
+          {...baseProps}
+          step={{ ...baseStep, type: "escalation", timeoutHours: 24 }}
+          onUpdate={onUpdate}
+        />
+      );
+      const input = screen.getByLabelText("Timeout (hours):");
+      fireEvent.change(input, { target: { value: "" } });
+      expect(onUpdate).toHaveBeenCalledWith({ timeoutHours: null });
     });
   });
 

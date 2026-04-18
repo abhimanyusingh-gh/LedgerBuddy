@@ -153,6 +153,9 @@ export function StepCard({ step, stepCount, tenantUsers, complianceSignoffUsers,
                     style={{ width: "5rem", fontSize: "0.82rem", padding: "0.2rem 0.4rem", border: "1px solid var(--line)", borderRadius: "0.25rem", background: "var(--bg-main)", color: "var(--ink)" }}
                   />
                 </label>
+                <p style={{ fontSize: "0.75rem", color: "var(--ink-soft, #666)", margin: "0.15rem 0 0.5rem" }}>
+                  Time before this step auto-escalates. Uses wall-clock hours.
+                </p>
                 <label>
                   Escalate to:
                   <select
@@ -165,6 +168,11 @@ export function StepCard({ step, stepCount, tenantUsers, complianceSignoffUsers,
                     ))}
                   </select>
                 </label>
+                {step.timeoutHours != null && !step.escalateTo ? (
+                  <p role="alert" style={{ fontSize: "0.75rem", color: "var(--warn, #f59e0b)", margin: "0.25rem 0 0" }}>
+                    Escalation target is required when a timeout is set.
+                  </p>
+                ) : null}
               </>
             ) : null}
 
