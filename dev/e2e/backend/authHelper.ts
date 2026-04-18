@@ -1,9 +1,9 @@
 import axios from "axios";
 
 const E2E_KC_BASE = process.env.E2E_KEYCLOAK_BASE_URL ?? "http://127.0.0.1:8280";
-const E2E_KC_REALM = process.env.E2E_KC_REALM ?? "billforge";
-const E2E_KC_CLIENT_ID = process.env.E2E_OIDC_CLIENT_ID ?? "billforge-app";
-const E2E_KC_CLIENT_SECRET = process.env.E2E_OIDC_CLIENT_SECRET ?? "billforge-local-secret";
+const E2E_KC_REALM = process.env.E2E_KC_REALM ?? "ledgerbuddy";
+const E2E_KC_CLIENT_ID = process.env.E2E_OIDC_CLIENT_ID ?? "ledgerbuddy-app";
+const E2E_KC_CLIENT_SECRET = process.env.E2E_OIDC_CLIENT_SECRET ?? "ledgerbuddy-local-secret";
 export const E2E_TEST_PASSWORD = "E2eTestPass!1";
 
 /**

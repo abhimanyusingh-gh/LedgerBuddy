@@ -23,8 +23,8 @@ const envSchema = z.object({
   APP_MANIFEST_PATH: z.string().optional(),
   FRONTEND_BASE_URL: z.string().default("http://localhost:5177"),
 
-  OIDC_CLIENT_ID: z.string().default("billforge-app"),
-  OIDC_CLIENT_SECRET: z.string().default("billforge-local-secret"),
+  OIDC_CLIENT_ID: z.string().default("ledgerbuddy-app"),
+  OIDC_CLIENT_SECRET: z.string().default("ledgerbuddy-local-secret"),
   OIDC_SCOPES: z.string().default("openid profile email offline_access"),
   OIDC_REDIRECT_URI: z
     .string()
@@ -32,22 +32,22 @@ const envSchema = z.object({
     .transform((value) => normalizeUrl(value)),
   OIDC_AUTH_URL: z
     .string()
-    .default("http://localhost:8280/realms/billforge/protocol/openid-connect/auth")
+    .default("http://localhost:8280/realms/ledgerbuddy/protocol/openid-connect/auth")
     .transform((value) => normalizeUrl(value)),
   OIDC_TOKEN_URL: z
     .string()
-    .default("http://keycloak:8080/realms/billforge/protocol/openid-connect/token")
+    .default("http://keycloak:8080/realms/ledgerbuddy/protocol/openid-connect/token")
     .transform((value) => normalizeUrl(value)),
   OIDC_VALIDATE_URL: z
     .string()
-    .default("http://keycloak:8080/realms/billforge/protocol/openid-connect/token/introspect")
+    .default("http://keycloak:8080/realms/ledgerbuddy/protocol/openid-connect/token/introspect")
     .transform((value) => normalizeUrl(value)),
   OIDC_USERINFO_URL: z
     .string()
-    .default("http://keycloak:8080/realms/billforge/protocol/openid-connect/userinfo")
+    .default("http://keycloak:8080/realms/ledgerbuddy/protocol/openid-connect/userinfo")
     .transform((value) => normalizeUrl(value)),
   KEYCLOAK_INTERNAL_BASE_URL: z.string().default("http://keycloak:8080"),
-  KEYCLOAK_REALM: z.string().default("billforge"),
+  KEYCLOAK_REALM: z.string().default("ledgerbuddy"),
   AUTH_STATE_TTL_SECONDS: z.coerce.number().default(600),
   APP_SESSION_SIGNING_SECRET: z.string().default("local-dev-session-signing-secret-change-me"),
   APP_SESSION_TTL_SECONDS: z.coerce.number().default(28800),
@@ -154,9 +154,9 @@ const envSchema = z.object({
   FIELD_VERIFIER_TIMEOUT_MS: z.coerce.number().default(600000),
   FIELD_VERIFIER_API_KEY: z.string().optional(),
 
-  S3_FILE_STORE_BUCKET: z.string().default("billforge-local"),
+  S3_FILE_STORE_BUCKET: z.string().default("ledgerbuddy-local"),
   S3_FILE_STORE_REGION: z.string().default("us-east-1"),
-  S3_FILE_STORE_PREFIX: z.string().default("billforge"),
+  S3_FILE_STORE_PREFIX: z.string().default("ledgerbuddy"),
   S3_FILE_STORE_ENDPOINT: z.string().default("http://minio:9000"),
   S3_FILE_STORE_PUBLIC_ENDPOINT: z.string().default(""),
   S3_FILE_STORE_FORCE_PATH_STYLE: z
@@ -279,7 +279,7 @@ if ((values.ENV === "stg" || values.ENV === "prod") && values.REFRESH_TOKEN_ENCR
   process.exit(1);
 }
 
-if ((values.ENV === "stg" || values.ENV === "prod") && values.OIDC_CLIENT_SECRET === "billforge-local-secret") {
+if ((values.ENV === "stg" || values.ENV === "prod") && values.OIDC_CLIENT_SECRET === "ledgerbuddy-local-secret") {
   // eslint-disable-next-line no-console
   console.error("Invalid env vars: set OIDC_CLIENT_SECRET for stg/prod. Do not use the default development secret.");
   process.exit(1);

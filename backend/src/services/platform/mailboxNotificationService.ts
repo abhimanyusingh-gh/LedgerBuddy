@@ -81,14 +81,14 @@ export class MailboxNotificationService {
         from,
         to: recipient,
         ...(ccRecipients.length > 0 ? { cc: ccRecipients } : {}),
-        subject: "BillForge mailbox requires reconnection",
+        subject: "LedgerBuddy mailbox requires reconnection",
         text: [
           "We lost access to your Gmail mailbox.",
           "",
           `Account: ${input.emailAddress}`,
           `Reason: ${input.reason}`,
           "",
-          "Please reconnect the mailbox from the BillForge UI."
+          "Please reconnect the mailbox from the LedgerBuddy UI."
         ].join("\n")
       });
 
@@ -144,14 +144,14 @@ export class MailboxNotificationService {
           from,
           to: recipient,
           ...(event.ccRecipients.length > 0 ? { cc: event.ccRecipients } : {}),
-          subject: "BillForge mailbox requires reconnection",
+          subject: "LedgerBuddy mailbox requires reconnection",
           text: [
             "We lost access to your Gmail mailbox.",
             "",
             `Account: ${event.emailAddress}`,
             `Reason: ${event.reason}`,
             "",
-            "Please reconnect the mailbox from the BillForge UI."
+            "Please reconnect the mailbox from the LedgerBuddy UI."
           ].join("\n")
         });
 

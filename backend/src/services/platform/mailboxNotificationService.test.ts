@@ -32,7 +32,7 @@ jest.mock("../../models/integration/MailboxNotificationEvent.js", () => ({
 
 jest.mock("../../config/env.js", () => ({
   env: {
-    INVITE_FROM: "no-reply@billforge.local"
+    INVITE_FROM: "no-reply@ledgerbuddy.local"
   }
 }));
 
@@ -115,9 +115,9 @@ describe("MailboxNotificationService", () => {
 
     expect(mockEmailSend).toHaveBeenCalledWith(
       expect.objectContaining({
-        from: "no-reply@billforge.local",
+        from: "no-reply@ledgerbuddy.local",
         to: "creator@example.com",
-        subject: "BillForge mailbox requires reconnection"
+        subject: "LedgerBuddy mailbox requires reconnection"
       })
     );
   });

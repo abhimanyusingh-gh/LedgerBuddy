@@ -2,7 +2,7 @@ import { CreateBucketCommand, DeleteObjectsCommand, ListObjectsV2Command, S3Clie
 import { S3FileStore } from "@/storage/S3FileStore.js";
 
 const LOCALSTACK_ENDPOINT = process.env.LOCALSTACK_ENDPOINT;
-const TEST_BUCKET = "billforge-integration-test";
+const TEST_BUCKET = "ledgerbuddy-integration-test";
 const TEST_REGION = "us-east-1";
 
 const describeIf = LOCALSTACK_ENDPOINT ? describe : describe.skip;

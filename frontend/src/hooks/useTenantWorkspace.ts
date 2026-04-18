@@ -13,7 +13,7 @@ export function useTenantWorkspace({ addToast }: UseTenantWorkspaceOptions) {
   const [error, setError] = useState<string | null>(null);
   const [navCounts, setNavCounts] = useState({ total: 0, approved: 0, pending: 0, failed: 0 });
   const [activeTab, setActiveTabRaw] = useState(() => {
-    const stored = localStorage.getItem("billforge:active-tab");
+    const stored = localStorage.getItem("ledgerbuddy:active-tab");
     const valid: TenantViewTab[] = ["overview", "dashboard", "config", "exports", "statements", "connections"];
     return stored && valid.includes(stored as TenantViewTab) ? (stored as TenantViewTab) : "overview";
   });
@@ -28,7 +28,7 @@ export function useTenantWorkspace({ addToast }: UseTenantWorkspaceOptions) {
 
   const setActiveTab = useCallback((tab: TenantViewTab) => {
     setActiveTabRaw(tab);
-    localStorage.setItem("billforge:active-tab", tab);
+    localStorage.setItem("ledgerbuddy:active-tab", tab);
   }, []);
 
   const session = useTenantWorkspaceSession({ guarded, setError });

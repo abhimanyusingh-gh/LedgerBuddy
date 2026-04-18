@@ -17,7 +17,7 @@ variable "environment" {
 variable "project_name" {
   type        = string
   description = "Project name used for naming/tagging resources."
-  default     = "billforge"
+  default     = "ledgerbuddy"
 }
 
 variable "sts_trusted_services" {
@@ -229,12 +229,12 @@ variable "extra_env" {
 
 variable "app_manifest" {
   type = object({
-    ingestion_sources                = optional(string)
-    ocr_provider                     = optional(string)
-    tally_endpoint                   = optional(string)
-    tally_company                    = optional(string)
-    tally_purchase_ledger            = optional(string)
-    env                              = optional(map(string))
+    ingestion_sources     = optional(string)
+    ocr_provider          = optional(string)
+    tally_endpoint        = optional(string)
+    tally_company         = optional(string)
+    tally_purchase_ledger = optional(string)
+    env                   = optional(map(string))
   })
   description = "Optional app-level manifest overrides for reusable module wiring."
   default     = {}
@@ -268,7 +268,7 @@ variable "documentdb_master_password" {
 variable "documentdb_db_name" {
   type        = string
   description = "Database name used in the generated DocumentDB connection URI."
-  default     = "billforge"
+  default     = "ledgerbuddy"
 }
 
 variable "documentdb_engine_version" {

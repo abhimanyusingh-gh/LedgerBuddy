@@ -20,7 +20,7 @@ export async function verifySmtpXoauth2(input: SmtpXoauth2ProbeInput): Promise<v
 
   try {
     await session.expectCode(220);
-    await session.command("EHLO billforge");
+    await session.command("EHLO ledgerbuddy");
     await session.expectCode(250);
     await session.command(`AUTH XOAUTH2 ${buildSmtpXoauth2Token(input.user, input.accessToken)}`);
     const authResponse = await session.readResponse();

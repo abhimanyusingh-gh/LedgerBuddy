@@ -4,7 +4,7 @@ import { EmptyState } from "@/components/common/EmptyState";
 import { useReorderableSections } from "@/hooks/useReorderableSections";
 
 const CONNECTIONS_SECTION_IDS = ["gmail", "bank-accounts"] as const;
-const STORAGE_KEY = "billforge:connections-section-order";
+const STORAGE_KEY = "ledgerbuddy:connections-section-order";
 
 interface BankConnectionsTabProps {
   mailboxes: TenantMailbox[];

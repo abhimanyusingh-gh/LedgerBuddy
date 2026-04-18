@@ -129,7 +129,7 @@ export function TenantInvoicesView({
   const [popupInvoiceId, setPopupInvoiceId] = useState<string | null>(null);
   const [detailsPanelVisible, setDetailsPanelVisible] = useState(false);
   const [listPanelPercent, setListPanelPercent] = useState(() => {
-    const stored = localStorage.getItem("billforge:panel-split");
+    const stored = localStorage.getItem("ledgerbuddy:panel-split");
     return stored ? Number(stored) : 58;
   });
   const contentRef = useRef<HTMLElement>(null);
@@ -141,20 +141,20 @@ export function TenantInvoicesView({
   const [editListValue, setEditListValue] = useState("");
   const [glCodeEditingInvoiceId, setGlCodeEditingInvoiceId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [sortColumn, setSortColumnRaw] = useState<string | null>(() => localStorage.getItem("billforge:sort-col"));
-  const [sortDirection, setSortDirectionRaw] = useState<"asc" | "desc">(() => localStorage.getItem("billforge:sort-dir") === "desc" ? "desc" : "asc");
-  const setSortColumn = (col: string) => { setSortColumnRaw(col); localStorage.setItem("billforge:sort-col", col); };
-  const setSortDirection = (v: "asc" | "desc" | ((d: "asc" | "desc") => "asc" | "desc")) => { setSortDirectionRaw((prev) => { const next = typeof v === "function" ? v(prev) : v; localStorage.setItem("billforge:sort-dir", next); return next; }); };
+  const [sortColumn, setSortColumnRaw] = useState<string | null>(() => localStorage.getItem("ledgerbuddy:sort-col"));
+  const [sortDirection, setSortDirectionRaw] = useState<"asc" | "desc">(() => localStorage.getItem("ledgerbuddy:sort-dir") === "desc" ? "desc" : "asc");
+  const setSortColumn = (col: string) => { setSortColumnRaw(col); localStorage.setItem("ledgerbuddy:sort-col", col); };
+  const setSortDirection = (v: "asc" | "desc" | ((d: "asc" | "desc") => "asc" | "desc")) => { setSortDirectionRaw((prev) => { const next = typeof v === "function" ? v(prev) : v; localStorage.setItem("ledgerbuddy:sort-dir", next); return next; }); };
   const [showShortcutsHelp, setShowShortcutsHelp] = useState(false);
   const [tableDensity, setTableDensity] = useState<"compact" | "comfortable" | "spacious">(() => {
-    const stored = localStorage.getItem("billforge:table-density");
+    const stored = localStorage.getItem("ledgerbuddy:table-density");
     return stored === "compact" || stored === "spacious" ? stored : "comfortable";
   });
   const [tenantGlCodes, setTenantGlCodes] = useState<GlCode[]>([]);
   const [tenantTdsRates, setTenantTdsRates] = useState<TdsRate[]>([]);
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>(() => {
     try {
-      const stored = localStorage.getItem("billforge:col-widths");
+      const stored = localStorage.getItem("ledgerbuddy:col-widths");
       return stored ? JSON.parse(stored) : {};
     } catch { return {}; }
   });
@@ -537,7 +537,7 @@ export function TenantInvoicesView({
       const newWidth = Math.max(60, startWidth + ev.clientX - startX);
       setColumnWidths((prev) => {
         const next = { ...prev, [colKey]: newWidth };
-        localStorage.setItem("billforge:col-widths", JSON.stringify(next));
+        localStorage.setItem("ledgerbuddy:col-widths", JSON.stringify(next));
         return next;
       });
     };
@@ -571,7 +571,7 @@ export function TenantInvoicesView({
       document.body.style.userSelect = "";
       document.removeEventListener("mousemove", onMove);
       document.removeEventListener("mouseup", onUp);
-      localStorage.setItem("billforge:panel-split", String(listPanelPercent));
+      localStorage.setItem("ledgerbuddy:panel-split", String(listPanelPercent));
     };
     document.addEventListener("mousemove", onMove);
     document.addEventListener("mouseup", onUp);
@@ -1196,7 +1196,7 @@ export function TenantInvoicesView({
         tableDensity={tableDensity}
         onTableDensityChange={(density) => {
           setTableDensity(density);
-          localStorage.setItem("billforge:table-density", density);
+          localStorage.setItem("ledgerbuddy:table-density", density);
         }}
         uploadInputRef={uploadInputRef}
         onUploadButtonClick={() => uploadInputRef.current?.click()}

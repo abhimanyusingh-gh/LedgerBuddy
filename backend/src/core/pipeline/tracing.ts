@@ -1,6 +1,6 @@
 import { traceSpan } from "@/utils/traceSpan.js";
 
-const TRACER = "billforge-pipeline";
+const TRACER = "ledgerbuddy-pipeline";
 
 export function tracePipelineStep<T>(stepName: string, fn: () => Promise<T>): Promise<T> {
   return traceSpan(

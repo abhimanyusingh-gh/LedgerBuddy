@@ -1,8 +1,8 @@
 {
-  "id": "billforge",
-  "realm": "billforge",
+  "id": "ledgerbuddy",
+  "realm": "ledgerbuddy",
   "enabled": true,
-  "displayName": "BillForge",
+  "displayName": "LedgerBuddy",
   "sslRequired": "none",
   "registrationAllowed": false,
   "loginWithEmailAllowed": true,
@@ -54,8 +54,8 @@
   ],
   "clients": [
     {
-      "clientId": "billforge-app",
-      "name": "BillForge Application",
+      "clientId": "ledgerbuddy-app",
+      "name": "LedgerBuddy Application",
       "enabled": true,
       "publicClient": false,
       "standardFlowEnabled": true,
@@ -63,7 +63,7 @@
       "serviceAccountsEnabled": true,
       "authorizationServicesEnabled": false,
       "protocol": "openid-connect",
-      "secret": "billforge-local-secret",
+      "secret": "ledgerbuddy-local-secret",
       "redirectUris": [
         "http://localhost:4100/api/auth/callback",
         "http://localhost:4100/api/connect/gmail/callback",
@@ -122,8 +122,8 @@
   ],
   "users": [
     {
-      "username": "service-account-billforge-app",
-      "serviceAccountClientId": "billforge-app",
+      "username": "service-account-ledgerbuddy-app",
+      "serviceAccountClientId": "ledgerbuddy-app",
       "enabled": true,
       "emailVerified": true,
       "clientRoles": {
@@ -249,7 +249,7 @@
   ],
   "scopeMappings": [
     {
-      "client": "billforge-app",
+      "client": "ledgerbuddy-app",
       "roles": [
         "platform_admin",
         "tenant_admin",

@@ -2,7 +2,7 @@ import axios from "axios";
 import { normalizeApiError } from "@/lib/common/apiError";
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:4100/api";
-const SESSION_TOKEN_KEY = "billforge_session_token";
+const SESSION_TOKEN_KEY = "ledgerbuddy_session_token";
 
 export const apiClient = axios.create({ baseURL: apiBaseUrl });
 

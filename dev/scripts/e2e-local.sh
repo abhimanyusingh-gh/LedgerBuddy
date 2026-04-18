@@ -54,7 +54,7 @@ trap cleanup EXIT
 
 prepare_e2e_inbox() {
   if [[ -z "$E2E_INBOX_DIR" ]]; then
-    E2E_INBOX_DIR="$(mktemp -d /tmp/billforge-e2e-inbox.XXXXXX)"
+    E2E_INBOX_DIR="$(mktemp -d /tmp/ledgerbuddy-e2e-inbox.XXXXXX)"
   fi
 
   mkdir -p "$E2E_INBOX_DIR"
@@ -234,10 +234,10 @@ E2E_FRONTEND_BASE_URL="$E2E_FRONTEND_BASE_URL" \
 E2E_OCR_HEALTH_URL="$E2E_OCR_HEALTH_URL" \
 E2E_SLM_HEALTH_URL="$E2E_SLM_HEALTH_URL" \
 E2E_INBOX_DIR="$E2E_INBOX_DIR" \
-yarn workspace billforge-backend run test:e2e
+yarn workspace ledgerbuddy-backend run test:e2e
 
 E2E_API_BASE_URL="$E2E_API_BASE_URL" \
 E2E_FRONTEND_BASE_URL="$E2E_FRONTEND_BASE_URL" \
 E2E_EXPECT_TOTAL_FILES=3 \
 E2E_SKIP_INGEST=true \
-yarn workspace billforge-frontend run test:e2e
+yarn workspace ledgerbuddy-frontend run test:e2e

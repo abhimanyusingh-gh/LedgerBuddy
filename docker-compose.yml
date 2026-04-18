@@ -1,11 +1,11 @@
-name: billforge
+name: ledgerbuddy
 
 services:
   backend:
     build:
       context: .
       dockerfile: backend/Dockerfile
-    container_name: billforge-backend
+    container_name: ledgerbuddy-backend
     restart: unless-stopped
     depends_on:
       mongo:
@@ -41,19 +41,19 @@ services:
       ENV: ${ENV:-local}
       NODE_ENV: development
       PORT: "4000"
-      MONGO_URI: mongodb://billforge_app:billforge_local_pass@mongo:27017/billforge?authSource=billforge
+      MONGO_URI: mongodb://ledgerbuddy_app:ledgerbuddy_local_pass@mongo:27017/ledgerbuddy?authSource=ledgerbuddy
       APP_MANIFEST_PATH: ${APP_MANIFEST_PATH:-}
       FRONTEND_BASE_URL: ${FRONTEND_BASE_URL:-http://localhost:5177}
-      OIDC_CLIENT_ID: ${OIDC_CLIENT_ID:-billforge-app}
-      OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET:-billforge-local-secret}
+      OIDC_CLIENT_ID: ${OIDC_CLIENT_ID:-ledgerbuddy-app}
+      OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET:-ledgerbuddy-local-secret}
       OIDC_SCOPES: ${OIDC_SCOPES:-openid profile email offline_access}
       OIDC_REDIRECT_URI: ${OIDC_REDIRECT_URI:-http://localhost:5177/api/auth/callback}
-      OIDC_AUTH_URL: ${OIDC_AUTH_URL:-http://localhost:8280/realms/billforge/protocol/openid-connect/auth}
-      OIDC_TOKEN_URL: ${OIDC_TOKEN_URL:-http://keycloak:8080/realms/billforge/protocol/openid-connect/token}
-      OIDC_VALIDATE_URL: ${OIDC_VALIDATE_URL:-http://keycloak:8080/realms/billforge/protocol/openid-connect/token/introspect}
-      OIDC_USERINFO_URL: ${OIDC_USERINFO_URL:-http://keycloak:8080/realms/billforge/protocol/openid-connect/userinfo}
+      OIDC_AUTH_URL: ${OIDC_AUTH_URL:-http://localhost:8280/realms/ledgerbuddy/protocol/openid-connect/auth}
+      OIDC_TOKEN_URL: ${OIDC_TOKEN_URL:-http://keycloak:8080/realms/ledgerbuddy/protocol/openid-connect/token}
+      OIDC_VALIDATE_URL: ${OIDC_VALIDATE_URL:-http://keycloak:8080/realms/ledgerbuddy/protocol/openid-connect/token/introspect}
+      OIDC_USERINFO_URL: ${OIDC_USERINFO_URL:-http://keycloak:8080/realms/ledgerbuddy/protocol/openid-connect/userinfo}
       KEYCLOAK_INTERNAL_BASE_URL: ${KEYCLOAK_INTERNAL_BASE_URL:-http://keycloak:8080}
-      KEYCLOAK_REALM: ${KEYCLOAK_REALM:-billforge}
+      KEYCLOAK_REALM: ${KEYCLOAK_REALM:-ledgerbuddy}
       AUTH_STATE_TTL_SECONDS: ${AUTH_STATE_TTL_SECONDS:-600}
       APP_SESSION_SIGNING_SECRET: ${APP_SESSION_SIGNING_SECRET:-local-dev-session-signing-secret-change-me}
       APP_SESSION_TTL_SECONDS: ${APP_SESSION_TTL_SECONDS:-28800}
@@ -79,12 +79,12 @@ services:
       EMAIL_OAUTH_CLIENT_SECRET: ${EMAIL_OAUTH_CLIENT_SECRET:-}
       EMAIL_OAUTH_REFRESH_TOKEN: ${EMAIL_OAUTH_REFRESH_TOKEN:-}
       EMAIL_OAUTH_ACCESS_TOKEN: ${EMAIL_OAUTH_ACCESS_TOKEN:-}
-      EMAIL_OAUTH_TOKEN_ENDPOINT: ${EMAIL_OAUTH_TOKEN_ENDPOINT:-http://keycloak:8080/realms/billforge/protocol/openid-connect/token}
+      EMAIL_OAUTH_TOKEN_ENDPOINT: ${EMAIL_OAUTH_TOKEN_ENDPOINT:-http://keycloak:8080/realms/ledgerbuddy/protocol/openid-connect/token}
       EMAIL_SIMULATION_SAMPLE_DIR: ${EMAIL_SIMULATION_SAMPLE_DIR:-/app/sample-invoices/inbox}
       EMAIL_MAILBOX: ${EMAIL_MAILBOX:-INBOX}
       EMAIL_FROM_FILTER: ${EMAIL_FROM_FILTER:-}
-      GMAIL_OAUTH_CLIENT_ID: ${GMAIL_OAUTH_CLIENT_ID:-billforge-app}
-      GMAIL_OAUTH_CLIENT_SECRET: ${GMAIL_OAUTH_CLIENT_SECRET:-billforge-local-secret}
+      GMAIL_OAUTH_CLIENT_ID: ${GMAIL_OAUTH_CLIENT_ID:-ledgerbuddy-app}
+      GMAIL_OAUTH_CLIENT_SECRET: ${GMAIL_OAUTH_CLIENT_SECRET:-ledgerbuddy-local-secret}
       GMAIL_OAUTH_REDIRECT_URI: ${GMAIL_OAUTH_REDIRECT_URI:-http://localhost:4100/api/connect/gmail/callback}
       GMAIL_OAUTH_AUTH_URL: ${GMAIL_OAUTH_AUTH_URL:-https://accounts.google.com/o/oauth2/v2/auth}
       GMAIL_OAUTH_TOKEN_URL: ${GMAIL_OAUTH_TOKEN_URL:-https://oauth2.googleapis.com/token}
@@ -107,9 +107,9 @@ services:
       FIELD_VERIFIER_PROVIDER: ${FIELD_VERIFIER_PROVIDER:-http}
       FIELD_VERIFIER_BASE_URL: http://slm:8100/v1
       FIELD_VERIFIER_TIMEOUT_MS: ${FIELD_VERIFIER_TIMEOUT_MS:-180000}
-      S3_FILE_STORE_BUCKET: ${S3_FILE_STORE_BUCKET:-billforge-local}
+      S3_FILE_STORE_BUCKET: ${S3_FILE_STORE_BUCKET:-ledgerbuddy-local}
       S3_FILE_STORE_REGION: ${S3_FILE_STORE_REGION:-us-east-1}
-      S3_FILE_STORE_PREFIX: ${S3_FILE_STORE_PREFIX:-billforge}
+      S3_FILE_STORE_PREFIX: ${S3_FILE_STORE_PREFIX:-ledgerbuddy}
       S3_FILE_STORE_ENDPOINT: ${S3_FILE_STORE_ENDPOINT:-http://minio:9000}
       S3_FILE_STORE_PUBLIC_ENDPOINT: ${S3_FILE_STORE_PUBLIC_ENDPOINT:-http://localhost:9100}
       S3_FILE_STORE_FORCE_PATH_STYLE: ${S3_FILE_STORE_FORCE_PATH_STYLE:-true}
@@ -142,7 +142,7 @@ services:
 
   redis:
     image: redis:7-alpine
-    container_name: billforge-redis
+    container_name: ledgerbuddy-redis
     restart: unless-stopped
     ports:
       - "6379:6379"
@@ -153,7 +153,7 @@ services:
 
   minio:
     image: minio/minio:latest
-    container_name: billforge-minio
+    container_name: ledgerbuddy-minio
     restart: unless-stopped
     command: server /data --console-address ":9001"
     ports:
@@ -176,14 +176,14 @@ services:
 
   minio-init:
     image: minio/mc:latest
-    container_name: billforge-minio-init
+    container_name: ledgerbuddy-minio-init
     depends_on:
       minio:
         condition: service_healthy
     entrypoint: >
       /bin/sh -c "
       mc alias set local http://minio:9000 minioadmin minioadmin;
-      mc mb --ignore-existing local/billforge-local;
+      mc mb --ignore-existing local/ledgerbuddy-local;
       exit 0;
       "
     deploy:
@@ -197,7 +197,7 @@ services:
       dockerfile: frontend/Dockerfile
       args:
         VITE_API_BASE_URL: /api
-    container_name: billforge-frontend
+    container_name: ledgerbuddy-frontend
     restart: unless-stopped
     depends_on:
       - backend
@@ -210,14 +210,14 @@ services:
 
   mongo:
     image: mongo:7
-    container_name: billforge-mongo
+    container_name: ledgerbuddy-mongo
     restart: unless-stopped
     ports:
       - "27018:27017"
     environment:
-      MONGO_INITDB_DATABASE: billforge
-      MONGO_INITDB_ROOT_USERNAME: billforge_root
-      MONGO_INITDB_ROOT_PASSWORD: billforge_root_pass
+      MONGO_INITDB_DATABASE: ledgerbuddy
+      MONGO_INITDB_ROOT_USERNAME: ledgerbuddy_root
+      MONGO_INITDB_ROOT_PASSWORD: ledgerbuddy_root_pass
     volumes:
       - mongo_data:/data/db
       - ./infra/mongo/mongo-init.js:/docker-entrypoint-initdb.d/01-create-app-user.js:ro
@@ -228,17 +228,17 @@ services:
 
   mongo-express:
     image: mongo-express:1.0.2
-    container_name: billforge-mongo-express
+    container_name: ledgerbuddy-mongo-express
     restart: unless-stopped
     depends_on:
       - mongo
     ports:
       - "8181:8081"
     environment:
-      ME_CONFIG_MONGODB_URL: mongodb://billforge_root:billforge_root_pass@mongo:27017/?authSource=admin
+      ME_CONFIG_MONGODB_URL: mongodb://ledgerbuddy_root:ledgerbuddy_root_pass@mongo:27017/?authSource=admin
       ME_CONFIG_BASICAUTH: "true"
       ME_CONFIG_BASICAUTH_USERNAME: admin
-      ME_CONFIG_BASICAUTH_PASSWORD: billforge
+      ME_CONFIG_BASICAUTH_PASSWORD: ledgerbuddy
     deploy:
       resources:
         limits:
@@ -246,7 +246,7 @@ services:
 
   mailhog:
     image: axllent/mailpit:latest
-    container_name: billforge-mailhog
+    container_name: ledgerbuddy-mailhog
     restart: unless-stopped
     ports:
       - "1125:1025"
@@ -260,7 +260,7 @@ services:
     build:
       context: .
       dockerfile: infra/mailhog/Dockerfile
-    container_name: billforge-mailhog-oauth
+    container_name: ledgerbuddy-mailhog-oauth
     restart: unless-stopped
     depends_on:
       - mailhog
@@ -285,7 +285,7 @@ services:
 
   keycloak:
     image: quay.io/keycloak/keycloak:26.0
-    container_name: billforge-keycloak
+    container_name: ledgerbuddy-keycloak
     restart: unless-stopped
     command: start --import-realm --optimized=false
     ports:
@@ -319,7 +319,7 @@ services:
     build:
       context: .
       dockerfile: ai/ocr/Dockerfile
-    container_name: billforge-ocr
+    container_name: ledgerbuddy-ocr
     restart: unless-stopped
     ports:
       - "8202:8000"
@@ -345,7 +345,7 @@ services:
     build:
       context: .
       dockerfile: ai/slm/Dockerfile
-    container_name: billforge-slm
+    container_name: ledgerbuddy-slm
     restart: unless-stopped
     ports:
       - "8302:8100"
@@ -375,7 +375,7 @@ services:
 
   jaeger:
     image: jaegertracing/all-in-one:1.56
-    container_name: billforge-jaeger
+    container_name: ledgerbuddy-jaeger
     restart: unless-stopped
     ports:
       - "16686:16686"

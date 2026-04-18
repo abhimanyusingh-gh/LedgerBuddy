@@ -6,7 +6,7 @@ import FormData from "form-data";
 import { loginWithPassword } from "./authHelper.js";
 
 const apiBaseUrl = process.env.E2E_API_BASE_URL ?? "http://127.0.0.1:4100";
-const mongoUri = process.env.E2E_MONGO_URI ?? "mongodb://billforge_app:billforge_local_pass@127.0.0.1:27018/billforge?authSource=billforge";
+const mongoUri = process.env.E2E_MONGO_URI ?? "mongodb://ledgerbuddy_app:ledgerbuddy_local_pass@127.0.0.1:27018/ledgerbuddy?authSource=ledgerbuddy";
 
 const api = axios.create({
   baseURL: apiBaseUrl,

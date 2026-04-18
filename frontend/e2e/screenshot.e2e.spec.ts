@@ -16,5 +16,5 @@ test("Screenshot detail panel with bounding boxes", async ({ page }) => {
   await page.locator("table tbody tr").first().click();
   await page.waitForTimeout(3000);
 
-  await page.screenshot({ path: "/tmp/billforge-full-tall.png", fullPage: true });
+  await page.screenshot({ path: "/tmp/ledgerbuddy-full-tall.png", fullPage: true });
 });

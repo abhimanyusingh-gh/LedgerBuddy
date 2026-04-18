@@ -27,7 +27,7 @@ import { ApprovalWorkflowService } from "@/services/invoice/approvalWorkflowServ
 
 const LOCALSTACK_ENDPOINT = process.env.LOCALSTACK_ENDPOINT;
 const MONGO_URI = process.env.MONGO_URI || env.MONGO_URI;
-const TEST_BUCKET = "billforge-localstack-e2e";
+const TEST_BUCKET = "ledgerbuddy-localstack-e2e";
 const TEST_REGION = "us-east-1";
 
 const describeIf = LOCALSTACK_ENDPOINT ? describe : describe.skip;

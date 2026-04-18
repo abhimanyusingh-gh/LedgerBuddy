@@ -15,12 +15,12 @@ import { buildXoauth2AuthorizationHeader } from "@/sources/email/xoauth2.js";
 
 const apiBaseUrl = process.env.E2E_API_BASE_URL ?? "http://127.0.0.1:4100";
 const mailhogApiBaseUrl = process.env.E2E_MAILHOG_API_BASE_URL ?? "http://127.0.0.1:8125";
-const mongoUri = process.env.E2E_MONGO_URI ?? "mongodb://billforge_app:billforge_local_pass@127.0.0.1:27018/billforge?authSource=billforge";
+const mongoUri = process.env.E2E_MONGO_URI ?? "mongodb://ledgerbuddy_app:ledgerbuddy_local_pass@127.0.0.1:27018/ledgerbuddy?authSource=ledgerbuddy";
 
 const sessionSecret = process.env.APP_SESSION_SIGNING_SECRET ?? "local-dev-session-signing-secret-change-me";
 const refreshTokenSecret = process.env.REFRESH_TOKEN_ENCRYPTION_SECRET ?? "local-dev-refresh-token-secret-32-chars";
-const localOauthClientId = process.env.OIDC_CLIENT_ID ?? "billforge-app";
-const localOauthClientSecret = process.env.OIDC_CLIENT_SECRET ?? "billforge-local-secret";
+const localOauthClientId = process.env.OIDC_CLIENT_ID ?? "ledgerbuddy-app";
+const localOauthClientSecret = process.env.OIDC_CLIENT_SECRET ?? "ledgerbuddy-local-secret";
 
 const api = axios.create({
   baseURL: apiBaseUrl,
@@ -338,8 +338,8 @@ describe("saas lifecycle e2e", () => {
     expect(refreshToken.length).toBeGreaterThan(10);
 
     const kcTokenUrl = process.env.E2E_KEYCLOAK_BASE_URL
-      ? `${process.env.E2E_KEYCLOAK_BASE_URL}/realms/${process.env.E2E_KC_REALM ?? "billforge"}/protocol/openid-connect/token`
-      : "http://127.0.0.1:8280/realms/billforge/protocol/openid-connect/token";
+      ? `${process.env.E2E_KEYCLOAK_BASE_URL}/realms/${process.env.E2E_KC_REALM ?? "ledgerbuddy"}/protocol/openid-connect/token`
+      : "http://127.0.0.1:8280/realms/ledgerbuddy/protocol/openid-connect/token";
     const tokenResponse = await axios.post(
       kcTokenUrl,
       new URLSearchParams({

@@ -67,7 +67,7 @@ describe("getInvoiceSourceHighlights", () => {
           text: "INV-42",
           page: 1,
           bbox: [220, 90, 420, 130],
-          cropPath: "/tmp/billforge-artifacts/tenant-a/local-folder/hash/ocr-blocks/page-1/block-1.png"
+          cropPath: "/tmp/ledgerbuddy-artifacts/tenant-a/local-folder/hash/ocr-blocks/page-1/block-1.png"
         },
         {
           text: "Acme Corp",

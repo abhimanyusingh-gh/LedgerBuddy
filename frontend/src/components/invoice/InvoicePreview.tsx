@@ -21,7 +21,7 @@ export function InvoicePreview({ imageUrl, alt, boundingBox, persistKey }: Invoi
   const [zoom, setZoom] = useState(() => {
     if (!persistKey) return 1;
     try {
-      const stored = localStorage.getItem(`billforge:zoom:${persistKey}`);
+      const stored = localStorage.getItem(`ledgerbuddy:zoom:${persistKey}`);
       return stored ? Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, Number(stored))) : 1;
     } catch { return 1; }
   });
@@ -36,7 +36,7 @@ export function InvoicePreview({ imageUrl, alt, boundingBox, persistKey }: Invoi
 
   useEffect(() => {
     if (persistKey) {
-      try { localStorage.setItem(`billforge:zoom:${persistKey}`, String(zoom)); } catch {}
+      try { localStorage.setItem(`ledgerbuddy:zoom:${persistKey}`, String(zoom)); } catch {}
     }
   }, [zoom, persistKey]);
 

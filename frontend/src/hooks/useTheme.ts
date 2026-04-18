@@ -9,7 +9,7 @@ function getSystemTheme(): Theme {
 
 function getStoredTheme(): Theme | null {
   try {
-    const stored = localStorage.getItem("billforge:theme");
+    const stored = localStorage.getItem("ledgerbuddy:theme");
     return stored === "light" || stored === "dark" ? stored : null;
   } catch {
     return null;
@@ -37,7 +37,7 @@ export function useTheme() {
   const toggleTheme = useCallback(() => {
     setThemeState((current) => {
       const next = current === "light" ? "dark" : "light";
-      localStorage.setItem("billforge:theme", next);
+      localStorage.setItem("ledgerbuddy:theme", next);
       return next;
     });
   }, []);

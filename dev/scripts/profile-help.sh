@@ -33,7 +33,7 @@ list_dir() {
 }
 
 echo ""
-echo "BillForge Launch Profile System"
+echo "LedgerBuddy Launch Profile System"
 echo "================================"
 echo ""
 echo "Usage:"

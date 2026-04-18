@@ -23,7 +23,7 @@ function initOverlay(el: HTMLDivElement) {
   let ox = 0;
   let oy = 0;
 
-  const saved = localStorage.getItem("billforge:ingestion-pos");
+  const saved = localStorage.getItem("ledgerbuddy:ingestion-pos");
   if (saved) {
     try {
       const p = JSON.parse(saved);
@@ -67,7 +67,7 @@ function initOverlay(el: HTMLDivElement) {
     el.style.cursor = "grab";
     el.style.transition = "";
     const rect = el.getBoundingClientRect();
-    localStorage.setItem("billforge:ingestion-pos", JSON.stringify({ x: Math.round(rect.left), y: Math.round(rect.top) }));
+    localStorage.setItem("ledgerbuddy:ingestion-pos", JSON.stringify({ x: Math.round(rect.left), y: Math.round(rect.top) }));
   });
 }
 

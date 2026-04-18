@@ -265,6 +265,6 @@ function authHeaders(token: string): Record<string, string> {
 
 async function seedAuthToken(page: Page, token: string): Promise<void> {
   await page.addInitScript((value) => {
-    window.localStorage.setItem("billforge_session_token", value);
+    window.localStorage.setItem("ledgerbuddy_session_token", value);
   }, token);
 }

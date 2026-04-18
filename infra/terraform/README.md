@@ -1,4 +1,4 @@
-# BillForge Stack
+# LedgerBuddy Stack
 
 This folder is the product stack composition layer.
 

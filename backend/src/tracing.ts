@@ -14,7 +14,7 @@ if (enabled) {
   });
 
   const sdk = new NodeSDK({
-    resource: resourceFromAttributes({ [ATTR_SERVICE_NAME]: "billforge-backend" }),
+    resource: resourceFromAttributes({ [ATTR_SERVICE_NAME]: "ledgerbuddy-backend" }),
     traceExporter: exporter,
     instrumentations: [
       getNodeAutoInstrumentations({

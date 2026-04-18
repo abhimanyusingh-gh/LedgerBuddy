@@ -217,4 +217,4 @@ E2E_EMAIL_USERNAME="$E2E_EMAIL_USERNAME" \
 E2E_EMAIL_OAUTH_CLIENT_ID="$EMAIL_OAUTH_CLIENT_ID" \
 E2E_EMAIL_OAUTH_CLIENT_SECRET="$EMAIL_OAUTH_CLIENT_SECRET" \
 E2E_EMAIL_OAUTH_REFRESH_TOKEN="$EMAIL_OAUTH_REFRESH_TOKEN" \
-yarn workspace billforge-backend jest --config jest.config.cjs --runInBand src/e2e/emailOAuthIngestion.e2e.test.ts
+yarn workspace ledgerbuddy-backend jest --config jest.config.cjs --runInBand src/e2e/emailOAuthIngestion.e2e.test.ts

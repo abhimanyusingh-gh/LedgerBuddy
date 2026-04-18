@@ -21,20 +21,20 @@ type SortKey = "date" | "total" | "success" | "failed" | "requestedBy";
 export function ExportHistoryDashboard() {
   const [items, setItems] = useState<ExportBatchSummary[]>([]);
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(() => loadStored("billforge:export-page-size", 20));
+  const [pageSize, setPageSize] = useState(() => loadStored("ledgerbuddy:export-page-size", 20));
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
-  const [dateFrom, setDateFrom] = useState(() => loadStored("billforge:export-from", ""));
-  const [dateTo, setDateTo] = useState(() => loadStored("billforge:export-to", ""));
-  const [sortKey, setSortKey] = useState<SortKey>(() => loadStored("billforge:export-sort-key", "date"));
-  const [sortDir, setSortDir] = useState<"asc" | "desc">(() => loadStored("billforge:export-sort-dir", "desc"));
+  const [dateFrom, setDateFrom] = useState(() => loadStored("ledgerbuddy:export-from", ""));
+  const [dateTo, setDateTo] = useState(() => loadStored("ledgerbuddy:export-to", ""));
+  const [sortKey, setSortKey] = useState<SortKey>(() => loadStored("ledgerbuddy:export-sort-key", "date"));
+  const [sortDir, setSortDir] = useState<"asc" | "desc">(() => loadStored("ledgerbuddy:export-sort-dir", "desc"));
 
   useEffect(() => { void loadHistory(); }, [page, pageSize]);
-  useEffect(() => { persist("billforge:export-from", dateFrom); }, [dateFrom]);
-  useEffect(() => { persist("billforge:export-to", dateTo); }, [dateTo]);
-  useEffect(() => { persist("billforge:export-page-size", pageSize); }, [pageSize]);
-  useEffect(() => { persist("billforge:export-sort-key", sortKey); }, [sortKey]);
-  useEffect(() => { persist("billforge:export-sort-dir", sortDir); }, [sortDir]);
+  useEffect(() => { persist("ledgerbuddy:export-from", dateFrom); }, [dateFrom]);
+  useEffect(() => { persist("ledgerbuddy:export-to", dateTo); }, [dateTo]);
+  useEffect(() => { persist("ledgerbuddy:export-page-size", pageSize); }, [pageSize]);
+  useEffect(() => { persist("ledgerbuddy:export-sort-key", sortKey); }, [sortKey]);
+  useEffect(() => { persist("ledgerbuddy:export-sort-dir", sortDir); }, [sortDir]);
 
   async function loadHistory() {
     setLoading(true);

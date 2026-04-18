@@ -1,5 +1,5 @@
 {
-  "name": "billforge",
+  "name": "ledgerbuddy",
   "private": true,
   "version": "0.1.0",
   "packageManager": "yarn@4.9.2",
@@ -8,11 +8,11 @@
     "frontend"
   ],
   "scripts": {
-    "dev:backend": "yarn workspace billforge-backend run dev",
-    "dev:frontend": "yarn workspace billforge-frontend run dev",
+    "dev:backend": "yarn workspace ledgerbuddy-backend run dev",
+    "dev:frontend": "yarn workspace ledgerbuddy-frontend run dev",
     "dev": "yarn dev:backend & yarn dev:frontend",
-    "build": "yarn workspace billforge-backend run build && yarn workspace billforge-frontend run build",
-    "worker:once": "yarn workspace billforge-backend run worker:once",
+    "build": "yarn workspace ledgerbuddy-backend run build && yarn workspace ledgerbuddy-frontend run build",
+    "worker:once": "yarn workspace ledgerbuddy-backend run worker:once",
     "docker": "bash ./dev/scripts/run-profile.sh docker",
     "docker:down": "bash ./dev/scripts/docker-down.sh",
     "docker:down:all": "KEEP_ML=false bash ./dev/scripts/docker-down.sh",
@@ -22,14 +22,14 @@
     "profile:list": "bash ./dev/scripts/profile-help.sh",
     "logs:local": "bash ./dev/scripts/logs-local.sh",
     "pull-models": "bash ./dev/scripts/pull-models.sh",
-    "test": "yarn workspace billforge-backend run test && yarn workspace billforge-frontend run test",
-    "coverage:check": "yarn workspace billforge-backend run coverage && yarn workspace billforge-frontend run coverage",
+    "test": "yarn workspace ledgerbuddy-backend run test && yarn workspace ledgerbuddy-frontend run test",
+    "coverage:check": "yarn workspace ledgerbuddy-backend run coverage && yarn workspace ledgerbuddy-frontend run coverage",
     "knip": "knip --workspace backend --workspace frontend",
     "quality:check": "yarn run knip && yarn run coverage:check",
     "prepare": "husky",
     "e2e:local": "bash ./dev/scripts/e2e-local.sh",
     "e2e:email-oauth": "bash ./dev/scripts/e2e-email-oauth.sh",
-    "e2e:frontend": "yarn workspace billforge-frontend run test:e2e",
+    "e2e:frontend": "yarn workspace ledgerbuddy-frontend run test:e2e",
     "e2e:frontend:local": "bash ./dev/scripts/e2e-frontend.sh"
   },
   "devDependencies": {

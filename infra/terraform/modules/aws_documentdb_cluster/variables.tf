@@ -33,7 +33,7 @@ variable "master_password" {
 variable "db_name" {
   type        = string
   description = "Logical database name included in generated connection URI."
-  default     = "billforge"
+  default     = "ledgerbuddy"
 }
 
 variable "engine_version" {

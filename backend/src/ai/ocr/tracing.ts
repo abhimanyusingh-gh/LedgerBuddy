@@ -1,6 +1,6 @@
 import { traceSpan } from "@/utils/traceSpan.js";
 
-const TRACER = "billforge-ocr";
+const TRACER = "ledgerbuddy-ocr";
 
 export function traceOcrExtract<T>(
   provider: string,

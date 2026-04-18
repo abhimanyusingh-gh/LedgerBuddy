@@ -6,7 +6,7 @@ import { InvoiceModel } from "@/models/invoice/Invoice.js";
 import { TenantIntegrationModel } from "@/models/integration/TenantIntegration.js";
 
 const apiBaseUrl = process.env.E2E_API_BASE_URL ?? "http://127.0.0.1:4100";
-const mongoUri = process.env.E2E_MONGO_URI ?? "mongodb://billforge_app:billforge_local_pass@127.0.0.1:27018/billforge?authSource=billforge";
+const mongoUri = process.env.E2E_MONGO_URI ?? "mongodb://ledgerbuddy_app:ledgerbuddy_local_pass@127.0.0.1:27018/ledgerbuddy?authSource=ledgerbuddy";
 const platformAdminEmail = process.env.E2E_PLATFORM_ADMIN_EMAIL ?? "platform-admin@local.test";
 
 const api = axios.create({

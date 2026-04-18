@@ -31,7 +31,7 @@ copy_first_match() {
 
 prepare_frontend_e2e_inbox() {
   if [[ -z "$E2E_INBOX_DIR" ]]; then
-    E2E_INBOX_DIR="$(mktemp -d /tmp/billforge-frontend-e2e-inbox.XXXXXX)"
+    E2E_INBOX_DIR="$(mktemp -d /tmp/ledgerbuddy-frontend-e2e-inbox.XXXXXX)"
   fi
   mkdir -p "$E2E_INBOX_DIR"
   rm -f "$E2E_INBOX_DIR"/*
@@ -48,4 +48,4 @@ INVOICE_INBOX_PATH="$E2E_INBOX_DIR" ENV=local yarn docker:up
 E2E_API_BASE_URL="$E2E_API_BASE_URL" \
 E2E_FRONTEND_BASE_URL="$E2E_FRONTEND_BASE_URL" \
 E2E_EXPECT_TOTAL_FILES=3 \
-yarn workspace billforge-frontend run test:e2e
+yarn workspace ledgerbuddy-frontend run test:e2e

@@ -3,7 +3,7 @@
   "defaultWorkloadTier": "standard",
   "database": {
     "provider": "mongo",
-    "uri": "mongodb://billforge_app:billforge_local_pass@mongo:27017/billforge?authSource=billforge"
+    "uri": "mongodb://ledgerbuddy_app:ledgerbuddy_local_pass@mongo:27017/ledgerbuddy?authSource=ledgerbuddy"
   },
   "ocr": {
     "configuration": {

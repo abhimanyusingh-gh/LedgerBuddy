@@ -13,7 +13,7 @@ import { VendorMsmeSection } from "@/features/tenant-admin/VendorMsmeSection";
 import { useReorderableSections } from "@/hooks/useReorderableSections";
 
 const CONFIG_SECTION_IDS = ["workflow", "approval-limits", "gl-codes", "compliance", "reconciliation", "tcs", "vendor-msme", "notifications", "users"] as const;
-const STORAGE_KEY = "billforge:config-section-order";
+const STORAGE_KEY = "ledgerbuddy:config-section-order";
 
 interface TenantConfigTabProps {
   currentUserId: string;
