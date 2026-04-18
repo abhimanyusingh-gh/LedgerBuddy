@@ -36,3 +36,29 @@ export const AMOUNT_SEARCH_PREFERENCE = {
 } as const;
 
 export type AmountSearchPreference = (typeof AMOUNT_SEARCH_PREFERENCE)[keyof typeof AMOUNT_SEARCH_PREFERENCE];
+
+export interface WorkflowStep {
+  order: number;
+  name: string;
+  type: ApprovalStepType;
+  approverType: ApproverType;
+  approverRole?: string | null;
+  approverUserIds?: string[];
+  approverPersona?: string | null;
+  approverCapability?: string | null;
+  rule: ApprovalRule;
+  condition?: {
+    field?: string | null;
+    operator?: string | null;
+    value?: unknown;
+  };
+  timeoutHours?: number | null;
+  escalateTo?: string | null;
+}
+
+export interface Workflow {
+  tenantId: string;
+  enabled: boolean;
+  mode: ApprovalWorkflowMode;
+  steps: WorkflowStep[];
+}

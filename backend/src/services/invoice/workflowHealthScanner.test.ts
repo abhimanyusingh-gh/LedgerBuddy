@@ -11,6 +11,7 @@ jest.mock("@/models/core/Tenant.js", () => ({
 }));
 
 import { ApprovalWorkflowModel } from "@/models/invoice/ApprovalWorkflow.js";
+import type { WorkflowStep, Workflow } from "@/types/approvalWorkflow.js";
 import { TenantUserRoleModel } from "@/models/core/TenantUserRole.js";
 import { TenantModel } from "@/models/core/Tenant.js";
 import { scanWorkflowStep, scanWorkflowForTenant, scanAllWorkflows } from "./workflowHealthScanner.ts";
@@ -18,6 +19,18 @@ import { scanWorkflowStep, scanWorkflowForTenant, scanAllWorkflows } from "./wor
 const mockApprovalWorkflowFind = ApprovalWorkflowModel.find as jest.Mock;
 const mockCountDocuments = TenantUserRoleModel.countDocuments as jest.Mock;
 const mockTenantFind = TenantModel.find as jest.Mock;
+
+function buildStep(overrides: Partial<WorkflowStep> & Pick<WorkflowStep, "order" | "name" | "approverType" | "rule">): WorkflowStep {
+  return {
+    type: "approval",
+    approverUserIds: [],
+    ...overrides
+  } as WorkflowStep;
+}
+
+function buildWorkflow(overrides: Partial<Workflow> & Pick<Workflow, "tenantId" | "enabled" | "mode" | "steps">): Workflow {
+  return overrides as Workflow;
+}
 
 beforeEach(() => {
   jest.clearAllMocks();
@@ -27,13 +40,13 @@ describe("scanWorkflowStep", () => {
   it("flags compliance_signoff step when no users have canSignOffCompliance", async () => {
     mockCountDocuments.mockResolvedValueOnce(0);
 
-    const step = {
+    const step = buildStep({
       order: 1,
       name: "Compliance Review",
       type: "compliance_signoff",
       approverType: "any_member",
       rule: "any"
-    };
+    });
 
     const findings = await scanWorkflowStep(step, "tenant-1");
 
@@ -45,13 +58,13 @@ describe("scanWorkflowStep", () => {
   it("returns no findings for compliance_signoff step when users have the capability", async () => {
     mockCountDocuments.mockResolvedValueOnce(2);
 
-    const step = {
+    const step = buildStep({
       order: 1,
       name: "Compliance Review",
       type: "compliance_signoff",
       approverType: "any_member",
       rule: "any"
-    };
+    });
 
     const findings = await scanWorkflowStep(step, "tenant-1");
 
@@ -59,7 +72,7 @@ describe("scanWorkflowStep", () => {
   });
 
   it("flags escalation step with timeoutHours but no escalateTo", async () => {
-    const step = {
+    const step = buildStep({
       order: 2,
       name: "Escalation Step",
       type: "escalation",
@@ -67,7 +80,7 @@ describe("scanWorkflowStep", () => {
       timeoutHours: 24,
       escalateTo: null,
       rule: "any"
-    };
+    });
 
     const findings = await scanWorkflowStep(step, "tenant-1");
 
@@ -78,7 +91,7 @@ describe("scanWorkflowStep", () => {
   });
 
   it("flags non-escalation step with timeoutHours but no escalateTo", async () => {
-    const step = {
+    const step = buildStep({
       order: 2,
       name: "Timed Step",
       type: "approval",
@@ -86,7 +99,7 @@ describe("scanWorkflowStep", () => {
       timeoutHours: 48,
       escalateTo: "",
       rule: "any"
-    };
+    });
 
     const findings = await scanWorkflowStep(step, "tenant-1");
 
@@ -95,7 +108,7 @@ describe("scanWorkflowStep", () => {
   });
 
   it("returns no findings when escalation step has escalateTo configured", async () => {
-    const step = {
+    const step = buildStep({
       order: 2,
       name: "Escalation Step",
       type: "escalation",
@@ -103,7 +116,7 @@ describe("scanWorkflowStep", () => {
       timeoutHours: 24,
       escalateTo: "user-admin-1",
       rule: "any"
-    };
+    });
 
     const findings = await scanWorkflowStep(step, "tenant-1");
 
@@ -113,14 +126,14 @@ describe("scanWorkflowStep", () => {
   it("flags persona approver type with no matching users", async () => {
     mockCountDocuments.mockResolvedValueOnce(0);
 
-    const step = {
+    const step = buildStep({
       order: 1,
       name: "CA Review",
       type: "approval",
       approverType: "persona",
       approverPersona: "ca",
       rule: "any"
-    };
+    });
 
     const findings = await scanWorkflowStep(step, "tenant-1");
 
@@ -132,14 +145,14 @@ describe("scanWorkflowStep", () => {
   it("returns no findings when persona has matching users", async () => {
     mockCountDocuments.mockResolvedValueOnce(3);
 
-    const step = {
+    const step = buildStep({
       order: 1,
       name: "CA Review",
       type: "approval",
       approverType: "persona",
       approverPersona: "ca",
       rule: "any"
-    };
+    });
 
     const findings = await scanWorkflowStep(step, "tenant-1");
 
@@ -149,14 +162,14 @@ describe("scanWorkflowStep", () => {
   it("flags capability approver type with no matching users", async () => {
     mockCountDocuments.mockResolvedValueOnce(0);
 
-    const step = {
+    const step = buildStep({
       order: 3,
       name: "Export Approval",
       type: "approval",
       approverType: "capability",
       approverCapability: "canExportToTally",
       rule: "any"
-    };
+    });
 
     const findings = await scanWorkflowStep(step, "tenant-1");
 
@@ -166,13 +179,13 @@ describe("scanWorkflowStep", () => {
   });
 
   it("returns no findings for a standard approval step", async () => {
-    const step = {
+    const step = buildStep({
       order: 1,
       name: "Basic Approval",
       type: "approval",
       approverType: "any_member",
       rule: "any"
-    };
+    });
 
     const findings = await scanWorkflowStep(step, "tenant-1");
 
@@ -180,14 +193,14 @@ describe("scanWorkflowStep", () => {
   });
 
   it("returns no findings for role-based step", async () => {
-    const step = {
+    const step = buildStep({
       order: 1,
       name: "Admin Approval",
       type: "approval",
       approverType: "role",
       approverRole: "TENANT_ADMIN",
       rule: "any"
-    };
+    });
 
     const findings = await scanWorkflowStep(step, "tenant-1");
 
@@ -197,7 +210,7 @@ describe("scanWorkflowStep", () => {
   it("flags multiple issues on a single step", async () => {
     mockCountDocuments.mockResolvedValueOnce(0);
 
-    const step = {
+    const step = buildStep({
       order: 1,
       name: "Compliance Escalation",
       type: "compliance_signoff",
@@ -206,7 +219,7 @@ describe("scanWorkflowStep", () => {
       timeoutHours: 24,
       escalateTo: null,
       rule: "any"
-    };
+    });
 
     const findings = await scanWorkflowStep(step, "tenant-1");
 
@@ -223,15 +236,15 @@ describe("scanWorkflowForTenant", () => {
       .mockResolvedValueOnce(0)
       .mockResolvedValueOnce(0);
 
-    const workflow = {
+    const workflow = buildWorkflow({
       tenantId: "tenant-1",
       enabled: true,
       mode: "advanced",
       steps: [
-        { order: 1, name: "Compliance", type: "compliance_signoff", approverType: "any_member", rule: "any" },
-        { order: 2, name: "Persona Step", type: "approval", approverType: "persona", approverPersona: "ca", rule: "any" }
+        buildStep({ order: 1, name: "Compliance", type: "compliance_signoff", approverType: "any_member", rule: "any" }),
+        buildStep({ order: 2, name: "Persona Step", type: "approval", approverType: "persona", approverPersona: "ca", rule: "any" })
       ]
-    };
+    });
 
     const result = await scanWorkflowForTenant(workflow, "Test Corp");
 
@@ -243,14 +256,14 @@ describe("scanWorkflowForTenant", () => {
   });
 
   it("returns empty findings for a healthy workflow", async () => {
-    const workflow = {
+    const workflow = buildWorkflow({
       tenantId: "tenant-2",
       enabled: true,
       mode: "simple",
       steps: [
-        { order: 1, name: "Team Approval", type: "approval", approverType: "any_member", rule: "any" }
+        buildStep({ order: 1, name: "Team Approval", type: "approval", approverType: "any_member", rule: "any" })
       ]
-    };
+    });
 
     const result = await scanWorkflowForTenant(workflow, "Healthy Corp");
 
@@ -267,7 +280,7 @@ describe("scanAllWorkflows", () => {
           enabled: true,
           mode: "advanced",
           steps: [
-            { order: 1, name: "Compliance", type: "compliance_signoff", approverType: "any_member", rule: "any" }
+            { order: 1, name: "Compliance", type: "compliance_signoff", approverType: "any_member", rule: "any", approverUserIds: [] }
           ]
         },
         {
@@ -275,7 +288,7 @@ describe("scanAllWorkflows", () => {
           enabled: false,
           mode: "simple",
           steps: [
-            { order: 1, name: "Basic", type: "approval", approverType: "any_member", rule: "any" }
+            { order: 1, name: "Basic", type: "approval", approverType: "any_member", rule: "any", approverUserIds: [] }
           ]
         }
       ])
@@ -330,7 +343,7 @@ describe("scanAllWorkflows", () => {
           enabled: true,
           mode: "simple",
           steps: [
-            { order: 1, name: "Basic", type: "approval", approverType: "any_member", rule: "any" }
+            { order: 1, name: "Basic", type: "approval", approverType: "any_member", rule: "any", approverUserIds: [] }
           ]
         }
       ])

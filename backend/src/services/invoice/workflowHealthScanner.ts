@@ -1,27 +1,7 @@
 import { ApprovalWorkflowModel } from "@/models/invoice/ApprovalWorkflow.js";
 import { TenantUserRoleModel } from "@/models/core/TenantUserRole.js";
 import { TenantModel } from "@/models/core/Tenant.js";
-
-interface WorkflowStepDoc {
-  order: number;
-  name: string;
-  type?: string | null;
-  approverType: string;
-  approverRole?: string | null;
-  approverPersona?: string | null;
-  approverCapability?: string | null;
-  approverUserIds?: string[];
-  timeoutHours?: number | null;
-  escalateTo?: string | null;
-  rule: string;
-}
-
-interface WorkflowDoc {
-  tenantId: string;
-  enabled: boolean;
-  mode: string;
-  steps: WorkflowStepDoc[];
-}
+import { APPROVAL_STEP_TYPE, APPROVER_TYPE, type WorkflowStep, type Workflow } from "@/types/approvalWorkflow.js";
 
 interface StepFinding {
   stepOrder: number;
@@ -49,72 +29,100 @@ interface WorkflowHealthReport {
 }
 
 export async function scanWorkflowStep(
-  step: WorkflowStepDoc,
+  step: WorkflowStep,
   tenantId: string
 ): Promise<StepFinding[]> {
   const findings: StepFinding[] = [];
 
-  if (step.type === "compliance_signoff") {
-    const complianceUsers = await TenantUserRoleModel.countDocuments({
-      tenantId,
-      "capabilities.canSignOffCompliance": true
-    });
-    if (complianceUsers === 0) {
-      findings.push({
-        stepOrder: step.order,
-        stepName: step.name,
-        issue: "compliance_signoff step exists but no tenant users have canSignOffCompliance capability",
-        severity: "error"
+  switch (step.type) {
+    case APPROVAL_STEP_TYPE.COMPLIANCE_SIGNOFF: {
+      const complianceUsers = await TenantUserRoleModel.countDocuments({
+        tenantId,
+        "capabilities.canSignOffCompliance": true
       });
+      if (complianceUsers === 0) {
+        findings.push({
+          stepOrder: step.order,
+          stepName: step.name,
+          issue: "compliance_signoff step exists but no tenant users have canSignOffCompliance capability",
+          severity: "error"
+        });
+      }
+      break;
     }
+    case APPROVAL_STEP_TYPE.ESCALATION:
+      if (!step.escalateTo) {
+        findings.push({
+          stepOrder: step.order,
+          stepName: step.name,
+          issue: "Step has timeoutHours configured but escalateTo is empty or null",
+          severity: "error"
+        });
+      }
+      break;
+    default:
+      break;
   }
 
-  if (step.type === "escalation" || (step.timeoutHours !== null && step.timeoutHours !== undefined && step.timeoutHours > 0)) {
-    if (!step.escalateTo) {
-      findings.push({
-        stepOrder: step.order,
-        stepName: step.name,
-        issue: "Step has timeoutHours configured but escalateTo is empty or null",
-        severity: "error"
-      });
-    }
+  if (
+    step.type !== APPROVAL_STEP_TYPE.ESCALATION &&
+    step.timeoutHours !== null &&
+    step.timeoutHours !== undefined &&
+    step.timeoutHours > 0 &&
+    !step.escalateTo
+  ) {
+    findings.push({
+      stepOrder: step.order,
+      stepName: step.name,
+      issue: "Step has timeoutHours configured but escalateTo is empty or null",
+      severity: "error"
+    });
   }
 
-  if (step.approverType === "persona" && step.approverPersona) {
-    const matchingUsers = await TenantUserRoleModel.countDocuments({
-      tenantId,
-      role: step.approverPersona
-    });
-    if (matchingUsers === 0) {
-      findings.push({
-        stepOrder: step.order,
-        stepName: step.name,
-        issue: `Approver persona '${step.approverPersona}' has no matching users in tenant`,
-        severity: "warning"
-      });
+  switch (step.approverType) {
+    case APPROVER_TYPE.PERSONA: {
+      if (step.approverPersona) {
+        const matchingUsers = await TenantUserRoleModel.countDocuments({
+          tenantId,
+          role: step.approverPersona
+        });
+        if (matchingUsers === 0) {
+          findings.push({
+            stepOrder: step.order,
+            stepName: step.name,
+            issue: `Approver persona '${step.approverPersona}' has no matching users in tenant`,
+            severity: "warning"
+          });
+        }
+      }
+      break;
     }
-  }
-
-  if (step.approverType === "capability" && step.approverCapability) {
-    const matchingUsers = await TenantUserRoleModel.countDocuments({
-      tenantId,
-      [`capabilities.${step.approverCapability}`]: true
-    });
-    if (matchingUsers === 0) {
-      findings.push({
-        stepOrder: step.order,
-        stepName: step.name,
-        issue: `Approver capability '${step.approverCapability}' has no matching users in tenant`,
-        severity: "warning"
-      });
+    case APPROVER_TYPE.CAPABILITY: {
+      if (step.approverCapability) {
+        const matchingUsers = await TenantUserRoleModel.countDocuments({
+          tenantId,
+          [`capabilities.${step.approverCapability}`]: true
+        });
+        if (matchingUsers === 0) {
+          findings.push({
+            stepOrder: step.order,
+            stepName: step.name,
+            issue: `Approver capability '${step.approverCapability}' has no matching users in tenant`,
+            severity: "warning"
+          });
+        }
+      }
+      break;
     }
+    default:
+      break;
   }
 
   return findings;
 }
 
 export async function scanWorkflowForTenant(
-  workflow: WorkflowDoc,
+  workflow: Workflow,
   tenantName: string
 ): Promise<TenantWorkflowHealthResult> {
   const findings: StepFinding[] = [];
@@ -147,7 +155,7 @@ export async function scanAllWorkflows(): Promise<WorkflowHealthReport> {
   for (const workflow of workflows) {
     const tenantName = tenantNameMap.get(workflow.tenantId) ?? "Unknown";
     const result = await scanWorkflowForTenant(
-      workflow as unknown as WorkflowDoc,
+      workflow as unknown as Workflow,
       tenantName
     );
     results.push(result);
