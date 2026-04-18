@@ -1,7 +1,7 @@
 /**
  * @jest-environment jsdom
  */
-import { render, screen } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import { StepCard } from "./StepCard";
 import type { WorkflowStep, TenantUser } from "@/types";
@@ -42,7 +42,8 @@ describe("StepCard", () => {
         step={{ ...baseStep, type: "compliance_signoff" }}
       />
     );
-    expect(screen.getByText("Compliance Sign-off")).toBeInTheDocument();
+    const header = document.querySelector(".workflow-step-card-header")!;
+    expect(header.textContent).toContain("Compliance Sign-off");
   });
 
   it("does not show compliance sign-off badge for approval type", () => {
@@ -52,7 +53,8 @@ describe("StepCard", () => {
         step={{ ...baseStep, type: "approval" }}
       />
     );
-    expect(screen.queryByText("Compliance Sign-off")).not.toBeInTheDocument();
+    const header = document.querySelector(".workflow-step-card-header")!;
+    expect(header.textContent).not.toContain("Compliance Sign-off");
   });
 
   it("shows eligible compliance users when step is compliance_signoff and users exist", () => {
@@ -121,5 +123,218 @@ describe("StepCard", () => {
     );
 
     expect(screen.getByText("unknown-id (ca)")).toBeInTheDocument();
+  });
+
+  describe("Advanced Options toggle", () => {
+    it("renders the advanced options toggle button", () => {
+      render(<StepCard {...baseProps} />);
+      expect(screen.getByText(/Advanced options/)).toBeInTheDocument();
+    });
+
+    it("defaults to collapsed for a default step", () => {
+      render(<StepCard {...baseProps} />);
+      expect(screen.queryByLabelText("Step type:")).not.toBeInTheDocument();
+    });
+
+    it("expands advanced section on toggle click", () => {
+      render(<StepCard {...baseProps} />);
+      fireEvent.click(screen.getByText(/Advanced options/));
+      expect(screen.getByLabelText("Step type:")).toBeInTheDocument();
+    });
+
+    it("collapses advanced section on second toggle click", () => {
+      render(<StepCard {...baseProps} />);
+      const toggle = screen.getByText(/Advanced options/);
+      fireEvent.click(toggle);
+      expect(screen.getByLabelText("Step type:")).toBeInTheDocument();
+      fireEvent.click(toggle);
+      expect(screen.queryByLabelText("Step type:")).not.toBeInTheDocument();
+    });
+
+    it("auto-opens when step type is compliance_signoff", () => {
+      render(
+        <StepCard
+          {...baseProps}
+          step={{ ...baseStep, type: "compliance_signoff" }}
+        />
+      );
+      expect(screen.getByLabelText("Step type:")).toBeInTheDocument();
+    });
+
+    it("auto-opens when step type is escalation", () => {
+      render(
+        <StepCard
+          {...baseProps}
+          step={{ ...baseStep, type: "escalation" }}
+        />
+      );
+      expect(screen.getByLabelText("Step type:")).toBeInTheDocument();
+    });
+
+    it("auto-opens when timeoutHours is set", () => {
+      render(
+        <StepCard
+          {...baseProps}
+          step={{ ...baseStep, timeoutHours: 24 }}
+        />
+      );
+      expect(screen.getByLabelText("Step type:")).toBeInTheDocument();
+    });
+
+    it("auto-opens when escalateTo is set", () => {
+      render(
+        <StepCard
+          {...baseProps}
+          step={{ ...baseStep, escalateTo: "u1" }}
+        />
+      );
+      expect(screen.getByLabelText("Step type:")).toBeInTheDocument();
+    });
+
+    it("stays collapsed when step has default values only", () => {
+      render(
+        <StepCard
+          {...baseProps}
+          step={{ ...baseStep, type: "approval", timeoutHours: null, escalateTo: null }}
+        />
+      );
+      expect(screen.queryByLabelText("Step type:")).not.toBeInTheDocument();
+    });
+  });
+
+  describe("Step type selector", () => {
+    it("shows all three step types in the dropdown", () => {
+      render(<StepCard {...baseProps} />);
+      fireEvent.click(screen.getByText(/Advanced options/));
+      const select = screen.getByLabelText("Step type:") as HTMLSelectElement;
+      const options = Array.from(select.options).map((o) => o.value);
+      expect(options).toEqual(["approval", "compliance_signoff", "escalation"]);
+    });
+
+    it("calls onUpdate with new type when changed", () => {
+      const onUpdate = jest.fn();
+      render(<StepCard {...baseProps} onUpdate={onUpdate} />);
+      fireEvent.click(screen.getByText(/Advanced options/));
+      const select = screen.getByLabelText("Step type:");
+      fireEvent.change(select, { target: { value: "escalation" } });
+      expect(onUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({ type: "escalation" })
+      );
+    });
+
+    it("clears escalation fields when switching away from escalation", () => {
+      const onUpdate = jest.fn();
+      render(
+        <StepCard
+          {...baseProps}
+          step={{ ...baseStep, type: "escalation", timeoutHours: 24, escalateTo: "u1" }}
+          onUpdate={onUpdate}
+        />
+      );
+      const select = screen.getByLabelText("Step type:");
+      fireEvent.change(select, { target: { value: "approval" } });
+      expect(onUpdate).toHaveBeenCalledWith({
+        type: "approval",
+        timeoutHours: null,
+        escalateTo: null,
+      });
+    });
+  });
+
+  describe("Escalation fields", () => {
+    it("shows timeout and escalateTo fields when type is escalation", () => {
+      render(
+        <StepCard
+          {...baseProps}
+          step={{ ...baseStep, type: "escalation" }}
+        />
+      );
+      expect(screen.getByLabelText("Timeout (hours):")).toBeInTheDocument();
+      expect(screen.getByLabelText("Escalate to:")).toBeInTheDocument();
+    });
+
+    it("does not show escalation fields when type is approval", () => {
+      render(<StepCard {...baseProps} />);
+      fireEvent.click(screen.getByText(/Advanced options/));
+      expect(screen.queryByLabelText("Timeout (hours):")).not.toBeInTheDocument();
+      expect(screen.queryByLabelText("Escalate to:")).not.toBeInTheDocument();
+    });
+
+    it("does not show escalation fields when type is compliance_signoff", () => {
+      render(
+        <StepCard
+          {...baseProps}
+          step={{ ...baseStep, type: "compliance_signoff" }}
+        />
+      );
+      expect(screen.queryByLabelText("Timeout (hours):")).not.toBeInTheDocument();
+      expect(screen.queryByLabelText("Escalate to:")).not.toBeInTheDocument();
+    });
+
+    it("calls onUpdate when timeout value changes", () => {
+      const onUpdate = jest.fn();
+      render(
+        <StepCard
+          {...baseProps}
+          step={{ ...baseStep, type: "escalation" }}
+          onUpdate={onUpdate}
+        />
+      );
+      const input = screen.getByLabelText("Timeout (hours):");
+      fireEvent.change(input, { target: { value: "48" } });
+      expect(onUpdate).toHaveBeenCalledWith({ timeoutHours: 48 });
+    });
+
+    it("calls onUpdate when escalateTo value changes", () => {
+      const onUpdate = jest.fn();
+      render(
+        <StepCard
+          {...baseProps}
+          step={{ ...baseStep, type: "escalation" }}
+          onUpdate={onUpdate}
+        />
+      );
+      const select = screen.getByLabelText("Escalate to:");
+      fireEvent.change(select, { target: { value: "u1" } });
+      expect(onUpdate).toHaveBeenCalledWith({ escalateTo: "u1" });
+    });
+
+    it("sets escalateTo to null when empty option is selected", () => {
+      const onUpdate = jest.fn();
+      render(
+        <StepCard
+          {...baseProps}
+          step={{ ...baseStep, type: "escalation", escalateTo: "u1" }}
+          onUpdate={onUpdate}
+        />
+      );
+      const select = screen.getByLabelText("Escalate to:");
+      fireEvent.change(select, { target: { value: "" } });
+      expect(onUpdate).toHaveBeenCalledWith({ escalateTo: null });
+    });
+
+    it("shows tenant users as escalation target options", () => {
+      render(
+        <StepCard
+          {...baseProps}
+          step={{ ...baseStep, type: "escalation" }}
+        />
+      );
+      const select = screen.getByLabelText("Escalate to:") as HTMLSelectElement;
+      const options = Array.from(select.options).map((o) => o.value);
+      expect(options).toContain("u1");
+      expect(options).toContain("u2");
+    });
+
+    it("displays escalation badge in header when type is escalation", () => {
+      render(
+        <StepCard
+          {...baseProps}
+          step={{ ...baseStep, type: "escalation" }}
+        />
+      );
+      const header = document.querySelector(".workflow-step-card-header")!;
+      expect(header.textContent).toContain("Escalation");
+    });
   });
 });
