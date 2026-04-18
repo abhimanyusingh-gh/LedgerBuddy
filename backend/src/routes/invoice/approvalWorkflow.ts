@@ -5,6 +5,8 @@ import { requireAuth } from "@/auth/requireAuth.js";
 import { requireCap } from "@/auth/requireCapability.js";
 import { TenantUserRoleModel, TenantAssignableRoles } from "@/models/core/TenantUserRole.js";
 import { getRoleDefaults } from "@/auth/personaDefaults.js";
+import { AuditLogModel } from "@/models/core/AuditLog.js";
+import { logger } from "@/utils/logger.js";
 
 export function createApprovalWorkflowRouter(workflowService: ApprovalWorkflowService) {
   const router = Router();
@@ -88,18 +90,34 @@ export function createApprovalWorkflowRouter(workflowService: ApprovalWorkflowSe
     try {
       const context = getAuth(req);
       const enabled = typeof req.body?.enabled === "boolean" ? req.body.enabled : false;
-      const mode = req.body?.mode === "advanced" ? "advanced" : "simple";
+      const mode = req.body?.mode === "advanced" ? "advanced" as const : "simple" as const;
       const simpleConfig = {
         requireManagerReview: typeof req.body?.simpleConfig?.requireManagerReview === "boolean" ? req.body.simpleConfig.requireManagerReview : false,
         requireFinalSignoff: typeof req.body?.simpleConfig?.requireFinalSignoff === "boolean" ? req.body.simpleConfig.requireFinalSignoff : false
       };
       const steps = Array.isArray(req.body?.steps) ? req.body.steps : [];
 
+      const previousConfig = await workflowService.getWorkflowConfig(context.tenantId);
+      const newConfig = { enabled, mode, simpleConfig, steps };
+
       const result = await workflowService.saveWorkflowConfig(
         context.tenantId,
-        { enabled, mode, simpleConfig, steps },
+        newConfig,
         context.userId
       );
+
+      AuditLogModel.create({
+        tenantId: context.tenantId,
+        userId: context.userId,
+        entityType: "config",
+        entityId: context.tenantId,
+        action: "approval_workflow_updated",
+        previousValue: previousConfig,
+        newValue: result,
+      }).catch((err) => {
+        logger.error("audit_log.write_failed", { error: String(err), tenantId: context.tenantId });
+      });
+
       res.json(result);
     } catch (error) {
       next(error);
