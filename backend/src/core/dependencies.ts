@@ -23,6 +23,7 @@ import { HttpFieldVerifier } from "@/ai/verifiers/HttpFieldVerifier.js";
 import { S3FileStore } from "@/storage/S3FileStore.js";
 import { EmailSimulationService } from "@/services/platform/emailSimulationService.js";
 import { TenantGmailIntegrationService } from "@/services/tenant/tenantGmailIntegrationService.js";
+import { MailboxNotificationService } from "@/services/platform/mailboxNotificationService.js";
 import type { IBankConnectionService } from "@/services/bank/anumati/IBankConnectionService.js";
 import { AnumatiBankConnectionService } from "@/services/bank/anumati/AnumatiBankConnectionService.js";
 import { MockBankConnectionService } from "@/services/bank/anumati/MockBankConnectionService.js";
@@ -89,7 +90,7 @@ function buildAuthServices(manifest: RuntimeManifest) {
   const inviteEmailSender = createInviteEmailSenderProvider();
   const tenantInviteService = new TenantInviteService(inviteEmailSender, keycloakAdmin);
   const platformAdminService = new PlatformAdminService(inviteEmailSender, keycloakAdmin);
-  return { authService, keycloakAdmin, tenantAdminService, tenantInviteService, platformAdminService };
+  return { authService, keycloakAdmin, tenantAdminService, tenantInviteService, platformAdminService, inviteEmailSender };
 }
 
 async function buildExtractionPipeline(manifest: RuntimeManifest, learningStore: MongoExtractionLearningStore, mappingService: ExtractionMappingService) {
@@ -137,7 +138,8 @@ export async function buildDependencies(): Promise<Dependencies> {
   const extraction = await buildExtractionPipeline(manifest, learningStore, mappingService);
   const storage = buildStorageAndExport(manifest);
 
-  const gmailIntegrationService = new TenantGmailIntegrationService();
+  const notificationService = new MailboxNotificationService(auth.inviteEmailSender);
+  const gmailIntegrationService = new TenantGmailIntegrationService(notificationService);
   const bankService: IBankConnectionService = env.ANUMATI_ENTITY_ID
     ? new AnumatiBankConnectionService()
     : new MockBankConnectionService();

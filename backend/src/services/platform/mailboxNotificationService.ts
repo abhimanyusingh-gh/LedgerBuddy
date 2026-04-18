@@ -1,9 +1,12 @@
-import nodemailer from "nodemailer";
 import { env } from "@/config/env.js";
+import type { InviteEmailSenderBoundary } from "@/core/boundaries/InviteEmailSenderBoundary.js";
 import { MailboxNotificationEventModel } from "@/models/integration/MailboxNotificationEvent.js";
+import { UserModel } from "@/models/core/User.js";
+import { TenantUserRoleModel } from "@/models/core/TenantUserRole.js";
 import { logger } from "@/utils/logger.js";
 
 interface ReauthNotificationInput {
+  tenantId: string;
   userId: string;
   provider: "gmail";
   emailAddress: string;
@@ -11,6 +14,8 @@ interface ReauthNotificationInput {
 }
 
 export class MailboxNotificationService {
+  constructor(private readonly emailSender: InviteEmailSenderBoundary) {}
+
   async notifyNeedsReauth(input: ReauthNotificationInput): Promise<void> {
     const event = await MailboxNotificationEventModel.create({
       userId: input.userId,
@@ -21,31 +26,27 @@ export class MailboxNotificationService {
       delivered: false
     });
 
-    const recipient = env.MAILBOX_ALERT_TO.trim() || input.emailAddress;
-    if (!env.MAILBOX_ALERT_SMTP_HOST.trim() || !env.MAILBOX_ALERT_FROM.trim() || !recipient) {
-      logger.warn("mailbox.notification.smtp_not_configured", {
+    const recipient = await this.resolveRecipient(input.userId, input.tenantId);
+    if (!recipient) {
+      logger.warn("mailbox.notification.no_recipient", {
         userId: input.userId,
-        provider: input.provider,
-        recipient
+        tenantId: input.tenantId,
+        provider: input.provider
       });
       return;
     }
 
-    const transport = nodemailer.createTransport({
-      host: env.MAILBOX_ALERT_SMTP_HOST,
-      port: env.MAILBOX_ALERT_SMTP_PORT,
-      secure: env.MAILBOX_ALERT_SMTP_SECURE,
-      auth:
-        env.MAILBOX_ALERT_SMTP_USERNAME.trim() && env.MAILBOX_ALERT_SMTP_PASSWORD.trim()
-          ? {
-              user: env.MAILBOX_ALERT_SMTP_USERNAME,
-              pass: env.MAILBOX_ALERT_SMTP_PASSWORD
-            }
-          : undefined
-    });
+    const from = env.INVITE_FROM;
+    if (!from.trim()) {
+      logger.warn("mailbox.notification.no_sender_configured", {
+        userId: input.userId,
+        provider: input.provider
+      });
+      return;
+    }
 
-    await transport.sendMail({
-      from: env.MAILBOX_ALERT_FROM,
+    await this.emailSender.send({
+      from,
       to: recipient,
       subject: "BillForge mailbox requires reconnection",
       text: [
@@ -65,5 +66,23 @@ export class MailboxNotificationService {
       provider: input.provider,
       recipient
     });
+  }
+
+  private async resolveRecipient(userId: string, tenantId: string): Promise<string | null> {
+    const creator = await UserModel.findById(userId).select({ email: 1 }).lean();
+    if (creator?.email) {
+      return creator.email;
+    }
+
+    const adminRole = await TenantUserRoleModel.findOne({
+      tenantId,
+      role: "TENANT_ADMIN"
+    }).select({ userId: 1 }).lean();
+    if (!adminRole) {
+      return null;
+    }
+
+    const admin = await UserModel.findById(adminRole.userId).select({ email: 1 }).lean();
+    return admin?.email ?? null;
   }
 }

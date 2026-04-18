@@ -26,7 +26,7 @@ interface GmailConnectionStatus {
 }
 
 export class TenantGmailIntegrationService {
-  constructor(private readonly notificationService: MailboxNotificationService = new MailboxNotificationService()) {}
+  constructor(private readonly notificationService: MailboxNotificationService) {}
 
   async createConnectUrl(input: { tenantId: string; userId: string }): Promise<string> {
     assertGmailOAuthConfigured();
@@ -250,6 +250,7 @@ export class TenantGmailIntegrationService {
       integration.reauthNotifiedAt = new Date();
       await integration.save();
       await this.notificationService.notifyNeedsReauth({
+        tenantId: integration.tenantId,
         userId: integration.createdByUserId,
         provider: PROVIDER,
         emailAddress: integration.emailAddress ?? "",
