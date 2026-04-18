@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { requirePlatformAdmin } from "@/auth/middleware.js";
 import type { PlatformAdminService } from "@/services/platform/platformAdminService.js";
+import { scanAllWorkflows } from "@/services/invoice/workflowHealthScanner.js";
 
 export function createPlatformAdminRouter(platformAdminService: PlatformAdminService) {
   const router = Router();
@@ -44,6 +45,15 @@ export function createPlatformAdminRouter(platformAdminService: PlatformAdminSer
     try {
       const items = await platformAdminService.listTenantUsageOverview();
       response.json({ items });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  router.get("/admin/workflow-health", requirePlatformAdmin, async (_request, response, next) => {
+    try {
+      const report = await scanAllWorkflows();
+      response.json(report);
     } catch (error) {
       next(error);
     }
