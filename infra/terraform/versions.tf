@@ -14,7 +14,7 @@ provider "aws" {
 
   default_tags {
     tags = {
-      Project   = "billforge"
+      Project   = "ledgerbuddy"
       ManagedBy = "terraform"
     }
   }

@@ -70,7 +70,7 @@ jobs:
           terraform_version: "1.6"
       - name: Validate ${{ matrix.module }}
         run: |
-          cd infra/modules/${{ matrix.module }}
+          cd infra/terraform/modules/${{ matrix.module }}
           terraform init -backend=false
           terraform validate
 

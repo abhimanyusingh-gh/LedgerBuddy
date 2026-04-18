@@ -1,7 +1,7 @@
 variable "name" {
   type        = string
   description = "Name prefix for all Keycloak resources."
-  default     = "billforge-keycloak"
+  default     = "ledgerbuddy-keycloak"
 }
 
 variable "vpc_id" {

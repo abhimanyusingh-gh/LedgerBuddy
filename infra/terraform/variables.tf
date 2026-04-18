@@ -17,7 +17,7 @@ variable "environment" {
 variable "project_name" {
   type        = string
   description = "Project name used for naming/tagging resources."
-  default     = "billforge"
+  default     = "ledgerbuddy"
 }
 
 variable "sts_trusted_services" {
@@ -268,7 +268,7 @@ variable "documentdb_master_password" {
 variable "documentdb_db_name" {
   type        = string
   description = "Database name used in the generated DocumentDB connection URI."
-  default     = "billforge"
+  default     = "ledgerbuddy"
 }
 
 variable "documentdb_engine_version" {
