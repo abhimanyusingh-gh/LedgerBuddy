@@ -1,13 +1,6 @@
 import { type ChangeEvent, type DragEvent, type RefObject } from "react";
-import type { IngestionJobStatus, TenantRole } from "@/types";
+import type { IngestionJobStatus, TenantUser } from "@/types";
 import { STATUS_LABELS, STATUSES } from "@/lib/invoice/invoiceView";
-
-interface TenantUserSummary {
-  userId: string;
-  email: string;
-  role: TenantRole;
-  enabled: boolean;
-}
 
 interface TenantInvoicesToolbarProps {
   searchQuery: string;
@@ -22,7 +15,7 @@ interface TenantInvoicesToolbarProps {
   hasActiveFilters: boolean;
   onClearAllFilters: () => void;
   canViewAllInvoices: boolean;
-  tenantUsers?: TenantUserSummary[];
+  tenantUsers?: TenantUser[];
   approvedByFilter: string;
   onApprovedByFilterChange: (value: string) => void;
   canApproveInvoices: boolean;

@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import type { GmailConnectionStatus } from "@/types";
-import { TENANT_ROLE_OPTIONS, type TenantRole, type UserCapabilities } from "@/types";
+import { TENANT_ROLE_OPTIONS, type TenantRole, type TenantUser, type UserCapabilities } from "@/types";
 import { ApprovalWorkflowSection } from "@/features/tenant-admin/ApprovalWorkflowSection";
 import { GlCodeManager } from "@/features/tenant-admin/GlCodeManager";
 import { EmptyState } from "@/components/common/EmptyState";
@@ -20,7 +20,7 @@ interface TenantConfigTabProps {
   inviteEmail: string;
   onInviteEmailChange: (email: string) => void;
   onInviteUser: () => void;
-  tenantUsers: Array<{ userId: string; email: string; role: TenantRole; enabled: boolean }>;
+  tenantUsers: TenantUser[];
   onRoleChange: (userId: string, role: TenantRole) => void;
   onToggleUserEnabled: (userId: string, enabled: boolean) => void;
   onRemoveUser: (userId: string) => void;

@@ -1,6 +1,6 @@
 import axios from "axios";
 import { apiClient } from "@/api/client";
-import type { SessionRole, TenantRole, UserCapabilities } from "@/types";
+import type { RoleWithCapabilities, TenantRole, TenantUser } from "@/types";
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:4100/api";
 
@@ -16,13 +16,7 @@ export async function refreshSessionToken(currentToken: string): Promise<string>
 }
 
 interface SessionContextResponse {
-  user: {
-    id: string;
-    email: string;
-    role: SessionRole;
-    isPlatformAdmin: boolean;
-    capabilities: UserCapabilities;
-  };
+  user: { id: string; email: string; isPlatformAdmin: boolean } & RoleWithCapabilities;
   tenant: {
     id: string;
     name: string;
@@ -35,13 +29,6 @@ interface SessionContextResponse {
     requires_admin_action: boolean;
     must_change_password: boolean;
   };
-}
-
-interface TenantUserSummary {
-  userId: string;
-  email: string;
-  role: TenantRole;
-  enabled: boolean;
 }
 
 export async function loginWithCredentials(email: string, password: string): Promise<string> {
@@ -63,8 +50,8 @@ export async function changePassword(currentPassword: string, newPassword: strin
   await apiClient.post("/auth/change-password", { currentPassword, newPassword });
 }
 
-export async function fetchTenantUsers(): Promise<TenantUserSummary[]> {
-  const response = await apiClient.get<{ items?: TenantUserSummary[] }>("/admin/users");
+export async function fetchTenantUsers(): Promise<TenantUser[]> {
+  const response = await apiClient.get<{ items?: TenantUser[] }>("/admin/users");
   return Array.isArray(response.data?.items) ? response.data.items : [];
 }
 

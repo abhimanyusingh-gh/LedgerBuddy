@@ -348,6 +348,18 @@ export interface UserCapabilities {
   canSendVendorEmails: boolean;
 }
 
+export interface RoleWithCapabilities {
+  role: SessionRole;
+  capabilities: UserCapabilities;
+}
+
+export interface TenantUser {
+  userId: string;
+  email: string;
+  role: TenantRole;
+  enabled: boolean;
+}
+
 export interface BankStatementSummary {
   _id: string;
   tenantId: string;

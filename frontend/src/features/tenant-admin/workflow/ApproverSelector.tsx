@@ -1,9 +1,9 @@
-import type { ApproverState, WorkflowStep } from "@/types";
+import type { ApproverState, TenantUser, WorkflowStep } from "@/types";
 import { TENANT_ROLE_OPTIONS, PERSONA_ROLE_OPTIONS, CAPABILITY_FLAG_OPTIONS } from "@/types";
 
 interface ApproverSelectorProps {
   approver: ApproverState;
-  tenantUsers: Array<{ userId: string; email: string }>;
+  tenantUsers: TenantUser[];
   onApproverChange: (approver: ApproverState) => void;
 }
 

@@ -1,11 +1,11 @@
-import type { WorkflowStep } from "@/types";
+import type { TenantUser, WorkflowStep } from "@/types";
 import { ApproverSelector } from "./ApproverSelector";
 import { StepConditionEditor } from "./StepConditionEditor";
 
 interface StepCardProps {
   step: WorkflowStep;
   stepCount: number;
-  tenantUsers: Array<{ userId: string; email: string }>;
+  tenantUsers: TenantUser[];
   onUpdate: (patch: Partial<WorkflowStep>) => void;
   onRemove: () => void;
 }

@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from "react";
-import type { BankAccount, TenantMailbox, TenantRole } from "@/types";
+import type { BankAccount, TenantMailbox, TenantUser } from "@/types";
 import { EmptyState } from "@/components/common/EmptyState";
 import { useReorderableSections } from "@/hooks/useReorderableSections";
 
@@ -8,7 +8,7 @@ const STORAGE_KEY = "billforge:connections-section-order";
 
 interface BankConnectionsTabProps {
   mailboxes: TenantMailbox[];
-  tenantUsers: Array<{ userId: string; email: string; role: TenantRole; enabled: boolean }>;
+  tenantUsers: TenantUser[];
   onAddGmailInbox: () => void;
   onAssignMailboxUser: (integrationId: string, userId: string) => void;
   onRemoveMailboxAssignment: (integrationId: string, userId: string) => void;
