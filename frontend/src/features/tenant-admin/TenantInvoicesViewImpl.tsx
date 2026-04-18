@@ -21,7 +21,7 @@ import {
   requestPresignedUrls,
   registerUploadedKeys
 } from "@/api";
-import type { IngestionJobStatus, Invoice, TenantRole, UserCapabilities } from "@/types";
+import type { IngestionJobStatus, Invoice, TenantUser, UserCapabilities } from "@/types";
 import { ConfidenceBadge } from "@/components/invoice/ConfidenceBadge";
 import { IngestionProgressCard } from "@/features/tenant-admin/IngestionProgressCard";
 import { getExtractedFieldRows } from "@/lib/invoice/extractedFields";
@@ -100,7 +100,7 @@ interface TenantInvoicesViewProps {
   capabilities?: Partial<UserCapabilities>;
   requiresTenantSetup: boolean;
   tenantMode?: "test" | "live";
-  tenantUsers?: Array<{ userId: string; email: string; role: TenantRole; enabled: boolean }>;
+  tenantUsers?: TenantUser[];
   onGmailStatusRefresh: () => void;
   onNavCountsChange: (counts: { total: number; approved: number; pending: number; failed: number }) => void;
   onSessionExpired: () => void;

@@ -1,11 +1,11 @@
 import { useState, useEffect, useCallback } from "react";
-import type { ApprovalWorkflowConfig, WorkflowStep } from "@/types";
+import type { ApprovalWorkflowConfig, TenantUser, WorkflowStep } from "@/types";
 import { fetchApprovalWorkflow, saveApprovalWorkflow } from "@/api";
 import { getUserFacingErrorMessage } from "@/lib/common/apiError";
 import { StepCard } from "./workflow/StepCard";
 
 interface ApprovalWorkflowSectionProps {
-  tenantUsers: Array<{ userId: string; email: string; role: string }>;
+  tenantUsers: TenantUser[];
 }
 
 function buildSimpleSteps(config: { requireManagerReview: boolean; requireFinalSignoff: boolean }): WorkflowStep[] {

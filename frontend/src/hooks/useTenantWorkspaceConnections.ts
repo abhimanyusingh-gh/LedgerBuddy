@@ -18,7 +18,7 @@ import {
   setUserEnabled,
   uploadBankStatement
 } from "@/api";
-import type { BankAccount, BankStatementSummary, GmailConnectionStatus, TenantMailbox, TenantRole } from "@/types";
+import type { BankAccount, BankStatementSummary, GmailConnectionStatus, TenantMailbox, TenantRole, TenantUser } from "@/types";
 import type { WorkspaceGuard, WorkspaceSessionContext } from "@/hooks/useTenantWorkspaceSession";
 
 interface UseTenantWorkspaceConnectionsOptions {
@@ -36,7 +36,7 @@ function cleanUrlParams(...keys: string[]) {
 }
 
 export function useTenantWorkspaceConnections({ session, guarded, setError, addToast }: UseTenantWorkspaceConnectionsOptions) {
-  const [tenantUsers, setTenantUsers] = useState<Array<{ userId: string; email: string; role: TenantRole; enabled: boolean }>>([]);
+  const [tenantUsers, setTenantUsers] = useState<TenantUser[]>([]);
   const [inviteEmail, setInviteEmail] = useState("");
   const [gmailConnection, setGmailConnection] = useState<GmailConnectionStatus | null>(null);
   const [mailboxes, setMailboxes] = useState<TenantMailbox[]>([]);

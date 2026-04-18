@@ -11,12 +11,12 @@ import {
   setStoredSessionToken
 } from "@/api";
 import { getUserFacingErrorMessage } from "@/lib/common/apiError";
-import type { SessionRole, UserCapabilities } from "@/types";
+import type { SessionUser } from "@/types";
 
 export type WorkspaceGuard = (fn: () => Promise<void>, fallbackMsg: string) => Promise<void>;
 
 export type WorkspaceSessionContext = {
-  user: { id: string; email: string; role: SessionRole; isPlatformAdmin: boolean; capabilities: UserCapabilities };
+  user: SessionUser;
   tenant: { id: string; name: string; onboarding_status: "pending" | "completed"; mode?: "test" | "live" };
   flags: {
     requires_tenant_setup: boolean;

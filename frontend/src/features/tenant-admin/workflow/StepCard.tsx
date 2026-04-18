@@ -1,11 +1,11 @@
-import type { WorkflowStep } from "@/types";
+import type { TenantUser, WorkflowStep } from "@/types";
 import { ApproverSelector } from "./ApproverSelector";
 import { StepConditionEditor } from "./StepConditionEditor";
 
 interface StepCardProps {
   step: WorkflowStep;
   stepCount: number;
-  tenantUsers: Array<{ userId: string; email: string }>;
+  tenantUsers: TenantUser[];
   onUpdate: (patch: Partial<WorkflowStep>) => void;
   onRemove: () => void;
 }
@@ -15,6 +15,11 @@ export function StepCard({ step, stepCount, tenantUsers, onUpdate, onRemove }: S
     <div className="workflow-step-card">
       <div className="workflow-step-card-header">
         <span>Step {step.order}</span>
+        {step.type === "compliance_signoff" ? (
+          <span style={{ fontSize: "0.72rem", padding: "0.1rem 0.4rem", background: "var(--accent)", color: "#fff", borderRadius: "0.2rem" }}>
+            Compliance Sign-off
+          </span>
+        ) : null}
         {stepCount > 1 ? (
           <button
             type="button"
@@ -28,13 +33,15 @@ export function StepCard({ step, stepCount, tenantUsers, onUpdate, onRemove }: S
       </div>
       <div className="workflow-step-card-body">
         <ApproverSelector
-          approverType={step.approverType}
-          approverRole={step.approverRole}
-          approverUserIds={step.approverUserIds}
+          approver={{
+            approverType: step.approverType,
+            approverRole: step.approverRole,
+            approverUserIds: step.approverUserIds,
+            approverPersona: step.approverPersona,
+            approverCapability: step.approverCapability,
+          }}
           tenantUsers={tenantUsers}
-          onApproverTypeChange={(approverType) => onUpdate({ approverType })}
-          onApproverRoleChange={(approverRole) => onUpdate({ approverRole })}
-          onApproverUserIdsChange={(approverUserIds) => onUpdate({ approverUserIds })}
+          onApproverChange={(approver) => onUpdate(approver)}
         />
 
         <label>
