@@ -1641,4 +1641,408 @@ describe("ApprovalWorkflowService", () => {
       expect(invoice.status).toBe(INVOICE_STATUS.APPROVED);
     });
   });
+
+  describe("enforcement integration: compliance_signoff + approveStep", () => {
+    it("rejects when user has canSignOffCompliance but is not in approverUserIds for specific_users step", async () => {
+      const invoice = makeInvoiceDoc();
+      (InvoiceModel.findOne as jest.Mock).mockResolvedValue(invoice);
+      const wf = makeWorkflowDoc({
+        steps: [{ order: 1, name: "Compliance Step", type: "compliance_signoff", approverType: "specific_users", approverUserIds: ["other-user"], rule: "any" }]
+      });
+      (ApprovalWorkflowModel.findById as jest.Mock).mockReturnValue({ lean: jest.fn().mockResolvedValue(wf) });
+      (TenantUserRoleModel.findOne as jest.Mock).mockReturnValue({
+        lean: jest.fn().mockResolvedValue({ role: "ca", capabilities: { canSignOffCompliance: true, approvalLimitMinor: null } })
+      });
+
+      await expect(service.approveStep(INVOICE_ID, makeAuth())).rejects.toMatchObject({
+        statusCode: 403,
+        code: "not_eligible"
+      });
+    });
+
+    it("rejects compliance_signoff step for user with correct role but missing canSignOffCompliance", async () => {
+      const invoice = makeInvoiceDoc();
+      (InvoiceModel.findOne as jest.Mock).mockResolvedValue(invoice);
+      const wf = makeWorkflowDoc({
+        steps: [{ order: 1, name: "Compliance Step", type: "compliance_signoff", approverType: "role", approverRole: "TENANT_ADMIN", rule: "any" }]
+      });
+      (ApprovalWorkflowModel.findById as jest.Mock).mockReturnValue({ lean: jest.fn().mockResolvedValue(wf) });
+      (TenantUserRoleModel.findOne as jest.Mock).mockReturnValue({
+        lean: jest.fn().mockResolvedValue({ role: "TENANT_ADMIN", capabilities: { canSignOffCompliance: false, approvalLimitMinor: null } })
+      });
+
+      await expect(service.approveStep(INVOICE_ID, makeAuth())).rejects.toMatchObject({
+        statusCode: 403,
+        code: "compliance_signoff_required"
+      });
+    });
+
+    it("allows compliance_signoff when user has both canSignOffCompliance and matching role", async () => {
+      const invoice = makeInvoiceDoc();
+      (InvoiceModel.findOne as jest.Mock).mockResolvedValue(invoice);
+      const wf = makeWorkflowDoc({
+        steps: [{ order: 1, name: "Compliance Step", type: "compliance_signoff", approverType: "role", approverRole: "ca", rule: "any" }]
+      });
+      (ApprovalWorkflowModel.findById as jest.Mock).mockReturnValue({ lean: jest.fn().mockResolvedValue(wf) });
+      (TenantUserRoleModel.findOne as jest.Mock).mockReturnValue({
+        lean: jest.fn().mockResolvedValue({ role: "ca", capabilities: { canSignOffCompliance: true, approvalLimitMinor: null } })
+      });
+
+      const result = await service.approveStep(INVOICE_ID, makeAuth());
+      expect(result.fullyApproved).toBe(true);
+    });
+
+    it("compliance_signoff check runs before approval limit check", async () => {
+      const invoice = makeInvoiceDoc({ parsed: { totalAmountMinor: 5000000 } });
+      (InvoiceModel.findOne as jest.Mock).mockResolvedValue(invoice);
+      const wf = makeWorkflowDoc({
+        steps: [{ order: 1, name: "Compliance Step", type: "compliance_signoff", approverType: "any_member", rule: "any" }]
+      });
+      (ApprovalWorkflowModel.findById as jest.Mock).mockReturnValue({ lean: jest.fn().mockResolvedValue(wf) });
+      (TenantUserRoleModel.findOne as jest.Mock).mockReturnValue({
+        lean: jest.fn().mockResolvedValue({ role: "TENANT_ADMIN", capabilities: { canSignOffCompliance: false, approvalLimitMinor: 100000 } })
+      });
+
+      const error = await service.approveStep(INVOICE_ID, makeAuth()).catch((e) => e);
+      expect(error.code).toBe("compliance_signoff_required");
+    });
+
+    it("compliance_signoff with persona approverType requires both capability and persona match", async () => {
+      const invoice = makeInvoiceDoc();
+      (InvoiceModel.findOne as jest.Mock).mockResolvedValue(invoice);
+      const wf = makeWorkflowDoc({
+        steps: [{ order: 1, name: "Compliance Step", type: "compliance_signoff", approverType: "persona", approverPersona: "ca", rule: "any" }]
+      });
+      (ApprovalWorkflowModel.findById as jest.Mock).mockReturnValue({ lean: jest.fn().mockResolvedValue(wf) });
+      (TenantUserRoleModel.findOne as jest.Mock).mockReturnValue({
+        lean: jest.fn().mockResolvedValue({ role: "ap_clerk", capabilities: { canSignOffCompliance: true, approvalLimitMinor: null } })
+      });
+
+      await expect(service.approveStep(INVOICE_ID, makeAuth())).rejects.toMatchObject({
+        statusCode: 403,
+        code: "not_eligible"
+      });
+    });
+
+    it("compliance_signoff with capability approverType requires both canSignOffCompliance and the specified capability", async () => {
+      const invoice = makeInvoiceDoc();
+      (InvoiceModel.findOne as jest.Mock).mockResolvedValue(invoice);
+      const wf = makeWorkflowDoc({
+        steps: [{ order: 1, name: "Compliance Step", type: "compliance_signoff", approverType: "capability", approverCapability: "canApproveInvoices", rule: "any" }]
+      });
+      (ApprovalWorkflowModel.findById as jest.Mock).mockReturnValue({ lean: jest.fn().mockResolvedValue(wf) });
+      (TenantUserRoleModel.findOne as jest.Mock).mockReturnValue({
+        lean: jest.fn().mockResolvedValue({ role: "ca", capabilities: { canSignOffCompliance: true, canApproveInvoices: true, approvalLimitMinor: null } })
+      });
+
+      const result = await service.approveStep(INVOICE_ID, makeAuth());
+      expect(result.fullyApproved).toBe(true);
+    });
+  });
+
+  describe("enforcement integration: approval limit + approveStep", () => {
+    it("rejects when invoice amount is exactly one unit above the limit", async () => {
+      const invoice = makeInvoiceDoc({ parsed: { totalAmountMinor: 100001 } });
+      (InvoiceModel.findOne as jest.Mock).mockResolvedValue(invoice);
+      const wf = makeWorkflowDoc({
+        steps: [{ order: 1, name: "S1", approverType: "specific_users", approverUserIds: [USER_ID], rule: "any" }]
+      });
+      (ApprovalWorkflowModel.findById as jest.Mock).mockReturnValue({ lean: jest.fn().mockResolvedValue(wf) });
+      (TenantUserRoleModel.findOne as jest.Mock).mockReturnValue({
+        lean: jest.fn().mockResolvedValue({ role: "TENANT_ADMIN", capabilities: { approvalLimitMinor: 100000 } })
+      });
+
+      await expect(service.approveStep(INVOICE_ID, makeAuth())).rejects.toMatchObject({
+        statusCode: 403,
+        code: "approval_limit_exceeded"
+      });
+    });
+
+    it("allows when invoice amount is exactly equal to the limit", async () => {
+      const invoice = makeInvoiceDoc({ parsed: { totalAmountMinor: 100000 } });
+      (InvoiceModel.findOne as jest.Mock).mockResolvedValue(invoice);
+      const wf = makeWorkflowDoc({
+        steps: [{ order: 1, name: "S1", approverType: "specific_users", approverUserIds: [USER_ID], rule: "any" }]
+      });
+      (ApprovalWorkflowModel.findById as jest.Mock).mockReturnValue({ lean: jest.fn().mockResolvedValue(wf) });
+      (TenantUserRoleModel.findOne as jest.Mock).mockReturnValue({
+        lean: jest.fn().mockResolvedValue({ role: "TENANT_ADMIN", capabilities: { approvalLimitMinor: 100000 } })
+      });
+
+      const result = await service.approveStep(INVOICE_ID, makeAuth());
+      expect(result.fullyApproved).toBe(true);
+    });
+
+    it("approval limit check happens after eligibility check (not_eligible before limit_exceeded)", async () => {
+      const invoice = makeInvoiceDoc({ parsed: { totalAmountMinor: 5000000 } });
+      (InvoiceModel.findOne as jest.Mock).mockResolvedValue(invoice);
+      const wf = makeWorkflowDoc({
+        steps: [{ order: 1, name: "S1", approverType: "specific_users", approverUserIds: ["other-user"], rule: "any" }]
+      });
+      (ApprovalWorkflowModel.findById as jest.Mock).mockReturnValue({ lean: jest.fn().mockResolvedValue(wf) });
+      (TenantUserRoleModel.findOne as jest.Mock).mockReturnValue({
+        lean: jest.fn().mockResolvedValue({ role: "TENANT_ADMIN", capabilities: { approvalLimitMinor: 100000 } })
+      });
+
+      const error = await service.approveStep(INVOICE_ID, makeAuth()).catch((e) => e);
+      expect(error.code).toBe("not_eligible");
+    });
+
+    it("allows when invoice amount is zero regardless of limit", async () => {
+      const invoice = makeInvoiceDoc({ parsed: { totalAmountMinor: 0 } });
+      (InvoiceModel.findOne as jest.Mock).mockResolvedValue(invoice);
+      const wf = makeWorkflowDoc({
+        steps: [{ order: 1, name: "S1", approverType: "specific_users", approverUserIds: [USER_ID], rule: "any" }]
+      });
+      (ApprovalWorkflowModel.findById as jest.Mock).mockReturnValue({ lean: jest.fn().mockResolvedValue(wf) });
+      (TenantUserRoleModel.findOne as jest.Mock).mockReturnValue({
+        lean: jest.fn().mockResolvedValue({ role: "TENANT_ADMIN", capabilities: { approvalLimitMinor: 100 } })
+      });
+
+      const result = await service.approveStep(INVOICE_ID, makeAuth());
+      expect(result.fullyApproved).toBe(true);
+    });
+
+    it("skips limit check when invoice amount is null", async () => {
+      const invoice = makeInvoiceDoc({ parsed: { totalAmountMinor: null } });
+      (InvoiceModel.findOne as jest.Mock).mockResolvedValue(invoice);
+      const wf = makeWorkflowDoc({
+        steps: [{ order: 1, name: "S1", approverType: "specific_users", approverUserIds: [USER_ID], rule: "any" }]
+      });
+      (ApprovalWorkflowModel.findById as jest.Mock).mockReturnValue({ lean: jest.fn().mockResolvedValue(wf) });
+      (TenantUserRoleModel.findOne as jest.Mock).mockReturnValue({
+        lean: jest.fn().mockResolvedValue({ role: "TENANT_ADMIN", capabilities: { approvalLimitMinor: 100 } })
+      });
+
+      const result = await service.approveStep(INVOICE_ID, makeAuth());
+      expect(result.fullyApproved).toBe(true);
+    });
+
+    it("error message contains formatted Rs amounts", async () => {
+      const invoice = makeInvoiceDoc({ parsed: { totalAmountMinor: 5000000 } });
+      (InvoiceModel.findOne as jest.Mock).mockResolvedValue(invoice);
+      const wf = makeWorkflowDoc({
+        steps: [{ order: 1, name: "S1", approverType: "specific_users", approverUserIds: [USER_ID], rule: "any" }]
+      });
+      (ApprovalWorkflowModel.findById as jest.Mock).mockReturnValue({ lean: jest.fn().mockResolvedValue(wf) });
+      (TenantUserRoleModel.findOne as jest.Mock).mockReturnValue({
+        lean: jest.fn().mockResolvedValue({ role: "TENANT_ADMIN", capabilities: { approvalLimitMinor: 1000000 } })
+      });
+
+      const error = await service.approveStep(INVOICE_ID, makeAuth()).catch((e) => e);
+      expect(error.message).toContain("Rs 50000");
+      expect(error.message).toContain("Rs 10000");
+    });
+  });
+
+  describe("enforcement integration: concurrent approvals on rule:all steps", () => {
+    it("second approver on rule:all step completes it when first already approved", async () => {
+      const USER_2 = toUUID("user-002");
+      const invoice = makeInvoiceDoc({
+        workflowState: {
+          currentStep: 1,
+          status: WORKFLOW_STATUS.IN_PROGRESS,
+          stepResults: [
+            { step: 1, name: "S1", action: WORKFLOW_STEP_ACTION.APPROVED, userId: USER_2, timestamp: new Date(), approvalLimitAtApproval: null, invoiceAmountMinor: 50000 }
+          ]
+        }
+      });
+      (InvoiceModel.findOne as jest.Mock).mockResolvedValue(invoice);
+      const wf = makeWorkflowDoc({
+        steps: [{ order: 1, name: "S1", approverType: "specific_users", approverUserIds: [USER_ID, USER_2], rule: "all" }]
+      });
+      (ApprovalWorkflowModel.findById as jest.Mock).mockReturnValue({ lean: jest.fn().mockResolvedValue(wf) });
+      (TenantUserRoleModel.findOne as jest.Mock).mockReturnValue({
+        lean: jest.fn().mockResolvedValue({ role: "TENANT_ADMIN", capabilities: { approvalLimitMinor: null } })
+      });
+
+      const result = await service.approveStep(INVOICE_ID, makeAuth());
+      expect(result).toEqual({ advanced: true, fullyApproved: true });
+    });
+
+    it("prevents duplicate approval by same user on rule:all step", async () => {
+      const invoice = makeInvoiceDoc({
+        workflowState: {
+          currentStep: 1,
+          status: WORKFLOW_STATUS.IN_PROGRESS,
+          stepResults: [
+            { step: 1, name: "S1", action: WORKFLOW_STEP_ACTION.APPROVED, userId: USER_ID, timestamp: new Date() }
+          ]
+        }
+      });
+      (InvoiceModel.findOne as jest.Mock).mockResolvedValue(invoice);
+      const wf = makeWorkflowDoc({
+        steps: [{ order: 1, name: "S1", approverType: "specific_users", approverUserIds: [USER_ID, "user-002", "user-003"], rule: "all" }]
+      });
+      (ApprovalWorkflowModel.findById as jest.Mock).mockReturnValue({ lean: jest.fn().mockResolvedValue(wf) });
+      (TenantUserRoleModel.findOne as jest.Mock).mockReturnValue({
+        lean: jest.fn().mockResolvedValue({ role: "TENANT_ADMIN", capabilities: { approvalLimitMinor: null } })
+      });
+
+      await expect(service.approveStep(INVOICE_ID, makeAuth())).rejects.toMatchObject({
+        statusCode: 400,
+        code: "already_approved"
+      });
+    });
+
+    it("rule:all with role counts required approvers from DB, not from step config", async () => {
+      const invoice = makeInvoiceDoc();
+      (InvoiceModel.findOne as jest.Mock).mockResolvedValue(invoice);
+      const wf = makeWorkflowDoc({
+        steps: [
+          { order: 1, name: "S1", approverType: "role", approverRole: "ca", rule: "all" },
+          { order: 2, name: "S2", approverType: "any_member", rule: "any" }
+        ]
+      });
+      (ApprovalWorkflowModel.findById as jest.Mock).mockReturnValue({ lean: jest.fn().mockResolvedValue(wf) });
+      (TenantUserRoleModel.findOne as jest.Mock).mockReturnValue({
+        lean: jest.fn().mockResolvedValue({ role: "ca", capabilities: { approvalLimitMinor: null } })
+      });
+      (TenantUserRoleModel.countDocuments as jest.Mock).mockResolvedValue(1);
+
+      const result = await service.approveStep(INVOICE_ID, makeAuth());
+      expect(result).toEqual({ advanced: true, fullyApproved: false });
+      const ws = invoice._data.workflowState as Record<string, unknown>;
+      expect(ws.currentStep).toBe(2);
+    });
+
+    it("rule:all partial approval records correct count in processing issues", async () => {
+      const invoice = makeInvoiceDoc();
+      (InvoiceModel.findOne as jest.Mock).mockResolvedValue(invoice);
+      const wf = makeWorkflowDoc({
+        steps: [{ order: 1, name: "S1", approverType: "specific_users", approverUserIds: [USER_ID, "user-002", "user-003"], rule: "all" }]
+      });
+      (ApprovalWorkflowModel.findById as jest.Mock).mockReturnValue({ lean: jest.fn().mockResolvedValue(wf) });
+      (TenantUserRoleModel.findOne as jest.Mock).mockReturnValue({
+        lean: jest.fn().mockResolvedValue({ role: "TENANT_ADMIN", capabilities: { approvalLimitMinor: null } })
+      });
+
+      await service.approveStep(INVOICE_ID, makeAuth());
+
+      expect(invoice.processingIssues).toEqual(
+        expect.arrayContaining([expect.stringContaining("1/3")])
+      );
+    });
+  });
+
+  describe("enforcement integration: audit metadata completeness", () => {
+    it("compliance_signoff step records qualifyingCapability, approvalLimitAtApproval, and invoiceAmountMinor", async () => {
+      const invoice = makeInvoiceDoc({ parsed: { totalAmountMinor: 200000 } });
+      (InvoiceModel.findOne as jest.Mock).mockResolvedValue(invoice);
+      const wf = makeWorkflowDoc({
+        steps: [{ order: 1, name: "Compliance Review", type: "compliance_signoff", approverType: "specific_users", approverUserIds: [USER_ID], rule: "any" }]
+      });
+      (ApprovalWorkflowModel.findById as jest.Mock).mockReturnValue({ lean: jest.fn().mockResolvedValue(wf) });
+      (TenantUserRoleModel.findOne as jest.Mock).mockReturnValue({
+        lean: jest.fn().mockResolvedValue({ role: "ca", capabilities: { canSignOffCompliance: true, approvalLimitMinor: 500000 } })
+      });
+
+      await service.approveStep(INVOICE_ID, makeAuth());
+
+      const ws = invoice._data.workflowState as Record<string, unknown>;
+      const stepResults = ws.stepResults as Array<Record<string, unknown>>;
+      expect(stepResults[0]).toMatchObject({
+        qualifyingCapability: "canSignOffCompliance",
+        approvalLimitAtApproval: 500000,
+        invoiceAmountMinor: 200000,
+        userId: USER_ID,
+        email: "user@test.com",
+        role: "TENANT_ADMIN",
+        action: WORKFLOW_STEP_ACTION.APPROVED
+      });
+    });
+
+    it("regular approval step records approvalLimitAtApproval and invoiceAmountMinor but not qualifyingCapability", async () => {
+      const invoice = makeInvoiceDoc({ parsed: { totalAmountMinor: 75000 } });
+      (InvoiceModel.findOne as jest.Mock).mockResolvedValue(invoice);
+      const wf = makeWorkflowDoc({
+        steps: [{ order: 1, name: "S1", type: "approval", approverType: "specific_users", approverUserIds: [USER_ID], rule: "any" }]
+      });
+      (ApprovalWorkflowModel.findById as jest.Mock).mockReturnValue({ lean: jest.fn().mockResolvedValue(wf) });
+      (TenantUserRoleModel.findOne as jest.Mock).mockReturnValue({
+        lean: jest.fn().mockResolvedValue({ role: "TENANT_ADMIN", capabilities: { approvalLimitMinor: 200000 } })
+      });
+
+      await service.approveStep(INVOICE_ID, makeAuth());
+
+      const ws = invoice._data.workflowState as Record<string, unknown>;
+      const stepResults = ws.stepResults as Array<Record<string, unknown>>;
+      expect(stepResults[0].approvalLimitAtApproval).toBe(200000);
+      expect(stepResults[0].invoiceAmountMinor).toBe(75000);
+      expect(stepResults[0].qualifyingCapability).toBeUndefined();
+    });
+
+    it("records null approvalLimitAtApproval when user has no limit set", async () => {
+      const invoice = makeInvoiceDoc({ parsed: { totalAmountMinor: 75000 } });
+      (InvoiceModel.findOne as jest.Mock).mockResolvedValue(invoice);
+      const wf = makeWorkflowDoc({
+        steps: [{ order: 1, name: "S1", approverType: "specific_users", approverUserIds: [USER_ID], rule: "any" }]
+      });
+      (ApprovalWorkflowModel.findById as jest.Mock).mockReturnValue({ lean: jest.fn().mockResolvedValue(wf) });
+      (TenantUserRoleModel.findOne as jest.Mock).mockReturnValue({
+        lean: jest.fn().mockResolvedValue({ role: "TENANT_ADMIN", capabilities: {} })
+      });
+
+      await service.approveStep(INVOICE_ID, makeAuth());
+
+      const ws = invoice._data.workflowState as Record<string, unknown>;
+      const stepResults = ws.stepResults as Array<Record<string, unknown>>;
+      expect(stepResults[0].approvalLimitAtApproval).toBeNull();
+    });
+
+    it("records undefined invoiceAmountMinor when parsed data has no totalAmountMinor", async () => {
+      const invoice = makeInvoiceDoc({ parsed: {} });
+      (InvoiceModel.findOne as jest.Mock).mockResolvedValue(invoice);
+      const wf = makeWorkflowDoc({
+        steps: [{ order: 1, name: "S1", approverType: "specific_users", approverUserIds: [USER_ID], rule: "any" }]
+      });
+      (ApprovalWorkflowModel.findById as jest.Mock).mockReturnValue({ lean: jest.fn().mockResolvedValue(wf) });
+      (TenantUserRoleModel.findOne as jest.Mock).mockReturnValue({
+        lean: jest.fn().mockResolvedValue({ role: "TENANT_ADMIN", capabilities: { approvalLimitMinor: null } })
+      });
+
+      await service.approveStep(INVOICE_ID, makeAuth());
+
+      const ws = invoice._data.workflowState as Record<string, unknown>;
+      const stepResults = ws.stepResults as Array<Record<string, unknown>>;
+      expect(stepResults[0].invoiceAmountMinor).toBeUndefined();
+    });
+
+    it("each approver in a rule:all step gets their own audit metadata recorded", async () => {
+      const USER_2 = toUUID("user-002");
+      const invoice = makeInvoiceDoc({
+        parsed: { totalAmountMinor: 50000 },
+        workflowState: {
+          currentStep: 1,
+          status: WORKFLOW_STATUS.IN_PROGRESS,
+          stepResults: [
+            { step: 1, name: "S1", action: WORKFLOW_STEP_ACTION.APPROVED, userId: USER_2, timestamp: new Date(), approvalLimitAtApproval: 200000, invoiceAmountMinor: 50000 }
+          ]
+        }
+      });
+      (InvoiceModel.findOne as jest.Mock).mockResolvedValue(invoice);
+      const wf = makeWorkflowDoc({
+        steps: [{ order: 1, name: "S1", approverType: "specific_users", approverUserIds: [USER_ID, USER_2], rule: "all" }]
+      });
+      (ApprovalWorkflowModel.findById as jest.Mock).mockReturnValue({ lean: jest.fn().mockResolvedValue(wf) });
+      (TenantUserRoleModel.findOne as jest.Mock).mockReturnValue({
+        lean: jest.fn().mockResolvedValue({ role: "TENANT_ADMIN", capabilities: { approvalLimitMinor: 100000 } })
+      });
+
+      await service.approveStep(INVOICE_ID, makeAuth());
+
+      const ws = invoice._data.workflowState as Record<string, unknown>;
+      const stepResults = ws.stepResults as Array<Record<string, unknown>>;
+      const user1Result = stepResults.find((r) => r.userId === USER_ID);
+      const user2Result = stepResults.find((r) => r.userId === USER_2);
+      expect(user1Result).toMatchObject({
+        approvalLimitAtApproval: 100000,
+        invoiceAmountMinor: 50000
+      });
+      expect(user2Result).toMatchObject({
+        approvalLimitAtApproval: 200000,
+        invoiceAmountMinor: 50000
+      });
+    });
+  });
 });

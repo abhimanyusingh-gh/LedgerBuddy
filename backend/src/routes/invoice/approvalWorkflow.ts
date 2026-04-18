@@ -8,6 +8,54 @@ import { getRoleDefaults } from "@/auth/personaDefaults.js";
 import { AuditLogModel } from "@/models/core/AuditLog.js";
 import { logger } from "@/utils/logger.js";
 
+const VALID_CONDITION_FIELDS = ["totalAmountMinor", "tdsAmountMinor", "riskSignalMaxSeverity", "glCodeSource"] as const;
+const NUMERIC_FIELDS = new Set(["totalAmountMinor", "tdsAmountMinor", "riskSignalMaxSeverity"]);
+const NUMERIC_OPERATORS = new Set(["gt", "gte", "lt", "lte", "eq"]);
+const STRING_OPERATORS = new Set(["eq", "in"]);
+
+export function validateStepCondition(condition: unknown): string | null {
+  if (condition === null || condition === undefined) return null;
+  if (typeof condition !== "object" || Array.isArray(condition)) {
+    return "Condition must be an object with field, operator, and value.";
+  }
+  const c = condition as Record<string, unknown>;
+  if (!c.field) return null;
+
+  const field = c.field as string;
+  if (!(VALID_CONDITION_FIELDS as readonly string[]).includes(field)) {
+    return `Invalid condition field "${field}". Must be one of: ${VALID_CONDITION_FIELDS.join(", ")}.`;
+  }
+
+  const operator = c.operator as string;
+  if (!operator) {
+    return `Condition on "${field}" requires an operator.`;
+  }
+
+  const isNumericField = NUMERIC_FIELDS.has(field);
+  if (isNumericField) {
+    if (!NUMERIC_OPERATORS.has(operator)) {
+      return `Invalid operator "${operator}" for numeric field "${field}". Must be one of: gt, gte, lt, lte, eq.`;
+    }
+    if (typeof c.value !== "number") {
+      return `Condition value for numeric field "${field}" must be a number.`;
+    }
+  } else {
+    if (!STRING_OPERATORS.has(operator)) {
+      return `Invalid operator "${operator}" for field "${field}". Must be one of: eq, in.`;
+    }
+    if (operator === "eq" && typeof c.value !== "string") {
+      return `Condition value for "${field}" with operator "eq" must be a string.`;
+    }
+    if (operator === "in") {
+      if (!Array.isArray(c.value) || !c.value.every((v: unknown) => typeof v === "string")) {
+        return `Condition value for "${field}" with operator "in" must be an array of strings.`;
+      }
+    }
+  }
+
+  return null;
+}
+
 export function createApprovalWorkflowRouter(workflowService: ApprovalWorkflowService) {
   const router = Router();
   router.use(requireAuth);
@@ -96,6 +144,17 @@ export function createApprovalWorkflowRouter(workflowService: ApprovalWorkflowSe
         requireFinalSignoff: typeof req.body?.simpleConfig?.requireFinalSignoff === "boolean" ? req.body.simpleConfig.requireFinalSignoff : false
       };
       const steps = Array.isArray(req.body?.steps) ? req.body.steps : [];
+
+      if (mode === "advanced") {
+        for (let i = 0; i < steps.length; i++) {
+          const step = steps[i];
+          const conditionError = validateStepCondition(step?.condition);
+          if (conditionError) {
+            res.status(400).json({ message: `Step ${i + 1}: ${conditionError}` });
+            return;
+          }
+        }
+      }
 
       const previousConfig = await workflowService.getWorkflowConfig(context.tenantId);
       const newConfig = { enabled, mode, simpleConfig, steps };
