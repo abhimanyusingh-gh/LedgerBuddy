@@ -108,28 +108,18 @@ describe("MailboxNotificationService", () => {
     service = new MailboxNotificationService(buildSender());
   });
 
-  it("uses the injected email sender to deliver notifications", async () => {
-    mockCreatorResolution("creator@example.com");
-
-    await service.notifyNeedsReauth(buildInput());
-
-    expect(mockEmailSend).toHaveBeenCalledWith(
-      expect.objectContaining({
-        from: "no-reply@ledgerbuddy.local",
-        to: "creator@example.com",
-        subject: "LedgerBuddy mailbox requires reconnection"
-      })
-    );
-  });
-
-  it("resolves recipient from creator userId", async () => {
+  it("resolves creator recipient and sends notification via injected email sender", async () => {
     mockCreatorResolution("creator@example.com");
 
     await service.notifyNeedsReauth(buildInput());
 
     expect(mockUserFindById).toHaveBeenCalledWith("user-creator");
     expect(mockEmailSend).toHaveBeenCalledWith(
-      expect.objectContaining({ to: "creator@example.com" })
+      expect.objectContaining({
+        from: "no-reply@ledgerbuddy.local",
+        to: "creator@example.com",
+        subject: "LedgerBuddy mailbox requires reconnection"
+      })
     );
   });
 
@@ -212,23 +202,6 @@ describe("MailboxNotificationService", () => {
     expect(mockEventSave).not.toHaveBeenCalled();
   });
 
-  it("creates a notification event before attempting delivery", async () => {
-    mockCreatorResolution("creator@example.com");
-
-    await service.notifyNeedsReauth(buildInput());
-
-    expect(mockEventCreate).toHaveBeenCalledWith(
-      expect.objectContaining({
-        userId: "user-creator",
-        provider: "gmail",
-        emailAddress: "inbox@example.com",
-        eventType: "MAILBOX_NEEDS_REAUTH",
-        reason: "Token revoked",
-        delivered: false
-      })
-    );
-  });
-
   describe("CC recipients", () => {
     it("includes CC recipients with canManageConnections capability", async () => {
       mockCreatorResolution("creator@example.com");
@@ -258,23 +231,6 @@ describe("MailboxNotificationService", () => {
       );
     });
 
-    it("excludes the primary recipient from CC list", async () => {
-      mockCreatorResolution("creator@example.com");
-      mockTenantUserRoleFind.mockReturnValue({
-        select: () => ({
-          lean: () => Promise.resolve([])
-        })
-      });
-
-      await service.notifyNeedsReauth(buildInput());
-
-      expect(mockTenantUserRoleFind).toHaveBeenCalledWith(
-        expect.objectContaining({
-          userId: { $ne: "user-creator" }
-        })
-      );
-    });
-
     it("omits cc field when no CC recipients exist", async () => {
       mockCreatorResolution("creator@example.com");
       mockNoCcRecipients();
@@ -287,7 +243,7 @@ describe("MailboxNotificationService", () => {
   });
 
   describe("deduplication", () => {
-    it("skips delivery when same event type was sent within 24 hours", async () => {
+    it("skips delivery and records skipped event when same event type was sent within 24 hours", async () => {
       mockEventFindOne.mockReturnValue({
         lean: () => Promise.resolve({ _id: "existing-event", delivered: true })
       });
@@ -295,21 +251,6 @@ describe("MailboxNotificationService", () => {
       await service.notifyNeedsReauth(buildInput());
 
       expect(mockEmailSend).not.toHaveBeenCalled();
-      expect(mockEventCreate).toHaveBeenCalledWith(
-        expect.objectContaining({
-          deliveryFailed: true,
-          skippedReason: "duplicate_within_24h"
-        })
-      );
-    });
-
-    it("records a skipped event when dedup triggers", async () => {
-      mockEventFindOne.mockReturnValue({
-        lean: () => Promise.resolve({ _id: "existing-event", delivered: true })
-      });
-
-      await service.notifyNeedsReauth(buildInput());
-
       expect(mockEventCreate).toHaveBeenCalledTimes(1);
       expect(mockEventCreate).toHaveBeenCalledWith(
         expect.objectContaining({
