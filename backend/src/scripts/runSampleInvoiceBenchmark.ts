@@ -36,6 +36,12 @@ type BenchmarkExpected = {
   file: string;
   invoiceNumber?: string;
   vendorNameContains?: string;
+  vendorAddressContains?: string;
+  vendorGstin?: string;
+  vendorPan?: string;
+  customerNameContains?: string;
+  customerAddressContains?: string;
+  customerGstin?: string | null;
   invoiceDate?: string;
   dueDate?: string;
   currency?: string;
@@ -475,6 +481,31 @@ async function run(): Promise<void> {
           expected: expected.vendorNameContains,
           actual: parsed.vendorName ?? null
         });
+      }
+    }
+
+    const substringChecks: Array<[string, string | undefined, string | undefined]> = [
+      ["vendorAddressContains", expected.vendorAddressContains, parsed.vendorAddress],
+      ["customerNameContains", expected.customerNameContains, parsed.customerName],
+      ["customerAddressContains", expected.customerAddressContains, parsed.customerAddress]
+    ];
+    for (const [field, exp, act] of substringChecks) {
+      if (!exp) continue;
+      if (!(act ?? "").toLowerCase().includes(exp.toLowerCase())) {
+        mismatches.push({ file: expected.file, field, expected: exp, actual: act ?? null });
+      }
+    }
+
+    const exactStringChecks: Array<[string, string | null | undefined, string | undefined]> = [
+      ["vendorGstin", expected.vendorGstin, parsed.vendorGstin],
+      ["vendorPan", expected.vendorPan, parsed.vendorPan],
+      ["customerGstin", expected.customerGstin, parsed.customerGstin]
+    ];
+    for (const [field, exp, act] of exactStringChecks) {
+      if (exp === undefined) continue;
+      const expectedValue = exp === null ? undefined : exp;
+      if (expectedValue !== act) {
+        mismatches.push({ file: expected.file, field, expected: exp, actual: act ?? null });
       }
     }
 

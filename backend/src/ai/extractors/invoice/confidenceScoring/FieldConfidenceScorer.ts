@@ -10,7 +10,24 @@ import {
 } from "@/ai/extractors/invoice/stages/groundingText.js";
 import { findBlockByAmountValue } from "@/ai/extractors/invoice/stages/groundingAmounts.js";
 
-const TOP_LEVEL_FIELD_KEYS = ["invoiceNumber", "vendorName", "invoiceDate", "dueDate", "currency", "totalAmountMinor", "notes", "pan", "bankAccountNumber", "bankIfsc"] as const;
+const TOP_LEVEL_FIELD_KEYS = [
+  "invoiceNumber",
+  "vendorName",
+  "vendorAddress",
+  "vendorGstin",
+  "vendorPan",
+  "customerName",
+  "customerAddress",
+  "customerGstin",
+  "invoiceDate",
+  "dueDate",
+  "currency",
+  "totalAmountMinor",
+  "notes",
+  "pan",
+  "bankAccountNumber",
+  "bankIfsc"
+] as const;
 
 function extractFieldEntries(parsed: ParsedInvoiceData): Array<{ key: InvoiceFieldKey; value: unknown }> {
   const entries: Array<{ key: InvoiceFieldKey; value: unknown }> = [];
