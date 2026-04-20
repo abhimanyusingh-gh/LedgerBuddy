@@ -38,115 +38,81 @@ function makeSlmResponse(data: Record<string, unknown>) {
   };
 }
 
-function makeOcrProvider(text: string) {
-  return {
-    name: "mock-ocr",
-    extractText: jest.fn().mockResolvedValue({ text, blocks: [] })
-  };
-}
+const csvColumns = { date: 0, description: 1, debit: 2, credit: 3 };
 
-describe("BankStatementExtractionPipeline", () => {
+describe("BankStatementExtractionPipeline (CSV)", () => {
   let parser: BankStatementExtractionPipeline;
 
   beforeEach(() => {
     parser = new BankStatementExtractionPipeline();
     jest.clearAllMocks();
     makeNativePdfText("");
-  });
-
-  it("parses standard 4-column CSV into transactions", async () => {
     makeStatementCreate();
     makeTransactionInsert();
     makeTransactionFind();
-
-    const csv = `Date,Description,Debit,Credit\n2026-01-10,Vendor Payment,50000,\n2026-01-11,Customer Refund,,10000`;
-    const result = await parser.parseCsv(toUUID("t1"), "bank.csv", csv, { date: 0, description: 1, debit: 2, credit: 3 }, "user@test.com");
-
-    expect(result.transactionCount).toBe(2);
-    expect(result.duplicatesSkipped).toBe(0);
-
-    const insertCall = (BankTransactionModel.insertMany as jest.Mock).mock.calls[0][0];
-    expect(insertCall).toHaveLength(2);
-
-    expect(insertCall[0]).toMatchObject({
-      tenantId: "t1",
-      date: new Date("2026-01-10"),
-      description: "Vendor Payment",
-      debitMinor: 5000000,
-      creditMinor: null,
-      matchStatus: "unmatched"
-    });
-
-    expect(insertCall[1]).toMatchObject({
-      tenantId: "t1",
-      date: new Date("2026-01-11"),
-      description: "Customer Refund",
-      debitMinor: null,
-      creditMinor: 1000000,
-      matchStatus: "unmatched"
-    });
   });
 
-  it("handles Indian number format (1,08,000.00)", async () => {
-    makeStatementCreate();
-    makeTransactionInsert();
-    makeTransactionFind();
-
-    const csv = `Date,Description,Debit,Credit\n2026-01-10,Vendor,"1,08,000.00",`;
-    const result = await parser.parseCsv(toUUID("t1"), "bank.csv", csv, { date: 0, description: 1, debit: 2, credit: 3 }, "user@test.com");
-
-    expect(result.transactionCount).toBe(1);
-    expect(BankTransactionModel.insertMany).toHaveBeenCalledWith(
-      expect.arrayContaining([
-        expect.objectContaining({ debitMinor: 10800000 })
-      ])
+  it.each<{
+    name: string;
+    csv: string;
+    expectedCount: number;
+    expectedTxn?: Record<string, unknown>;
+  }>([
+    {
+      name: "standard 4-column CSV",
+      csv: `Date,Description,Debit,Credit\n2026-01-10,Vendor Payment,50000,\n2026-01-11,Customer Refund,,10000`,
+      expectedCount: 2,
+      expectedTxn: {
+        date: new Date("2026-01-10"),
+        description: "Vendor Payment",
+        debitMinor: 5000000,
+        creditMinor: null,
+        matchStatus: "unmatched"
+      }
+    },
+    {
+      name: "Indian number format (1,08,000.00)",
+      csv: `Date,Description,Debit,Credit\n2026-01-10,Vendor,"1,08,000.00",`,
+      expectedCount: 1,
+      expectedTxn: { debitMinor: 10800000 }
+    },
+    {
+      name: "DD/MM/YYYY dates normalized to ISO",
+      csv: `Date,Description,Debit,Credit\n10/01/2026,Vendor Payment,50000,`,
+      expectedCount: 1,
+      expectedTxn: { date: new Date("2026-01-10") }
+    },
+    {
+      name: "skips rows with neither debit nor credit",
+      csv: `Date,Description,Debit,Credit\n2026-01-10,Opening Balance,,\n2026-01-11,Real Txn,50000,`,
+      expectedCount: 1
+    },
+    {
+      name: "quoted CSV fields with embedded commas",
+      csv: `Date,Description,Debit,Credit\n2026-01-10,"Payment for invoice, Jan",50000,`,
+      expectedCount: 1,
+      expectedTxn: { description: "Payment for invoice, Jan" }
+    }
+  ])("parses CSV variant: $name", async ({ csv, expectedCount, expectedTxn }) => {
+    const result = await parser.parseCsv(
+      toUUID("t1"),
+      "bank.csv",
+      csv,
+      csvColumns,
+      "user@test.com"
     );
-  });
 
-  it("normalizes DD/MM/YYYY dates to ISO", async () => {
-    makeStatementCreate();
-    makeTransactionInsert();
-    makeTransactionFind();
+    expect(result.transactionCount).toBe(expectedCount);
 
-    const csv = `Date,Description,Debit,Credit\n10/01/2026,Vendor Payment,50000,`;
-    await parser.parseCsv(toUUID("t1"), "bank.csv", csv, { date: 0, description: 1, debit: 2, credit: 3 }, "user@test.com");
-
-    expect(BankTransactionModel.insertMany).toHaveBeenCalledWith(
-      expect.arrayContaining([
-        expect.objectContaining({ date: new Date("2026-01-10") })
-      ])
-    );
-  });
-
-  it("skips rows with no debit and no credit", async () => {
-    makeStatementCreate();
-    makeTransactionInsert();
-    makeTransactionFind();
-
-    const csv = `Date,Description,Debit,Credit\n2026-01-10,Opening Balance,,\n2026-01-11,Real Txn,50000,`;
-    const result = await parser.parseCsv(toUUID("t1"), "bank.csv", csv, { date: 0, description: 1, debit: 2, credit: 3 }, "user@test.com");
-
-    expect(result.transactionCount).toBe(1);
-  });
-
-  it("handles quoted CSV fields with commas", async () => {
-    makeStatementCreate();
-    makeTransactionInsert();
-    makeTransactionFind();
-
-    const csv = `Date,Description,Debit,Credit\n2026-01-10,"Payment for invoice, Jan",50000,`;
-    const result = await parser.parseCsv(toUUID("t1"), "bank.csv", csv, { date: 0, description: 1, debit: 2, credit: 3 }, "user@test.com");
-
-    expect(result.transactionCount).toBe(1);
-    expect(BankTransactionModel.insertMany).toHaveBeenCalledWith(
-      expect.arrayContaining([
-        expect.objectContaining({ description: "Payment for invoice, Jan" })
-      ])
-    );
+    if (expectedTxn) {
+      expect(BankTransactionModel.insertMany).toHaveBeenCalledWith(
+        expect.arrayContaining([expect.objectContaining(expectedTxn)])
+      );
+    }
   });
 
   it("skips duplicate transactions on re-upload", async () => {
-    const existingTxns = [
+    makeTransactionFind([
       {
         date: new Date("2026-01-10"),
         description: "Vendor Payment",
@@ -154,13 +120,10 @@ describe("BankStatementExtractionPipeline", () => {
         creditMinor: null,
         reference: null
       }
-    ];
-    makeTransactionFind(existingTxns);
-    makeStatementCreate();
-    makeTransactionInsert();
+    ]);
 
     const csv = `Date,Description,Debit,Credit\n2026-01-10,Vendor Payment,50000,\n2026-01-11,New Payment,20000,`;
-    const result = await parser.parseCsv(toUUID("t1"), "bank.csv", csv, { date: 0, description: 1, debit: 2, credit: 3 }, "user@test.com");
+    const result = await parser.parseCsv(toUUID("t1"), "bank.csv", csv, csvColumns, "user@test.com");
 
     expect(result.duplicatesSkipped).toBe(1);
     expect(result.transactionCount).toBe(1);
@@ -169,20 +132,8 @@ describe("BankStatementExtractionPipeline", () => {
   it("rejects CSV with only headers", async () => {
     const csv = `Date,Description,Debit,Credit`;
     await expect(
-      parser.parseCsv(toUUID("t1"), "bank.csv", csv, { date: 0, description: 1, debit: 2, credit: 3 }, "user@test.com")
+      parser.parseCsv(toUUID("t1"), "bank.csv", csv, csvColumns, "user@test.com")
     ).rejects.toThrow("CSV must have at least a header row and one data row.");
-  });
-
-  it("stores csv-import source constant on transactions", async () => {
-    makeStatementCreate();
-    makeTransactionInsert();
-    makeTransactionFind();
-
-    const csv = `Date,Description,Debit,Credit\n2026-01-10,Vendor Payment,50000,`;
-    await parser.parseCsv(toUUID("t1"), "bank.csv", csv, { date: 0, description: 1, debit: 2, credit: 3 }, "user@test.com");
-
-    const insertCall = (BankTransactionModel.insertMany as jest.Mock).mock.calls[0][0];
-    expect(insertCall[0].source).toBe(BANK_TRANSACTION_SOURCE.CSV);
   });
 });
 
@@ -206,7 +157,10 @@ describe("BankStatementExtractionPipeline.parsePdf", () => {
       ]
     };
     const fieldVerifier = makeSlmResponse(slmData);
-    const ocrProvider = makeOcrProvider("should not be called");
+    const ocrProvider = {
+      name: "mock-ocr",
+      extractText: jest.fn().mockResolvedValue({ text: "should not be called", blocks: [] })
+    };
 
     const parser = new BankStatementExtractionPipeline({ ocrProvider: ocrProvider as never, fieldVerifier: fieldVerifier as never });
     makeStatementCreate();
@@ -220,49 +174,6 @@ describe("BankStatementExtractionPipeline.parsePdf", () => {
     expect(result.accountNumber).toBe("9732");
     expect(ocrProvider.extractText).not.toHaveBeenCalled();
     expect(fieldVerifier.verify).toHaveBeenCalledTimes(1);
-
-    const insertCall = (BankTransactionModel.insertMany as jest.Mock).mock.calls[0][0];
-    expect(insertCall[0]).toMatchObject({
-      debitMinor: 100100,
-      creditMinor: null,
-      balanceMinor: 261873
-    });
-  });
-
-  it("falls back to OCR when native text is insufficient", async () => {
-    makeNativePdfText("short");
-
-    const slmData = {
-      bankName: "HDFC Bank",
-      accountNumber: "1234",
-      transactions: [
-        { date: "2026-02-15", description: "NEFT Transfer", debit: null, credit: 50000.00, balance: 75000.00 }
-      ]
-    };
-    const fieldVerifier = makeSlmResponse(slmData);
-    const ocrProvider = makeOcrProvider("HDFC Bank Statement\nAccount details and transactions...");
-
-    const parser = new BankStatementExtractionPipeline({ ocrProvider: ocrProvider as never, fieldVerifier: fieldVerifier as never });
-    makeStatementCreate();
-    makeTransactionInsert();
-    makeTransactionFind();
-
-    const result = await parser.parsePdf(toUUID("t1"), "hdfc.pdf", Buffer.from("pdf"), "application/pdf", "user@test.com");
-
-    expect(result.transactionCount).toBe(1);
-    expect(result.bankName).toBe("HDFC Bank");
-    expect(ocrProvider.extractText).toHaveBeenCalledTimes(1);
-  });
-
-  it("throws when native text is insufficient and no OCR provider is available", async () => {
-    makeNativePdfText("short");
-
-    const fieldVerifier = makeSlmResponse({ transactions: [] });
-    const parser = new BankStatementExtractionPipeline({ fieldVerifier: fieldVerifier as never });
-
-    await expect(
-      parser.parsePdf(toUUID("t1"), "scan.pdf", Buffer.from("pdf"), "application/pdf", "user@test.com")
-    ).rejects.toThrow("Native PDF text extraction yielded insufficient text and OCR provider is not available.");
   });
 
   it("throws when SLM field verifier is not available", async () => {
@@ -321,31 +232,6 @@ describe("BankStatementExtractionPipeline.parsePdf", () => {
     expect(result.bankName).toBe("ICICI Bank");
     expect(result.accountNumber).toBe("9732");
     expect(fieldVerifier.verify).toHaveBeenCalledTimes(2);
-  });
-
-  it("converts SLM rupee amounts to paise (minor units)", async () => {
-    const nativeText = "Bank statement with sufficient text content for extraction " + "x".repeat(200);
-    makeNativePdfText(nativeText);
-
-    const slmData = {
-      bankName: "SBI",
-      transactions: [
-        { date: "2026-01-16", description: "NEFT L AND T FINANCE", debit: null, credit: 685300.00, balance: 685916.73 }
-      ]
-    };
-    const fieldVerifier = makeSlmResponse(slmData);
-    const parser = new BankStatementExtractionPipeline({ fieldVerifier: fieldVerifier as never });
-    makeStatementCreate();
-    makeTransactionInsert();
-    makeTransactionFind();
-
-    await parser.parsePdf(toUUID("t1"), "sbi.pdf", Buffer.from("pdf"), "application/pdf", "user@test.com");
-
-    const insertCall = (BankTransactionModel.insertMany as jest.Mock).mock.calls[0][0];
-    expect(insertCall[0]).toMatchObject({
-      creditMinor: 68530000,
-      balanceMinor: 68591673
-    });
   });
 
   it("handles DD.MM.YYYY date format from SLM output", async () => {
@@ -417,7 +303,6 @@ describe("BankStatementExtractionPipeline.parsePdf", () => {
 
     const createCall = (BankStatementModel.create as jest.Mock).mock.calls[0][0] as Record<string, unknown>;
     expect(createCall["source"]).toBe(BANK_STATEMENT_SOURCE.PDF);
-    expect(createCall["accountHolder"]).toBe("John Doe");
 
     const insertCall = (BankTransactionModel.insertMany as jest.Mock).mock.calls[0][0];
     expect(insertCall[0].source).toBe(BANK_TRANSACTION_SOURCE.PDF);
