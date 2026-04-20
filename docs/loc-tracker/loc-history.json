@@ -295,5 +295,365 @@
     "frontend": 18319,
     "tests": 13326,
     "total": 70513
+  },
+  {
+    "commit": "3d89344",
+    "date": "2026-04-17",
+    "message": "docs: reorganize docs folder, add accounting-payments deliverables, refine existing docs (#70)",
+    "backend": 42056,
+    "frontend": 18319,
+    "tests": 13326,
+    "total": 71019
+  },
+  {
+    "commit": "f659817",
+    "date": "2026-04-17",
+    "message": "fix: YAGNI Phases 3-6 \u2014 remove speculative infra, fix type mismatches, structural cleanup (#69)",
+    "backend": 42119,
+    "frontend": 18317,
+    "tests": 13314,
+    "total": 71079
+  },
+  {
+    "commit": "3342a79",
+    "date": "2026-04-17",
+    "message": "fix: remove .husky and .junie from tracking \u2014 dev-local configs should not be in repo (#71)",
+    "backend": 42119,
+    "frontend": 18317,
+    "tests": 13314,
+    "total": 71079
+  },
+  {
+    "commit": "6d1e02a",
+    "date": "2026-04-17",
+    "message": "fix: Frontend YAGNI Phase 1-2 \u2014 delete dead code, simplify state (#73)",
+    "backend": 42119,
+    "frontend": 17877,
+    "tests": 13314,
+    "total": 70639
+  },
+  {
+    "commit": "d8e03c0",
+    "date": "2026-04-17",
+    "message": "test: add 135 characterization tests for approvalWorkflowService (#75)",
+    "backend": 43463,
+    "frontend": 17877,
+    "tests": 14658,
+    "total": 71983
+  },
+  {
+    "commit": "b60f5b1",
+    "date": "2026-04-17",
+    "message": "refactor: decompose ApprovalWorkflowSection into StepCard, ConditionEditor, ApproverSelector (#74)",
+    "backend": 43463,
+    "frontend": 17971,
+    "tests": 14658,
+    "total": 72077
+  },
+  {
+    "commit": "f14d9e3",
+    "date": "2026-04-17",
+    "message": "fix: decompose god methods in invoiceService and tallyExporter (SOLID V17, V20) (#76)",
+    "backend": 43531,
+    "frontend": 17973,
+    "tests": 14654,
+    "total": 72147
+  },
+  {
+    "commit": "9cf6d53",
+    "date": "2026-04-17",
+    "message": "feat: tenant-configurable reconciliation scoring weights (full stack) (#77)",
+    "backend": 43760,
+    "frontend": 18313,
+    "tests": 14801,
+    "total": 72716
+  },
+  {
+    "commit": "e0df2d1",
+    "date": "2026-04-18",
+    "message": "feat: unify mailbox notification email transport with invite SMTP (#78)",
+    "backend": 43966,
+    "frontend": 18313,
+    "tests": 14978,
+    "total": 72922
+  },
+  {
+    "commit": "e0e2cdb",
+    "date": "2026-04-18",
+    "message": "feat: enforce compliance_signoff capability check and approval limits (#79)",
+    "backend": 44328,
+    "frontend": 18313,
+    "tests": 15278,
+    "total": 73284
+  },
+  {
+    "commit": "2226fc7",
+    "date": "2026-04-18",
+    "message": "feat: align workflow frontend types, add full condition editor and approver selector (#80)",
+    "backend": 44328,
+    "frontend": 18990,
+    "tests": 15278,
+    "total": 73961
+  },
+  {
+    "commit": "b25785e",
+    "date": "2026-04-18",
+    "message": "feat: approval limit configuration UI and compliance signoff step config (#82)",
+    "backend": 44395,
+    "frontend": 19587,
+    "tests": 15278,
+    "total": 74625
+  },
+  {
+    "commit": "26e1386",
+    "date": "2026-04-18",
+    "message": "feat: workflow configuration health scan and migration audit (#81)",
+    "backend": 44990,
+    "frontend": 19587,
+    "tests": 15638,
+    "total": 75220
+  },
+  {
+    "commit": "9245baf",
+    "date": "2026-04-18",
+    "message": "feat: rebrand BillForge to LedgerBuddy \u2014 display text, favicon, and logo (#83)",
+    "backend": 44990,
+    "frontend": 19587,
+    "tests": 15638,
+    "total": 75220
+  },
+  {
+    "commit": "657c16c",
+    "date": "2026-04-18",
+    "message": "feat: workflow step progressive disclosure UI and config audit trail (#84)",
+    "backend": 45024,
+    "frontend": 19898,
+    "tests": 15638,
+    "total": 75565
+  },
+  {
+    "commit": "4775c10",
+    "date": "2026-04-18",
+    "message": "feat: notification service \u2014 deduplication, retry, and event tracking (#85)",
+    "backend": 45479,
+    "frontend": 19898,
+    "tests": 15947,
+    "total": 76020
+  },
+  {
+    "commit": "99c4b3a",
+    "date": "2026-04-18",
+    "message": "feat: approval enforcement integration tests and workflow condition validation (#86)",
+    "backend": 46277,
+    "frontend": 19898,
+    "tests": 16686,
+    "total": 76818
+  },
+  {
+    "commit": "c9c94f3",
+    "date": "2026-04-18",
+    "message": "feat: notification preferences configuration and delivery log UI (#87)",
+    "backend": 46786,
+    "frontend": 20727,
+    "tests": 17029,
+    "total": 78156
+  },
+  {
+    "commit": "f45569f",
+    "date": "2026-04-18",
+    "message": "test: comprehensive frontend component tests for approval workflow UI (#88)",
+    "backend": 46786,
+    "frontend": 21422,
+    "tests": 17029,
+    "total": 78851
+  },
+  {
+    "commit": "b99ae5b",
+    "date": "2026-04-18",
+    "message": "feat: escalation timeout validation and MSME payment terms per vendor",
+    "backend": 47089,
+    "frontend": 21869,
+    "tests": 17270,
+    "total": 79601
+  },
+  {
+    "commit": "87996a6",
+    "date": "2026-04-18",
+    "message": "feat: escalation timeout validation and MSME payment terms per vendor (#89)",
+    "backend": 47089,
+    "frontend": 21869,
+    "tests": 17270,
+    "total": 79601
+  },
+  {
+    "commit": "268d67d",
+    "date": "2026-04-18",
+    "message": "chore: rename workspace packages from billforge to ledgerbuddy",
+    "backend": 47089,
+    "frontend": 21869,
+    "tests": 17270,
+    "total": 79601
+  },
+  {
+    "commit": "131fc2b",
+    "date": "2026-04-18",
+    "message": "fix: update Dockerfile workspace reference to ledgerbuddy-backend",
+    "backend": 47089,
+    "frontend": 21869,
+    "tests": 17270,
+    "total": 79601
+  },
+  {
+    "commit": "f3c2004",
+    "date": "2026-04-18",
+    "message": "fix: add S3 public endpoint for browser-accessible presigned URLs",
+    "backend": 47228,
+    "frontend": 21869,
+    "tests": 17387,
+    "total": 79740
+  },
+  {
+    "commit": "c6222db",
+    "date": "2026-04-18",
+    "message": "fix: add S3 public endpoint for browser-accessible presigned URLs",
+    "backend": 47228,
+    "frontend": 21869,
+    "tests": 17387,
+    "total": 79740
+  },
+  {
+    "commit": "268d67d",
+    "date": "2026-04-18",
+    "message": "chore: rename workspace packages from billforge to ledgerbuddy",
+    "backend": 47089,
+    "frontend": 21869,
+    "tests": 17270,
+    "total": 79601
+  },
+  {
+    "commit": "131fc2b",
+    "date": "2026-04-18",
+    "message": "fix: update Dockerfile workspace reference to ledgerbuddy-backend",
+    "backend": 47089,
+    "frontend": 21869,
+    "tests": 17270,
+    "total": 79601
+  },
+  {
+    "commit": "9264f04",
+    "date": "2026-04-18",
+    "message": "fix: correct infra-validate module path and rename billforge to ledgerbuddy in terraform",
+    "backend": 47089,
+    "frontend": 21869,
+    "tests": 17270,
+    "total": 79601
+  },
+  {
+    "commit": "72008b3",
+    "date": "2026-04-18",
+    "message": "fix: correct module source paths in terraform tests (./modules \u2192 ../modules)",
+    "backend": 47089,
+    "frontend": 21869,
+    "tests": 17270,
+    "total": 79601
+  },
+  {
+    "commit": "1ce7e5a",
+    "date": "2026-04-18",
+    "message": "fix: terraform fmt on main.tf and variables.tf",
+    "backend": 47089,
+    "frontend": 21869,
+    "tests": 17270,
+    "total": 79601
+  },
+  {
+    "commit": "2e2fb9c",
+    "date": "2026-04-18",
+    "message": "fix: resolve all infrastructure CI failures",
+    "backend": 47089,
+    "frontend": 21869,
+    "tests": 17270,
+    "total": 79601
+  },
+  {
+    "commit": "57044e1",
+    "date": "2026-04-18",
+    "message": "fix: add S3 public endpoint for browser-accessible presigned URLs (#91)",
+    "backend": 47228,
+    "frontend": 21869,
+    "tests": 17387,
+    "total": 79740
+  },
+  {
+    "commit": "86509f3",
+    "date": "2026-04-18",
+    "message": "chore: rename workspace packages from billforge to ledgerbuddy (#90)",
+    "backend": 47228,
+    "frontend": 21869,
+    "tests": 17387,
+    "total": 79740
+  },
+  {
+    "commit": "c7ef4d8",
+    "date": "2026-04-20",
+    "message": "feat: extract vendor address, customer name/address/GSTIN from invoices",
+    "backend": 47335,
+    "frontend": 21893,
+    "tests": 17387,
+    "total": 79871
+  },
+  {
+    "commit": "4140c6b",
+    "date": "2026-04-20",
+    "message": "fix: disambiguate gstin/pan to vendorGstin/vendorPan in schema and adapter",
+    "backend": 47335,
+    "frontend": 21893,
+    "tests": 17387,
+    "total": 79871
+  },
+  {
+    "commit": "95b74f9",
+    "date": "2026-04-20",
+    "message": "feat: extract vendor address, customer name/address/GSTIN from invoices (#92)",
+    "backend": 47335,
+    "frontend": 21893,
+    "tests": 17387,
+    "total": 79871
+  },
+  {
+    "commit": "2ee15ae",
+    "date": "2026-04-20",
+    "message": "feat: add vendor and customer details sections to invoice detail panel",
+    "backend": 47335,
+    "frontend": 22469,
+    "tests": 17387,
+    "total": 80447
+  },
+  {
+    "commit": "bb1cd1e",
+    "date": "2026-04-20",
+    "message": "feat: add vendor and customer details sections to invoice detail panel",
+    "backend": 47335,
+    "frontend": 22473,
+    "tests": 17387,
+    "total": 80451
+  },
+  {
+    "commit": "8b7c37c",
+    "date": "2026-04-20",
+    "message": "fix: split vendor/customer components, use design system vars, extend existing tests",
+    "backend": 47335,
+    "frontend": 22472,
+    "tests": 17387,
+    "total": 80450
+  },
+  {
+    "commit": "8e14207",
+    "date": "2026-04-20",
+    "message": "fix: use specific class names for vendor and customer detail sections",
+    "backend": 47335,
+    "frontend": 22472,
+    "tests": 17387,
+    "total": 80450
   }
 ]
