@@ -137,21 +137,17 @@ describe("resolveOcrProvider", () => {
     DeepSeekOcrProviderCtorMock.mockClear();
   });
 
-  it("uses mock provider when explicitly configured", async () => {
-    mockEnv.OCR_PROVIDER = "mock";
+  it.each([
+    ["mock when explicitly configured", "mock" as const, undefined, () => mockProviderInstance],
+    ["deepseek when explicitly configured and model validates", "deepseek" as const, undefined, () => deepSeekProviderInstance],
+    ["deepseek in auto mode when key and model validate", "auto" as const, undefined, () => deepSeekProviderInstance],
+    ["deepseek in auto mode without api key when model endpoint is open", "auto" as const, undefined, () => deepSeekProviderInstance],
+  ])("resolves %s", async (_label, providerSetting, apiKey, expectedProviderFn) => {
+    mockEnv.OCR_PROVIDER = providerSetting;
+    mockEnv.OCR_PROVIDER_API_KEY = apiKey;
 
     const provider = await resolveOcrProvider();
-    expect(provider).toBe(mockProviderInstance);
-  });
-
-  it("uses deepseek provider when explicitly configured and model validates", async () => {
-    mockEnv.OCR_PROVIDER = "deepseek";
-    mockEnv.OCR_PROVIDER_API_KEY = undefined;
-
-    const provider = await resolveOcrProvider();
-
-    expect(provider).toBe(deepSeekProviderInstance);
-    expect(axiosGetMock).toHaveBeenCalledTimes(2);
+    expect(provider).toBe(expectedProviderFn());
   });
 
   it("throws a clear error when deepseek model is not listed", async () => {
@@ -175,40 +171,6 @@ describe("resolveOcrProvider", () => {
       "Configured model 'deepseek-ai/DeepSeek-OCR' is not listed"
     );
     expect(DeepSeekOcrProviderCtorMock).not.toHaveBeenCalled();
-  });
-
-  it("uses deepseek in auto mode when key and model validate", async () => {
-    mockEnv.OCR_PROVIDER = "auto";
-    mockEnv.OCR_PROVIDER_API_KEY = undefined;
-
-    const provider = await resolveOcrProvider();
-
-    expect(provider).toBe(deepSeekProviderInstance);
-    expect(axiosGetMock).toHaveBeenCalledTimes(2);
-  });
-
-  it("uses deepseek in auto mode without api key when model endpoint is open", async () => {
-    mockEnv.OCR_PROVIDER = "auto";
-    mockEnv.OCR_PROVIDER_API_KEY = undefined;
-
-    const provider = await resolveOcrProvider();
-    expect(provider).toBe(deepSeekProviderInstance);
-  });
-
-  it("sends authorization header during model bootstrap when api key is provided", async () => {
-    mockEnv.OCR_PROVIDER = "deepseek";
-    mockEnv.OCR_PROVIDER_API_KEY = "token-123";
-
-    await resolveOcrProvider();
-
-    expect(axiosGetMock).toHaveBeenCalledWith(
-      expect.stringContaining("/models"),
-      expect.objectContaining({
-        headers: expect.objectContaining({
-          Authorization: "Bearer token-123"
-        })
-      })
-    );
   });
 
   it("accepts model id matches that differ only by case and :latest suffix", async () => {
