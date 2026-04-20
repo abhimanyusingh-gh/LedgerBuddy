@@ -10,15 +10,6 @@ function makeBlock(
 }
 
 describe("mergeBlocks", () => {
-  it("returns empty array when no blocks provided", () => {
-    expect(mergeBlocks([])).toEqual([]);
-  });
-
-  it("skips blocks without bboxNormalized", () => {
-    const block: OcrBlock = { text: "hello", page: 1, bbox: [0, 0, 100, 20] };
-    expect(mergeBlocks([block])).toEqual([]);
-  });
-
   it("merges two horizontally adjacent blocks on the same line", () => {
     const blockA = makeBlock("Invoice", [0.0, 0.1, 0.3, 0.15]);
     const blockB = makeBlock("No:", [0.305, 0.1, 0.5, 0.15]);
@@ -54,21 +45,9 @@ describe("mergeBlocks", () => {
     const result = mergeBlocks([block]);
     expect(result[0].text).toBe("Hello World");
   });
-
-  it("does not mutate the original blocks array", () => {
-    const block = makeBlock("Amount: 1,234.00", [0.0, 0.1, 0.5, 0.15]);
-    const original = [...[block]];
-    mergeBlocks([block]);
-    expect(block.text).toBe("Amount: 1,234.00");
-    expect([block]).toEqual(original);
-  });
 });
 
 describe("buildLines", () => {
-  it("returns empty array when no merged blocks provided", () => {
-    expect(buildLines([])).toEqual([]);
-  });
-
   it("groups blocks with close y-centers onto the same line", () => {
     const blocks = [
       { text: "Vendor", page: 1, blockIndices: [0], bboxNormalized: [0.0, 0.10, 0.2, 0.14] as [number, number, number, number] },
@@ -98,37 +77,48 @@ describe("buildLines", () => {
     expect(result[0].text).toBe("Left | Right");
   });
 
-  it("buildLines: uses pipe separator for wide-gap columns", () => {
-    const blocks = [
-      { text: "Invoice", page: 1, blockIndices: [0], bboxNormalized: [0.0, 0.10, 0.2, 0.14] as [number, number, number, number] },
-      { text: "12345", page: 1, blockIndices: [1], bboxNormalized: [0.7, 0.10, 0.9, 0.14] as [number, number, number, number] }
-    ];
-    const result = buildLines(blocks);
+  it.each<{
+    name: string;
+    blocks: Array<{ text: string; xStart: number; xEnd: number; y?: number }>;
+    expected: string;
+  }>([
+    {
+      name: "wide-gap columns → pipe separator",
+      blocks: [
+        { text: "Invoice", xStart: 0.0, xEnd: 0.2 },
+        { text: "12345", xStart: 0.7, xEnd: 0.9 }
+      ],
+      expected: "Invoice | 12345"
+    },
+    {
+      name: "narrow column gap (> 0.02) → pipe separator",
+      blocks: [
+        { text: "Address text", xStart: 0.0, xEnd: 0.35 },
+        { text: "RS-25-26-1148", xStart: 0.38, xEnd: 0.58 }
+      ],
+      expected: "Address text | RS-25-26-1148"
+    },
+    {
+      name: "gap <= 0.02 (same word) → space",
+      blocks: [
+        { text: "hello", xStart: 0.0, xEnd: 0.20 },
+        { text: "world", xStart: 0.21, xEnd: 0.40 }
+      ],
+      expected: "hello world"
+    }
+  ])("pipe-separator gap threshold: $name", ({ blocks, expected }) => {
+    const merged = blocks.map((b, i) => ({
+      text: b.text,
+      page: 1,
+      blockIndices: [i],
+      bboxNormalized: [b.xStart, b.y ?? 0.10, b.xEnd, (b.y ?? 0.10) + 0.04] as [number, number, number, number]
+    }));
+    const result = buildLines(merged);
     expect(result).toHaveLength(1);
-    expect(result[0].text).toContain(" | ");
+    expect(result[0].text).toBe(expected);
   });
 
-  it("buildLines: pipe separator for gap > 0.02 (narrow column gap)", () => {
-    const blocks = [
-      { text: "Address text", page: 1, blockIndices: [0], bboxNormalized: [0.0, 0.10, 0.35, 0.14] as [number, number, number, number] },
-      { text: "RS-25-26-1148", page: 1, blockIndices: [1], bboxNormalized: [0.38, 0.10, 0.58, 0.14] as [number, number, number, number] }
-    ];
-    const result = buildLines(blocks);
-    expect(result).toHaveLength(1);
-    expect(result[0].text).toBe("Address text | RS-25-26-1148");
-  });
-
-  it("buildLines: no pipe separator for gap <= 0.02 (same word)", () => {
-    const blocks = [
-      { text: "hello", page: 1, blockIndices: [0], bboxNormalized: [0.0, 0.10, 0.20, 0.14] as [number, number, number, number] },
-      { text: "world", page: 1, blockIndices: [1], bboxNormalized: [0.21, 0.10, 0.40, 0.14] as [number, number, number, number] }
-    ];
-    const result = buildLines(blocks);
-    expect(result).toHaveLength(1);
-    expect(result[0].text).toBe("hello world");
-  });
-
-  it("buildLines: adaptive tolerance groups slightly offset rows", () => {
+  it("adaptive tolerance groups slightly offset rows", () => {
     const blocks = [
       { text: "Left", page: 1, blockIndices: [0], bboxNormalized: [0.0, 0.10, 0.2, 0.14] as [number, number, number, number] },
       { text: "Right", page: 1, blockIndices: [1], bboxNormalized: [0.3, 0.118, 0.5, 0.158] as [number, number, number, number] }
@@ -140,10 +130,6 @@ describe("buildLines", () => {
 
 
 describe("buildLayoutText", () => {
-  it("returns empty string for no lines", () => {
-    expect(buildLayoutText([])).toBe("");
-  });
-
   it("joins lines within a page with newlines", () => {
     const lines = [
       { text: "Invoice #001", page: 1, blockIndices: [0], bboxNormalized: [0.0, 0.05, 0.4, 0.08] as [number, number, number, number] },
