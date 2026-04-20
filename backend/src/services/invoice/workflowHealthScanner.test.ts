@@ -37,173 +37,60 @@ beforeEach(() => {
 });
 
 describe("scanWorkflowStep", () => {
-  it("flags compliance_signoff step when no users have canSignOffCompliance", async () => {
+  it("flags compliance_signoff when no users have canSignOffCompliance", async () => {
     mockCountDocuments.mockResolvedValueOnce(0);
-
     const step = buildStep({
-      order: 1,
-      name: "Compliance Review",
-      type: "compliance_signoff",
-      approverType: "any_member",
-      rule: "any"
+      order: 1, name: "Compliance Review", type: "compliance_signoff",
+      approverType: "any_member", rule: "any"
     });
-
     const findings = await scanWorkflowStep(step, "tenant-1");
-
     expect(findings).toHaveLength(1);
     expect(findings[0].severity).toBe("error");
     expect(findings[0].issue).toContain("canSignOffCompliance");
   });
 
-  it("returns no findings for compliance_signoff step when users have the capability", async () => {
-    mockCountDocuments.mockResolvedValueOnce(2);
-
+  it("flags escalation-like step with timeoutHours but no escalateTo", async () => {
     const step = buildStep({
-      order: 1,
-      name: "Compliance Review",
-      type: "compliance_signoff",
-      approverType: "any_member",
-      rule: "any"
+      order: 2, name: "Escalation Step", type: "escalation",
+      approverType: "any_member", timeoutHours: 24, escalateTo: null, rule: "any"
     });
-
     const findings = await scanWorkflowStep(step, "tenant-1");
-
-    expect(findings).toHaveLength(0);
-  });
-
-  it("flags escalation step with timeoutHours but no escalateTo", async () => {
-    const step = buildStep({
-      order: 2,
-      name: "Escalation Step",
-      type: "escalation",
-      approverType: "any_member",
-      timeoutHours: 24,
-      escalateTo: null,
-      rule: "any"
-    });
-
-    const findings = await scanWorkflowStep(step, "tenant-1");
-
     expect(findings).toHaveLength(1);
     expect(findings[0].severity).toBe("error");
     expect(findings[0].issue).toContain("timeoutHours");
     expect(findings[0].issue).toContain("escalateTo");
   });
 
-  it("flags non-escalation step with timeoutHours but no escalateTo", async () => {
-    const step = buildStep({
-      order: 2,
-      name: "Timed Step",
-      type: "approval",
-      approverType: "any_member",
-      timeoutHours: 48,
-      escalateTo: "",
-      rule: "any"
+  it("flags persona/capability approver type with no matching users (warning severity)", async () => {
+    mockCountDocuments.mockResolvedValueOnce(0).mockResolvedValueOnce(0);
+    const personaStep = buildStep({
+      order: 1, name: "CA Review", type: "approval",
+      approverType: "persona", approverPersona: "ca", rule: "any"
     });
+    const personaFindings = await scanWorkflowStep(personaStep, "tenant-1");
+    expect(personaFindings).toHaveLength(1);
+    expect(personaFindings[0].severity).toBe("warning");
+    expect(personaFindings[0].issue).toContain("ca");
 
-    const findings = await scanWorkflowStep(step, "tenant-1");
-
-    expect(findings).toHaveLength(1);
-    expect(findings[0].severity).toBe("error");
+    const capStep = buildStep({
+      order: 3, name: "Export Approval", type: "approval",
+      approverType: "capability", approverCapability: "canExportToTally", rule: "any"
+    });
+    const capFindings = await scanWorkflowStep(capStep, "tenant-1");
+    expect(capFindings).toHaveLength(1);
+    expect(capFindings[0].severity).toBe("warning");
+    expect(capFindings[0].issue).toContain("canExportToTally");
   });
 
-  it("returns no findings when escalation step has escalateTo configured", async () => {
-    const step = buildStep({
-      order: 2,
-      name: "Escalation Step",
-      type: "escalation",
-      approverType: "any_member",
-      timeoutHours: 24,
-      escalateTo: "user-admin-1",
-      rule: "any"
-    });
-
+  it.each([
+    ["compliance_signoff with users having capability", buildStep({ order: 1, name: "Compliance Review", type: "compliance_signoff", approverType: "any_member", rule: "any" }), 2],
+    ["escalation with escalateTo configured", buildStep({ order: 2, name: "Escalation Step", type: "escalation", approverType: "any_member", timeoutHours: 24, escalateTo: "user-admin-1", rule: "any" }), null],
+    ["persona with matching users", buildStep({ order: 1, name: "CA Review", type: "approval", approverType: "persona", approverPersona: "ca", rule: "any" }), 3],
+    ["standard approval step", buildStep({ order: 1, name: "Basic Approval", type: "approval", approverType: "any_member", rule: "any" }), null],
+    ["role-based step", buildStep({ order: 1, name: "Admin Approval", type: "approval", approverType: "role", approverRole: "TENANT_ADMIN", rule: "any" }), null],
+  ])("returns no findings for %s", async (_label, step, countOverride) => {
+    if (countOverride !== null) mockCountDocuments.mockResolvedValueOnce(countOverride as number);
     const findings = await scanWorkflowStep(step, "tenant-1");
-
-    expect(findings).toHaveLength(0);
-  });
-
-  it("flags persona approver type with no matching users", async () => {
-    mockCountDocuments.mockResolvedValueOnce(0);
-
-    const step = buildStep({
-      order: 1,
-      name: "CA Review",
-      type: "approval",
-      approverType: "persona",
-      approverPersona: "ca",
-      rule: "any"
-    });
-
-    const findings = await scanWorkflowStep(step, "tenant-1");
-
-    expect(findings).toHaveLength(1);
-    expect(findings[0].severity).toBe("warning");
-    expect(findings[0].issue).toContain("ca");
-  });
-
-  it("returns no findings when persona has matching users", async () => {
-    mockCountDocuments.mockResolvedValueOnce(3);
-
-    const step = buildStep({
-      order: 1,
-      name: "CA Review",
-      type: "approval",
-      approverType: "persona",
-      approverPersona: "ca",
-      rule: "any"
-    });
-
-    const findings = await scanWorkflowStep(step, "tenant-1");
-
-    expect(findings).toHaveLength(0);
-  });
-
-  it("flags capability approver type with no matching users", async () => {
-    mockCountDocuments.mockResolvedValueOnce(0);
-
-    const step = buildStep({
-      order: 3,
-      name: "Export Approval",
-      type: "approval",
-      approverType: "capability",
-      approverCapability: "canExportToTally",
-      rule: "any"
-    });
-
-    const findings = await scanWorkflowStep(step, "tenant-1");
-
-    expect(findings).toHaveLength(1);
-    expect(findings[0].severity).toBe("warning");
-    expect(findings[0].issue).toContain("canExportToTally");
-  });
-
-  it("returns no findings for a standard approval step", async () => {
-    const step = buildStep({
-      order: 1,
-      name: "Basic Approval",
-      type: "approval",
-      approverType: "any_member",
-      rule: "any"
-    });
-
-    const findings = await scanWorkflowStep(step, "tenant-1");
-
-    expect(findings).toHaveLength(0);
-  });
-
-  it("returns no findings for role-based step", async () => {
-    const step = buildStep({
-      order: 1,
-      name: "Admin Approval",
-      type: "approval",
-      approverType: "role",
-      approverRole: "TENANT_ADMIN",
-      rule: "any"
-    });
-
-    const findings = await scanWorkflowStep(step, "tenant-1");
-
     expect(findings).toHaveLength(0);
   });
 
