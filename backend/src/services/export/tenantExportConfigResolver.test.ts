@@ -108,18 +108,12 @@ describe("buildCsvExportConfig", () => {
     jest.restoreAllMocks();
   });
 
-  it("returns undefined columns when no tenant config exists", async () => {
+  it.each([
+    ["no tenant config exists", null],
+    ["tenant config has empty csvColumns", { tenantId: "tenant-a", csvColumns: [] }],
+  ])("returns undefined columns when %s", async (_label, docValue) => {
     jest.spyOn(TenantExportConfigModel, "findOne").mockReturnValue({
-      lean: jest.fn().mockResolvedValue(null)
-    } as never);
-
-    const result = await buildCsvExportConfig("tenant-a");
-    expect(result.columns).toBeUndefined();
-  });
-
-  it("returns undefined columns when tenant config has empty csvColumns", async () => {
-    jest.spyOn(TenantExportConfigModel, "findOne").mockReturnValue({
-      lean: jest.fn().mockResolvedValue({ tenantId: "tenant-a", csvColumns: [] })
+      lean: jest.fn().mockResolvedValue(docValue)
     } as never);
 
     const result = await buildCsvExportConfig("tenant-a");

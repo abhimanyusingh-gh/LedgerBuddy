@@ -134,84 +134,33 @@ describe("notification config routes", () => {
   });
 
   describe("PATCH /admin/notification-config", () => {
-    it("updates mailboxReauthEnabled", async () => {
+    it.each([
+      ["mailboxReauthEnabled", { mailboxReauthEnabled: false }, "mailboxReauthEnabled", false],
+      ["escalationEnabled", { escalationEnabled: false }, "escalationEnabled", false],
+      ["primaryRecipientType", { primaryRecipientType: "all_tenant_admins" }, "primaryRecipientType", "all_tenant_admins"],
+    ])("updates %s", async (_label, body, field, expected) => {
       const router = createNotificationConfigRouter();
       const handler = findHandler(router, "patch", "/admin/notification-config");
       const res = mockResponse();
 
-      await handler(
-        mockRequest({ authContext: defaultAuth, body: { mailboxReauthEnabled: false } }),
-        res,
-        nextFn
-      );
+      await handler(mockRequest({ authContext: defaultAuth, body }), res, nextFn);
 
-      const body = res.jsonBody as Record<string, unknown>;
-      expect(body.mailboxReauthEnabled).toBe(false);
+      expect((res.jsonBody as Record<string, unknown>)[field]).toBe(expected);
     });
 
-    it("updates escalationEnabled", async () => {
+    it.each([
+      ["invalid primaryRecipientType", { primaryRecipientType: "invalid" }, "primaryRecipientType must be one of"],
+      ["missing specificRecipientUserId when type is specific_user", { primaryRecipientType: "specific_user", specificRecipientUserId: null }, "specificRecipientUserId is required"],
+      ["non-string specificRecipientUserId", { specificRecipientUserId: 123 }, "specificRecipientUserId must be a string or null"],
+    ])("rejects %s", async (_label, body, messageSubstring) => {
       const router = createNotificationConfigRouter();
       const handler = findHandler(router, "patch", "/admin/notification-config");
       const res = mockResponse();
 
-      await handler(
-        mockRequest({ authContext: defaultAuth, body: { escalationEnabled: false } }),
-        res,
-        nextFn
-      );
-
-      const body = res.jsonBody as Record<string, unknown>;
-      expect(body.escalationEnabled).toBe(false);
-    });
-
-    it("updates primaryRecipientType", async () => {
-      const router = createNotificationConfigRouter();
-      const handler = findHandler(router, "patch", "/admin/notification-config");
-      const res = mockResponse();
-
-      await handler(
-        mockRequest({ authContext: defaultAuth, body: { primaryRecipientType: "all_tenant_admins" } }),
-        res,
-        nextFn
-      );
-
-      const body = res.jsonBody as Record<string, unknown>;
-      expect(body.primaryRecipientType).toBe("all_tenant_admins");
-    });
-
-    it("rejects invalid primaryRecipientType", async () => {
-      const router = createNotificationConfigRouter();
-      const handler = findHandler(router, "patch", "/admin/notification-config");
-      const res = mockResponse();
-
-      await handler(
-        mockRequest({ authContext: defaultAuth, body: { primaryRecipientType: "invalid" } }),
-        res,
-        nextFn
-      );
+      await handler(mockRequest({ authContext: defaultAuth, body }), res, nextFn);
 
       expect(res.statusCode).toBe(400);
-      const body = res.jsonBody as Record<string, unknown>;
-      expect(body.message).toContain("primaryRecipientType must be one of");
-    });
-
-    it("requires specificRecipientUserId when type is specific_user", async () => {
-      const router = createNotificationConfigRouter();
-      const handler = findHandler(router, "patch", "/admin/notification-config");
-      const res = mockResponse();
-
-      await handler(
-        mockRequest({
-          authContext: defaultAuth,
-          body: { primaryRecipientType: "specific_user", specificRecipientUserId: null }
-        }),
-        res,
-        nextFn
-      );
-
-      expect(res.statusCode).toBe(400);
-      const body = res.jsonBody as Record<string, unknown>;
-      expect(body.message).toContain("specificRecipientUserId is required");
+      expect((res.jsonBody as Record<string, unknown>).message).toContain(messageSubstring);
     });
 
     it("accepts specific_user with userId", async () => {
@@ -231,25 +180,6 @@ describe("notification config routes", () => {
       const body = res.jsonBody as Record<string, unknown>;
       expect(body.primaryRecipientType).toBe("specific_user");
       expect(body.specificRecipientUserId).toBe("user-42");
-    });
-
-    it("rejects non-string specificRecipientUserId", async () => {
-      const router = createNotificationConfigRouter();
-      const handler = findHandler(router, "patch", "/admin/notification-config");
-      const res = mockResponse();
-
-      await handler(
-        mockRequest({
-          authContext: defaultAuth,
-          body: { specificRecipientUserId: 123 }
-        }),
-        res,
-        nextFn
-      );
-
-      expect(res.statusCode).toBe(400);
-      const body = res.jsonBody as Record<string, unknown>;
-      expect(body.message).toContain("specificRecipientUserId must be a string or null");
     });
 
     it("sets updatedBy from auth context", async () => {

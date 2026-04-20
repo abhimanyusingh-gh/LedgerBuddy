@@ -17,109 +17,129 @@ function baseParsed(overrides?: Partial<ParsedInvoiceData>): ParsedInvoiceData {
 }
 
 describe("RiskSignalEvaluator", () => {
-  describe("TOTAL_AMOUNT_ABOVE_EXPECTED", () => {
-    it("flags when total exceeds expected max", () => {
+  describe("signal flagging by condition", () => {
+    const referenceDate = new Date("2026-01-01");
+
+    it.each([
+      [
+        "TOTAL_AMOUNT_ABOVE_EXPECTED when total exceeds expected max",
+        { totalAmountMinor: 20000000 },
+        RISK_SIGNAL_CODE.TOTAL_AMOUNT_ABOVE_EXPECTED,
+        true,
+      ],
+      [
+        "TOTAL_AMOUNT_BELOW_MINIMUM when total is below 100",
+        { totalAmountMinor: 5000 },
+        RISK_SIGNAL_CODE.TOTAL_AMOUNT_BELOW_MINIMUM,
+        true,
+      ],
+      [
+        "DUE_DATE_TOO_FAR when due date exceeds max days",
+        { dueDate: new Date("2027-06-01") },
+        RISK_SIGNAL_CODE.DUE_DATE_TOO_FAR,
+        true,
+      ],
+      [
+        "MISSING_MANDATORY_FIELDS when vendor name is missing",
+        { vendorName: undefined },
+        RISK_SIGNAL_CODE.MISSING_MANDATORY_FIELDS,
+        true,
+      ],
+      [
+        "MISSING_MANDATORY_FIELDS when total amount is missing",
+        { totalAmountMinor: undefined },
+        RISK_SIGNAL_CODE.MISSING_MANDATORY_FIELDS,
+        true,
+      ],
+      [
+        "no TOTAL_AMOUNT_ABOVE_EXPECTED when within range",
+        { totalAmountMinor: 5000000 },
+        RISK_SIGNAL_CODE.TOTAL_AMOUNT_ABOVE_EXPECTED,
+        false,
+      ],
+      [
+        "no TOTAL_AMOUNT_BELOW_MINIMUM for normal amounts",
+        {},
+        RISK_SIGNAL_CODE.TOTAL_AMOUNT_BELOW_MINIMUM,
+        false,
+      ],
+      [
+        "no DUE_DATE_TOO_FAR for normal due dates",
+        { dueDate: new Date("2026-02-15") },
+        RISK_SIGNAL_CODE.DUE_DATE_TOO_FAR,
+        false,
+      ],
+      [
+        "no MISSING_MANDATORY_FIELDS when all mandatory fields present",
+        {},
+        RISK_SIGNAL_CODE.MISSING_MANDATORY_FIELDS,
+        false,
+      ],
+    ])("flags %s", (_label, overrides, code, shouldFlag) => {
+      const signals = evaluator.evaluate({
+        parsed: baseParsed(overrides as Partial<ParsedInvoiceData>),
+        expectedMaxTotal: 100000,
+        expectedMaxDueDays: 90,
+        referenceDate,
+      });
+      const signal = signals.find(s => s.code === code);
+      if (shouldFlag) {
+        expect(signal).toBeDefined();
+      } else {
+        expect(signal).toBeUndefined();
+      }
+    });
+  });
+
+  describe("severity/category/penalty assignment", () => {
+    it("TOTAL_AMOUNT_ABOVE_EXPECTED is financial warning with penalty", () => {
       const signals = evaluator.evaluate({
         parsed: baseParsed({ totalAmountMinor: 20000000 }),
         expectedMaxTotal: 100000,
         expectedMaxDueDays: 90
       });
       const signal = signals.find(s => s.code === RISK_SIGNAL_CODE.TOTAL_AMOUNT_ABOVE_EXPECTED);
-      expect(signal).toBeDefined();
       expect(signal!.category).toBe("financial");
       expect(signal!.severity).toBe("warning");
       expect(signal!.confidencePenalty).toBeGreaterThan(0);
     });
 
-    it("does not flag when total is within range", () => {
-      const signals = evaluator.evaluate({
-        parsed: baseParsed({ totalAmountMinor: 5000000 }),
-        expectedMaxTotal: 100000,
-        expectedMaxDueDays: 90
-      });
-      expect(signals.find(s => s.code === RISK_SIGNAL_CODE.TOTAL_AMOUNT_ABOVE_EXPECTED)).toBeUndefined();
-    });
-  });
-
-  describe("TOTAL_AMOUNT_BELOW_MINIMUM", () => {
-    it("flags when total is below 100 (10000 minor units)", () => {
+    it("TOTAL_AMOUNT_BELOW_MINIMUM is info severity with zero penalty", () => {
       const signals = evaluator.evaluate({
         parsed: baseParsed({ totalAmountMinor: 5000 }),
         expectedMaxTotal: 100000,
         expectedMaxDueDays: 90
       });
       const signal = signals.find(s => s.code === RISK_SIGNAL_CODE.TOTAL_AMOUNT_BELOW_MINIMUM);
-      expect(signal).toBeDefined();
       expect(signal!.severity).toBe("info");
       expect(signal!.confidencePenalty).toBe(0);
     });
 
-    it("does not flag normal amounts", () => {
-      const signals = evaluator.evaluate({
-        parsed: baseParsed(),
-        expectedMaxTotal: 100000,
-        expectedMaxDueDays: 90
-      });
-      expect(signals.find(s => s.code === RISK_SIGNAL_CODE.TOTAL_AMOUNT_BELOW_MINIMUM)).toBeUndefined();
-    });
-  });
-
-  describe("DUE_DATE_TOO_FAR", () => {
-    it("flags when due date exceeds max days", () => {
-      const referenceDate = new Date("2026-01-01");
+    it("DUE_DATE_TOO_FAR is data-quality category", () => {
       const signals = evaluator.evaluate({
         parsed: baseParsed({ dueDate: new Date("2027-06-01") }),
         expectedMaxTotal: 100000,
         expectedMaxDueDays: 90,
-        referenceDate
+        referenceDate: new Date("2026-01-01")
       });
       const signal = signals.find(s => s.code === RISK_SIGNAL_CODE.DUE_DATE_TOO_FAR);
-      expect(signal).toBeDefined();
       expect(signal!.category).toBe("data-quality");
     });
 
-    it("does not flag normal due dates", () => {
-      const referenceDate = new Date("2026-01-01");
-      const signals = evaluator.evaluate({
-        parsed: baseParsed({ dueDate: new Date("2026-02-15") }),
-        expectedMaxTotal: 100000,
-        expectedMaxDueDays: 90,
-        referenceDate
-      });
-      expect(signals.find(s => s.code === RISK_SIGNAL_CODE.DUE_DATE_TOO_FAR)).toBeUndefined();
-    });
-  });
-
-  describe("MISSING_MANDATORY_FIELDS", () => {
-    it("flags when vendor name is missing", () => {
-      const signals = evaluator.evaluate({
+    it("MISSING_MANDATORY_FIELDS message names the missing field", () => {
+      const vendorMissing = evaluator.evaluate({
         parsed: baseParsed({ vendorName: undefined }),
         expectedMaxTotal: 100000,
         expectedMaxDueDays: 90
       });
-      const signal = signals.find(s => s.code === RISK_SIGNAL_CODE.MISSING_MANDATORY_FIELDS);
-      expect(signal).toBeDefined();
-      expect(signal!.message).toContain("vendor name");
-    });
+      expect(vendorMissing.find(s => s.code === RISK_SIGNAL_CODE.MISSING_MANDATORY_FIELDS)!.message).toContain("vendor name");
 
-    it("flags when total amount is missing", () => {
-      const signals = evaluator.evaluate({
+      const totalMissing = evaluator.evaluate({
         parsed: baseParsed({ totalAmountMinor: undefined }),
         expectedMaxTotal: 100000,
         expectedMaxDueDays: 90
       });
-      const signal = signals.find(s => s.code === RISK_SIGNAL_CODE.MISSING_MANDATORY_FIELDS);
-      expect(signal).toBeDefined();
-      expect(signal!.message).toContain("total amount");
-    });
-
-    it("does not flag when all mandatory fields present", () => {
-      const signals = evaluator.evaluate({
-        parsed: baseParsed(),
-        expectedMaxTotal: 100000,
-        expectedMaxDueDays: 90
-      });
-      expect(signals.find(s => s.code === RISK_SIGNAL_CODE.MISSING_MANDATORY_FIELDS)).toBeUndefined();
+      expect(totalMissing.find(s => s.code === RISK_SIGNAL_CODE.MISSING_MANDATORY_FIELDS)!.message).toContain("total amount");
     });
   });
 

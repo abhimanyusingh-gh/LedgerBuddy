@@ -74,28 +74,16 @@ describe("tcsConfig routes", () => {
   });
 
   describe("PUT /admin/tcs-config", () => {
-    it("returns 400 when ratePercent is negative", async () => {
+    it.each([
+      ["negative", -1],
+      ["above 100", 101],
+    ])("returns 400 when ratePercent is %s", async (_label, ratePercent) => {
       const router = createTcsConfigRouter();
       const handler = findHandler(router, "put", "/admin/tcs-config");
       const res = mockResponse();
 
       await handler(
-        mockRequest({ authContext: defaultAuth, body: { ratePercent: -1, effectiveFrom: "2026-01-01", enabled: true } }),
-        res,
-        jest.fn()
-      );
-
-      expect(res.statusCode).toBe(400);
-      expect((res.jsonBody as { message: string }).message).toContain("ratePercent");
-    });
-
-    it("returns 400 when ratePercent exceeds 100", async () => {
-      const router = createTcsConfigRouter();
-      const handler = findHandler(router, "put", "/admin/tcs-config");
-      const res = mockResponse();
-
-      await handler(
-        mockRequest({ authContext: defaultAuth, body: { ratePercent: 101, effectiveFrom: "2026-01-01", enabled: true } }),
+        mockRequest({ authContext: defaultAuth, body: { ratePercent, effectiveFrom: "2026-01-01", enabled: true } }),
         res,
         jest.fn()
       );

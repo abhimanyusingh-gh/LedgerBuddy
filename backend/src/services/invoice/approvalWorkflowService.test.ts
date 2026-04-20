@@ -93,66 +93,40 @@ beforeEach(() => {
 
 describe("ApprovalWorkflowService", () => {
   describe("buildSimpleSteps", () => {
-    it("returns one step when both flags are false", () => {
-      const steps = service.buildSimpleSteps({ requireManagerReview: false, requireFinalSignoff: false });
-      expect(steps).toHaveLength(1);
+    it.each([
+      ["both false", false, false, 1, []],
+      ["manager review only", true, false, 2, ["Manager review"]],
+      ["final signoff only", false, true, 2, ["Final sign-off"]],
+      ["both true", true, true, 3, ["Manager review", "Final sign-off"]],
+    ])("%s flag combination", (_label, requireManagerReview, requireFinalSignoff, expectedLen, expectedExtraNames) => {
+      const steps = service.buildSimpleSteps({ requireManagerReview, requireFinalSignoff });
+      expect(steps).toHaveLength(expectedLen);
       expect(steps[0]).toEqual({
         order: 1,
         name: "Team member approval",
         approverType: "any_member",
         rule: "any"
       });
-    });
-
-    it("adds manager review step when requireManagerReview is true", () => {
-      const steps = service.buildSimpleSteps({ requireManagerReview: true, requireFinalSignoff: false });
-      expect(steps).toHaveLength(2);
-      expect(steps[1]).toEqual({
-        order: 2,
-        name: "Manager review",
-        approverType: "role",
-        approverRole: "TENANT_ADMIN",
-        rule: "any"
-      });
-    });
-
-    it("adds final signoff step when requireFinalSignoff is true", () => {
-      const steps = service.buildSimpleSteps({ requireManagerReview: false, requireFinalSignoff: true });
-      expect(steps).toHaveLength(2);
-      expect(steps[1]).toEqual({
-        order: 2,
-        name: "Final sign-off",
-        approverType: "role",
-        approverRole: "TENANT_ADMIN",
-        rule: "any"
-      });
-    });
-
-    it("adds both manager review and final signoff when both flags are true", () => {
-      const steps = service.buildSimpleSteps({ requireManagerReview: true, requireFinalSignoff: true });
-      expect(steps).toHaveLength(3);
-      expect(steps[1].order).toBe(2);
-      expect(steps[1].name).toBe("Manager review");
-      expect(steps[2].order).toBe(3);
-      expect(steps[2].name).toBe("Final sign-off");
+      for (let i = 0; i < expectedExtraNames.length; i++) {
+        const step = steps[i + 1];
+        expect(step.order).toBe(i + 2);
+        expect(step.name).toBe(expectedExtraNames[i]);
+        expect(step.approverType).toBe("role");
+        expect(step.approverRole).toBe("TENANT_ADMIN");
+        expect(step.rule).toBe("any");
+      }
     });
   });
 
   describe("evaluateCondition", () => {
     describe("no condition", () => {
-      it("returns true when step has no condition", () => {
-        const step = { order: 1, name: "S", approverType: "any_member" as const, rule: "any" as const };
-        expect(service.evaluateCondition(step, {})).toBe(true);
-      });
-
-      it("returns true when condition field is empty string", () => {
-        const step = { order: 1, name: "S", approverType: "any_member" as const, rule: "any" as const, condition: { field: "", operator: "gt", value: 100 } };
-        expect(service.evaluateCondition(step, {})).toBe(true);
-      });
-
-      it("returns true when condition is null", () => {
-        const step = { order: 1, name: "S", approverType: "any_member" as const, rule: "any" as const, condition: null };
-        expect(service.evaluateCondition(step, {})).toBe(true);
+      const baseStep = { order: 1, name: "S", approverType: "any_member" as const, rule: "any" as const };
+      it.each([
+        ["step has no condition", baseStep],
+        ["condition field is empty string", { ...baseStep, condition: { field: "", operator: "gt", value: 100 } }],
+        ["condition is null", { ...baseStep, condition: null }],
+      ])("returns true when %s", (_label, step) => {
+        expect(service.evaluateCondition(step as never, {})).toBe(true);
       });
     });
 
@@ -169,92 +143,48 @@ describe("ApprovalWorkflowService", () => {
         condition: { field: "totalAmountMinor", operator, value }
       });
 
-      it("returns true when value is null (null-pass-through behavior)", () => {
-        expect(service.evaluateCondition(makeStep("gt", 100), { parsed: { totalAmountMinor: null } })).toBe(true);
+      it.each([
+        ["value is null", { parsed: { totalAmountMinor: null } }],
+        ["value is undefined", { parsed: { totalAmountMinor: undefined } }],
+        ["parsed is null", { parsed: null }],
+        ["parsed is undefined", {}],
+      ])("null-pass-through: returns true when %s", (_label, ctx) => {
+        expect(service.evaluateCondition(makeStep("gt", 100), ctx as never)).toBe(true);
       });
 
-      it("returns true when value is undefined (null-pass-through behavior)", () => {
-        expect(service.evaluateCondition(makeStep("gt", 100), { parsed: { totalAmountMinor: undefined } })).toBe(true);
+      it.each([
+        ["gt", 100, 200, true],
+        ["gt", 100, 100, false],
+        ["gt", 100, 50, false],
+        ["gte", 100, 100, true],
+        ["gte", 100, 99, false],
+        ["lt", 100, 50, true],
+        ["lt", 100, 100, false],
+        ["lte", 100, 100, true],
+        ["lte", 100, 101, false],
+        ["eq", 100, 100, true],
+        ["eq", 100, 99, false],
+      ])("operator %s threshold=%i value=%i -> %s", (op, threshold, value, expected) => {
+        expect(service.evaluateCondition(makeStep(op, threshold), { parsed: { totalAmountMinor: value } })).toBe(expected);
       });
 
-      it("returns true when parsed is null (null-pass-through behavior)", () => {
-        expect(service.evaluateCondition(makeStep("gt", 100), { parsed: null })).toBe(true);
-      });
-
-      it("returns true when parsed is undefined (null-pass-through behavior)", () => {
-        expect(service.evaluateCondition(makeStep("gt", 100), {})).toBe(true);
-      });
-
-      it("gt: returns true when amount exceeds threshold", () => {
-        expect(service.evaluateCondition(makeStep("gt", 100), { parsed: { totalAmountMinor: 200 } })).toBe(true);
-      });
-
-      it("gt: returns false when amount equals threshold", () => {
-        expect(service.evaluateCondition(makeStep("gt", 100), { parsed: { totalAmountMinor: 100 } })).toBe(false);
-      });
-
-      it("gt: returns false when amount is below threshold", () => {
-        expect(service.evaluateCondition(makeStep("gt", 100), { parsed: { totalAmountMinor: 50 } })).toBe(false);
-      });
-
-      it("gte: returns true when amount equals threshold", () => {
-        expect(service.evaluateCondition(makeStep("gte", 100), { parsed: { totalAmountMinor: 100 } })).toBe(true);
-      });
-
-      it("gte: returns false when amount is below threshold", () => {
-        expect(service.evaluateCondition(makeStep("gte", 100), { parsed: { totalAmountMinor: 99 } })).toBe(false);
-      });
-
-      it("lt: returns true when amount is below threshold", () => {
-        expect(service.evaluateCondition(makeStep("lt", 100), { parsed: { totalAmountMinor: 50 } })).toBe(true);
-      });
-
-      it("lt: returns false when amount equals threshold", () => {
-        expect(service.evaluateCondition(makeStep("lt", 100), { parsed: { totalAmountMinor: 100 } })).toBe(false);
-      });
-
-      it("lte: returns true when amount equals threshold", () => {
-        expect(service.evaluateCondition(makeStep("lte", 100), { parsed: { totalAmountMinor: 100 } })).toBe(true);
-      });
-
-      it("lte: returns false when amount exceeds threshold", () => {
-        expect(service.evaluateCondition(makeStep("lte", 100), { parsed: { totalAmountMinor: 101 } })).toBe(false);
-      });
-
-      it("eq: returns true when amount equals threshold", () => {
-        expect(service.evaluateCondition(makeStep("eq", 100), { parsed: { totalAmountMinor: 100 } })).toBe(true);
-      });
-
-      it("eq: returns false when amount differs", () => {
-        expect(service.evaluateCondition(makeStep("eq", 100), { parsed: { totalAmountMinor: 99 } })).toBe(false);
-      });
-
-      it("in: returns true when amount is in threshold array", () => {
-        expect(service.evaluateCondition(makeStep("in", [100, 200, 300]), { parsed: { totalAmountMinor: 200 } })).toBe(true);
-      });
-
-      it("in: returns false when amount is not in threshold array", () => {
-        expect(service.evaluateCondition(makeStep("in", [100, 200, 300]), { parsed: { totalAmountMinor: 150 } })).toBe(false);
-      });
-
-      it("in: returns false when threshold is not an array", () => {
-        expect(service.evaluateCondition(makeStep("in", 100), { parsed: { totalAmountMinor: 100 } })).toBe(false);
+      it.each([
+        ["in: in array", [100, 200, 300], 200, true],
+        ["in: not in array", [100, 200, 300], 150, false],
+        ["in: threshold not an array", 100, 100, false],
+      ])("%s", (_label, threshold, value, expected) => {
+        expect(service.evaluateCondition(makeStep("in", threshold), { parsed: { totalAmountMinor: value } })).toBe(expected);
       });
 
       it("returns true for unknown operator", () => {
         expect(service.evaluateCondition(makeStep("neq", 100), { parsed: { totalAmountMinor: 100 } })).toBe(true);
       });
 
-      it("returns true when numeric operator used with non-numeric threshold", () => {
-        expect(service.evaluateCondition(makeStep("gt", "abc"), { parsed: { totalAmountMinor: 100 } })).toBe(true);
-      });
-
-      it("returns true when numeric operator used with non-numeric value", () => {
-        const step = {
-          order: 1, name: "S", approverType: "any_member" as const, rule: "any" as const,
-          condition: { field: "totalAmountMinor", operator: "gt", value: 100 }
-        };
-        expect(service.evaluateCondition(step, { parsed: { totalAmountMinor: "abc" as unknown as number } })).toBe(true);
+      it.each([
+        ["non-numeric threshold", "abc", 100],
+        ["non-numeric value", 100, "abc"],
+      ])("returns true when numeric operator used with %s", (_label, threshold, value) => {
+        expect(service.evaluateCondition(makeStep("gt", threshold), { parsed: { totalAmountMinor: value as unknown as number } })).toBe(true);
       });
     });
 
@@ -264,28 +194,20 @@ describe("ApprovalWorkflowService", () => {
         condition: { field: "tdsAmountMinor", operator, value }
       });
 
-      it("returns true when compliance is null (null-pass-through)", () => {
-        expect(service.evaluateCondition(makeStep("gt", 100), { compliance: null })).toBe(true);
+      it.each([
+        ["compliance is null", { compliance: null }],
+        ["compliance.tds is undefined", { compliance: {} }],
+        ["compliance.tds.amountMinor is null", { compliance: { tds: { amountMinor: null } } }],
+      ])("null-pass-through: returns true when %s", (_label, ctx) => {
+        expect(service.evaluateCondition(makeStep("gt", 100), ctx as never)).toBe(true);
       });
 
-      it("returns true when compliance.tds is undefined (null-pass-through)", () => {
-        expect(service.evaluateCondition(makeStep("gt", 100), { compliance: {} })).toBe(true);
-      });
-
-      it("returns true when compliance.tds.amountMinor is null (null-pass-through)", () => {
-        expect(service.evaluateCondition(makeStep("gt", 100), { compliance: { tds: { amountMinor: null } } })).toBe(true);
-      });
-
-      it("gt: compares tds amount", () => {
-        expect(service.evaluateCondition(makeStep("gt", 100), { compliance: { tds: { amountMinor: 200 } } })).toBe(true);
-      });
-
-      it("lt: compares tds amount", () => {
-        expect(service.evaluateCondition(makeStep("lt", 100), { compliance: { tds: { amountMinor: 50 } } })).toBe(true);
-      });
-
-      it("eq: compares tds amount", () => {
-        expect(service.evaluateCondition(makeStep("eq", 100), { compliance: { tds: { amountMinor: 100 } } })).toBe(true);
+      it.each([
+        ["gt", 100, 200, true],
+        ["lt", 100, 50, true],
+        ["eq", 100, 100, true],
+      ])("operator %s compares tds amount", (op, threshold, value, expected) => {
+        expect(service.evaluateCondition(makeStep(op, threshold), { compliance: { tds: { amountMinor: value } } })).toBe(expected);
       });
     });
 
@@ -295,46 +217,24 @@ describe("ApprovalWorkflowService", () => {
         condition: { field: "riskSignalMaxSeverity", operator, value }
       });
 
-      it("returns true when compliance is null (null-pass-through)", () => {
-        expect(service.evaluateCondition(makeStep("eq", 3), { compliance: null })).toBe(true);
+      it.each([
+        ["compliance is null", { compliance: null }],
+        ["riskSignals is undefined", { compliance: {} }],
+        ["riskSignals array is empty", { compliance: { riskSignals: [] } }],
+      ])("null-pass-through: returns true when %s", (_label, ctx) => {
+        expect(service.evaluateCondition(makeStep("eq", 3), ctx as never)).toBe(true);
       });
 
-      it("returns true when riskSignals is undefined (null-pass-through)", () => {
-        expect(service.evaluateCondition(makeStep("eq", 3), { compliance: {} })).toBe(true);
-      });
-
-      it("returns true when riskSignals array is empty (value stays undefined)", () => {
-        expect(service.evaluateCondition(makeStep("eq", 3), { compliance: { riskSignals: [] } })).toBe(true);
-      });
-
-      it("computes max severity from signals and uses eq", () => {
-        const compliance = { riskSignals: [{ severity: "warning" }, { severity: "critical" }] };
-        expect(service.evaluateCondition(makeStep("eq", 3), { compliance })).toBe(true);
-      });
-
-      it("computes max severity: warning=2", () => {
-        const compliance = { riskSignals: [{ severity: "warning" }, { severity: "info" }] };
-        expect(service.evaluateCondition(makeStep("eq", 2), { compliance })).toBe(true);
-      });
-
-      it("computes max severity: info=1", () => {
-        const compliance = { riskSignals: [{ severity: "info" }] };
-        expect(service.evaluateCondition(makeStep("eq", 1), { compliance })).toBe(true);
-      });
-
-      it("computes max severity: unknown severity maps to 0", () => {
-        const compliance = { riskSignals: [{ severity: "unknown_level" }] };
-        expect(service.evaluateCondition(makeStep("eq", 0), { compliance })).toBe(true);
-      });
-
-      it("gt: compares numeric severity", () => {
-        const compliance = { riskSignals: [{ severity: "critical" }] };
-        expect(service.evaluateCondition(makeStep("gt", 2), { compliance })).toBe(true);
-      });
-
-      it("lte: compares numeric severity", () => {
-        const compliance = { riskSignals: [{ severity: "info" }] };
-        expect(service.evaluateCondition(makeStep("lte", 1), { compliance })).toBe(true);
+      it.each([
+        ["critical/warning -> 3", [{ severity: "warning" }, { severity: "critical" }], "eq", 3],
+        ["warning+info -> 2", [{ severity: "warning" }, { severity: "info" }], "eq", 2],
+        ["info -> 1", [{ severity: "info" }], "eq", 1],
+        ["unknown severity -> 0", [{ severity: "unknown_level" }], "eq", 0],
+        ["critical gt 2", [{ severity: "critical" }], "gt", 2],
+        ["info lte 1", [{ severity: "info" }], "lte", 1],
+      ])("computes max severity: %s", (_label, riskSignals, op, value) => {
+        const compliance = { riskSignals };
+        expect(service.evaluateCondition(makeStep(op, value), { compliance })).toBe(true);
       });
     });
 
@@ -344,32 +244,21 @@ describe("ApprovalWorkflowService", () => {
         condition: { field: "glCodeSource", operator, value }
       });
 
-      it("returns true when compliance is null (null-pass-through)", () => {
-        expect(service.evaluateCondition(makeStep("eq", "manual"), { compliance: null })).toBe(true);
+      it.each([
+        ["compliance is null", { compliance: null }],
+        ["glCode is undefined", { compliance: {} }],
+        ["glCode.source is undefined", { compliance: { glCode: {} } }],
+      ])("null-pass-through: returns true when %s", (_label, ctx) => {
+        expect(service.evaluateCondition(makeStep("eq", "manual"), ctx as never)).toBe(true);
       });
 
-      it("returns true when glCode is undefined (null-pass-through)", () => {
-        expect(service.evaluateCondition(makeStep("eq", "manual"), { compliance: {} })).toBe(true);
-      });
-
-      it("returns true when glCode.source is undefined (null-pass-through)", () => {
-        expect(service.evaluateCondition(makeStep("eq", "manual"), { compliance: { glCode: {} } })).toBe(true);
-      });
-
-      it("eq: matches string source", () => {
-        expect(service.evaluateCondition(makeStep("eq", "manual"), { compliance: { glCode: { source: "manual" } } })).toBe(true);
-      });
-
-      it("eq: does not match different source", () => {
-        expect(service.evaluateCondition(makeStep("eq", "manual"), { compliance: { glCode: { source: "auto" } } })).toBe(false);
-      });
-
-      it("in: matches source in array", () => {
-        expect(service.evaluateCondition(makeStep("in", ["manual", "override"]), { compliance: { glCode: { source: "manual" } } })).toBe(true);
-      });
-
-      it("in: does not match source not in array", () => {
-        expect(service.evaluateCondition(makeStep("in", ["manual", "override"]), { compliance: { glCode: { source: "auto" } } })).toBe(false);
+      it.each([
+        ["eq matches", "eq", "manual", "manual", true],
+        ["eq does not match", "eq", "manual", "auto", false],
+        ["in matches", "in", ["manual", "override"], "manual", true],
+        ["in does not match", "in", ["manual", "override"], "auto", false],
+      ])("%s", (_label, op, threshold, source, expected) => {
+        expect(service.evaluateCondition(makeStep(op, threshold), { compliance: { glCode: { source } } })).toBe(expected);
       });
 
       it("returns true for numeric operator on string value (type mismatch fallback)", () => {

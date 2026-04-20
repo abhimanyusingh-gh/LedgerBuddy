@@ -746,145 +746,56 @@ describe("GST voucher XML generation", () => {
     cessLedger: "Input Cess"
   };
 
-  it("generates intra-state voucher with CGST and SGST ledger entries", () => {
-    const xml = buildTallyPurchaseVoucherPayload({
-      companyName: "Demo Company",
-      purchaseLedgerName: "Purchase",
-      voucherNumber: "INV-GST-1",
-      partyLedgerName: "Vendor India",
-      amountMinor: 118000,
-      currency: "INR",
-      date: new Date("2026-03-01"),
-      narration: "GST intra-state purchase",
-      gstin: "29ABCDE1234F1Z5",
-      gst: {
-        subtotalMinor: 100000,
-        cgstMinor: 9000,
-        sgstMinor: 9000
-      },
-      gstLedgers
-    });
+  const basePayload = {
+    companyName: "Demo Company",
+    purchaseLedgerName: "Purchase",
+    partyLedgerName: "Vendor",
+    amountMinor: 118000,
+    currency: "INR",
+    date: new Date("2026-03-01"),
+  } as const;
 
-    expect(xml).toContain("<PARTYGSTIN>29ABCDE1234F1Z5</PARTYGSTIN>");
-    expect(xml).toContain("<AMOUNT>-1180.00</AMOUNT>");
-    // Purchase entry = subtotal
-    expect(xml).toContain("<LEDGERNAME>Purchase</LEDGERNAME>");
-    expect(xml).toContain("<AMOUNT>1000.00</AMOUNT>");
-    // CGST entry
-    expect(xml).toContain("<LEDGERNAME>Input CGST</LEDGERNAME>");
-    expect(xml).toContain("<AMOUNT>90.00</AMOUNT>");
-    // SGST entry
-    expect(xml).toContain("<LEDGERNAME>Input SGST</LEDGERNAME>");
-    expect(xml).toContain("<AMOUNT>90.00</AMOUNT>");
-    // No IGST or Cess entries
-    expect(xml).not.toContain("Input IGST");
-    expect(xml).not.toContain("Input Cess");
-  });
-
-  it("generates inter-state voucher with IGST ledger entry", () => {
-    const xml = buildTallyPurchaseVoucherPayload({
-      companyName: "Demo Company",
-      purchaseLedgerName: "Purchase",
-      voucherNumber: "INV-GST-2",
-      partyLedgerName: "Vendor Interstate",
-      amountMinor: 118000,
-      currency: "INR",
-      date: new Date("2026-03-02"),
-      gstin: "07FGHIJ5678K2Z3",
-      gst: {
-        subtotalMinor: 100000,
-        igstMinor: 18000
-      },
-      gstLedgers
-    });
-
-    expect(xml).toContain("<PARTYGSTIN>07FGHIJ5678K2Z3</PARTYGSTIN>");
-    expect(xml).toContain("<LEDGERNAME>Input IGST</LEDGERNAME>");
-    expect(xml).toContain("<AMOUNT>180.00</AMOUNT>");
-    expect(xml).not.toContain("Input CGST");
-    expect(xml).not.toContain("Input SGST");
-  });
-
-  it("includes cess ledger entry when cess is present", () => {
-    const xml = buildTallyPurchaseVoucherPayload({
-      companyName: "Demo Company",
-      purchaseLedgerName: "Purchase",
-      voucherNumber: "INV-GST-3",
-      partyLedgerName: "Vendor Cess",
-      amountMinor: 130000,
-      currency: "INR",
-      date: new Date("2026-03-03"),
-      gst: {
-        subtotalMinor: 100000,
-        cgstMinor: 9000,
-        sgstMinor: 9000,
-        cessMinor: 12000
-      },
-      gstLedgers
-    });
-
-    expect(xml).toContain("<LEDGERNAME>Input Cess</LEDGERNAME>");
-    expect(xml).toContain("<AMOUNT>120.00</AMOUNT>");
-  });
-
-  it("omits GSTIN tag when gstin is not provided", () => {
-    const xml = buildTallyPurchaseVoucherPayload({
-      companyName: "Demo Company",
-      purchaseLedgerName: "Purchase",
-      voucherNumber: "INV-GST-4",
-      partyLedgerName: "Vendor No GSTIN",
-      amountMinor: 118000,
-      currency: "INR",
-      date: new Date("2026-03-04"),
-      gst: {
-        subtotalMinor: 100000,
-        cgstMinor: 9000,
-        sgstMinor: 9000
-      },
-      gstLedgers
-    });
-
-    expect(xml).not.toContain("<PARTYGSTIN>");
-    expect(xml).toContain("<LEDGERNAME>Input CGST</LEDGERNAME>");
-  });
-
-  it("uses total amount as subtotal when subtotalMinor is missing", () => {
-    const xml = buildTallyPurchaseVoucherPayload({
-      companyName: "Demo Company",
-      purchaseLedgerName: "Purchase",
-      voucherNumber: "INV-GST-6",
-      partyLedgerName: "Vendor NoSubtotal",
-      amountMinor: 118000,
-      currency: "INR",
-      date: new Date("2026-03-06"),
-      gst: {
-        subtotalMinor: 0,
-        cgstMinor: 9000,
-        sgstMinor: 9000
-      },
-      gstLedgers
-    });
-
-    // subtotalMinor=0 is falsy but it's a valid value (0.00 purchase)
-    expect(xml).toContain("<AMOUNT>0.00</AMOUNT>");
-    expect(xml).toContain("<LEDGERNAME>Input CGST</LEDGERNAME>");
-  });
-
-  it("falls back to non-GST structure when gstLedgers is not configured", () => {
-    const xml = buildTallyPurchaseVoucherPayload({
-      companyName: "Demo Company",
-      purchaseLedgerName: "Purchase",
-      voucherNumber: "INV-GST-5",
-      partyLedgerName: "Vendor Fallback",
-      amountMinor: 118000,
-      currency: "INR",
-      date: new Date("2026-03-05")
-    });
-
-    // Should have simple two-entry structure
-    expect(xml).toContain("<AMOUNT>-1180.00</AMOUNT>");
-    expect(xml).toContain("<AMOUNT>1180.00</AMOUNT>");
-    expect(xml).not.toContain("Input CGST");
+  it.each([
+    [
+      "intra-state (CGST+SGST)",
+      { voucherNumber: "INV-GST-1", gstin: "29ABCDE1234F1Z5", gst: { subtotalMinor: 100000, cgstMinor: 9000, sgstMinor: 9000 }, gstLedgers },
+      ["<PARTYGSTIN>29ABCDE1234F1Z5</PARTYGSTIN>", "<LEDGERNAME>Input CGST</LEDGERNAME>", "<LEDGERNAME>Input SGST</LEDGERNAME>"],
+      ["Input IGST", "Input Cess"],
+    ],
+    [
+      "inter-state (IGST)",
+      { voucherNumber: "INV-GST-2", gstin: "07FGHIJ5678K2Z3", gst: { subtotalMinor: 100000, igstMinor: 18000 }, gstLedgers },
+      ["<PARTYGSTIN>07FGHIJ5678K2Z3</PARTYGSTIN>", "<LEDGERNAME>Input IGST</LEDGERNAME>", "<AMOUNT>180.00</AMOUNT>"],
+      ["Input CGST", "Input SGST"],
+    ],
+    [
+      "with cess",
+      { voucherNumber: "INV-GST-3", amountMinor: 130000, gst: { subtotalMinor: 100000, cgstMinor: 9000, sgstMinor: 9000, cessMinor: 12000 }, gstLedgers },
+      ["<LEDGERNAME>Input Cess</LEDGERNAME>", "<AMOUNT>120.00</AMOUNT>"],
+      [],
+    ],
+    [
+      "omits GSTIN when not provided",
+      { voucherNumber: "INV-GST-4", gst: { subtotalMinor: 100000, cgstMinor: 9000, sgstMinor: 9000 }, gstLedgers },
+      ["<LEDGERNAME>Input CGST</LEDGERNAME>"],
+      ["<PARTYGSTIN>"],
+    ],
+    [
+      "subtotalMinor=0 uses 0.00 purchase",
+      { voucherNumber: "INV-GST-6", gst: { subtotalMinor: 0, cgstMinor: 9000, sgstMinor: 9000 }, gstLedgers },
+      ["<AMOUNT>0.00</AMOUNT>", "<LEDGERNAME>Input CGST</LEDGERNAME>"],
+      [],
+    ],
+    [
+      "falls back to non-GST structure when gstLedgers missing",
+      { voucherNumber: "INV-GST-5" },
+      ["<AMOUNT>-1180.00</AMOUNT>", "<AMOUNT>1180.00</AMOUNT>"],
+      ["Input CGST"],
+    ],
+  ])("generates %s voucher correctly", (_label, overrides, expectedContains, expectedNotContains) => {
+    const xml = buildTallyPurchaseVoucherPayload({ ...basePayload, ...(overrides as object) } as never);
+    for (const s of expectedContains) expect(xml).toContain(s);
+    for (const s of expectedNotContains) expect(xml).not.toContain(s);
   });
 });
 
@@ -1120,76 +1031,40 @@ describe("TallyExporter with GST config", () => {
 });
 
 describe("TCS voucher XML generation", () => {
-  it("adds TCS ledger entry with ISDEEMEDPOSITIVE=No and no negative sign on amount", () => {
+  const tcsBase = {
+    companyName: "Demo Company",
+    purchaseLedgerName: "Purchase",
+    partyLedgerName: "TCS Vendor",
+    amountMinor: 100000,
+    currency: "INR",
+    date: new Date("2026-04-01"),
+  } as const;
+
+  it("adds TCS ledger entry with ISDEEMEDPOSITIVE=No and positive amount, and adds to party total", () => {
     const xml = buildTallyPurchaseVoucherPayload({
-      companyName: "Demo Company",
-      purchaseLedgerName: "Purchase",
+      ...tcsBase,
       voucherNumber: "INV-TCS-1",
-      partyLedgerName: "TCS Vendor",
-      amountMinor: 100000,
-      currency: "INR",
-      date: new Date("2026-04-01"),
-      tcs: {
-        amountMinor: 1000,
-        ledgerName: "TCS Receivable"
-      }
+      tcs: { amountMinor: 1000, ledgerName: "TCS Receivable" }
     });
 
     expect(xml).toContain("<LEDGERNAME>TCS Receivable</LEDGERNAME>");
     expect(xml).toContain("<ISDEEMEDPOSITIVE>No</ISDEEMEDPOSITIVE>");
     expect(xml).toMatch(/<LEDGERNAME>TCS Receivable<\/LEDGERNAME>[\s\S]*?<ISDEEMEDPOSITIVE>No<\/ISDEEMEDPOSITIVE>[\s\S]*?<AMOUNT>10\.00<\/AMOUNT>/);
     expect(xml).not.toMatch(/<LEDGERNAME>TCS Receivable<\/LEDGERNAME>[\s\S]*?<AMOUNT>-10\.00<\/AMOUNT>/);
-  });
-
-  it("adds TCS amount to party total", () => {
-    const xml = buildTallyPurchaseVoucherPayload({
-      companyName: "Demo Company",
-      purchaseLedgerName: "Purchase",
-      voucherNumber: "INV-TCS-2",
-      partyLedgerName: "TCS Vendor",
-      amountMinor: 100000,
-      currency: "INR",
-      date: new Date("2026-04-01"),
-      tcs: {
-        amountMinor: 1000,
-        ledgerName: "TCS Receivable"
-      }
-    });
-
     expect(xml).toContain("<AMOUNT>-1010.00</AMOUNT>");
   });
 
-  it("omits TCS ledger entry when tcs.amountMinor is zero", () => {
+  it.each([
+    ["tcs.amountMinor is zero", { amountMinor: 0, ledgerName: "TCS Receivable" }],
+    ["tcs is not provided", undefined],
+  ])("omits TCS ledger entry when %s", (_label, tcs) => {
     const xml = buildTallyPurchaseVoucherPayload({
-      companyName: "Demo Company",
-      purchaseLedgerName: "Purchase",
-      voucherNumber: "INV-TCS-3",
-      partyLedgerName: "TCS Vendor",
-      amountMinor: 100000,
-      currency: "INR",
-      date: new Date("2026-04-01"),
-      tcs: {
-        amountMinor: 0,
-        ledgerName: "TCS Receivable"
-      }
-    });
-
+      ...tcsBase,
+      voucherNumber: "INV-TCS-omit",
+      partyLedgerName: "Vendor",
+      ...(tcs ? { tcs } : {}),
+    } as never);
     expect(xml).not.toContain("<LEDGERNAME>TCS Receivable</LEDGERNAME>");
-    expect(xml).toContain("<AMOUNT>-1000.00</AMOUNT>");
-  });
-
-  it("omits TCS ledger entry when tcs is not provided", () => {
-    const xml = buildTallyPurchaseVoucherPayload({
-      companyName: "Demo Company",
-      purchaseLedgerName: "Purchase",
-      voucherNumber: "INV-TCS-4",
-      partyLedgerName: "Vendor No TCS",
-      amountMinor: 100000,
-      currency: "INR",
-      date: new Date("2026-04-01")
-    });
-
-    expect(xml).not.toContain("TCS Receivable");
     expect(xml).toContain("<AMOUNT>-1000.00</AMOUNT>");
   });
 

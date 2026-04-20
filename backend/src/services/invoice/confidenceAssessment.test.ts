@@ -24,149 +24,60 @@ function assess(overrides?: Record<string, unknown>) {
 
 describe("assessInvoiceConfidence", () => {
   describe("normalizeConfidence", () => {
-    it("defaults to 0.6 when ocrConfidence is undefined", () => {
-      const result = assess({ ocrConfidence: undefined });
-      const expectedOcr = 0.6 * 100;
-      const expectedCompleteness = 100;
-      const expectedScore = Math.round(expectedOcr * 0.65 + expectedCompleteness * 0.35);
-      expect(result.score).toBe(expectedScore);
-    });
-
-    it("defaults to 0.6 when ocrConfidence is NaN", () => {
-      const result = assess({ ocrConfidence: NaN });
-      const expectedOcr = 0.6 * 100;
-      const expectedCompleteness = 100;
-      const expectedScore = Math.round(expectedOcr * 0.65 + expectedCompleteness * 0.35);
-      expect(result.score).toBe(expectedScore);
-    });
-
-    it("normalizes ocrConfidence > 1 by dividing by 100", () => {
-      const result = assess({ ocrConfidence: 95 });
-      const expectedOcr = 0.95 * 100;
-      const expectedCompleteness = 100;
-      const expectedScore = Math.round(expectedOcr * 0.65 + expectedCompleteness * 0.35);
-      expect(result.score).toBe(expectedScore);
-    });
-
-    it("uses ocrConfidence as-is when in [0,1] range", () => {
-      const result = assess({ ocrConfidence: 0.85 });
-      const expectedOcr = 0.85 * 100;
-      const expectedCompleteness = 100;
-      const expectedScore = Math.round(expectedOcr * 0.65 + expectedCompleteness * 0.35);
-      expect(result.score).toBe(expectedScore);
-    });
-
-    it("clamps ocrConfidence of exactly 0 to 0", () => {
-      const result = assess({ ocrConfidence: 0 });
-      const expectedCompleteness = 100;
-      const expectedScore = Math.round(0 * 0.65 + expectedCompleteness * 0.35);
-      expect(result.score).toBe(expectedScore);
-    });
-
-    it("treats ocrConfidence of exactly 1 as 1.0", () => {
-      const result = assess({ ocrConfidence: 1 });
-      const expectedScore = Math.round(100 * 0.65 + 100 * 0.35);
-      expect(result.score).toBe(expectedScore);
-    });
-
-    it("treats ocrConfidence of 0.5 as 0.5", () => {
-      const result = assess({ ocrConfidence: 0.5 });
-      const expectedScore = Math.round(50 * 0.65 + 100 * 0.35);
-      expect(result.score).toBe(expectedScore);
-    });
-
-    it("clamps ocrConfidence of 150 to 1.0 after dividing by 100", () => {
-      const result = assess({ ocrConfidence: 150 });
-      const expectedScore = Math.round(100 * 0.65 + 100 * 0.35);
+    it.each([
+      ["undefined defaults to 0.6", undefined, 0.6],
+      ["NaN defaults to 0.6", NaN, 0.6],
+      ["> 1 divided by 100 (95 → 0.95)", 95, 0.95],
+      ["in [0,1] used as-is (0.85)", 0.85, 0.85],
+      ["exactly 0 stays 0", 0, 0],
+      ["exactly 1 stays 1", 1, 1],
+      ["0.5 stays 0.5", 0.5, 0.5],
+      ["150 divided to 1.5 and clamped to 1", 150, 1],
+    ])("%s", (_label, input, expectedOcr) => {
+      const result = assess({ ocrConfidence: input });
+      const expectedScore = Math.round(expectedOcr * 100 * 0.65 + 100 * 0.35);
       expect(result.score).toBe(expectedScore);
     });
   });
 
   describe("scoreCompleteness", () => {
-    it("scores 100% when all 5 required fields are present", () => {
-      const result = assess();
-      expect(result.score).toBe(Math.round(95 * 0.65 + 100 * 0.35));
-    });
-
-    it("scores 0% when no required fields are present", () => {
-      const result = assess({ parsed: {} });
-      const expectedScore = Math.round(95 * 0.65 + 0 * 0.35);
-      expect(result.score).toBe(expectedScore);
-    });
-
-    it("scores proportionally for partial fields", () => {
-      const parsed = { invoiceNumber: "INV-001", vendorName: "ACME" };
+    it.each([
+      ["all 5 required fields present", fullParsed(), 5],
+      ["no required fields present", {} as ParsedInvoiceData, 0],
+      ["partial fields (2/5)", { invoiceNumber: "INV-001", vendorName: "ACME" } as ParsedInvoiceData, 2],
+      ["empty string values ignored", fullParsed({ invoiceNumber: "", vendorName: "" }), 3],
+      ["null/undefined values ignored", fullParsed({ invoiceNumber: undefined, currency: undefined }), 3],
+    ])("scores correctly when %s", (_label, parsed, presentCount) => {
       const result = assess({ parsed });
-      const completeness = Math.round((2 / 5) * 100);
-      const expectedScore = Math.round(95 * 0.65 + completeness * 0.35);
-      expect(result.score).toBe(expectedScore);
-    });
-
-    it("ignores fields with empty string values", () => {
-      const parsed = fullParsed({ invoiceNumber: "", vendorName: "" });
-      const result = assess({ parsed });
-      const completeness = Math.round((3 / 5) * 100);
-      const expectedScore = Math.round(95 * 0.65 + completeness * 0.35);
-      expect(result.score).toBe(expectedScore);
-    });
-
-    it("ignores fields with null values", () => {
-      const parsed = fullParsed({ invoiceNumber: undefined, currency: undefined });
-      const result = assess({ parsed });
-      const completeness = Math.round((3 / 5) * 100);
+      const completeness = Math.round((presentCount / 5) * 100);
       const expectedScore = Math.round(95 * 0.65 + completeness * 0.35);
       expect(result.score).toBe(expectedScore);
     });
   });
 
   describe("warnings penalty", () => {
-    it("applies no penalty for 0 warnings", () => {
-      const result = assess({ warnings: [] });
-      expect(result.score).toBe(Math.round(95 * 0.65 + 100 * 0.35));
-    });
-
-    it("applies 4-point penalty for 1 warning", () => {
-      const result = assess({ warnings: ["something off"] });
-      const expectedScore = Math.round(95 * 0.65 + 100 * 0.35 - 4);
-      expect(result.score).toBe(expectedScore);
-    });
-
-    it("caps penalty at 25 for more than 6 warnings", () => {
-      const warnings = Array.from({ length: 10 }, (_, i) => `warning ${i}`);
+    it.each([
+      ["0 warnings applies no penalty", 0, 0],
+      ["1 warning applies 4 points", 1, 4],
+      ["6 warnings applies 24 points", 6, 24],
+      ["7 warnings caps at 25 (7*4=28 > 25)", 7, 25],
+      ["10 warnings caps at 25", 10, 25],
+    ])("%s", (_label, warningCount, expectedPenalty) => {
+      const warnings = Array.from({ length: warningCount }, (_, i) => `warning ${i}`);
       const result = assess({ warnings });
-      const expectedScore = Math.round(95 * 0.65 + 100 * 0.35 - 25);
-      expect(result.score).toBe(expectedScore);
-    });
-
-    it("applies exactly 24-point penalty for 6 warnings", () => {
-      const warnings = Array.from({ length: 6 }, (_, i) => `warning ${i}`);
-      const result = assess({ warnings });
-      const expectedScore = Math.round(95 * 0.65 + 100 * 0.35 - 24);
-      expect(result.score).toBe(expectedScore);
-    });
-
-    it("caps at 25 for 7 warnings (7*4=28 > 25)", () => {
-      const warnings = Array.from({ length: 7 }, (_, i) => `warning ${i}`);
-      const result = assess({ warnings });
-      const expectedScore = Math.round(95 * 0.65 + 100 * 0.35 - 25);
+      const expectedScore = Math.round(95 * 0.65 + 100 * 0.35 - expectedPenalty);
       expect(result.score).toBe(expectedScore);
     });
   });
 
   describe("complianceRiskPenalty", () => {
-    it("applies no penalty when complianceRiskPenalty is 0", () => {
-      const result = assess({ complianceRiskPenalty: 0 });
-      expect(result.score).toBe(Math.round(95 * 0.65 + 100 * 0.35));
-    });
-
-    it("applies no penalty when complianceRiskPenalty is undefined", () => {
-      const result = assess({ complianceRiskPenalty: undefined });
-      expect(result.score).toBe(Math.round(95 * 0.65 + 100 * 0.35));
-    });
-
-    it("subtracts complianceRiskPenalty from score", () => {
-      const result = assess({ complianceRiskPenalty: 15 });
-      const expectedScore = Math.round(95 * 0.65 + 100 * 0.35 - 15);
+    it.each([
+      ["0", 0, 0],
+      ["undefined", undefined, 0],
+      ["15", 15, 15],
+    ])("penalty=%s subtracts %s from score", (_label, penalty, expectedDeduction) => {
+      const result = assess({ complianceRiskPenalty: penalty });
+      const expectedScore = Math.round(95 * 0.65 + 100 * 0.35 - expectedDeduction);
       expect(result.score).toBe(expectedScore);
     });
 
@@ -304,18 +215,12 @@ describe("assessInvoiceConfidence", () => {
   });
 
   describe("NaN safety", () => {
-    it("never returns NaN for Infinity ocrConfidence", () => {
-      const result = assess({ ocrConfidence: Infinity });
-      expect(Number.isFinite(result.score)).toBe(true);
-    });
-
-    it("never returns NaN for -Infinity ocrConfidence", () => {
-      const result = assess({ ocrConfidence: -Infinity });
-      expect(Number.isFinite(result.score)).toBe(true);
-    });
-
-    it("never returns NaN when complianceRiskPenalty is NaN", () => {
-      const result = assess({ complianceRiskPenalty: NaN });
+    it.each([
+      ["Infinity ocrConfidence", { ocrConfidence: Infinity }],
+      ["-Infinity ocrConfidence", { ocrConfidence: -Infinity }],
+      ["NaN complianceRiskPenalty", { complianceRiskPenalty: NaN }],
+    ])("never returns NaN for %s", (_label, overrides) => {
+      const result = assess(overrides);
       expect(Number.isFinite(result.score)).toBe(true);
     });
 
@@ -351,45 +256,30 @@ describe("assessInvoiceConfidence", () => {
 });
 
 describe("getConfidenceTone", () => {
-  it("returns green for score >= 91", () => {
-    expect(getConfidenceTone(91)).toBe("green");
-    expect(getConfidenceTone(95)).toBe("green");
-    expect(getConfidenceTone(100)).toBe("green");
-  });
-
-  it("returns yellow for score >= 80 and < 91", () => {
-    expect(getConfidenceTone(80)).toBe("yellow");
-    expect(getConfidenceTone(85)).toBe("yellow");
-    expect(getConfidenceTone(90)).toBe("yellow");
-  });
-
-  it("returns red for score < 80", () => {
-    expect(getConfidenceTone(79)).toBe("red");
-    expect(getConfidenceTone(50)).toBe("red");
-    expect(getConfidenceTone(0)).toBe("red");
-  });
-
-  it("handles boundary values", () => {
-    expect(getConfidenceTone(91)).toBe("green");
-    expect(getConfidenceTone(90)).toBe("yellow");
-    expect(getConfidenceTone(80)).toBe("yellow");
-    expect(getConfidenceTone(79)).toBe("red");
+  it.each([
+    [91, "green"],
+    [95, "green"],
+    [100, "green"],
+    [80, "yellow"],
+    [85, "yellow"],
+    [90, "yellow"],
+    [79, "red"],
+    [50, "red"],
+    [0, "red"],
+  ])("returns %s for score %i", (score, tone) => {
+    expect(getConfidenceTone(score)).toBe(tone);
   });
 
   describe("custom greenThreshold", () => {
-    it("returns green when score meets custom threshold", () => {
-      expect(getConfidenceTone(85, 85)).toBe("green");
-      expect(getConfidenceTone(90, 85)).toBe("green");
-    });
-
-    it("returns yellow between custom yellow and green thresholds", () => {
-      expect(getConfidenceTone(80, 85)).toBe("yellow");
-      expect(getConfidenceTone(74, 85)).toBe("yellow");
-    });
-
-    it("returns red below derived yellow threshold", () => {
-      expect(getConfidenceTone(73, 85)).toBe("red");
-      expect(getConfidenceTone(50, 85)).toBe("red");
+    it.each([
+      [85, 85, "green"],
+      [90, 85, "green"],
+      [80, 85, "yellow"],
+      [74, 85, "yellow"],
+      [73, 85, "red"],
+      [50, 85, "red"],
+    ])("score=%i with greenThreshold=%i returns %s", (score, threshold, tone) => {
+      expect(getConfidenceTone(score, threshold)).toBe(tone);
     });
 
     it("derives yellow threshold as greenThreshold - 11", () => {

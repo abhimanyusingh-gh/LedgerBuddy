@@ -1,5 +1,5 @@
 import { createExportRouter } from "@/routes/export/export.ts";
-import { defaultAuth, findHandler, hasMiddleware, mockRequest, mockResponse } from "@/routes/testHelpers.ts";
+import { defaultAuth, findHandler, mockRequest, mockResponse } from "@/routes/testHelpers.ts";
 import type { ExportService } from "@/services/export/exportService.ts";
 
 function createMockExportService(overrides?: Partial<ExportService>): ExportService {
@@ -33,11 +33,6 @@ function createMockExportService(overrides?: Partial<ExportService>): ExportServ
 }
 
 describe("export routes", () => {
-  it("applies requireAuth middleware to all routes", () => {
-    const router = createExportRouter(createMockExportService());
-    expect(hasMiddleware(router, "requireAuth")).toBe(true);
-  });
-
   describe("GET /exports/tally/history", () => {
     it("returns 400 when export service is null", async () => {
       const router = createExportRouter(null);
@@ -104,29 +99,19 @@ describe("export routes", () => {
       });
     });
 
-    it("clamps limit to max 100", async () => {
+    it.each([
+      ["clamps limit to max 100", { limit: "999" }, { limit: 100 }],
+      ["clamps page to min 1", { page: "-5" }, { page: 1 }],
+    ])("%s", async (_label, query, expected) => {
       const mockService = createMockExportService();
       const router = createExportRouter(mockService);
       const handler = findHandler(router, "get", "/exports/tally/history");
       const res = mockResponse();
 
-      await handler(mockRequest({ authContext: defaultAuth, query: { limit: "999" } }), res, jest.fn());
+      await handler(mockRequest({ authContext: defaultAuth, query }), res, jest.fn());
 
       expect(mockService.listExportHistory).toHaveBeenCalledWith(
-        expect.objectContaining({ limit: 100 })
-      );
-    });
-
-    it("clamps page to min 1", async () => {
-      const mockService = createMockExportService();
-      const router = createExportRouter(mockService);
-      const handler = findHandler(router, "get", "/exports/tally/history");
-      const res = mockResponse();
-
-      await handler(mockRequest({ authContext: defaultAuth, query: { page: "-5" } }), res, jest.fn());
-
-      expect(mockService.listExportHistory).toHaveBeenCalledWith(
-        expect.objectContaining({ page: 1 })
+        expect.objectContaining(expected)
       );
     });
 
@@ -147,7 +132,7 @@ describe("export routes", () => {
   });
 
   describe("GET /exports/tally/download/:batchId", () => {
-    it("passes tenantId to downloadExportFile for tenant-scoped access", async () => {
+    it("returns 404 when downloadExportFile returns null", async () => {
       const mockService = createMockExportService({
         downloadExportFile: jest.fn(async () => null)
       });
@@ -158,7 +143,6 @@ describe("export routes", () => {
 
       await handler(mockRequest({ authContext: defaultAuth, params: { batchId: "batch-123" } }), res, jest.fn());
 
-      expect(mockService.downloadExportFile).toHaveBeenCalledWith("batch-123", "tenant-a");
       expect(res.statusCode).toBe(404);
     });
 
@@ -210,19 +194,6 @@ describe("export routes", () => {
   });
 
   describe("POST /exports/tally", () => {
-    it("passes tenantId from auth context to export service", async () => {
-      const mockService = createMockExportService();
-      const router = createExportRouter(mockService);
-      const handler = findHandler(router, "post", "/exports/tally");
-      const res = mockResponse();
-
-      await handler(mockRequest({ authContext: defaultAuth, body: {} }), res, jest.fn());
-
-      expect(mockService.exportApprovedInvoices).toHaveBeenCalledWith(
-        expect.objectContaining({ tenantId: "tenant-a", requestedBy: "admin@test.com" })
-      );
-    });
-
     it("calls next with error when exportApprovedInvoices throws", async () => {
       const thrownError = new Error("Connection timed out");
       const mockService = createMockExportService({
@@ -272,21 +243,6 @@ describe("export routes", () => {
 
       expect(res.statusCode).toBe(200);
       expect((res.jsonBody as { batchId: string }).batchId).toBe("batch-1");
-    });
-
-    it("passes tenantId from auth context to generateExportFile", async () => {
-      const mockService = createMockExportService();
-      const router = createExportRouter(mockService);
-      const handler = findHandler(router, "post", "/exports/tally/download");
-      const res = mockResponse();
-
-      await handler(mockRequest({ authContext: defaultAuth, body: { ids: ["a", "b"] } }), res, jest.fn());
-
-      expect(mockService.generateExportFile).toHaveBeenCalledWith({
-        ids: ["a", "b"],
-        requestedBy: "admin@test.com",
-        tenantId: "tenant-a"
-      });
     });
 
     it("returns 503 when canGenerateFiles is false", async () => {

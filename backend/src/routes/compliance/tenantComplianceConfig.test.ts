@@ -492,293 +492,34 @@ describe("compliance config routes", () => {
       expect(overrides.PAN_FORMAT_INVALID).toBe(10);
     });
 
-    it("rejects autoApprovalThreshold above 100", async () => {
+    it.each([
+      ["autoApprovalThreshold above 100", { autoApprovalThreshold: 101 }, "autoApprovalThreshold"],
+      ["negative autoApprovalThreshold", { autoApprovalThreshold: -1 }, "autoApprovalThreshold"],
+      ["ocrWeight above 1", { ocrWeight: 1.5 }, "ocrWeight"],
+      ["negative ocrWeight", { ocrWeight: -0.1 }, "ocrWeight"],
+      ["completenessWeight above 1", { completenessWeight: 2 }, "completenessWeight"],
+      ["maxDueDays of 0", { maxDueDays: 0 }, "maxDueDays"],
+      ["maxDueDays above 3650", { maxDueDays: 4000 }, "maxDueDays"],
+      ["non-integer maxInvoiceTotalMinor", { maxInvoiceTotalMinor: 99.5 }, "maxInvoiceTotalMinor"],
+      ["negative maxInvoiceTotalMinor", { maxInvoiceTotalMinor: -100 }, "maxInvoiceTotalMinor"],
+      ["invalid defaultCurrency (lowercase)", { defaultCurrency: "inr" }, "defaultCurrency"],
+      ["invalid defaultCurrency (wrong length)", { defaultCurrency: "US" }, "defaultCurrency"],
+      ["confidencePenaltyOverrides value above 100", { confidencePenaltyOverrides: { DUPLICATE_INVOICE: 150 } }, null],
+      ["warningPenalty above 100", { warningPenalty: 101 }, "warningPenalty"],
+      ["invoiceDateWindowDays of 0", { invoiceDateWindowDays: 0 }, "invoiceDateWindowDays"],
+      ["invoiceDateWindowDays above 7300", { invoiceDateWindowDays: 8000 }, "invoiceDateWindowDays"],
+      ["reconciliationAutoMatchThreshold above 100", { reconciliationAutoMatchThreshold: 200 }, "reconciliationAutoMatchThreshold"],
+    ])("rejects %s", async (_label, body, messageSubstring) => {
       const router = createTenantComplianceConfigRouter();
       const handler = findHandler(router, "put", "/admin/compliance-config");
       const res = mockResponse();
 
-      await handler(
-        mockRequest({
-          authContext: defaultAuth,
-          body: { autoApprovalThreshold: 101 }
-        }),
-        res,
-        nextFn
-      );
+      await handler(mockRequest({ authContext: defaultAuth, body }), res, nextFn);
 
       expect(res.statusCode).toBe(400);
-      expect((res.jsonBody as { message: string }).message).toContain("autoApprovalThreshold");
-    });
-
-    it("rejects negative autoApprovalThreshold", async () => {
-      const router = createTenantComplianceConfigRouter();
-      const handler = findHandler(router, "put", "/admin/compliance-config");
-      const res = mockResponse();
-
-      await handler(
-        mockRequest({
-          authContext: defaultAuth,
-          body: { autoApprovalThreshold: -1 }
-        }),
-        res,
-        nextFn
-      );
-
-      expect(res.statusCode).toBe(400);
-      expect((res.jsonBody as { message: string }).message).toContain("autoApprovalThreshold");
-    });
-
-    it("rejects ocrWeight above 1", async () => {
-      const router = createTenantComplianceConfigRouter();
-      const handler = findHandler(router, "put", "/admin/compliance-config");
-      const res = mockResponse();
-
-      await handler(
-        mockRequest({
-          authContext: defaultAuth,
-          body: { ocrWeight: 1.5 }
-        }),
-        res,
-        nextFn
-      );
-
-      expect(res.statusCode).toBe(400);
-      expect((res.jsonBody as { message: string }).message).toContain("ocrWeight");
-    });
-
-    it("rejects negative ocrWeight", async () => {
-      const router = createTenantComplianceConfigRouter();
-      const handler = findHandler(router, "put", "/admin/compliance-config");
-      const res = mockResponse();
-
-      await handler(
-        mockRequest({
-          authContext: defaultAuth,
-          body: { ocrWeight: -0.1 }
-        }),
-        res,
-        nextFn
-      );
-
-      expect(res.statusCode).toBe(400);
-      expect((res.jsonBody as { message: string }).message).toContain("ocrWeight");
-    });
-
-    it("rejects completenessWeight above 1", async () => {
-      const router = createTenantComplianceConfigRouter();
-      const handler = findHandler(router, "put", "/admin/compliance-config");
-      const res = mockResponse();
-
-      await handler(
-        mockRequest({
-          authContext: defaultAuth,
-          body: { completenessWeight: 2 }
-        }),
-        res,
-        nextFn
-      );
-
-      expect(res.statusCode).toBe(400);
-      expect((res.jsonBody as { message: string }).message).toContain("completenessWeight");
-    });
-
-    it("rejects maxDueDays of 0", async () => {
-      const router = createTenantComplianceConfigRouter();
-      const handler = findHandler(router, "put", "/admin/compliance-config");
-      const res = mockResponse();
-
-      await handler(
-        mockRequest({
-          authContext: defaultAuth,
-          body: { maxDueDays: 0 }
-        }),
-        res,
-        nextFn
-      );
-
-      expect(res.statusCode).toBe(400);
-      expect((res.jsonBody as { message: string }).message).toContain("maxDueDays");
-    });
-
-    it("rejects maxDueDays above 3650", async () => {
-      const router = createTenantComplianceConfigRouter();
-      const handler = findHandler(router, "put", "/admin/compliance-config");
-      const res = mockResponse();
-
-      await handler(
-        mockRequest({
-          authContext: defaultAuth,
-          body: { maxDueDays: 4000 }
-        }),
-        res,
-        nextFn
-      );
-
-      expect(res.statusCode).toBe(400);
-      expect((res.jsonBody as { message: string }).message).toContain("maxDueDays");
-    });
-
-    it("rejects non-integer maxInvoiceTotalMinor", async () => {
-      const router = createTenantComplianceConfigRouter();
-      const handler = findHandler(router, "put", "/admin/compliance-config");
-      const res = mockResponse();
-
-      await handler(
-        mockRequest({
-          authContext: defaultAuth,
-          body: { maxInvoiceTotalMinor: 99.5 }
-        }),
-        res,
-        nextFn
-      );
-
-      expect(res.statusCode).toBe(400);
-      expect((res.jsonBody as { message: string }).message).toContain("maxInvoiceTotalMinor");
-    });
-
-    it("rejects negative maxInvoiceTotalMinor", async () => {
-      const router = createTenantComplianceConfigRouter();
-      const handler = findHandler(router, "put", "/admin/compliance-config");
-      const res = mockResponse();
-
-      await handler(
-        mockRequest({
-          authContext: defaultAuth,
-          body: { maxInvoiceTotalMinor: -100 }
-        }),
-        res,
-        nextFn
-      );
-
-      expect(res.statusCode).toBe(400);
-      expect((res.jsonBody as { message: string }).message).toContain("maxInvoiceTotalMinor");
-    });
-
-    it("rejects invalid defaultCurrency (lowercase)", async () => {
-      const router = createTenantComplianceConfigRouter();
-      const handler = findHandler(router, "put", "/admin/compliance-config");
-      const res = mockResponse();
-
-      await handler(
-        mockRequest({
-          authContext: defaultAuth,
-          body: { defaultCurrency: "inr" }
-        }),
-        res,
-        nextFn
-      );
-
-      expect(res.statusCode).toBe(400);
-      expect((res.jsonBody as { message: string }).message).toContain("defaultCurrency");
-    });
-
-    it("rejects invalid defaultCurrency (wrong length)", async () => {
-      const router = createTenantComplianceConfigRouter();
-      const handler = findHandler(router, "put", "/admin/compliance-config");
-      const res = mockResponse();
-
-      await handler(
-        mockRequest({
-          authContext: defaultAuth,
-          body: { defaultCurrency: "US" }
-        }),
-        res,
-        nextFn
-      );
-
-      expect(res.statusCode).toBe(400);
-      expect((res.jsonBody as { message: string }).message).toContain("defaultCurrency");
-    });
-
-    it("rejects confidencePenaltyOverrides with value above 100", async () => {
-      const router = createTenantComplianceConfigRouter();
-      const handler = findHandler(router, "put", "/admin/compliance-config");
-      const res = mockResponse();
-
-      await handler(
-        mockRequest({
-          authContext: defaultAuth,
-          body: {
-            confidencePenaltyOverrides: { DUPLICATE_INVOICE: 150 }
-          }
-        }),
-        res,
-        nextFn
-      );
-
-      expect(res.statusCode).toBe(400);
-    });
-
-    it("rejects warningPenalty above 100", async () => {
-      const router = createTenantComplianceConfigRouter();
-      const handler = findHandler(router, "put", "/admin/compliance-config");
-      const res = mockResponse();
-
-      await handler(
-        mockRequest({
-          authContext: defaultAuth,
-          body: { warningPenalty: 101 }
-        }),
-        res,
-        nextFn
-      );
-
-      expect(res.statusCode).toBe(400);
-      expect((res.jsonBody as { message: string }).message).toContain("warningPenalty");
-    });
-
-    it("rejects invoiceDateWindowDays of 0", async () => {
-      const router = createTenantComplianceConfigRouter();
-      const handler = findHandler(router, "put", "/admin/compliance-config");
-      const res = mockResponse();
-
-      await handler(
-        mockRequest({
-          authContext: defaultAuth,
-          body: { invoiceDateWindowDays: 0 }
-        }),
-        res,
-        nextFn
-      );
-
-      expect(res.statusCode).toBe(400);
-      expect((res.jsonBody as { message: string }).message).toContain("invoiceDateWindowDays");
-    });
-
-    it("rejects invoiceDateWindowDays above 7300", async () => {
-      const router = createTenantComplianceConfigRouter();
-      const handler = findHandler(router, "put", "/admin/compliance-config");
-      const res = mockResponse();
-
-      await handler(
-        mockRequest({
-          authContext: defaultAuth,
-          body: { invoiceDateWindowDays: 8000 }
-        }),
-        res,
-        nextFn
-      );
-
-      expect(res.statusCode).toBe(400);
-      expect((res.jsonBody as { message: string }).message).toContain("invoiceDateWindowDays");
-    });
-
-    it("rejects reconciliationAutoMatchThreshold above 100", async () => {
-      const router = createTenantComplianceConfigRouter();
-      const handler = findHandler(router, "put", "/admin/compliance-config");
-      const res = mockResponse();
-
-      await handler(
-        mockRequest({
-          authContext: defaultAuth,
-          body: { reconciliationAutoMatchThreshold: 200 }
-        }),
-        res,
-        nextFn
-      );
-
-      expect(res.statusCode).toBe(400);
-      expect((res.jsonBody as { message: string }).message).toContain("reconciliationAutoMatchThreshold");
+      if (messageSubstring) {
+        expect((res.jsonBody as { message: string }).message).toContain(messageSubstring);
+      }
     });
 
     it("does not persist new fields when omitted", async () => {
@@ -803,58 +544,23 @@ describe("compliance config routes", () => {
       expect(body.defaultCurrency).toBeUndefined();
     });
 
-    it("accepts boundary value ocrWeight=0", async () => {
+    it.each([
+      ["ocrWeight=0", "ocrWeight", 0],
+      ["ocrWeight=1", "ocrWeight", 1],
+      ["maxInvoiceTotalMinor=0", "maxInvoiceTotalMinor", 0],
+    ])("accepts boundary value %s", async (_label, field, value) => {
       const router = createTenantComplianceConfigRouter();
       const handler = findHandler(router, "put", "/admin/compliance-config");
       const res = mockResponse();
 
       await handler(
-        mockRequest({
-          authContext: defaultAuth,
-          body: { ocrWeight: 0 }
-        }),
+        mockRequest({ authContext: defaultAuth, body: { [field]: value } }),
         res,
         nextFn
       );
 
       expect(res.statusCode).toBe(200);
-      expect((res.jsonBody as Record<string, unknown>).ocrWeight).toBe(0);
-    });
-
-    it("accepts boundary value ocrWeight=1", async () => {
-      const router = createTenantComplianceConfigRouter();
-      const handler = findHandler(router, "put", "/admin/compliance-config");
-      const res = mockResponse();
-
-      await handler(
-        mockRequest({
-          authContext: defaultAuth,
-          body: { ocrWeight: 1 }
-        }),
-        res,
-        nextFn
-      );
-
-      expect(res.statusCode).toBe(200);
-      expect((res.jsonBody as Record<string, unknown>).ocrWeight).toBe(1);
-    });
-
-    it("accepts maxInvoiceTotalMinor=0", async () => {
-      const router = createTenantComplianceConfigRouter();
-      const handler = findHandler(router, "put", "/admin/compliance-config");
-      const res = mockResponse();
-
-      await handler(
-        mockRequest({
-          authContext: defaultAuth,
-          body: { maxInvoiceTotalMinor: 0 }
-        }),
-        res,
-        nextFn
-      );
-
-      expect(res.statusCode).toBe(200);
-      expect((res.jsonBody as Record<string, unknown>).maxInvoiceTotalMinor).toBe(0);
+      expect((res.jsonBody as Record<string, unknown>)[field]).toBe(value);
     });
 
     it("mixes new fields with existing config fields", async () => {
@@ -889,95 +595,23 @@ describe("compliance config routes", () => {
       expect(body.complianceEnabled).toBe(true);
     });
 
-    it("rejects requiredFields with empty strings", async () => {
+    it.each([
+      ["requiredFields with empty strings", { requiredFields: ["invoiceNumber", ""] }, "requiredFields"],
+      ["negative confidencePenaltyOverrides value", { confidencePenaltyOverrides: { DUPLICATE_INVOICE: -5 } }, null],
+      ["msmePaymentWarningDays of 0", { msmePaymentWarningDays: 0 }, "msmePaymentWarningDays"],
+      ["msmePaymentOverdueDays above 365", { msmePaymentOverdueDays: 400 }, "msmePaymentOverdueDays"],
+      ["riskSignalPenaltyCap above 100", { riskSignalPenaltyCap: 150 }, "riskSignalPenaltyCap"],
+    ])("rejects %s", async (_label, body, messageSubstring) => {
       const router = createTenantComplianceConfigRouter();
       const handler = findHandler(router, "put", "/admin/compliance-config");
       const res = mockResponse();
 
-      await handler(
-        mockRequest({
-          authContext: defaultAuth,
-          body: { requiredFields: ["invoiceNumber", ""] }
-        }),
-        res,
-        nextFn
-      );
+      await handler(mockRequest({ authContext: defaultAuth, body }), res, nextFn);
 
       expect(res.statusCode).toBe(400);
-      expect((res.jsonBody as { message: string }).message).toContain("requiredFields");
-    });
-
-    it("rejects negative confidencePenaltyOverrides value", async () => {
-      const router = createTenantComplianceConfigRouter();
-      const handler = findHandler(router, "put", "/admin/compliance-config");
-      const res = mockResponse();
-
-      await handler(
-        mockRequest({
-          authContext: defaultAuth,
-          body: {
-            confidencePenaltyOverrides: { DUPLICATE_INVOICE: -5 }
-          }
-        }),
-        res,
-        nextFn
-      );
-
-      expect(res.statusCode).toBe(400);
-    });
-
-    it("rejects msmePaymentWarningDays of 0", async () => {
-      const router = createTenantComplianceConfigRouter();
-      const handler = findHandler(router, "put", "/admin/compliance-config");
-      const res = mockResponse();
-
-      await handler(
-        mockRequest({
-          authContext: defaultAuth,
-          body: { msmePaymentWarningDays: 0 }
-        }),
-        res,
-        nextFn
-      );
-
-      expect(res.statusCode).toBe(400);
-      expect((res.jsonBody as { message: string }).message).toContain("msmePaymentWarningDays");
-    });
-
-    it("rejects msmePaymentOverdueDays above 365", async () => {
-      const router = createTenantComplianceConfigRouter();
-      const handler = findHandler(router, "put", "/admin/compliance-config");
-      const res = mockResponse();
-
-      await handler(
-        mockRequest({
-          authContext: defaultAuth,
-          body: { msmePaymentOverdueDays: 400 }
-        }),
-        res,
-        nextFn
-      );
-
-      expect(res.statusCode).toBe(400);
-      expect((res.jsonBody as { message: string }).message).toContain("msmePaymentOverdueDays");
-    });
-
-    it("rejects riskSignalPenaltyCap above 100", async () => {
-      const router = createTenantComplianceConfigRouter();
-      const handler = findHandler(router, "put", "/admin/compliance-config");
-      const res = mockResponse();
-
-      await handler(
-        mockRequest({
-          authContext: defaultAuth,
-          body: { riskSignalPenaltyCap: 150 }
-        }),
-        res,
-        nextFn
-      );
-
-      expect(res.statusCode).toBe(400);
-      expect((res.jsonBody as { message: string }).message).toContain("riskSignalPenaltyCap");
+      if (messageSubstring) {
+        expect((res.jsonBody as { message: string }).message).toContain(messageSubstring);
+      }
     });
   });
 
@@ -1008,7 +642,10 @@ describe("compliance config routes", () => {
       expect(overrides.senior_accountant).toBe(200000000);
     });
 
-    it("rejects negative approval limit override", async () => {
+    it.each([
+      ["negative approval limit override", -100],
+      ["non-integer approval limit override", 99.5],
+    ])("rejects %s", async (_label, value) => {
       const router = createTenantComplianceConfigRouter();
       const handler = findHandler(router, "put", "/admin/compliance-config");
       const res = mockResponse();
@@ -1016,28 +653,7 @@ describe("compliance config routes", () => {
       await handler(
         mockRequest({
           authContext: defaultAuth,
-          body: {
-            approvalLimitOverrides: { ap_clerk: -100 }
-          }
-        }),
-        res,
-        nextFn
-      );
-
-      expect(res.statusCode).toBe(400);
-    });
-
-    it("rejects non-integer approval limit override", async () => {
-      const router = createTenantComplianceConfigRouter();
-      const handler = findHandler(router, "put", "/admin/compliance-config");
-      const res = mockResponse();
-
-      await handler(
-        mockRequest({
-          authContext: defaultAuth,
-          body: {
-            approvalLimitOverrides: { ap_clerk: 99.5 }
-          }
+          body: { approvalLimitOverrides: { ap_clerk: value } }
         }),
         res,
         nextFn
@@ -1069,37 +685,16 @@ describe("compliance config routes", () => {
       expect(body.additionalFreemailDomains).toEqual(["protonmail.com", "zoho.com"]);
     });
 
-    it("rejects invalid domain format", async () => {
+    it.each([
+      ["invalid domain format", ["not a domain"]],
+      ["empty string in freemail domains", [""]],
+    ])("rejects %s", async (_label, additionalFreemailDomains) => {
       const router = createTenantComplianceConfigRouter();
       const handler = findHandler(router, "put", "/admin/compliance-config");
       const res = mockResponse();
 
       await handler(
-        mockRequest({
-          authContext: defaultAuth,
-          body: {
-            additionalFreemailDomains: ["not a domain"]
-          }
-        }),
-        res,
-        nextFn
-      );
-
-      expect(res.statusCode).toBe(400);
-    });
-
-    it("rejects empty string in freemail domains", async () => {
-      const router = createTenantComplianceConfigRouter();
-      const handler = findHandler(router, "put", "/admin/compliance-config");
-      const res = mockResponse();
-
-      await handler(
-        mockRequest({
-          authContext: defaultAuth,
-          body: {
-            additionalFreemailDomains: [""]
-          }
-        }),
+        mockRequest({ authContext: defaultAuth, body: { additionalFreemailDomains } }),
         res,
         nextFn
       );
@@ -1109,40 +704,19 @@ describe("compliance config routes", () => {
   });
 
   describe("PUT /admin/compliance-config — learning mode", () => {
-    it("accepts valid learning mode 'active'", async () => {
+    it.each([["active"], ["assistive"]])("accepts valid learning mode '%s'", async (learningMode) => {
       const router = createTenantComplianceConfigRouter();
       const handler = findHandler(router, "put", "/admin/compliance-config");
       const res = mockResponse();
 
       await handler(
-        mockRequest({
-          authContext: defaultAuth,
-          body: { learningMode: "active" }
-        }),
+        mockRequest({ authContext: defaultAuth, body: { learningMode } }),
         res,
         nextFn
       );
 
       expect(res.statusCode).toBe(200);
-      expect((res.jsonBody as Record<string, unknown>).learningMode).toBe("active");
-    });
-
-    it("accepts valid learning mode 'assistive'", async () => {
-      const router = createTenantComplianceConfigRouter();
-      const handler = findHandler(router, "put", "/admin/compliance-config");
-      const res = mockResponse();
-
-      await handler(
-        mockRequest({
-          authContext: defaultAuth,
-          body: { learningMode: "assistive" }
-        }),
-        res,
-        nextFn
-      );
-
-      expect(res.statusCode).toBe(200);
-      expect((res.jsonBody as Record<string, unknown>).learningMode).toBe("assistive");
+      expect((res.jsonBody as Record<string, unknown>).learningMode).toBe(learningMode);
     });
 
     it("rejects invalid learning mode", async () => {

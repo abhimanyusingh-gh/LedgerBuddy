@@ -25,28 +25,20 @@ import { createApprovalWorkflowRouter, validateStepCondition } from "@/routes/in
 import { findHandler, defaultAuth, mockRequest, mockResponse } from "@/routes/testHelpers.js";
 
 describe("validateStepCondition", () => {
-  it("returns null for null condition", () => {
-    expect(validateStepCondition(null)).toBeNull();
+  it.each([
+    ["null condition", null],
+    ["undefined condition", undefined],
+    ["condition with empty field", { field: "", operator: "gt", value: 100 }],
+    ["condition with null field", { field: null, operator: "gt", value: 100 }],
+  ])("returns null for %s", (_label, condition) => {
+    expect(validateStepCondition(condition)).toBeNull();
   });
 
-  it("returns null for undefined condition", () => {
-    expect(validateStepCondition(undefined)).toBeNull();
-  });
-
-  it("returns null when condition has no field", () => {
-    expect(validateStepCondition({ field: "", operator: "gt", value: 100 })).toBeNull();
-  });
-
-  it("returns null when condition has null field", () => {
-    expect(validateStepCondition({ field: null, operator: "gt", value: 100 })).toBeNull();
-  });
-
-  it("returns error for non-object condition", () => {
-    expect(validateStepCondition("bad")).toBe("Condition must be an object with field, operator, and value.");
-  });
-
-  it("returns error for array condition", () => {
-    expect(validateStepCondition([1, 2])).toBe("Condition must be an object with field, operator, and value.");
+  it.each([
+    ["non-object condition", "bad"],
+    ["array condition", [1, 2]],
+  ])("returns error for %s", (_label, condition) => {
+    expect(validateStepCondition(condition)).toBe("Condition must be an object with field, operator, and value.");
   });
 
   describe("field validation", () => {
@@ -56,20 +48,13 @@ describe("validateStepCondition", () => {
       expect(result).toContain("unknownField");
     });
 
-    it("accepts totalAmountMinor", () => {
-      expect(validateStepCondition({ field: "totalAmountMinor", operator: "gt", value: 100 })).toBeNull();
-    });
-
-    it("accepts tdsAmountMinor", () => {
-      expect(validateStepCondition({ field: "tdsAmountMinor", operator: "lte", value: 500 })).toBeNull();
-    });
-
-    it("accepts riskSignalMaxSeverity", () => {
-      expect(validateStepCondition({ field: "riskSignalMaxSeverity", operator: "eq", value: 3 })).toBeNull();
-    });
-
-    it("accepts glCodeSource", () => {
-      expect(validateStepCondition({ field: "glCodeSource", operator: "eq", value: "manual" })).toBeNull();
+    it.each([
+      ["totalAmountMinor", "gt", 100],
+      ["tdsAmountMinor", "lte", 500],
+      ["riskSignalMaxSeverity", "eq", 3],
+      ["glCodeSource", "eq", "manual"],
+    ])("accepts %s", (field, operator, value) => {
+      expect(validateStepCondition({ field, operator, value })).toBeNull();
     });
   });
 
@@ -98,38 +83,26 @@ describe("validateStepCondition", () => {
   });
 
   describe("operator validation for string fields", () => {
-    it("accepts 'eq' for glCodeSource", () => {
-      expect(validateStepCondition({ field: "glCodeSource", operator: "eq", value: "manual" })).toBeNull();
+    it.each([
+      ["eq", "manual"],
+      ["in", ["manual", "auto"]],
+    ])("accepts '%s' for glCodeSource", (operator, value) => {
+      expect(validateStepCondition({ field: "glCodeSource", operator, value })).toBeNull();
     });
 
-    it("accepts 'in' for glCodeSource", () => {
-      expect(validateStepCondition({ field: "glCodeSource", operator: "in", value: ["manual", "auto"] })).toBeNull();
-    });
-
-    it("rejects 'gt' for string field", () => {
-      const result = validateStepCondition({ field: "glCodeSource", operator: "gt", value: "manual" });
-      expect(result).toContain("Invalid operator");
-    });
-
-    it("rejects 'lte' for string field", () => {
-      const result = validateStepCondition({ field: "glCodeSource", operator: "lte", value: "manual" });
+    it.each([["gt"], ["lte"]])("rejects '%s' for string field", (operator) => {
+      const result = validateStepCondition({ field: "glCodeSource", operator, value: "manual" });
       expect(result).toContain("Invalid operator");
     });
   });
 
   describe("value type validation for numeric fields", () => {
-    it("requires number value for totalAmountMinor", () => {
-      const result = validateStepCondition({ field: "totalAmountMinor", operator: "gt", value: "100" });
-      expect(result).toContain("must be a number");
-    });
-
-    it("rejects null value for numeric field", () => {
-      const result = validateStepCondition({ field: "tdsAmountMinor", operator: "eq", value: null });
-      expect(result).toContain("must be a number");
-    });
-
-    it("rejects array value for numeric field", () => {
-      const result = validateStepCondition({ field: "riskSignalMaxSeverity", operator: "eq", value: [1, 2] });
+    it.each([
+      ["totalAmountMinor", "gt", "100"],
+      ["tdsAmountMinor", "eq", null],
+      ["riskSignalMaxSeverity", "eq", [1, 2]],
+    ])("rejects non-number value for %s with operator %s", (field, operator, value) => {
+      const result = validateStepCondition({ field, operator, value });
       expect(result).toContain("must be a number");
     });
   });
@@ -140,13 +113,11 @@ describe("validateStepCondition", () => {
       expect(result).toContain("must be a string");
     });
 
-    it("requires array of strings for in operator on glCodeSource", () => {
-      const result = validateStepCondition({ field: "glCodeSource", operator: "in", value: "manual" });
-      expect(result).toContain("must be an array of strings");
-    });
-
-    it("rejects array with non-string elements for in operator", () => {
-      const result = validateStepCondition({ field: "glCodeSource", operator: "in", value: ["manual", 123] });
+    it.each([
+      ["non-array value", "manual"],
+      ["array with non-string elements", ["manual", 123]],
+    ])("rejects in operator %s", (_label, value) => {
+      const result = validateStepCondition({ field: "glCodeSource", operator: "in", value });
       expect(result).toContain("must be an array of strings");
     });
 

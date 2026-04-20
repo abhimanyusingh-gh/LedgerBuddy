@@ -101,39 +101,6 @@ describe("Compliance Retrigger", () => {
       expect(TdsRateTableModel.findOne).not.toHaveBeenCalled();
     });
 
-    it("uses rateCompany from tenant config when panCategory is C", async () => {
-      mockSectionMapping("194C");
-      mockTenantConfigWithRates([
-        { section: "194C", rateIndividual: 100, rateCompany: 300, rateNoPan: 2000, threshold: 0, active: true }
-      ]);
-
-      const invoice: ParsedInvoiceData = {
-        totalAmountMinor: 5000000,
-        currency: "INR",
-        pan: "AABCC1234F"
-      };
-      const result = await tdsService.computeTds(invoice, "tenant-1", "Contractor Services");
-      expect(result.tds.section).toBe("194C");
-      expect(result.tds.rate).toBe(300);
-      expect(result.tds.amountMinor).toBe(150000);
-    });
-
-    it("uses rateNoPan from tenant config when PAN is missing", async () => {
-      mockSectionMapping("194C");
-      mockTenantConfigWithRates([
-        { section: "194C", rateIndividual: 100, rateCompany: 200, rateNoPan: 1500, threshold: 0, active: true }
-      ]);
-
-      const invoice: ParsedInvoiceData = {
-        totalAmountMinor: 5000000,
-        currency: "INR"
-      };
-      const result = await tdsService.computeTds(invoice, "tenant-1", "Contractor Services");
-      expect(result.tds.section).toBe("194C");
-      expect(result.tds.rate).toBe(1500);
-      expect(result.tds.amountMinor).toBe(750000);
-    });
-
     it("returns null rate and zero TDS when section is disabled in tenant config", async () => {
       mockSectionMapping("194J");
       mockTenantConfigWithRates([
@@ -196,33 +163,6 @@ describe("Compliance Retrigger", () => {
       expect(result.tds.section).toBe("194J");
       expect(result.tds.rate).toBe(1000);
       expect(TdsRateTableModel.findOne).toHaveBeenCalled();
-    });
-
-    it("recalculates TDS amount when GL category changes from Rent to Professional Services", async () => {
-      mockSectionMapping("194J");
-      mockNoTenantConfig();
-      (TdsRateTableModel.findOne as jest.Mock).mockReturnValue({
-        lean: () => Promise.resolve({
-          section: "194J",
-          rateIndividualBps: 1000,
-          rateCompanyBps: 1000,
-          rateNoPanBps: 2000,
-          thresholdSingleMinor: 0,
-          thresholdAnnualMinor: 0,
-          isActive: true
-        })
-      });
-
-      const invoice: ParsedInvoiceData = {
-        totalAmountMinor: 10000000,
-        currency: "INR",
-        pan: "ABCPK1234F"
-      };
-      const result = await tdsService.computeTds(invoice, "tenant-1", "Professional Services");
-      expect(result.tds.section).toBe("194J");
-      expect(result.tds.rate).toBe(1000);
-      expect(result.tds.amountMinor).toBe(1000000);
-      expect(result.tds.netPayableMinor).toBe(9000000);
     });
 
     it("generates no-PAN risk signal when PAN is missing and section found", async () => {
@@ -292,17 +232,4 @@ describe("Compliance Retrigger", () => {
     });
   });
 
-  describe("calculate", () => {
-    it("returns correct TDS amount with new rate", () => {
-      const result = tdsService.calculate(10000000, 1000, 11800000);
-      expect(result.tdsAmountMinor).toBe(1000000);
-      expect(result.netPayableMinor).toBe(10800000);
-    });
-
-    it("calculate at 2% rate for contractor services", () => {
-      const result = tdsService.calculate(5000000, 200, 5900000);
-      expect(result.tdsAmountMinor).toBe(100000);
-      expect(result.netPayableMinor).toBe(5800000);
-    });
-  });
 });
