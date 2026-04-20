@@ -1,52 +1,32 @@
 import { guessMimeTypeFromKey, isSupportedInvoiceMimeType, normalizeInvoiceMimeType } from "@/utils/mime.ts";
 
 describe("mime utils", () => {
-  it("normalizes image/jpg alias to image/jpeg", () => {
-    expect(normalizeInvoiceMimeType("image/jpg")).toBe("image/jpeg");
+  it.each([
+    ["image/jpg alias", "image/jpg", "image/jpeg"],
+    ["image/x-png alias", "image/x-png", "image/png"],
+    ["case and whitespace", "  IMAGE/JPEG ", "image/jpeg"],
+  ])("normalizeInvoiceMimeType: %s", (_label, input, expected) => {
+    expect(normalizeInvoiceMimeType(input)).toBe(expected);
   });
 
-  it("normalizes image/x-png alias to image/png", () => {
-    expect(normalizeInvoiceMimeType("image/x-png")).toBe("image/png");
+  it.each([
+    ["application/pdf", true],
+    ["image/jpg", true],
+    ["image/png", true],
+    ["text/plain", false],
+  ])("isSupportedInvoiceMimeType(%s) -> %s", (input, expected) => {
+    expect(isSupportedInvoiceMimeType(input as string)).toBe(expected);
   });
 
-  it("normalizes case and whitespace", () => {
-    expect(normalizeInvoiceMimeType("  IMAGE/JPEG ")).toBe("image/jpeg");
-  });
-
-  it("treats normalized invoice mime types as supported", () => {
-    expect(isSupportedInvoiceMimeType("application/pdf")).toBe(true);
-    expect(isSupportedInvoiceMimeType("image/jpg")).toBe(true);
-    expect(isSupportedInvoiceMimeType("image/png")).toBe(true);
-  });
-
-  it("marks unsupported mime types as unsupported", () => {
-    expect(isSupportedInvoiceMimeType("text/plain")).toBe(false);
-  });
-
-  describe("guessMimeTypeFromKey", () => {
-    it("returns application/pdf for .pdf", () => {
-      expect(guessMimeTypeFromKey("uploads/t/abc.pdf")).toBe("application/pdf");
-    });
-
-    it("returns image/png for .png", () => {
-      expect(guessMimeTypeFromKey("uploads/t/abc.png")).toBe("image/png");
-    });
-
-    it("returns image/jpeg for .jpg and .jpeg", () => {
-      expect(guessMimeTypeFromKey("abc.jpg")).toBe("image/jpeg");
-      expect(guessMimeTypeFromKey("abc.jpeg")).toBe("image/jpeg");
-    });
-
-    it("returns image/webp for .webp", () => {
-      expect(guessMimeTypeFromKey("abc.webp")).toBe("image/webp");
-    });
-
-    it("returns octet-stream for unknown extensions", () => {
-      expect(guessMimeTypeFromKey("abc.xyz")).toBe("application/octet-stream");
-    });
-
-    it("returns octet-stream when no extension", () => {
-      expect(guessMimeTypeFromKey("abc")).toBe("application/octet-stream");
-    });
+  it.each([
+    ["uploads/t/abc.pdf", "application/pdf"],
+    ["uploads/t/abc.png", "image/png"],
+    ["abc.jpg", "image/jpeg"],
+    ["abc.jpeg", "image/jpeg"],
+    ["abc.webp", "image/webp"],
+    ["abc.xyz", "application/octet-stream"],
+    ["abc", "application/octet-stream"],
+  ])("guessMimeTypeFromKey(%s) -> %s", (input, expected) => {
+    expect(guessMimeTypeFromKey(input)).toBe(expected);
   });
 });
