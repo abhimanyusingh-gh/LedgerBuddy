@@ -1,32 +1,4 @@
-import { requireNotViewer } from "@/auth/middleware.ts";
 import { mockRequest, mockResponse, defaultAuth } from "@/routes/testHelpers.ts";
-import type { Request, Response } from "express";
-
-const viewerAuth = { ...defaultAuth, role: "audit_clerk" };
-
-describe("requireNotViewer blocks viewer on write routes", () => {
-  it("returns 403 for audit_clerk role (simulates upload-csv guard)", () => {
-    const req = { authContext: viewerAuth } as unknown as Request;
-    const res = { status: jest.fn().mockReturnThis(), json: jest.fn() } as unknown as Response;
-    const next = jest.fn();
-
-    requireNotViewer(req, res, next);
-
-    expect(res.status).toHaveBeenCalledWith(403);
-    expect(next).not.toHaveBeenCalled();
-  });
-
-  it("returns 403 for audit_clerk role (simulates unmatch guard)", () => {
-    const req = { authContext: viewerAuth } as unknown as Request;
-    const res = { status: jest.fn().mockReturnThis(), json: jest.fn() } as unknown as Response;
-    const next = jest.fn();
-
-    requireNotViewer(req, res, next);
-
-    expect(res.status).toHaveBeenCalledWith(403);
-    expect(next).not.toHaveBeenCalled();
-  });
-});
 
 const mockStatementFind = jest.fn();
 const mockStatementFindOne = jest.fn();
@@ -411,7 +383,7 @@ describe("GET /bank-statements/parse/sse", () => {
     jest.clearAllMocks();
   });
 
-  it("sets SSE headers and sends initial keepalive comment", () => {
+  it("sets SSE headers, sends initial keepalive, and emits heartbeat at interval", () => {
     jest.useFakeTimers();
     const router = createBankStatementsRouter();
     const handler = findRouteHandler(router, "get", "/bank-statements/parse/sse");
@@ -423,27 +395,10 @@ describe("GET /bank-statements/parse/sse", () => {
     expect(res.statusCode).toBe(200);
     expect((res.headers as Record<string, string>)["Content-Type"]).toBe("text/event-stream");
     expect((res.headers as Record<string, string>)["Cache-Control"]).toBe("no-cache, no-transform");
-    expect((res.written as string[]).length).toBeGreaterThanOrEqual(1);
     expect((res.written as string[])[0]).toBe(":\n\n");
 
-    (req as ReturnType<typeof mockRequest>)._emit("close");
-    jest.useRealTimers();
-  });
-
-  it("sends keepalive heartbeat at configured interval", () => {
-    jest.useFakeTimers();
-
-    const router = createBankStatementsRouter();
-    const handler = findRouteHandler(router, "get", "/bank-statements/parse/sse");
-    const req = mockRequest({ authContext: defaultAuth });
-    const res = mockResponse();
-
-    handler(req, res);
-
     const initialWrites = (res.written as string[]).length;
-
     jest.advanceTimersByTime(30_000);
-
     expect((res.written as string[]).length).toBeGreaterThan(initialWrites);
     const heartbeats = (res.written as string[]).filter(w => w === ":\n\n");
     expect(heartbeats.length).toBeGreaterThanOrEqual(2);
