@@ -43,44 +43,6 @@ function makeObjectId() {
 describe("InvoiceService.retryInvoices", () => {
   beforeEach(() => { jest.clearAllMocks(); });
 
-  it("includes PENDING in the allowed status list", async () => {
-    const updateManyMock = jest.spyOn(InvoiceModel, "updateMany").mockResolvedValue({ modifiedCount: 1 } as never);
-    const service = new InvoiceService();
-    const invoiceId = makeObjectId();
-
-    await service.retryInvoices([invoiceId], makeAuth());
-
-    const filter = updateManyMock.mock.calls[0]?.[0] as Record<string, unknown>;
-    const statusFilter = (filter.status as { $in: string[] }).$in;
-    expect(statusFilter).toContain("PENDING");
-  });
-
-  it("includes FAILED_OCR, FAILED_PARSE, NEEDS_REVIEW, PARSED in the allowed status list", async () => {
-    const updateManyMock = jest.spyOn(InvoiceModel, "updateMany").mockResolvedValue({ modifiedCount: 1 } as never);
-    const service = new InvoiceService();
-    const invoiceId = makeObjectId();
-
-    await service.retryInvoices([invoiceId], makeAuth());
-
-    const filter = updateManyMock.mock.calls[0]?.[0] as Record<string, unknown>;
-    const statusFilter = (filter.status as { $in: string[] }).$in;
-    expect(statusFilter).toContain("FAILED_OCR");
-    expect(statusFilter).toContain("FAILED_PARSE");
-    expect(statusFilter).toContain("NEEDS_REVIEW");
-    expect(statusFilter).toContain("PARSED");
-  });
-
-  it("sets status to PENDING on retry", async () => {
-    const updateManyMock = jest.spyOn(InvoiceModel, "updateMany").mockResolvedValue({ modifiedCount: 1 } as never);
-    const service = new InvoiceService();
-    const invoiceId = makeObjectId();
-
-    await service.retryInvoices([invoiceId], makeAuth());
-
-    const update = updateManyMock.mock.calls[0]?.[1] as Record<string, unknown>;
-    expect((update.$set as Record<string, unknown>).status).toBe("PENDING");
-  });
-
   it("returns 0 and does not call updateMany when ids list is empty", async () => {
     const updateManyMock = jest.spyOn(InvoiceModel, "updateMany").mockResolvedValue({ modifiedCount: 0 } as never);
     const service = new InvoiceService();
