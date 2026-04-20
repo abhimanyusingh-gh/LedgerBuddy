@@ -13,42 +13,30 @@ describe("GlCodeSuggestionService", () => {
   });
 
   describe("suggestFromSlmClassification", () => {
-    it("returns null when slmGlCategory is empty", async () => {
-      const result = await service.suggestFromSlmClassification("tenant-1", "  ");
+    it.each([
+      ["slmGlCategory is empty", "  ", null],
+      ["no GL codes exist for tenant", "Professional Services", []],
+    ])("returns null when %s", async (_label, slmCategory, docs) => {
+      if (docs !== null) {
+        (GlCodeMasterModel.find as jest.Mock).mockReturnValue({ lean: () => Promise.resolve(docs) });
+      }
+      const result = await service.suggestFromSlmClassification("tenant-1", slmCategory);
       expect(result).toBeNull();
     });
 
-    it("returns null when no GL codes exist for tenant", async () => {
-      (GlCodeMasterModel.find as jest.Mock).mockReturnValue({ lean: () => Promise.resolve([]) });
-      const result = await service.suggestFromSlmClassification("tenant-1", "Professional Services");
-      expect(result).toBeNull();
-    });
+    it.each([
+      ["exact category name match", "professional services", [
+        { code: "4001", name: "Office Rent", category: "Rent", isActive: true },
+        { code: "4002", name: "Legal Fees", category: "Professional Services", isActive: true }
+      ]],
+      ["exact GL code name match", "software subscription", [
+        { code: "4001", name: "Office Rent", category: "Rent", isActive: true },
+        { code: "4002", name: "Software Subscription", category: "Other", isActive: true }
+      ]],
+    ])("matches %s (case-insensitive) with confidence 80", async (_label, query, docs) => {
+      (GlCodeMasterModel.find as jest.Mock).mockReturnValue({ lean: () => Promise.resolve(docs) });
 
-    it("matches exact category name (case-insensitive)", async () => {
-      (GlCodeMasterModel.find as jest.Mock).mockReturnValue({
-        lean: () => Promise.resolve([
-          { code: "4001", name: "Office Rent", category: "Rent", isActive: true },
-          { code: "4002", name: "Legal Fees", category: "Professional Services", isActive: true }
-        ])
-      });
-
-      const result = await service.suggestFromSlmClassification("tenant-1", "professional services");
-      expect(result).not.toBeNull();
-      expect(result!.glCode.code).toBe("4002");
-      expect(result!.glCode.name).toBe("Legal Fees");
-      expect(result!.glCode.source).toBe("slm-classification");
-      expect(result!.glCode.confidence).toBe(80);
-    });
-
-    it("matches exact GL code name (case-insensitive)", async () => {
-      (GlCodeMasterModel.find as jest.Mock).mockReturnValue({
-        lean: () => Promise.resolve([
-          { code: "4001", name: "Office Rent", category: "Rent", isActive: true },
-          { code: "4002", name: "Software Subscription", category: "Other", isActive: true }
-        ])
-      });
-
-      const result = await service.suggestFromSlmClassification("tenant-1", "software subscription");
+      const result = await service.suggestFromSlmClassification("tenant-1", query);
       expect(result).not.toBeNull();
       expect(result!.glCode.code).toBe("4002");
       expect(result!.glCode.source).toBe("slm-classification");
