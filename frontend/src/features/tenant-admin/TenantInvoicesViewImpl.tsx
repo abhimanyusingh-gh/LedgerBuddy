@@ -1557,6 +1557,10 @@ export function TenantInvoicesView({
                   setActiveExtractedFieldsExpanded={(v) => setSection("activeExtractedFields", v)}
                   activeLineItemsExpanded={!!sectionExpanded.activeLineItems}
                   setActiveLineItemsExpanded={(v) => setSection("activeLineItems", v)}
+                  vendorDetailsExpanded={!!sectionExpanded.activeVendorDetails}
+                  setVendorDetailsExpanded={(v) => setSection("activeVendorDetails", v)}
+                  customerDetailsExpanded={!!sectionExpanded.activeCustomerDetails}
+                  setCustomerDetailsExpanded={(v) => setSection("activeCustomerDetails", v)}
                   onWorkflowApproveSingle={(invoiceId) => void handleWorkflowApproveSingle(invoiceId)}
                   onWorkflowRejectSingle={(invoiceId) => void handleWorkflowRejectSingle(invoiceId)}
                   onSaveField={(fieldKey, value, refreshDetail) => handleSaveField(activeInvoice, fieldKey, value, refreshDetail)}

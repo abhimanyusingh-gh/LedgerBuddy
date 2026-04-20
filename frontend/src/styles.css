@@ -40,6 +40,16 @@
   --chart-rose: #f43f5e;
   --chart-violet: #8b5cf6;
   --chart-cyan: #06b6d4;
+
+  --badge-valid-bg: #dcfce7;
+  --badge-valid-fg: #166534;
+  --badge-invalid-bg: #fee2e2;
+  --badge-invalid-fg: #991b1b;
+  --badge-cross-checked-bg: #dbeafe;
+  --badge-cross-checked-fg: #1e40af;
+  --badge-tenant-match-bg: #f0fdf4;
+  --badge-tenant-match-fg: #15803d;
+  --badge-tenant-match-border: #bbf7d0;
 }
 
 [data-theme="dark"] {
@@ -61,6 +71,15 @@
   --chart-rose: #fb7185;
   --chart-violet: #a78bfa;
   --chart-cyan: #22d3ee;
+  --badge-valid-bg: rgba(34, 197, 94, 0.2);
+  --badge-valid-fg: #86efac;
+  --badge-invalid-bg: rgba(239, 68, 68, 0.2);
+  --badge-invalid-fg: #fca5a5;
+  --badge-cross-checked-bg: rgba(59, 130, 246, 0.2);
+  --badge-cross-checked-fg: #93c5fd;
+  --badge-tenant-match-bg: rgba(34, 197, 94, 0.1);
+  --badge-tenant-match-fg: #86efac;
+  --badge-tenant-match-border: rgba(34, 197, 94, 0.3);
   color-scheme: dark;
 }
 
@@ -3740,6 +3759,73 @@ pre {
 .gl-code-inline-dropdown {
   position: relative;
   display: inline-block;
+}
+
+.details-section {
+  border-top: 1px solid var(--line-faint, rgba(0,0,0,0.06));
+  padding: 0.5rem 0;
+}
+
+.details-body {
+  padding: 0.5rem 0 0.25rem 0.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.details-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.details-field-label {
+  color: var(--ink-soft);
+  font-size: 0.76rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.details-field-value {
+  font-size: 0.85rem;
+}
+
+.details-field-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.tax-id-badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.68rem;
+  font-weight: 600;
+  padding: 0.1rem 0.4rem;
+  border-radius: 0.25rem;
+  white-space: nowrap;
+}
+
+.tax-id-valid {
+  background: var(--badge-valid-bg);
+  color: var(--badge-valid-fg);
+}
+
+.tax-id-invalid {
+  background: var(--badge-invalid-bg);
+  color: var(--badge-invalid-fg);
+}
+
+.tax-id-cross-checked {
+  background: var(--badge-cross-checked-bg);
+  color: var(--badge-cross-checked-fg);
+}
+
+.tax-id-tenant-match {
+  background: var(--badge-tenant-match-bg);
+  color: var(--badge-tenant-match-fg);
+  border: 1px solid var(--badge-tenant-match-border);
 }
 
 @media (prefers-reduced-motion: reduce) {
