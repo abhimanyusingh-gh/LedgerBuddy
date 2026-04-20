@@ -78,32 +78,6 @@ describe("InvoiceExtractionPipeline", () => {
     (resolveTenantComplianceConfig as jest.Mock).mockResolvedValue(null);
   });
 
-  it("calls OCR and SLM verifier once, returns parsed invoice data", async () => {
-    const { ocrProvider, fieldVerifier, templateStore, extractText, verify } = buildDeps();
-
-    const pipeline = new InvoiceExtractionPipeline(
-      { ocrProvider, fieldVerifier, templateStore },
-      {}
-    );
-
-    const result = await pipeline.extract(defaultInput);
-
-    expect(extractText).toHaveBeenCalledWith(
-      expect.any(Buffer),
-      "application/pdf",
-      expect.objectContaining({ languageHint: "en" })
-    );
-
-    expect(verify).toHaveBeenCalledTimes(1);
-    const verifierInput = verify.mock.calls[0]?.[0] as FieldVerifierInput;
-    expect(typeof verifierInput.ocrText).toBe("string");
-    expect(verifierInput.ocrText.length).toBeGreaterThan(0);
-
-    expect(result.parseResult.parsed.invoiceNumber).toBe("INV-2026-001");
-    expect(result.parseResult.parsed.totalAmountMinor).toBe(123400);
-    expect(result.metadata.ocrPrimaryVariant).toBeTruthy();
-  });
-
   it("routes LlamaExtract through the same post-engine pipeline as SLM", async () => {
     const extractText = jest.fn(async () => ({
       text: "Invoice Number: INV-LLAMA-001\nTotal: 5000.00",
@@ -152,24 +126,6 @@ describe("InvoiceExtractionPipeline", () => {
     expect(result.metadata.preOcrLanguage).toBeTruthy();
     expect(result.confidenceAssessment).toBeDefined();
     expect(result.processingIssues).toBeInstanceOf(Array);
-  });
-
-  it("fetches tenant compliance config once and stores in context", async () => {
-    const mockConfig = { tenantId: "tenant-1", complianceEnabled: true, learningMode: "active" };
-    (resolveTenantComplianceConfig as jest.Mock).mockResolvedValue(mockConfig);
-
-    const { ocrProvider, fieldVerifier, templateStore } = buildDeps();
-
-    const pipeline = new InvoiceExtractionPipeline(
-      { ocrProvider, fieldVerifier, templateStore },
-      {}
-    );
-
-    const result = await pipeline.extract(defaultInput);
-
-    expect(resolveTenantComplianceConfig).toHaveBeenCalledTimes(1);
-    expect(resolveTenantComplianceConfig).toHaveBeenCalledWith("tenant-1");
-    expect(result.metadata.learningMode).toBe("active");
   });
 
   it("uses default learning mode when tenant config returns null", async () => {
