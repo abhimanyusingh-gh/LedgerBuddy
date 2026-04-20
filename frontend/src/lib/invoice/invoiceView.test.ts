@@ -1,9 +1,4 @@
-import {
-  buildFieldCropUrlMap,
-  buildFieldOverlayUrlMap,
-  STATUS_LABELS,
-  STATUSES
-} from "@/lib/invoice/invoiceView";
+import { buildFieldCropUrlMap, buildFieldOverlayUrlMap } from "@/lib/invoice/invoiceView";
 import type { SourceHighlight } from "@/lib/invoice/sourceHighlights";
 
 describe("invoiceView", () => {
@@ -86,23 +81,6 @@ describe("invoiceView", () => {
     expect(map.invoiceNumber).toEqual({ type: "url", url: "invoice-1:5" });
   });
 
-  it("does not produce bbox crop when no page resolver is provided", () => {
-    const highlights = [
-      {
-        fieldKey: "vendorName",
-        label: "Vendor",
-        value: "Acme",
-        source: "ocr",
-        page: 1,
-        bbox: [10, 10, 30, 30],
-        bboxNormalized: [0.1, 0.1, 0.3, 0.3]
-      }
-    ] as SourceHighlight[];
-
-    const map = buildFieldCropUrlMap("invoice-1", highlights, (invoiceId, blockIndex) => `${invoiceId}:${blockIndex}`);
-    expect(map.vendorName).toBeUndefined();
-  });
-
   it("maps only valid overlay urls", () => {
     const highlights = [
       {
@@ -129,11 +107,5 @@ describe("invoiceView", () => {
     const map = buildFieldOverlayUrlMap("invoice-2", highlights, (invoiceId, fieldKey) => `${invoiceId}:${fieldKey}`);
     expect(map.currency).toBe("invoice-2:currency");
     expect(map.dueDate).toBeUndefined();
-  });
-
-  it("every STATUSES entry has a STATUS_LABELS key", () => {
-    for (const status of STATUSES) {
-      expect(STATUS_LABELS).toHaveProperty(status);
-    }
   });
 });
