@@ -1,15 +1,19 @@
 import { getConfidenceLabel, getConfidenceTone } from "@/lib/invoice/confidence";
 
 describe("confidence ui helpers", () => {
-  it("maps score bands to red/yellow/green", () => {
-    expect(getConfidenceTone(69)).toBe("red");
-    expect(getConfidenceTone(80)).toBe("yellow");
-    expect(getConfidenceTone(91)).toBe("green");
+  it.each([
+    ["red below 80", 69, "red"],
+    ["yellow at 80", 80, "yellow"],
+    ["green at 91", 91, "green"],
+  ])("tone: %s", (_label, score, expected) => {
+    expect(getConfidenceTone(score)).toBe(expected);
   });
 
-  it("formats confidence labels", () => {
-    expect(getConfidenceLabel(95.2)).toBe("95%");
-    expect(getConfidenceLabel(102)).toBe("100%");
-    expect(getConfidenceLabel(-1)).toBe("0%");
+  it.each([
+    ["rounds fraction", 95.2, "95%"],
+    ["clamps above 100", 102, "100%"],
+    ["clamps below 0", -1, "0%"],
+  ])("label: %s", (_label, score, expected) => {
+    expect(getConfidenceLabel(score)).toBe(expected);
   });
 });

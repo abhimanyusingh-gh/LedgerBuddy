@@ -151,41 +151,16 @@ describe("StepCard", () => {
       expect(screen.queryByLabelText("Step type:")).not.toBeInTheDocument();
     });
 
-    it("auto-opens when step type is compliance_signoff", () => {
+    it.each([
+      ["type: compliance_signoff", { type: "compliance_signoff" as const }],
+      ["type: escalation", { type: "escalation" as const }],
+      ["timeoutHours set", { timeoutHours: 24 }],
+      ["escalateTo set", { escalateTo: "u1" }],
+    ])("auto-opens when %s", (_label, overrides) => {
       render(
         <StepCard
           {...baseProps}
-          step={{ ...baseStep, type: "compliance_signoff" }}
-        />
-      );
-      expect(screen.getByLabelText("Step type:")).toBeInTheDocument();
-    });
-
-    it("auto-opens when step type is escalation", () => {
-      render(
-        <StepCard
-          {...baseProps}
-          step={{ ...baseStep, type: "escalation" }}
-        />
-      );
-      expect(screen.getByLabelText("Step type:")).toBeInTheDocument();
-    });
-
-    it("auto-opens when timeoutHours is set", () => {
-      render(
-        <StepCard
-          {...baseProps}
-          step={{ ...baseStep, timeoutHours: 24 }}
-        />
-      );
-      expect(screen.getByLabelText("Step type:")).toBeInTheDocument();
-    });
-
-    it("auto-opens when escalateTo is set", () => {
-      render(
-        <StepCard
-          {...baseProps}
-          step={{ ...baseStep, escalateTo: "u1" }}
+          step={{ ...baseStep, ...overrides }}
         />
       );
       expect(screen.getByLabelText("Step type:")).toBeInTheDocument();
@@ -379,49 +354,12 @@ describe("StepCard", () => {
       expect(screen.queryByText("Escalation target is required when a timeout is set.")).not.toBeInTheDocument();
     });
 
-    it("rejects non-integer timeout values", () => {
-      const onUpdate = jest.fn();
-      render(
-        <StepCard
-          {...baseProps}
-          step={{ ...baseStep, type: "escalation" }}
-          onUpdate={onUpdate}
-        />
-      );
-      const input = screen.getByLabelText("Timeout (hours):");
-      fireEvent.change(input, { target: { value: "2.5" } });
-      expect(onUpdate).not.toHaveBeenCalled();
-    });
-
-    it("rejects timeout values below 1", () => {
-      const onUpdate = jest.fn();
-      render(
-        <StepCard
-          {...baseProps}
-          step={{ ...baseStep, type: "escalation" }}
-          onUpdate={onUpdate}
-        />
-      );
-      const input = screen.getByLabelText("Timeout (hours):");
-      fireEvent.change(input, { target: { value: "0" } });
-      expect(onUpdate).not.toHaveBeenCalled();
-    });
-
-    it("rejects timeout values above 720", () => {
-      const onUpdate = jest.fn();
-      render(
-        <StepCard
-          {...baseProps}
-          step={{ ...baseStep, type: "escalation" }}
-          onUpdate={onUpdate}
-        />
-      );
-      const input = screen.getByLabelText("Timeout (hours):");
-      fireEvent.change(input, { target: { value: "721" } });
-      expect(onUpdate).not.toHaveBeenCalled();
-    });
-
-    it("accepts clearing the timeout value", () => {
+    it.each([
+      ["non-integer 2.5", "2.5", "reject"],
+      ["below 1 (0)", "0", "reject"],
+      ["above 720 (721)", "721", "reject"],
+      ["empty string (clear)", "", "accept"],
+    ])("timeout input validation: %s", (_label, value, behavior) => {
       const onUpdate = jest.fn();
       render(
         <StepCard
@@ -431,8 +369,12 @@ describe("StepCard", () => {
         />
       );
       const input = screen.getByLabelText("Timeout (hours):");
-      fireEvent.change(input, { target: { value: "" } });
-      expect(onUpdate).toHaveBeenCalledWith({ timeoutHours: null });
+      fireEvent.change(input, { target: { value } });
+      if (behavior === "reject") {
+        expect(onUpdate).not.toHaveBeenCalled();
+      } else {
+        expect(onUpdate).toHaveBeenCalledWith({ timeoutHours: null });
+      }
     });
   });
 

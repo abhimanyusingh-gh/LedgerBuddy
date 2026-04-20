@@ -197,43 +197,18 @@ describe("StepConditionEditor", () => {
     expect(onChange).toHaveBeenCalledWith(null);
   });
 
-  it("sets default values when switching field to riskSignalMaxSeverity", () => {
+  it.each([
+    ["riskSignalMaxSeverity", { field: "riskSignalMaxSeverity", operator: "eq", value: "critical" }],
+    ["glCodeSource", { field: "glCodeSource", operator: "eq", value: "manual" }],
+    ["totalAmountMinor", { field: "totalAmountMinor", operator: "gt", value: 5000000 }],
+    ["tdsAmountMinor", { field: "tdsAmountMinor", operator: "gt", value: 5000000 }],
+  ])("sets default values when switching field to %s", (fieldValue, expected) => {
     const onChange = jest.fn();
     render(<StepConditionEditor condition={null} onChange={onChange} />);
 
     const select = screen.getByLabelText("Condition:");
-    fireEvent.change(select, { target: { value: "riskSignalMaxSeverity" } });
-    expect(onChange).toHaveBeenCalledWith({
-      field: "riskSignalMaxSeverity",
-      operator: "eq",
-      value: "critical",
-    });
-  });
-
-  it("sets default values when switching field to glCodeSource", () => {
-    const onChange = jest.fn();
-    render(<StepConditionEditor condition={null} onChange={onChange} />);
-
-    const select = screen.getByLabelText("Condition:");
-    fireEvent.change(select, { target: { value: "glCodeSource" } });
-    expect(onChange).toHaveBeenCalledWith({
-      field: "glCodeSource",
-      operator: "eq",
-      value: "manual",
-    });
-  });
-
-  it("sets default values when switching field to totalAmountMinor", () => {
-    const onChange = jest.fn();
-    render(<StepConditionEditor condition={null} onChange={onChange} />);
-
-    const select = screen.getByLabelText("Condition:");
-    fireEvent.change(select, { target: { value: "totalAmountMinor" } });
-    expect(onChange).toHaveBeenCalledWith({
-      field: "totalAmountMinor",
-      operator: "gt",
-      value: 5000000,
-    });
+    fireEvent.change(select, { target: { value: fieldValue } });
+    expect(onChange).toHaveBeenCalledWith(expected);
   });
 
   it("converts scalar value to array when switching from eq to in operator", () => {
@@ -269,19 +244,6 @@ describe("StepConditionEditor", () => {
       field: "glCodeSource",
       operator: "eq",
       value: "manual",
-    });
-  });
-
-  it("sets default values when switching field to tdsAmountMinor", () => {
-    const onChange = jest.fn();
-    render(<StepConditionEditor condition={null} onChange={onChange} />);
-
-    const select = screen.getByLabelText("Condition:");
-    fireEvent.change(select, { target: { value: "tdsAmountMinor" } });
-    expect(onChange).toHaveBeenCalledWith({
-      field: "tdsAmountMinor",
-      operator: "gt",
-      value: 5000000,
     });
   });
 

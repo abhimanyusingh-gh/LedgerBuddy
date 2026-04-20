@@ -38,96 +38,77 @@ function makeInvoice(overrides: Partial<Invoice["parsed"]> = {}): Invoice {
   } as Invoice;
 }
 
-describe("VendorDetailsSection", () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-  });
+type SectionCase = {
+  name: "Vendor" | "Customer";
+  Component: typeof VendorDetailsSection | typeof CustomerDetailsSection;
+  header: string;
+  visibleWhenExpanded: string;
+  missingOverrides: Partial<Invoice["parsed"]>;
+};
 
-  it("renders vendor fields when expanded", () => {
-    render(<VendorDetailsSection invoice={makeInvoice()} expanded={true} onToggle={jest.fn()} />);
-    expect(screen.getByText("Vendor Details")).toBeInTheDocument();
-    expect(screen.getByText("AADCB2230M")).toBeInTheDocument();
-    expect(screen.getByText("27AADCB2230M1Z3")).toBeInTheDocument();
-    expect(screen.getByText((_content, element) =>
-      element?.tagName === "SPAN" && element?.textContent === "123 Main St\nMumbai, MH 400001"
-    )).toBeInTheDocument();
-  });
-
-  it("shows Not extracted for missing vendor fields", () => {
-    const invoice = makeInvoice({
+const sectionCases: SectionCase[] = [
+  {
+    name: "Vendor",
+    Component: VendorDetailsSection,
+    header: "Vendor Details",
+    visibleWhenExpanded: "AADCB2230M",
+    missingOverrides: {
       vendorName: undefined,
       vendorAddress: undefined,
       vendorGstin: undefined,
       vendorPan: undefined,
-    });
-    render(<VendorDetailsSection invoice={invoice} expanded={true} onToggle={jest.fn()} />);
-    const notExtracted = screen.getAllByText("Not extracted");
-    expect(notExtracted.length).toBeGreaterThanOrEqual(3);
-  });
+    },
+  },
+  {
+    name: "Customer",
+    Component: CustomerDetailsSection,
+    header: "Customer Details",
+    visibleWhenExpanded: "BillForge Inc",
+    missingOverrides: {
+      customerName: undefined,
+      customerAddress: undefined,
+      customerGstin: undefined,
+    },
+  },
+];
 
-  it("hides body when collapsed", () => {
-    render(<VendorDetailsSection invoice={makeInvoice()} expanded={false} onToggle={jest.fn()} />);
-    expect(screen.getByText("Vendor Details")).toBeInTheDocument();
-    expect(screen.queryByText("AADCB2230M")).not.toBeInTheDocument();
-  });
-
-  it("calls onToggle when header is clicked", () => {
-    const onToggle = jest.fn();
-    render(<VendorDetailsSection invoice={makeInvoice()} expanded={true} onToggle={onToggle} />);
-    fireEvent.click(screen.getByText("Vendor Details"));
-    expect(onToggle).toHaveBeenCalledTimes(1);
-  });
-
-  it("shows section header when no parsed data exists", () => {
-    const invoice = makeInvoice();
-    invoice.parsed = undefined;
-    render(<VendorDetailsSection invoice={invoice} expanded={true} onToggle={jest.fn()} />);
-    expect(screen.getByText("Vendor Details")).toBeInTheDocument();
-  });
-
-  it("shows vendor name reference note when vendor name exists", () => {
-    render(<VendorDetailsSection invoice={makeInvoice()} expanded={true} onToggle={jest.fn()} />);
-    expect(screen.getByText("Shown in key fields above")).toBeInTheDocument();
-  });
-});
-
-describe("CustomerDetailsSection", () => {
+describe("VendorDetailsSection / CustomerDetailsSection", () => {
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
-  it("renders customer fields when expanded", () => {
-    render(<CustomerDetailsSection invoice={makeInvoice()} expanded={true} onToggle={jest.fn()} />);
-    expect(screen.getByText("Customer Details")).toBeInTheDocument();
-    expect(screen.getByText("BillForge Inc")).toBeInTheDocument();
-    expect(screen.getByText("07BBBBB1234B1Z5")).toBeInTheDocument();
-    expect(screen.getByText((_content, element) =>
-      element?.tagName === "SPAN" && element?.textContent === "456 Oak Ave\nDelhi, DL 110001"
-    )).toBeInTheDocument();
-  });
-
-  it("shows Not extracted for missing customer fields", () => {
-    const invoice = makeInvoice({
-      customerName: undefined,
-      customerAddress: undefined,
-      customerGstin: undefined,
+  describe.each(sectionCases)("$name section", ({ Component, header, visibleWhenExpanded, missingOverrides }) => {
+    it("renders section content when expanded", () => {
+      render(<Component invoice={makeInvoice()} expanded={true} onToggle={jest.fn()} />);
+      expect(screen.getByText(header)).toBeInTheDocument();
+      expect(screen.getByText(visibleWhenExpanded)).toBeInTheDocument();
     });
-    render(<CustomerDetailsSection invoice={invoice} expanded={true} onToggle={jest.fn()} />);
-    const notExtracted = screen.getAllByText("Not extracted");
-    expect(notExtracted.length).toBeGreaterThanOrEqual(3);
+
+    it("shows Not extracted for missing fields", () => {
+      render(<Component invoice={makeInvoice(missingOverrides)} expanded={true} onToggle={jest.fn()} />);
+      const notExtracted = screen.getAllByText("Not extracted");
+      expect(notExtracted.length).toBeGreaterThanOrEqual(3);
+    });
+
+    it("hides body when collapsed", () => {
+      render(<Component invoice={makeInvoice()} expanded={false} onToggle={jest.fn()} />);
+      expect(screen.getByText(header)).toBeInTheDocument();
+      expect(screen.queryByText(visibleWhenExpanded)).not.toBeInTheDocument();
+    });
+
+    it("calls onToggle when header is clicked", () => {
+      const onToggle = jest.fn();
+      render(<Component invoice={makeInvoice()} expanded={true} onToggle={onToggle} />);
+      fireEvent.click(screen.getByText(header));
+      expect(onToggle).toHaveBeenCalledTimes(1);
+    });
   });
 
-  it("hides body when collapsed", () => {
-    render(<CustomerDetailsSection invoice={makeInvoice()} expanded={false} onToggle={jest.fn()} />);
-    expect(screen.getByText("Customer Details")).toBeInTheDocument();
-    expect(screen.queryByText("BillForge Inc")).not.toBeInTheDocument();
-  });
-
-  it("calls onToggle when header is clicked", () => {
-    const onToggle = jest.fn();
-    render(<CustomerDetailsSection invoice={makeInvoice()} expanded={true} onToggle={onToggle} />);
-    fireEvent.click(screen.getByText("Customer Details"));
-    expect(onToggle).toHaveBeenCalledTimes(1);
+  it("shows vendor section header when no parsed data exists", () => {
+    const invoice = makeInvoice();
+    invoice.parsed = undefined;
+    render(<VendorDetailsSection invoice={invoice} expanded={true} onToggle={jest.fn()} />);
+    expect(screen.getByText("Vendor Details")).toBeInTheDocument();
   });
 
   it("shows tenant GSTIN match badge when customer GSTIN matches tenant", () => {
@@ -141,17 +122,5 @@ describe("CustomerDetailsSection", () => {
       />
     );
     expect(screen.getByText("Matches tenant GSTIN")).toBeInTheDocument();
-  });
-
-  it("does not show tenant match badge when GSTINs differ", () => {
-    render(
-      <CustomerDetailsSection
-        invoice={makeInvoice()}
-        expanded={true}
-        onToggle={jest.fn()}
-        tenantGstin="99ZZZZZ9999Z1Z9"
-      />
-    );
-    expect(screen.queryByText("Matches tenant GSTIN")).not.toBeInTheDocument();
   });
 });

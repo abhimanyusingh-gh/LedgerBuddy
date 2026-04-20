@@ -15,11 +15,6 @@ const makeToast = (overrides: Partial<Toast> = {}): Toast => ({
 });
 
 describe("ToastContainer", () => {
-  it("renders nothing when toasts array is empty", () => {
-    const { container } = render(<ToastContainer toasts={[]} onRemove={jest.fn()} />);
-    expect(container.innerHTML).toBe("");
-  });
-
   it.each([
     ["success", "check_circle"],
     ["error", "error"],

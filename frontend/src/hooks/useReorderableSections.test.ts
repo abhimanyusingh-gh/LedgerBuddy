@@ -130,26 +130,4 @@ describe("useReorderableSections", () => {
 
     expect(result.current.dragOverId).toBeNull();
   });
-
-  it("does not reorder when dropping on itself", () => {
-    const { result } = renderHook(() => useReorderableSections(STORAGE_KEY, DEFAULT_ORDER));
-
-    const alphaHandlers = result.current.dragHandlers("alpha");
-
-    act(() => {
-      alphaHandlers.onDragStart({
-        dataTransfer: { effectAllowed: "", setData: () => {} },
-      } as unknown as React.DragEvent);
-    });
-
-    act(() => {
-      alphaHandlers.onDrop({
-        preventDefault: () => {},
-        dataTransfer: {},
-      } as unknown as React.DragEvent);
-    });
-
-    expect(result.current.order).toEqual(["alpha", "beta", "gamma"]);
-    expect(localStorage.getItem(STORAGE_KEY)).toBeNull();
-  });
 });

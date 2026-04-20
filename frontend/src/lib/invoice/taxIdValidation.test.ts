@@ -1,73 +1,54 @@
 import { isValidGstinFormat, isValidPanFormat, extractPanFromGstin, doesPanMatchGstin } from "./taxIdValidation";
 
 describe("isValidGstinFormat", () => {
-  it("returns true for valid GSTIN", () => {
-    expect(isValidGstinFormat("27AADCB2230M1Z3")).toBe(true);
-  });
-
-  it("returns false for invalid GSTIN", () => {
-    expect(isValidGstinFormat("INVALID")).toBe(false);
-  });
-
-  it("returns false for null/undefined", () => {
-    expect(isValidGstinFormat(null)).toBe(false);
-    expect(isValidGstinFormat(undefined)).toBe(false);
-  });
-
-  it("returns false for empty string", () => {
-    expect(isValidGstinFormat("")).toBe(false);
-  });
-
-  it("handles lowercase input", () => {
-    expect(isValidGstinFormat("27aadcb2230m1z3")).toBe(true);
+  it.each([
+    ["valid GSTIN", "27AADCB2230M1Z3", true],
+    ["invalid string", "INVALID", false],
+    ["null", null, false],
+    ["undefined", undefined, false],
+    ["empty string", "", false],
+    ["lowercase valid", "27aadcb2230m1z3", true],
+    ["too short", "27AADCB", false],
+  ])("%s", (_label, input, expected) => {
+    expect(isValidGstinFormat(input as string | null | undefined)).toBe(expected);
   });
 });
 
 describe("isValidPanFormat", () => {
-  it("returns true for valid PAN", () => {
-    expect(isValidPanFormat("AADCB2230M")).toBe(true);
-  });
-
-  it("returns false for invalid PAN", () => {
-    expect(isValidPanFormat("123456")).toBe(false);
-  });
-
-  it("returns false for null/undefined", () => {
-    expect(isValidPanFormat(null)).toBe(false);
-    expect(isValidPanFormat(undefined)).toBe(false);
-  });
-
-  it("handles lowercase input", () => {
-    expect(isValidPanFormat("aadcb2230m")).toBe(true);
+  it.each([
+    ["valid PAN", "AADCB2230M", true],
+    ["invalid numeric", "123456", false],
+    ["null", null, false],
+    ["undefined", undefined, false],
+    ["empty string", "", false],
+    ["lowercase valid", "aadcb2230m", true],
+    ["too short", "AADCB", false],
+  ])("%s", (_label, input, expected) => {
+    expect(isValidPanFormat(input as string | null | undefined)).toBe(expected);
   });
 });
 
 describe("extractPanFromGstin", () => {
-  it("extracts PAN from valid GSTIN", () => {
-    expect(extractPanFromGstin("27AADCB2230M1Z3")).toBe("AADCB2230M");
-  });
-
-  it("returns null for invalid GSTIN", () => {
-    expect(extractPanFromGstin("INVALID")).toBeNull();
-  });
-
-  it("returns null for null/undefined", () => {
-    expect(extractPanFromGstin(null)).toBeNull();
-    expect(extractPanFromGstin(undefined)).toBeNull();
+  it.each([
+    ["valid GSTIN", "27AADCB2230M1Z3", "AADCB2230M"],
+    ["invalid GSTIN", "INVALID", null],
+    ["null", null, null],
+    ["undefined", undefined, null],
+    ["empty string", "", null],
+  ])("%s", (_label, input, expected) => {
+    expect(extractPanFromGstin(input as string | null | undefined)).toBe(expected);
   });
 });
 
 describe("doesPanMatchGstin", () => {
-  it("returns true when PAN matches GSTIN", () => {
-    expect(doesPanMatchGstin("AADCB2230M", "27AADCB2230M1Z3")).toBe(true);
-  });
-
-  it("returns false when PAN does not match GSTIN", () => {
-    expect(doesPanMatchGstin("ZZZZZ9999Z", "27AADCB2230M1Z3")).toBe(false);
-  });
-
-  it("returns false when either is null", () => {
-    expect(doesPanMatchGstin(null, "27AADCB2230M1Z3")).toBe(false);
-    expect(doesPanMatchGstin("AADCB2230M", null)).toBe(false);
+  it.each([
+    ["matching PAN", "AADCB2230M", "27AADCB2230M1Z3", true],
+    ["mismatching PAN", "ZZZZZ9999Z", "27AADCB2230M1Z3", false],
+    ["null PAN", null, "27AADCB2230M1Z3", false],
+    ["null GSTIN", "AADCB2230M", null, false],
+    ["both null", null, null, false],
+    ["empty strings", "", "", false],
+  ])("%s", (_label, pan, gstin, expected) => {
+    expect(doesPanMatchGstin(pan as string | null, gstin as string | null)).toBe(expected);
   });
 });

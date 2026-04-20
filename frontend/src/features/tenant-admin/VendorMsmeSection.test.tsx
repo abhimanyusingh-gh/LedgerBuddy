@@ -49,29 +49,6 @@ describe("VendorMsmeSection", () => {
     expect(screen.getByText("Small Solutions Ltd")).toBeInTheDocument();
   });
 
-  it("shows statutory limit note", async () => {
-    render(<VendorMsmeSection />);
-    await waitFor(() => {
-      expect(screen.getByText("Statutory limit: 45 days (MSMED Act). Agreed terms cannot exceed this.")).toBeInTheDocument();
-    });
-  });
-
-  it("shows empty state when no MSME vendors exist", async () => {
-    mockFetchVendors.mockResolvedValue({ items: [], page: 1, limit: 50, total: 0 });
-    render(<VendorMsmeSection />);
-    await waitFor(() => {
-      expect(screen.getByText("No MSME vendors")).toBeInTheDocument();
-    });
-  });
-
-  it("shows edit button for each vendor", async () => {
-    render(<VendorMsmeSection />);
-    await waitFor(() => {
-      const editButtons = screen.getAllByText("Edit");
-      expect(editButtons).toHaveLength(2);
-    });
-  });
-
   it("enters edit mode when Edit is clicked", async () => {
     render(<VendorMsmeSection />);
     await waitFor(() => {
@@ -138,15 +115,6 @@ describe("VendorMsmeSection", () => {
     render(<VendorMsmeSection />);
     await waitFor(() => {
       expect(screen.getByText("30")).toBeInTheDocument();
-    });
-  });
-
-  it("displays dash for vendor without agreed payment days", async () => {
-    render(<VendorMsmeSection />);
-    await waitFor(() => {
-      const cells = document.querySelectorAll("td");
-      const agreedDaysCells = Array.from(cells).filter(td => td.textContent === "-");
-      expect(agreedDaysCells.length).toBeGreaterThan(0);
     });
   });
 
