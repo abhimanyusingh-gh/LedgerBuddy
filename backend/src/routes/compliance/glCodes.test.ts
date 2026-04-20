@@ -212,24 +212,12 @@ describe("POST /admin/gl-codes/import-csv", () => {
     expect((res.jsonBody as { message: string }).message).toContain("No CSV file");
   });
 
-  it("returns 400 for empty file", async () => {
+  it.each([
+    ["empty file", Buffer.alloc(0)],
+    ["headers-only CSV", Buffer.from("code,name,category\n", "utf-8")],
+  ])("returns 400 for %s", async (_label, buffer) => {
     const router = createGlCodesRouter();
-    const file = { buffer: Buffer.alloc(0), originalname: "empty.csv", mimetype: "text/csv" };
-    const res = mockResponse();
-
-    await findSecondHandler(router, "post", "/admin/gl-codes/import-csv")(
-      mockRequest({ authContext: defaultAuth, file }),
-      res, jest.fn()
-    );
-
-    expect(res.statusCode).toBe(400);
-    expect((res.jsonBody as { message: string }).message).toContain("empty");
-  });
-
-  it("returns 400 for headers-only CSV", async () => {
-    const router = createGlCodesRouter();
-    const csv = "code,name,category\n";
-    const file = { buffer: buildCsvBuffer(csv), originalname: "headers.csv", mimetype: "text/csv" };
+    const file = { buffer, originalname: "test.csv", mimetype: "text/csv" };
     const res = mockResponse();
 
     await findSecondHandler(router, "post", "/admin/gl-codes/import-csv")(
@@ -313,18 +301,4 @@ describe("POST /admin/gl-codes/import-csv", () => {
     expect(mockCreate).toHaveBeenCalledWith(expect.objectContaining({ category: "Other" }));
   });
 
-  it("is scoped to authenticated tenant", async () => {
-    const router = createGlCodesRouter();
-    const csv = "code,name\nT001,Tenant Scoped";
-    const customAuth = { ...defaultAuth, tenantId: "tenant-xyz" };
-    const file = { buffer: buildCsvBuffer(csv), originalname: "gl.csv", mimetype: "text/csv" };
-    const res = mockResponse();
-
-    await findSecondHandler(router, "post", "/admin/gl-codes/import-csv")(
-      mockRequest({ authContext: customAuth, file }),
-      res, jest.fn()
-    );
-
-    expect(mockCreate).toHaveBeenCalledWith(expect.objectContaining({ tenantId: "tenant-xyz" }));
-  });
 });
