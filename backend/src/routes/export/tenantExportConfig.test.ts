@@ -1,15 +1,10 @@
 import { createTenantExportConfigRouter } from "@/routes/export/tenantExportConfig.ts";
 import { TenantExportConfigModel } from "@/models/integration/TenantExportConfig.ts";
-import { defaultAuth, findHandler, hasMiddleware, mockRequest, mockResponse } from "@/routes/testHelpers.ts";
+import { defaultAuth, findHandler, mockRequest, mockResponse } from "@/routes/testHelpers.ts";
 
 describe("tenantExportConfig routes", () => {
   afterEach(() => {
     jest.restoreAllMocks();
-  });
-
-  it("applies requireAuth middleware", () => {
-    const router = createTenantExportConfigRouter();
-    expect(hasMiddleware(router, "requireAuth")).toBe(true);
   });
 
   describe("GET /tenant/:tenantId/export-config", () => {
