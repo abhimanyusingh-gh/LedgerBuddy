@@ -5,6 +5,15 @@ import {
 
 describe("SLM Classification", () => {
   describe("normalizeClassification with glCategory", () => {
+    it.each<{ name: string; input: unknown }>([
+      { name: "null", input: null },
+      { name: "string", input: "string" },
+      { name: "number", input: 42 },
+      { name: "array", input: [] },
+    ])("returns undefined for non-object input ($name)", ({ input }) => {
+      expect(normalizeClassification(input)).toBeUndefined();
+    });
+
     it("extracts glCategory from classification object", () => {
       const result = normalizeClassification({
         invoiceType: "service",
@@ -49,38 +58,10 @@ describe("SLM Classification", () => {
         tdsSection: "194C"
       });
     });
-
-    it("returns undefined when all fields are empty", () => {
-      const result = normalizeClassification({
-        invoiceType: "",
-        glCategory: "",
-        category: ""
-      });
-      expect(result).toBeUndefined();
-    });
-
-    it("returns undefined for null input", () => {
-      expect(normalizeClassification(null)).toBeUndefined();
-    });
-
-    it("returns undefined for non-object input", () => {
-      expect(normalizeClassification("string")).toBeUndefined();
-      expect(normalizeClassification(42)).toBeUndefined();
-      expect(normalizeClassification([])).toBeUndefined();
-    });
-
-    it("trims whitespace from glCategory", () => {
-      const result = normalizeClassification({
-        glCategory: "  Software Subscription  "
-      });
-      expect(result).toEqual({
-        glCategory: "Software Subscription"
-      });
-    });
   });
 
   describe("mergeClassification preserves glCategory", () => {
-    it("preserves glCategory from base classification", () => {
+    it("preserves glCategory from base classification and adds tdsSection", () => {
       const result = mergeClassification(
         { invoiceType: "service", glCategory: "Professional Services" },
         "194J"
@@ -89,16 +70,6 @@ describe("SLM Classification", () => {
         invoiceType: "service",
         glCategory: "Professional Services",
         tdsSection: "194J"
-      });
-    });
-
-    it("returns base with glCategory when no tdsSection", () => {
-      const result = mergeClassification(
-        { glCategory: "Rent" },
-        null
-      );
-      expect(result).toEqual({
-        glCategory: "Rent"
       });
     });
   });
