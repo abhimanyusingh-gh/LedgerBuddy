@@ -28,9 +28,9 @@ function NotExtractedLabel() {
 
 function FieldRow({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="vendor-customer-field">
-      <span className="vendor-customer-field-label">{label}</span>
-      <div className="vendor-customer-field-value">{children}</div>
+    <div className="details-field">
+      <span className="details-field-label">{label}</span>
+      <div className="details-field-value">{children}</div>
     </div>
   );
 }
@@ -50,14 +50,14 @@ export function CustomerDetailsSection({ invoice, expanded, onToggle, tenantGsti
   );
 
   return (
-    <div className="vendor-customer-section">
+    <div className="details-section customer-details-section">
       <CollapsibleSectionHeader
         label="Customer Details"
         expanded={expanded}
         onToggle={onToggle}
       />
       {expanded && (
-        <div className="vendor-customer-body">
+        <div className="details-body">
           <FieldRow label="Name">
             {customerName ? (
               <span style={{ fontSize: "0.85rem" }}>{customerName}</span>
@@ -67,7 +67,7 @@ export function CustomerDetailsSection({ invoice, expanded, onToggle, tenantGsti
           </FieldRow>
           <FieldRow label="GSTIN">
             {customerGstin ? (
-              <span className="vendor-customer-field-inline">
+              <span className="details-field-inline">
                 <span>{customerGstin}</span>
                 <GstinBadge value={customerGstin} />
                 {customerGstinMatchesTenant && (

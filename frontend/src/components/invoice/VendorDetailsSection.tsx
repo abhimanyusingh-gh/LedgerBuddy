@@ -48,9 +48,9 @@ function NotExtractedLabel() {
 
 function FieldRow({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="vendor-customer-field">
-      <span className="vendor-customer-field-label">{label}</span>
-      <div className="vendor-customer-field-value">{children}</div>
+    <div className="details-field">
+      <span className="details-field-label">{label}</span>
+      <div className="details-field-value">{children}</div>
     </div>
   );
 }
@@ -65,14 +65,14 @@ export function VendorDetailsSection({ invoice, expanded, onToggle }: VendorDeta
   const hasAnyVendorField = !!(vendorAddress || vendorGstin || vendorPan);
 
   return (
-    <div className="vendor-customer-section">
+    <div className="details-section vendor-details-section">
       <CollapsibleSectionHeader
         label="Vendor Details"
         expanded={expanded}
         onToggle={onToggle}
       />
       {expanded && (
-        <div className="vendor-customer-body">
+        <div className="details-body">
           {vendorName && (
             <FieldRow label="Vendor Name">
               <span className="muted" style={{ fontSize: "0.85rem" }}>Shown in key fields above</span>
@@ -80,7 +80,7 @@ export function VendorDetailsSection({ invoice, expanded, onToggle }: VendorDeta
           )}
           <FieldRow label="PAN">
             {vendorPan ? (
-              <span className="vendor-customer-field-inline">
+              <span className="details-field-inline">
                 <span>{vendorPan}</span>
                 <PanBadge pan={vendorPan} gstin={vendorGstin} />
               </span>
@@ -90,7 +90,7 @@ export function VendorDetailsSection({ invoice, expanded, onToggle }: VendorDeta
           </FieldRow>
           <FieldRow label="GSTIN">
             {vendorGstin ? (
-              <span className="vendor-customer-field-inline">
+              <span className="details-field-inline">
                 <span>{vendorGstin}</span>
                 <GstinBadge value={vendorGstin} />
               </span>
