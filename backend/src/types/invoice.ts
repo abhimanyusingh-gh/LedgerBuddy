@@ -15,6 +15,12 @@ export const INVOICE_STATUS = {
 export const INVOICE_FIELD_KEY = {
   INVOICE_NUMBER: "invoiceNumber",
   VENDOR_NAME: "vendorName",
+  VENDOR_ADDRESS: "vendorAddress",
+  VENDOR_GSTIN: "vendorGstin",
+  VENDOR_PAN: "vendorPan",
+  CUSTOMER_NAME: "customerName",
+  CUSTOMER_ADDRESS: "customerAddress",
+  CUSTOMER_GSTIN: "customerGstin",
   INVOICE_DATE: "invoiceDate",
   DUE_DATE: "dueDate",
   CURRENCY: "currency",
@@ -234,6 +240,12 @@ export interface InvoiceExtractionData {
 export interface ParsedInvoiceData {
   invoiceNumber?: string;
   vendorName?: string;
+  vendorAddress?: string;
+  vendorGstin?: string;
+  vendorPan?: string;
+  customerName?: string;
+  customerAddress?: string;
+  customerGstin?: string;
   invoiceDate?: Date;
   dueDate?: Date;
   totalAmountMinor?: number;

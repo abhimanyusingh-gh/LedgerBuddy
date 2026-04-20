@@ -145,6 +145,12 @@ const invoiceSchema = new Schema(
     parsed: {
       invoiceNumber: { type: String },
       vendorName: { type: String },
+      vendorAddress: { type: String },
+      vendorGstin: { type: String },
+      vendorPan: { type: String },
+      customerName: { type: String },
+      customerAddress: { type: String },
+      customerGstin: { type: String },
       invoiceDate: { type: Date },
       dueDate: { type: Date },
       totalAmountMinor: {

@@ -28,6 +28,12 @@ export function getExtractedFieldRows(invoice: Invoice): ExtractedFieldRow[] {
   return [
     { fieldKey: "invoiceNumber", label: "Invoice Number", value: invoice.parsed?.invoiceNumber ?? "-", rawValue: invoice.parsed?.invoiceNumber, confidence: confidenceMap?.invoiceNumber },
     { fieldKey: "vendorName", label: "Vendor Name", value: invoice.parsed?.vendorName ?? "-", rawValue: invoice.parsed?.vendorName, confidence: confidenceMap?.vendorName },
+    { fieldKey: "vendorAddress", label: "Vendor Address", value: invoice.parsed?.vendorAddress ?? "-", rawValue: invoice.parsed?.vendorAddress, confidence: confidenceMap?.vendorAddress },
+    { fieldKey: "vendorGstin", label: "Vendor GSTIN", value: invoice.parsed?.vendorGstin ?? "-", rawValue: invoice.parsed?.vendorGstin, confidence: confidenceMap?.vendorGstin },
+    { fieldKey: "vendorPan", label: "Vendor PAN", value: invoice.parsed?.vendorPan ?? "-", rawValue: invoice.parsed?.vendorPan, confidence: confidenceMap?.vendorPan },
+    { fieldKey: "customerName", label: "Customer Name", value: invoice.parsed?.customerName ?? "-", rawValue: invoice.parsed?.customerName, confidence: confidenceMap?.customerName },
+    { fieldKey: "customerAddress", label: "Customer Address", value: invoice.parsed?.customerAddress ?? "-", rawValue: invoice.parsed?.customerAddress, confidence: confidenceMap?.customerAddress },
+    { fieldKey: "customerGstin", label: "Customer GSTIN", value: invoice.parsed?.customerGstin ?? "-", rawValue: invoice.parsed?.customerGstin, confidence: confidenceMap?.customerGstin },
     { fieldKey: "invoiceDate", label: "Invoice Date", value: invoice.parsed?.invoiceDate ?? "-", rawValue: invoice.parsed?.invoiceDate, confidence: confidenceMap?.invoiceDate },
     { fieldKey: "dueDate", label: "Due Date", value: invoice.parsed?.dueDate ?? "-", rawValue: invoice.parsed?.dueDate, confidence: confidenceMap?.dueDate },
     {

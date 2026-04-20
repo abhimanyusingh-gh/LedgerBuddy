@@ -5,6 +5,12 @@ const EXTRACTION_KEY_DOT_TOKEN = "__dot__";
 
 const SCALAR_FIELD_DEFINITIONS = [
   { key: "vendorName", label: "Vendor" },
+  { key: "vendorAddress", label: "Vendor Address" },
+  { key: "vendorGstin", label: "Vendor GSTIN" },
+  { key: "vendorPan", label: "Vendor PAN" },
+  { key: "customerName", label: "Customer" },
+  { key: "customerAddress", label: "Customer Address" },
+  { key: "customerGstin", label: "Customer GSTIN" },
   { key: "invoiceNumber", label: "Invoice Number" },
   { key: "invoiceDate", label: "Invoice Date" },
   { key: "dueDate", label: "Due Date" },

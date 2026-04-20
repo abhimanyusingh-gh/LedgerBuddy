@@ -78,9 +78,15 @@ describe("extracted field helpers", () => {
     };
 
     const rows = getExtractedFieldRows(invoice);
-    const validKeys: ReadonlySet<string> = new Set<SourceFieldKey | "notes">([
+    const validKeys: ReadonlySet<string> = new Set<SourceFieldKey | "notes" | string>([
       "invoiceNumber",
       "vendorName",
+      "vendorAddress",
+      "vendorGstin",
+      "vendorPan",
+      "customerName",
+      "customerAddress",
+      "customerGstin",
       "invoiceDate",
       "dueDate",
       "totalAmountMinor",

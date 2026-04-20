@@ -1,6 +1,23 @@
 import type { ParsedInvoiceData } from "@/types/invoice.js";
 import { uniqueStrings } from "@/utils/text.js";
 
+const GSTIN_PATTERN = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][0-9A-Z]Z[0-9A-Z]$/;
+const PAN_PATTERN = /^[A-Z]{5}[0-9]{4}[A-Z]$/;
+
+function normalizeGstin(raw: string | undefined): string | undefined {
+  if (typeof raw !== "string") return undefined;
+  const trimmed = raw.trim().toUpperCase();
+  if (trimmed.length !== 15 || !GSTIN_PATTERN.test(trimmed)) return undefined;
+  return trimmed;
+}
+
+function normalizePan(raw: string | undefined): string | undefined {
+  if (typeof raw !== "string") return undefined;
+  const trimmed = raw.trim().toUpperCase();
+  if (trimmed.length !== 10 || !PAN_PATTERN.test(trimmed)) return undefined;
+  return trimmed;
+}
+
 export function normalizeInvoiceFields(parsed: ParsedInvoiceData | undefined): ParsedInvoiceData {
   if (!parsed) {
     return {};
@@ -23,6 +40,30 @@ export function normalizeInvoiceFields(parsed: ParsedInvoiceData | undefined): P
   const vendorName = copyString(parsed.vendorName);
   if (vendorName) {
     normalized.vendorName = vendorName;
+  }
+  const vendorAddress = copyString(parsed.vendorAddress);
+  if (vendorAddress) {
+    normalized.vendorAddress = vendorAddress;
+  }
+  const vendorGstin = normalizeGstin(parsed.vendorGstin);
+  if (vendorGstin) {
+    normalized.vendorGstin = vendorGstin;
+  }
+  const vendorPan = normalizePan(parsed.vendorPan);
+  if (vendorPan) {
+    normalized.vendorPan = vendorPan;
+  }
+  const customerName = copyString(parsed.customerName);
+  if (customerName) {
+    normalized.customerName = customerName;
+  }
+  const customerAddress = copyString(parsed.customerAddress);
+  if (customerAddress) {
+    normalized.customerAddress = customerAddress;
+  }
+  const customerGstin = normalizeGstin(parsed.customerGstin);
+  if (customerGstin) {
+    normalized.customerGstin = customerGstin;
   }
   if (parsed.invoiceDate instanceof Date && !isNaN(parsed.invoiceDate.getTime())) {
     normalized.invoiceDate = parsed.invoiceDate;

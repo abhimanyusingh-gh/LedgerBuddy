@@ -72,6 +72,12 @@ export interface Invoice {
   parsed?: {
     invoiceNumber?: string;
     vendorName?: string;
+    vendorAddress?: string;
+    vendorGstin?: string;
+    vendorPan?: string;
+    customerName?: string;
+    customerAddress?: string;
+    customerGstin?: string;
     invoiceDate?: string;
     dueDate?: string;
     totalAmountMinor?: number;
