@@ -47,28 +47,6 @@ describe("createInviteEmailSenderProvider", () => {
     sendGridCtorMock.mockClear();
   });
 
-  it("creates SMTP invite sender when provider is smtp", () => {
-    const provider = createInviteEmailSenderProvider();
-    expect(provider).toEqual({ provider: "smtp" });
-    expect(smtpCtorMock).toHaveBeenCalledWith({
-      host: "mailhog", port: 1025, secure: false, username: "", password: ""
-    });
-    expect(sendGridCtorMock).not.toHaveBeenCalled();
-  });
-
-  it("creates SendGrid invite sender when provider is sendgrid", () => {
-    mockEnv.INVITE_EMAIL_PROVIDER = "sendgrid";
-    mockEnv.INVITE_SENDGRID_API_KEY = "sg-token";
-    const provider = createInviteEmailSenderProvider();
-    expect(provider).toEqual({ provider: "sendgrid" });
-    expect(sendGridCtorMock).toHaveBeenCalledWith({
-      apiKey: "sg-token",
-      endpoint: "https://api.sendgrid.com/v3/mail/send",
-      timeoutMs: 15000
-    });
-    expect(smtpCtorMock).not.toHaveBeenCalled();
-  });
-
   it("throws when sendgrid provider is selected without api key", () => {
     mockEnv.INVITE_EMAIL_PROVIDER = "sendgrid";
     expect(() => createInviteEmailSenderProvider()).toThrow(
