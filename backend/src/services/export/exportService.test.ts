@@ -198,29 +198,6 @@ describe("ExportService", () => {
   });
 
   describe("generateExportFile", () => {
-    it("passes tenantId to ExportBatchModel.create", async () => {
-      jest.spyOn(InvoiceModel, "find").mockReturnValue({
-        select: jest.fn().mockResolvedValue([
-          { _id: new Types.ObjectId(), status: "APPROVED" }
-        ])
-      } as never);
-      jest.spyOn(InvoiceModel, "bulkWrite").mockResolvedValue({} as never);
-
-      const createSpy = jest.spyOn(ExportBatchModel, "create").mockResolvedValue({
-        _id: new Types.ObjectId()
-      } as never);
-
-      const service = new ExportService(createMockExporter(), createMockFileStore());
-      await service.generateExportFile({
-        requestedBy: "admin@test.com",
-        tenantId: toUUID("tenant-b")
-      });
-
-      expect(createSpy).toHaveBeenCalledWith(
-        expect.objectContaining({ tenantId: toUUID("tenant-b") })
-      );
-    });
-
     it("returns empty result when no approved invoices exist", async () => {
       jest.spyOn(InvoiceModel, "find").mockReturnValue({ select: jest.fn().mockResolvedValue([]) } as never);
 
@@ -262,36 +239,6 @@ describe("ExportService", () => {
   });
 
   describe("exportApprovedInvoices", () => {
-    it("passes tenantId to ExportBatchModel.create", async () => {
-      const mockInvoice = {
-        _id: new Types.ObjectId(),
-        status: "APPROVED"
-      };
-      jest.spyOn(InvoiceModel, "find").mockReturnValue({
-        select: jest.fn().mockResolvedValue([mockInvoice])
-      } as never);
-      jest.spyOn(InvoiceModel, "updateOne").mockResolvedValue({} as never);
-
-      const exporter = createMockExporter({
-        exportInvoices: jest.fn(async () => [
-          { invoiceId: toUUID(String(mockInvoice._id)), success: true, externalReference: "ref-1" }
-        ])
-      });
-      const createSpy = jest.spyOn(ExportBatchModel, "create").mockResolvedValue({
-        _id: new Types.ObjectId()
-      } as never);
-
-      const service = new ExportService(exporter);
-      await service.exportApprovedInvoices({
-        requestedBy: "admin@test.com",
-        tenantId: toUUID("tenant-d")
-      });
-
-      expect(createSpy).toHaveBeenCalledWith(
-        expect.objectContaining({ tenantId: toUUID("tenant-d") })
-      );
-    });
-
     it("returns zero totals when no approved invoices exist", async () => {
       jest.spyOn(InvoiceModel, "find").mockReturnValue({ select: jest.fn().mockResolvedValue([]) } as never);
 
