@@ -10,7 +10,7 @@ import { PlatformAnalyticsDashboard } from "@/features/platform-admin/PlatformAn
 import { TenantAdminTopNav } from "@/features/tenant-admin/TenantAdminTopNav";
 import { TenantViewTabs } from "@/features/tenant-admin/TenantViewTabs";
 import { TenantConfigTab } from "@/features/tenant-admin/TenantConfigTab";
-import { TenantInvoicesView } from "@/features/tenant-admin/TenantInvoicesView";
+import { InvoiceView } from "@/features/invoices/InvoiceView";
 import { ExportHistoryDashboard } from "@/features/tenant-admin/ExportHistoryDashboard";
 import { EmptyState } from "@/components/common/EmptyState";
 import { BankConnectionsTab } from "@/features/tenant-admin/BankConnectionsTab";
@@ -327,7 +327,7 @@ export function App() {
       {!isPlatformAdmin && activeTab === "overview" && <OverviewDashboard />}
 
       {!isPlatformAdmin && activeTab === "dashboard" && (
-        <TenantInvoicesView
+        <InvoiceView
           tenantId={session.tenant.id}
           userId={session.user.id}
           userEmail={session.user.email}

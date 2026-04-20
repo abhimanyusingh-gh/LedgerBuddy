@@ -2,7 +2,7 @@ import { type ChangeEvent, type DragEvent, type RefObject } from "react";
 import type { IngestionJobStatus, TenantUser } from "@/types";
 import { STATUS_LABELS, STATUSES } from "@/lib/invoice/invoiceView";
 
-interface TenantInvoicesToolbarProps {
+interface InvoiceToolbarProps {
   searchQuery: string;
   onSearchQueryChange: (value: string) => void;
   invoiceDateFrom: string;
@@ -48,7 +48,7 @@ interface TenantInvoicesToolbarProps {
   onPauseIngestion: () => void;
 }
 
-export function TenantInvoicesToolbar({
+export function InvoiceToolbar({
   searchQuery,
   onSearchQueryChange,
   invoiceDateFrom,
@@ -92,7 +92,7 @@ export function TenantInvoicesToolbar({
   onRetry,
   onIngest,
   onPauseIngestion
-}: TenantInvoicesToolbarProps) {
+}: InvoiceToolbarProps) {
   return (
     <>
       <div className="toolbar">

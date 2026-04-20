@@ -1,6 +1,6 @@
 import type { Dispatch, RefObject, SetStateAction } from "react";
 import type { Invoice } from "@/types";
-import { ApprovalTimeline } from "@/features/tenant-admin/ApprovalTimeline";
+import { ApprovalTimeline } from "@/components/invoice/ApprovalTimeline";
 import { CollapsibleSectionHeader } from "@/components/common/CollapsibleSectionHeader";
 import { ExtractedFieldsTable } from "@/components/invoice/ExtractedFieldsTable";
 import { InvoiceSourceViewer } from "@/components/invoice/InvoiceSourceViewer";
@@ -11,7 +11,7 @@ import type { SourceFieldKey } from "@/lib/invoice/sourceHighlights";
 import type { TallyMappingRow } from "@/lib/invoice/tallyMapping";
 import type { CropSource } from "@/lib/invoice/invoiceView";
 
-interface TenantInvoicePopupProps {
+interface InvoicePopupProps {
   invoice: Invoice;
   loading: boolean;
   tenantMode?: "test" | "live";
@@ -36,7 +36,7 @@ interface TenantInvoicePopupProps {
   resolvePreviewUrl: (page: number) => string;
 }
 
-export function TenantInvoicePopup({
+export function InvoicePopup({
   invoice,
   loading,
   tenantMode,
@@ -59,7 +59,7 @@ export function TenantInvoicePopup({
   onSaveField,
   refreshPopupInvoiceDetail,
   resolvePreviewUrl
-}: TenantInvoicePopupProps) {
+}: InvoicePopupProps) {
   return (
     <div className="popup-overlay" role="presentation" onClick={onClose}>
       <section

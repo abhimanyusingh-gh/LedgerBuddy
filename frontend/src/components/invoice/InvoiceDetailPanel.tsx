@@ -10,7 +10,7 @@ import { CustomerDetailsSection } from "@/components/invoice/CustomerDetailsSect
 import { CompliancePanel } from "@/components/compliance/CompliancePanel";
 import { RiskSignalList } from "@/components/compliance/RiskSignalList";
 import { CollapsibleSectionHeader } from "@/components/common/CollapsibleSectionHeader";
-import { formatInvoiceType } from "@/features/tenant-admin/invoiceViewHelpers";
+import { formatInvoiceType } from "@/components/invoice/invoiceViewHelpers";
 import type { SourceFieldKey } from "@/lib/invoice/sourceHighlights";
 import type { ExtractedFieldRow } from "@/lib/invoice/extractedFields";
 import type { CropSource } from "@/lib/invoice/invoiceView";
@@ -27,7 +27,7 @@ function toIsoDateString(value: string): string {
   return `${y}-${m}-${dy}`;
 }
 
-interface TenantInvoiceDetailPanelProps {
+interface InvoiceDetailPanelProps {
   invoice: Invoice;
   loading: boolean;
   canApproveInvoices: boolean;
@@ -62,7 +62,7 @@ interface TenantInvoiceDetailPanelProps {
   onDismissRiskSignal: (signalCode: string) => Promise<void>;
 }
 
-export function TenantInvoiceDetailPanel({
+export function InvoiceDetailPanel({
   invoice,
   loading,
   canApproveInvoices,
@@ -95,7 +95,7 @@ export function TenantInvoiceDetailPanel({
   onOverrideGlCode,
   onOverrideTdsSection,
   onDismissRiskSignal
-}: TenantInvoiceDetailPanelProps) {
+}: InvoiceDetailPanelProps) {
   const [editingField, setEditingField] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
   const [saving, setSaving] = useState(false);

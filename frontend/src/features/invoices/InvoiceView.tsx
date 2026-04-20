@@ -23,7 +23,7 @@ import {
 } from "@/api";
 import type { IngestionJobStatus, Invoice, TenantUser, UserCapabilities } from "@/types";
 import { ConfidenceBadge } from "@/components/invoice/ConfidenceBadge";
-import { IngestionProgressCard } from "@/features/tenant-admin/IngestionProgressCard";
+import { IngestionProgressCard } from "@/components/invoice/IngestionProgressCard";
 import { getExtractedFieldRows } from "@/lib/invoice/extractedFields";
 import { getInvoiceSourceHighlights } from "@/lib/invoice/sourceHighlights";
 import {
@@ -52,9 +52,9 @@ import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { EmptyState } from "@/components/common/EmptyState";
 import { KeyboardShortcutsOverlay } from "@/components/common/KeyboardShortcutsOverlay";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
-import { TenantInvoicesToolbar } from "@/features/tenant-admin/TenantInvoicesToolbar";
-import { TenantInvoiceDetailPanel } from "@/features/tenant-admin/TenantInvoiceDetailPanel";
-import { TenantInvoicePopup } from "@/features/tenant-admin/TenantInvoicePopup";
+import { InvoiceToolbar } from "@/components/invoice/InvoiceToolbar";
+import { InvoiceDetailPanel } from "@/components/invoice/InvoiceDetailPanel";
+import { InvoicePopup } from "@/components/invoice/InvoicePopup";
 import { GlCodeDropdown } from "@/components/compliance/GlCodeDropdown";
 
 function formatTaxSummary(invoice: { parsed?: { gst?: { cgstMinor?: number; sgstMinor?: number; igstMinor?: number; totalTaxMinor?: number }; currency?: string } }): string {
@@ -92,7 +92,7 @@ function selectNewerInvoice(detail: Invoice | null, summary: Invoice | null): In
   return Number.isFinite(dt) && dt >= st ? detail : summary;
 }
 
-interface TenantInvoicesViewProps {
+interface InvoiceViewProps {
   tenantId: string;
   userId: string;
   userEmail: string;
@@ -107,7 +107,7 @@ interface TenantInvoicesViewProps {
   addToast: (type: "success" | "error" | "info", message: string) => void;
 }
 
-export function TenantInvoicesView({
+export function InvoiceView({
   userEmail,
   canViewAllInvoices,
   capabilities = {},
@@ -118,7 +118,7 @@ export function TenantInvoicesView({
   onNavCountsChange,
   onSessionExpired,
   addToast
-}: TenantInvoicesViewProps) {
+}: InvoiceViewProps) {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(false);
   const [ingestingIds, setIngestingIds] = useState<Set<string>>(new Set());
@@ -1164,7 +1164,7 @@ export function TenantInvoicesView({
 
   return (
     <>
-      <TenantInvoicesToolbar
+      <InvoiceToolbar
         searchQuery={searchQuery}
         onSearchQueryChange={setSearchQuery}
         invoiceDateFrom={invoiceDateFrom}
@@ -1538,7 +1538,7 @@ export function TenantInvoicesView({
             <>
               <div className="panel-divider" onMouseDown={handleDividerMouseDown} />
               {activeInvoice ? (
-                <TenantInvoiceDetailPanel
+                <InvoiceDetailPanel
                   invoice={activeInvoice}
                   loading={activeInvoiceDetailLoading}
                   canApproveInvoices={canApproveInvoices}
@@ -1640,7 +1640,7 @@ export function TenantInvoicesView({
       <KeyboardShortcutsOverlay open={showShortcutsHelp} onClose={() => setShowShortcutsHelp(false)} />
 
       {popupInvoice ? (
-        <TenantInvoicePopup
+        <InvoicePopup
           invoice={popupInvoice}
           loading={popupInvoiceDetailLoading}
           tenantMode={tenantMode}
