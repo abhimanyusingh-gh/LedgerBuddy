@@ -1,7 +1,7 @@
 import type { Dispatch, RefObject, SetStateAction } from "react";
 import type { Invoice } from "@/types";
 import { ApprovalTimeline } from "@/features/tenant-admin/ApprovalTimeline";
-import { CollapsibleSectionHeader } from "@/features/tenant-admin/CollapsibleSectionHeader";
+import { CollapsibleSectionHeader } from "@/components/common/CollapsibleSectionHeader";
 import { ExtractedFieldsTable } from "@/components/invoice/ExtractedFieldsTable";
 import { InvoiceSourceViewer } from "@/components/invoice/InvoiceSourceViewer";
 import { LineItemsTable } from "@/components/invoice/LineItemsTable";

@@ -1,5 +1,5 @@
 import type { Invoice } from "@/types";
-import { CollapsibleSectionHeader } from "@/features/tenant-admin/CollapsibleSectionHeader";
+import { CollapsibleSectionHeader } from "@/components/common/CollapsibleSectionHeader";
 import { isValidGstinFormat } from "@/lib/invoice/taxIdValidation";
 
 interface CustomerDetailsSectionProps {

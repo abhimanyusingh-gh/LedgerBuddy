@@ -9,7 +9,7 @@ import { VendorDetailsSection } from "@/components/invoice/VendorDetailsSection"
 import { CustomerDetailsSection } from "@/components/invoice/CustomerDetailsSection";
 import { CompliancePanel } from "@/components/compliance/CompliancePanel";
 import { RiskSignalList } from "@/components/compliance/RiskSignalList";
-import { CollapsibleSectionHeader } from "@/features/tenant-admin/CollapsibleSectionHeader";
+import { CollapsibleSectionHeader } from "@/components/common/CollapsibleSectionHeader";
 import { formatInvoiceType } from "@/features/tenant-admin/invoiceViewHelpers";
 import type { SourceFieldKey } from "@/lib/invoice/sourceHighlights";
 import type { ExtractedFieldRow } from "@/lib/invoice/extractedFields";
