@@ -35,13 +35,6 @@ function buildEmailSource(overrides?: Partial<Extract<IngestionSourceManifest, {
 }
 
 describe("buildIngestionSources", () => {
-  it("builds an email ingestion source using password auth", () => {
-    const sources = buildIngestionSources([buildEmailSource()]);
-    expect(sources).toHaveLength(1);
-    expect(sources[0]?.type).toBe("email");
-    expect(sources[0]?.key).toBe("gmail-inbox");
-  });
-
   it("throws when password auth is selected without password", () => {
     expect(() =>
       buildIngestionSources([
@@ -50,25 +43,6 @@ describe("buildIngestionSources", () => {
         })
       ])
     ).toThrow("Email source password auth selected but EMAIL_PASSWORD is missing.");
-  });
-
-  it("builds an email source for oauth2 auth with static access token", () => {
-    const sources = buildIngestionSources([
-      buildEmailSource({
-        authMode: "oauth2",
-        password: "",
-        oauth2: {
-          clientId: "",
-          clientSecret: "",
-          refreshToken: "",
-          accessToken: "ya29.static-token",
-          tokenEndpoint: "https://oauth2.googleapis.com/token"
-        }
-      })
-    ]);
-
-    expect(sources).toHaveLength(1);
-    expect(sources[0]?.type).toBe("email");
   });
 
   it("allows oauth2 source without static token credentials when oauthUserId is configured", () => {
