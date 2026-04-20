@@ -89,72 +89,14 @@ describe("uploads routes", () => {
       expect(res.statusCode).toBe(400);
     });
 
-    it("returns 400 when files array is empty", async () => {
+    it.each([
+      ["empty files array", [], null],
+      ["unsupported content type", [{ name: "malware.exe", contentType: "application/octet-stream", sizeBytes: 100 }], "Unsupported content type"],
+      ["file exceeds size limit", [{ name: "big.pdf", contentType: "application/pdf", sizeBytes: 30 * 1024 * 1024 }], "size limit"],
+      ["file has no name", [{ name: "", contentType: "application/pdf", sizeBytes: 100 }], null],
+      ["more than 50 files", Array.from({ length: 51 }, (_, i) => ({ name: `f${i}.pdf`, contentType: "application/pdf", sizeBytes: 100 })), "50"],
+    ])("returns 400 for %s", async (_label, files, messageSubstring) => {
       const router = createUploadsRouter(createPresignableFileStore());
-      const res = mockResponse();
-
-      await findHandler(router, "post", "/uploads/presign")(
-        mockRequest({ authContext: defaultAuth, body: { files: [] } }),
-        res, jest.fn()
-      );
-
-      expect(res.statusCode).toBe(400);
-    });
-
-    it("returns 400 for unsupported content type", async () => {
-      const router = createUploadsRouter(createPresignableFileStore());
-      const res = mockResponse();
-
-      await findHandler(router, "post", "/uploads/presign")(
-        mockRequest({
-          authContext: defaultAuth,
-          body: { files: [{ name: "malware.exe", contentType: "application/octet-stream", sizeBytes: 100 }] }
-        }),
-        res, jest.fn()
-      );
-
-      expect(res.statusCode).toBe(400);
-      expect((res.jsonBody as { message: string }).message).toContain("Unsupported content type");
-    });
-
-    it("returns 400 when file exceeds size limit", async () => {
-      const router = createUploadsRouter(createPresignableFileStore());
-      const res = mockResponse();
-
-      await findHandler(router, "post", "/uploads/presign")(
-        mockRequest({
-          authContext: defaultAuth,
-          body: { files: [{ name: "big.pdf", contentType: "application/pdf", sizeBytes: 30 * 1024 * 1024 }] }
-        }),
-        res, jest.fn()
-      );
-
-      expect(res.statusCode).toBe(400);
-      expect((res.jsonBody as { message: string }).message).toContain("size limit");
-    });
-
-    it("returns 400 when file has no name", async () => {
-      const router = createUploadsRouter(createPresignableFileStore());
-      const res = mockResponse();
-
-      await findHandler(router, "post", "/uploads/presign")(
-        mockRequest({
-          authContext: defaultAuth,
-          body: { files: [{ name: "", contentType: "application/pdf", sizeBytes: 100 }] }
-        }),
-        res, jest.fn()
-      );
-
-      expect(res.statusCode).toBe(400);
-    });
-
-    it("returns 400 when more than 50 files are requested", async () => {
-      const router = createUploadsRouter(createPresignableFileStore());
-      const files = Array.from({ length: 51 }, (_, i) => ({
-        name: `file${i}.pdf`,
-        contentType: "application/pdf",
-        sizeBytes: 100
-      }));
       const res = mockResponse();
 
       await findHandler(router, "post", "/uploads/presign")(
@@ -163,7 +105,9 @@ describe("uploads routes", () => {
       );
 
       expect(res.statusCode).toBe(400);
-      expect((res.jsonBody as { message: string }).message).toContain("50");
+      if (messageSubstring) {
+        expect((res.jsonBody as { message: string }).message).toContain(messageSubstring);
+      }
     });
 
     it("supports WEBP content type", async () => {
