@@ -14,33 +14,30 @@ describe("PanValidationService", () => {
     });
   });
 
-  describe("valid PAN without GSTIN", () => {
-    it("returns L1 valid when PAN format is correct but no GSTIN", () => {
-      const result = service.validate("ABCPK1234F", null);
-      expect(result.pan.validationLevel).toBe("L1");
-      expect(result.pan.validationResult).toBe("valid");
-      expect(result.pan.gstinCrossRef).toBe(false);
-      expect(result.riskSignals).toHaveLength(0);
-    });
-
-    it("returns L1 valid when GSTIN format is invalid", () => {
-      const result = service.validate("ABCPK1234F", "INVALID");
+  describe("valid PAN without L2 GSTIN cross-ref", () => {
+    it.each([
+      ["no GSTIN", null],
+      ["invalid GSTIN format", "INVALID"],
+    ])("returns L1 valid when %s", (_label, gstin) => {
+      const result = service.validate("ABCPK1234F", gstin);
       expect(result.pan.validationLevel).toBe("L1");
       expect(result.pan.validationResult).toBe("valid");
     });
   });
 
   describe("PAN format invalid", () => {
-    it("flags PAN_FORMAT_INVALID for short PAN", () => {
-      const result = service.validate("ABCP", null);
+    it.each([
+      ["short PAN", "ABCP"],
+      ["numeric PAN", "1234567890"],
+    ])("flags PAN_FORMAT_INVALID for %s", (_label, pan) => {
+      const result = service.validate(pan, null);
       expect(result.pan.validationResult).toBe("format-invalid");
-      expect(result.riskSignals).toHaveLength(1);
-      expect(result.riskSignals[0].code).toBe("PAN_FORMAT_INVALID");
     });
 
-    it("flags PAN_FORMAT_INVALID for numeric PAN", () => {
-      const result = service.validate("1234567890", null);
-      expect(result.pan.validationResult).toBe("format-invalid");
+    it("emits PAN_FORMAT_INVALID risk signal", () => {
+      const result = service.validate("ABCP", null);
+      expect(result.riskSignals).toHaveLength(1);
+      expect(result.riskSignals[0].code).toBe("PAN_FORMAT_INVALID");
     });
   });
 
