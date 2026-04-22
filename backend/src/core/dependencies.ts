@@ -183,7 +183,7 @@ function resolveFileStore(runtimeManifest: RuntimeManifest): FileStore {
   });
 }
 
-async function resolveFieldVerifier(runtimeManifest = loadRuntimeManifest()): Promise<FieldVerifier> {
+export async function resolveFieldVerifier(runtimeManifest = loadRuntimeManifest()): Promise<FieldVerifier> {
   if (runtimeManifest.verifier.provider === "none") {
     logger.info("Using field verifier", { provider: "none" });
     return new NoopFieldVerifier();

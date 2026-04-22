@@ -2,18 +2,27 @@ import path from "path";
 
 const ENV_MODULE_PATH = path.resolve(__dirname, "./env.ts");
 
-type LoadResult = { ok: true } | { ok: false; exitCode: number; errors: string[] };
+type LoadResult =
+  | { ok: true; env: typeof import("./env").env; infos: string[] }
+  | { ok: false; exitCode: number; errors: string[] };
 
 function loadEnvModule(overrides: Record<string, string | undefined>): LoadResult {
   const originalEnv = { ...process.env };
   const originalExit = process.exit;
   const originalError = console.error;
+  const originalInfo = console.info;
 
   // Minimum required env for zod schema to parse successfully.
   const baseEnv: Record<string, string> = {
     ENV: "local",
     MONGO_URI: "mongodb://localhost:27017/test"
   };
+
+  // Explicitly clear keys the auto-coercion guard reads so each test starts
+  // from a clean slate rather than inheriting from the shell/jest environment.
+  delete process.env.FIELD_VERIFIER_PROVIDER;
+  delete process.env.OCR_PROVIDER;
+  delete process.env.LLAMA_CLOUD_API_KEY;
 
   for (const key of Object.keys(baseEnv)) {
     process.env[key] = baseEnv[key];
@@ -27,6 +36,10 @@ function loadEnvModule(overrides: Record<string, string | undefined>): LoadResul
   console.error = (...args: unknown[]) => {
     capturedErrors.push(args.map(String).join(" "));
   };
+  const capturedInfos: string[] = [];
+  console.info = (...args: unknown[]) => {
+    capturedInfos.push(args.map(String).join(" "));
+  };
 
   class ExitError extends Error {
     constructor(public readonly code: number) {
@@ -37,13 +50,18 @@ function loadEnvModule(overrides: Record<string, string | undefined>): LoadResul
     throw new ExitError(typeof code === "number" ? code : 0);
   }) as never;
 
-  let result: LoadResult = { ok: true };
+  let result: LoadResult = {
+    ok: true,
+    env: undefined as unknown as typeof import("./env").env,
+    infos: capturedInfos
+  };
   try {
     jest.isolateModules(() => {
       // Clear require cache for the env module so top-level guards re-run.
       delete require.cache[ENV_MODULE_PATH];
       // eslint-disable-next-line @typescript-eslint/no-require-imports
-      require("./env");
+      const mod = require("./env") as typeof import("./env");
+      result = { ok: true, env: mod.env, infos: capturedInfos };
     });
   } catch (err) {
     if (err instanceof ExitError) {
@@ -54,6 +72,7 @@ function loadEnvModule(overrides: Record<string, string | undefined>): LoadResul
   } finally {
     process.exit = originalExit;
     console.error = originalError;
+    console.info = originalInfo;
     process.env = originalEnv;
   }
 
@@ -90,6 +109,60 @@ describe("env guard: OCR_PROVIDER=llamaparse requires LLAMA_CLOUD_API_KEY", () =
         LLAMA_CLOUD_API_KEY: undefined
       });
       expect(result.ok).toBe(true);
+    }
+  );
+});
+
+describe("env coercion: FIELD_VERIFIER_PROVIDER auto-coerces with OCR_PROVIDER=llamaparse", () => {
+  it("coerces to 'none' when OCR_PROVIDER=llamaparse and FIELD_VERIFIER_PROVIDER is unset", () => {
+    const result = loadEnvModule({
+      OCR_PROVIDER: "llamaparse",
+      LLAMA_CLOUD_API_KEY: "llx-test-key",
+      FIELD_VERIFIER_PROVIDER: undefined
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.env.FIELD_VERIFIER_PROVIDER).toBe("none");
+    expect(result.infos.join("\n")).toMatch(/auto-coerced to 'none'/);
+  });
+
+  it("does NOT coerce when FIELD_VERIFIER_PROVIDER is explicitly set to 'http'", () => {
+    const result = loadEnvModule({
+      OCR_PROVIDER: "llamaparse",
+      LLAMA_CLOUD_API_KEY: "llx-test-key",
+      FIELD_VERIFIER_PROVIDER: "http"
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.env.FIELD_VERIFIER_PROVIDER).toBe("http");
+    expect(result.infos.join("\n")).not.toMatch(/auto-coerced/);
+  });
+
+  it("does NOT coerce when FIELD_VERIFIER_PROVIDER is explicitly set to 'none'", () => {
+    const result = loadEnvModule({
+      OCR_PROVIDER: "llamaparse",
+      LLAMA_CLOUD_API_KEY: "llx-test-key",
+      FIELD_VERIFIER_PROVIDER: "none"
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.env.FIELD_VERIFIER_PROVIDER).toBe("none");
+    // Explicit setting — no coercion message.
+    expect(result.infos.join("\n")).not.toMatch(/auto-coerced/);
+  });
+
+  it.each([["deepseek"], ["auto"]])(
+    "does NOT coerce when OCR_PROVIDER=%s and FIELD_VERIFIER_PROVIDER is unset",
+    (provider) => {
+      const result = loadEnvModule({
+        OCR_PROVIDER: provider,
+        FIELD_VERIFIER_PROVIDER: undefined
+      });
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      // zod default is 'http' — unchanged.
+      expect(result.env.FIELD_VERIFIER_PROVIDER).toBe("http");
+      expect(result.infos.join("\n")).not.toMatch(/auto-coerced/);
     }
   );
 });

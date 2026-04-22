@@ -8,6 +8,8 @@ import { toUUID } from "@/types/uuid.js";
 import { DeepSeekOcrProvider } from "@/ai/ocr/DeepSeekOcrProvider.js";
 import { LlamaParseOcrProvider } from "@/ai/ocr/LlamaParseOcrProvider.js";
 import { HttpFieldVerifier } from "@/ai/verifiers/HttpFieldVerifier.js";
+import { NoopFieldVerifier } from "@/ai/verifiers/NoopFieldVerifier.js";
+import type { FieldVerifier } from "@/core/interfaces/FieldVerifier.js";
 import { InvoiceExtractionPipeline } from "@/ai/extractors/invoice/InvoiceExtractionPipeline.js";
 import { InMemoryVendorTemplateStore } from "@/ai/extractors/invoice/learning/vendorTemplateStore.js";
 import { InMemoryExtractionLearningStore } from "@/ai/extractors/invoice/learning/extractionLearningStore.js";
@@ -337,10 +339,15 @@ async function run(): Promise<void> {
   } else {
     ocrProvider = new DeepSeekOcrProvider({ baseUrl: ocrBaseUrl, timeoutMs: 240_000 });
   }
-  const fieldVerifier = new HttpFieldVerifier({
-    baseUrl: slmBaseUrl,
-    timeoutMs: 240_000
-  });
+  // LlamaParse emits field-level provenance directly; skip the SLM verifier on
+  // that path so the benchmark doesn't require `yarn slm` running on the host.
+  // Deepseek/auto still route through HttpFieldVerifier.
+  const fieldVerifier: FieldVerifier = ocrChoice === "llamaparse"
+    ? new NoopFieldVerifier()
+    : new HttpFieldVerifier({
+        baseUrl: slmBaseUrl,
+        timeoutMs: 240_000
+      });
   const pipeline = new InvoiceExtractionPipeline(
     {
       ocrProvider,

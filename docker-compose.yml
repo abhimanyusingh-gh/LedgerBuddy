@@ -17,9 +17,9 @@ services:
       minio:
         condition: service_healthy
       ocr:
-        condition: service_healthy
+        condition: service_started
       slm:
-        condition: service_healthy
+        condition: service_started
       redis:
         condition: service_started
       jaeger:
@@ -104,7 +104,13 @@ services:
       LLAMA_PARSE_EXTRACT_TIER: ${LLAMA_PARSE_EXTRACT_TIER:-cost_effective}
       OCR_MAX_TOKENS: "768"
       OCR_TIMEOUT_MS: "3600000"
-      FIELD_VERIFIER_PROVIDER: ${FIELD_VERIFIER_PROVIDER:-http}
+      # Default to 'none' when OCR_PROVIDER=llamaparse (which is itself the
+      # default). LlamaExtract already emits field-level provenance, so the
+      # HTTP SLM field verifier is redundant on that path. The backend also
+      # auto-coerces this to 'none' when FIELD_VERIFIER_PROVIDER is unset and
+      # OCR_PROVIDER=llamaparse — this default just keeps the compose env
+      # tidy for the common case. Set FIELD_VERIFIER_PROVIDER=http to opt in.
+      FIELD_VERIFIER_PROVIDER: ${FIELD_VERIFIER_PROVIDER:-none}
       FIELD_VERIFIER_BASE_URL: http://slm:8100/v1
       FIELD_VERIFIER_TIMEOUT_MS: ${FIELD_VERIFIER_TIMEOUT_MS:-180000}
       S3_FILE_STORE_BUCKET: ${S3_FILE_STORE_BUCKET:-ledgerbuddy-local}

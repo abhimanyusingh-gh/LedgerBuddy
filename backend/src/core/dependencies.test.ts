@@ -91,6 +91,11 @@ jest.mock("axios", () => ({
   __esModule: true,
   default: {
     get: (...args: unknown[]) => axiosGetMock(...args),
+    create: () => ({
+      get: (...args: unknown[]) => axiosGetMock(...args),
+      post: jest.fn(),
+      request: jest.fn()
+    }),
     isAxiosError: (value: unknown) =>
       typeof value === "object" && value !== null && (value as { isAxiosError?: unknown }).isAxiosError === true
   }
@@ -112,7 +117,8 @@ jest.mock("../utils/logger.js", () => ({
   }
 }));
 
-import { resolveOcrProvider } from "@/core/dependencies.ts";
+import { resolveOcrProvider, resolveFieldVerifier } from "@/core/dependencies.ts";
+import type { RuntimeManifest } from "@/core/runtimeManifest.js";
 
 describe("resolveOcrProvider", () => {
   beforeEach(() => {
@@ -180,5 +186,81 @@ describe("resolveOcrProvider", () => {
 
     const provider = await resolveOcrProvider();
     expect(provider).toBe(deepSeekProviderInstance);
+  });
+});
+
+
+function makeManifestWithVerifier(provider: "none" | "http", overrides?: { baseUrl?: string }): RuntimeManifest {
+  return {
+    defaultTenantId: "00000000-0000-0000-0000-000000000000" as unknown as RuntimeManifest["defaultTenantId"],
+    defaultWorkloadTier: "standard",
+    database: { provider: "mongo", uri: "mongodb://localhost:27017/test" },
+    sources: [],
+    ocr: {
+      provider: "llamaparse",
+      configuration: { baseUrl: "", apiKey: "", model: "", timeoutMs: 0 },
+      mock: { text: "", confidence: 0 },
+      llamaparse: { apiKey: "llx-test", tier: "cost_effective" }
+    },
+    verifier: {
+      provider,
+      http: {
+        baseUrl: overrides?.baseUrl ?? "http://slm-unreachable.invalid:8300/v1",
+        timeoutMs: 1000,
+        apiKey: ""
+      }
+    },
+    fileStore: {
+      provider: "s3",
+      configuration: {
+        bucket: "b", region: "us-east-1", prefix: "p", endpoint: "http://minio:9000",
+        publicEndpoint: "", forcePathStyle: true
+      }
+    },
+    export: {
+      tallyEndpoint: "", tallyCompany: "", tallyPurchaseLedger: "Purchase",
+      tallyGstLedgers: { cgstLedger: "", sgstLedger: "", igstLedger: "", cessLedger: "" }
+    }
+  } as unknown as RuntimeManifest;
+}
+
+describe("resolveFieldVerifier", () => {
+  beforeEach(() => {
+    axiosGetMock.mockReset();
+  });
+
+  it("returns a NoopFieldVerifier when provider is 'none' and never hits the HTTP verifier", async () => {
+    const verifier = await resolveFieldVerifier(makeManifestWithVerifier("none"));
+    expect(verifier).toBeTruthy();
+    expect((verifier as { name?: string }).name).toBe("none");
+    // Critically, no HTTP call was made to bootstrap-check the verifier.
+    expect(axiosGetMock).not.toHaveBeenCalled();
+  });
+
+  it("constructs an HttpFieldVerifier and runs the health check when provider is 'http'", async () => {
+    axiosGetMock.mockImplementation((url: string) => {
+      if (url.includes("/health")) {
+        return Promise.resolve({ data: { status: "ok", modelLoaded: true } });
+      }
+      return Promise.resolve({ data: {} });
+    });
+    const verifier = await resolveFieldVerifier(makeManifestWithVerifier("http"));
+    expect(verifier).toBeTruthy();
+    // Health check must have been invoked for the http path.
+    expect(axiosGetMock).toHaveBeenCalled();
+    const calledUrls = axiosGetMock.mock.calls.map((args: unknown[]) => String(args[0]));
+    expect(calledUrls.some((u) => u.includes("/health"))).toBe(true);
+  });
+
+  it("propagates a clear bootstrap error when provider is 'http' and the endpoint reports unhealthy", async () => {
+    axiosGetMock.mockImplementation((url: string) => {
+      if (url.includes("/health")) {
+        return Promise.resolve({ data: { status: "error" } });
+      }
+      return Promise.resolve({ data: {} });
+    });
+    await expect(resolveFieldVerifier(makeManifestWithVerifier("http"))).rejects.toThrow(
+      /Field verifier bootstrap validation failed/
+    );
   });
 });
