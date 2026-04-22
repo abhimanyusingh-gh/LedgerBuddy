@@ -8,6 +8,7 @@ import type { KeycloakAdminClient } from "@/keycloak/KeycloakAdminClient.js";
 import { seedTdsRates } from "@/bootstrap/seedTdsRates.js";
 import { getRoleDefaults } from "@/auth/personaDefaults.js";
 import { seedDefaultGlCodes } from "@/services/compliance/seedGlCodes.js";
+import { seedDemoTenantConfig } from "@/bootstrap/seedDemoTenantConfig.js";
 
 export async function seedLocalDemoData(keycloakAdmin: KeycloakAdminClient): Promise<void> {
   const config = loadLocalDemoUsersConfig();
@@ -82,6 +83,15 @@ export async function seedLocalDemoData(keycloakAdmin: KeycloakAdminClient): Pro
 
   for (const tenant of config.tenants) {
     await seedDefaultGlCodes(tenant.id);
+  }
+
+  const DEMO_TENANT_ID = "65f0000000000000000000c3";
+  const demoTenant = config.tenants.find((t) => t.id === DEMO_TENANT_ID);
+  if (demoTenant) {
+    const mahirUser = await UserModel.findOne({ email: "mahir.n@globalhealthx.co" }).lean();
+    if (mahirUser) {
+      await seedDemoTenantConfig(DEMO_TENANT_ID, String(mahirUser._id));
+    }
   }
 
   logger.info("local.demo.seed.complete", {

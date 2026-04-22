@@ -16,7 +16,7 @@
       "id": "65f0000000000000000000c3",
       "name": "Neelam and Associates",
       "onboardingStatus": "completed",
-      "mode": "live"
+      "mode": "test"
     }
   ],
   "users": [
@@ -124,6 +124,41 @@
       "displayName": "Mahir N",
       "tenantId": "65f0000000000000000000c3",
       "role": "TENANT_ADMIN"
+    },
+    {
+      "email": "mahir-senior-accountant@neelam.test",
+      "password": "DemoPass!1",
+      "displayName": "Neelam Senior Accountant",
+      "tenantId": "65f0000000000000000000c3",
+      "role": "senior_accountant"
+    },
+    {
+      "email": "mahir-ap-clerk@neelam.test",
+      "password": "DemoPass!1",
+      "displayName": "Neelam AP Clerk",
+      "tenantId": "65f0000000000000000000c3",
+      "role": "ap_clerk"
+    },
+    {
+      "email": "mahir-compliance@neelam.test",
+      "password": "DemoPass!1",
+      "displayName": "Neelam Compliance CA",
+      "tenantId": "65f0000000000000000000c3",
+      "role": "ca"
+    },
+    {
+      "email": "mahir-cfo@neelam.test",
+      "password": "DemoPass!1",
+      "displayName": "Neelam CFO",
+      "tenantId": "65f0000000000000000000c3",
+      "role": "TENANT_ADMIN"
+    },
+    {
+      "email": "mahir-viewer@neelam.test",
+      "password": "DemoPass!1",
+      "displayName": "Neelam Viewer",
+      "tenantId": "65f0000000000000000000c3",
+      "role": "audit_clerk"
     }
   ]
 }
