@@ -16,7 +16,7 @@ import {
   YAxis
 } from "recharts";
 import type { DailyStat, VendorStat } from "@/types";
-import { collapseVendors, fmtDate, fmtInr, fmtInrShort, VENDOR_COLORS } from "@/features/tenant-admin/OverviewDashboardUtils";
+import { collapseVendors, fmtDate, fmtInr, fmtInrShort, VENDOR_COLORS } from "@/features/overview/OverviewDashboardUtils";
 
 interface KpiCardProps {
   label: string;

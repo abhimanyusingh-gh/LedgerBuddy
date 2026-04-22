@@ -1,6 +1,6 @@
 import { useTheme } from "@/hooks/useTheme";
 import { useTenantWorkspace } from "@/hooks/useTenantWorkspace";
-import { OverviewDashboard } from "@/features/tenant-admin/OverviewDashboard";
+import { OverviewDashboard } from "@/features/overview/OverviewDashboard";
 import { LoginPage } from "@/features/auth/LoginPage";
 import { PlatformAdminTopNav } from "@/features/platform-admin/PlatformAdminTopNav";
 import { PlatformActivityMonitor } from "@/features/platform-admin/PlatformActivityMonitor";
@@ -11,7 +11,7 @@ import { TenantAdminTopNav } from "@/features/tenant-admin/TenantAdminTopNav";
 import { TenantViewTabs } from "@/features/tenant-admin/TenantViewTabs";
 import { TenantConfigTab } from "@/features/tenant-admin/TenantConfigTab";
 import { InvoiceView } from "@/features/invoices/InvoiceView";
-import { ExportHistoryDashboard } from "@/features/tenant-admin/ExportHistoryDashboard";
+import { ExportHistoryDashboard } from "@/features/exports/ExportHistoryDashboard";
 import { EmptyState } from "@/components/common/EmptyState";
 import { BankConnectionsTab } from "@/features/tenant-admin/BankConnectionsTab";
 import { BankStatementsTab } from "@/features/tenant-admin/BankStatementsTab";

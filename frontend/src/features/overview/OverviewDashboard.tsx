@@ -12,7 +12,7 @@ import {
   StatusDonut,
   TimeSeriesBarChart,
   VendorBarChart
-} from "@/features/tenant-admin/OverviewDashboardCharts";
+} from "@/features/overview/OverviewDashboardCharts";
 import {
   STATUS_COLORS,
   PRESETS,
@@ -24,7 +24,7 @@ import {
   firstOfMonthStr,
   priorPeriodRange,
   todayStr
-} from "@/features/tenant-admin/OverviewDashboardUtils";
+} from "@/features/overview/OverviewDashboardUtils";
 
 export function OverviewDashboard() {
   const [from, setFrom] = useState(firstOfMonthStr());
