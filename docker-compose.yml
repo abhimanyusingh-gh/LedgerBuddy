@@ -62,6 +62,7 @@ services:
       PLATFORM_ADMIN_EMAILS: ${PLATFORM_ADMIN_EMAILS:-platform-admin@local.test}
       LOCAL_DEMO_SEED: ${LOCAL_DEMO_SEED:-true}
       LOCAL_DEMO_CONFIG_PATH: ${LOCAL_DEMO_CONFIG_PATH:-dev/config/local-demo-users.json}
+      LOCAL_DEMO_INVOICES: ${LOCAL_DEMO_INVOICES:-true}
       INGESTION_SOURCES: ${INGESTION_SOURCES:-folder}
       FOLDER_SOURCE_KEY: local-folder
       FOLDER_SOURCE_PATH: /app/sample-invoices/inbox

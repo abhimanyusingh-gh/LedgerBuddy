@@ -3,6 +3,8 @@ import { logger } from "@/utils/logger.js";
 import { TenantModel } from "@/models/core/Tenant.js";
 import { UserModel } from "@/models/core/User.js";
 import { seedDemoTenantConfig } from "@/bootstrap/seedDemoTenantConfig.js";
+import { seedDemoInvoices } from "@/bootstrap/seedDemoInvoices.js";
+import { env } from "@/config/env.js";
 
 const DEMO_TENANT_ID = "65f0000000000000000000c3";
 const DEMO_TENANT_NAME = "Neelam and Associates";
@@ -28,7 +30,12 @@ async function run() {
 
   await seedDemoTenantConfig(DEMO_TENANT_ID, String(mahirUser._id));
 
-  logger.info("seedDemoTenant.complete", { tenantId: DEMO_TENANT_ID });
+  if (env.LOCAL_DEMO_INVOICES) {
+    await seedDemoInvoices(DEMO_TENANT_ID);
+    console.log(`Demo invoices seeded for ${DEMO_TENANT_NAME} (${DEMO_TENANT_ID}).`);
+  }
+
+  logger.info("seedDemoTenant.complete", { tenantId: DEMO_TENANT_ID, invoicesSeeded: env.LOCAL_DEMO_INVOICES });
   console.log(`Demo tenant config seeded successfully for ${DEMO_TENANT_NAME} (${DEMO_TENANT_ID}).`);
 }
 

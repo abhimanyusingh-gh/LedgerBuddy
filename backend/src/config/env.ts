@@ -69,6 +69,10 @@ const envSchema = z.object({
     .default("false")
     .transform((value) => value === "true"),
   LOCAL_DEMO_CONFIG_PATH: z.string().default("dev/config/local-demo-users.json"),
+  LOCAL_DEMO_INVOICES: z
+    .string()
+    .default("false")
+    .transform((value) => value === "true"),
 
   INGESTION_SOURCES: z.string().default("email"),
   INGESTION_CONCURRENCY: z.coerce.number().int().min(1).max(100).default(20),
