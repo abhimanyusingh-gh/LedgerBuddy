@@ -285,9 +285,15 @@ if ((values.ENV === "stg" || values.ENV === "prod") && values.OIDC_CLIENT_SECRET
   process.exit(1);
 }
 
+// Fail-fast: do not silently fall back to a different OCR provider when the
+// LlamaParse key is missing. This guard fires before any provider is
+// constructed so there is no ambiguity about which pipeline is running.
 if (values.OCR_PROVIDER === "llamaparse" && !values.LLAMA_CLOUD_API_KEY?.trim()) {
   // eslint-disable-next-line no-console
-  console.error("Invalid env vars: LLAMA_CLOUD_API_KEY is required when OCR_PROVIDER=llamaparse.");
+  console.error(
+    "Invalid env vars: OCR_PROVIDER=llamaparse requires LLAMA_CLOUD_API_KEY to be set. " +
+      "Either set LLAMA_CLOUD_API_KEY or change OCR_PROVIDER to 'deepseek' or 'auto' for offline/local OCR."
+  );
   process.exit(1);
 }
 
