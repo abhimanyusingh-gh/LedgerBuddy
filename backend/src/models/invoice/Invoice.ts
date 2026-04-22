@@ -120,6 +120,27 @@ const workflowStepResultSchema = new Schema(
   { _id: false }
 );
 
+const workflowStateSchema = new Schema(
+  {
+    workflowId: { type: String },
+    currentStep: { type: Number },
+    status: { type: String, enum: ["in_progress", "approved", "rejected"] },
+    stepResults: { type: [workflowStepResultSchema], default: [] }
+  },
+  { _id: false }
+);
+
+const invoiceExportSchema = new Schema(
+  {
+    system: { type: String },
+    batchId: { type: String },
+    exportedAt: { type: Date },
+    externalReference: { type: String },
+    error: { type: String }
+  },
+  { _id: false }
+);
+
 const invoiceSchema = new Schema(
   {
     tenantId: { type: String, required: true, default: "default" },
@@ -224,22 +245,11 @@ const invoiceSchema = new Schema(
     },
 
     workflowState: {
-      type: new Schema({
-        workflowId: { type: String },
-        currentStep: { type: Number },
-        status: { type: String, enum: ["in_progress", "approved", "rejected"] },
-        stepResults: { type: [workflowStepResultSchema], default: [] }
-      }, { _id: false }),
+      type: workflowStateSchema,
       default: undefined
     },
 
-    export: {
-      system: { type: String },
-      batchId: { type: String },
-      exportedAt: { type: Date },
-      externalReference: { type: String },
-      error: { type: String }
-    },
+    export: { type: invoiceExportSchema, default: undefined },
 
     compliance: {
       type: new Schema({
@@ -380,5 +390,12 @@ invoiceSchema.index({ tenantId: 1, "parsed.gst.gstin": 1 }, { sparse: true });
 
 type Invoice = InferSchemaType<typeof invoiceSchema>;
 export type InvoiceDocument = HydratedDocument<Invoice>;
+
+export type InvoiceWorkflowStepResult = InferSchemaType<typeof workflowStepResultSchema>;
+export type InvoiceWorkflowState = Omit<
+  InferSchemaType<typeof workflowStateSchema>,
+  "stepResults"
+> & { stepResults: InvoiceWorkflowStepResult[] };
+export type InvoiceExport = InferSchemaType<typeof invoiceExportSchema>;
 
 export const InvoiceModel = model<Invoice>("Invoice", invoiceSchema);
