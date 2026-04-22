@@ -123,4 +123,62 @@ describe("VendorDetailsSection / CustomerDetailsSection", () => {
     );
     expect(screen.getByText("Matches tenant GSTIN")).toBeInTheDocument();
   });
+
+  describe("customer GSTIN missing alert (INR ITC compliance)", () => {
+    it("shows alert when currency is INR, customerGstin is null, and customerName is present", () => {
+      const invoice = makeInvoice({
+        currency: "INR",
+        customerGstin: undefined,
+        customerName: "BillForge Inc",
+      });
+      render(<CustomerDetailsSection invoice={invoice} expanded={true} onToggle={jest.fn()} />);
+      const alert = screen.getByTestId("customer-gstin-missing-alert");
+      expect(alert).toBeInTheDocument();
+      expect(alert).toHaveAttribute("role", "alert");
+      expect(screen.getByText("Customer GSTIN missing")).toBeInTheDocument();
+      expect(
+        screen.getByText(/Input tax credit \(ITC\) claims may be blocked without the customer's GSTIN/i)
+      ).toBeInTheDocument();
+    });
+
+    it("shows alert when currency is INR and customerGstin is an empty / whitespace string", () => {
+      const invoice = makeInvoice({
+        currency: "INR",
+        customerGstin: "   ",
+        customerName: "BillForge Inc",
+      });
+      render(<CustomerDetailsSection invoice={invoice} expanded={true} onToggle={jest.fn()} />);
+      expect(screen.getByTestId("customer-gstin-missing-alert")).toBeInTheDocument();
+    });
+
+    it("does NOT show alert when customerGstin is present", () => {
+      const invoice = makeInvoice({
+        currency: "INR",
+        customerGstin: "07BBBBB1234B1Z5",
+        customerName: "BillForge Inc",
+      });
+      render(<CustomerDetailsSection invoice={invoice} expanded={true} onToggle={jest.fn()} />);
+      expect(screen.queryByTestId("customer-gstin-missing-alert")).not.toBeInTheDocument();
+    });
+
+    it("does NOT show alert when currency is not INR", () => {
+      const invoice = makeInvoice({
+        currency: "USD",
+        customerGstin: undefined,
+        customerName: "BillForge Inc",
+      });
+      render(<CustomerDetailsSection invoice={invoice} expanded={true} onToggle={jest.fn()} />);
+      expect(screen.queryByTestId("customer-gstin-missing-alert")).not.toBeInTheDocument();
+    });
+
+    it("does NOT show alert when customerName is missing", () => {
+      const invoice = makeInvoice({
+        currency: "INR",
+        customerGstin: undefined,
+        customerName: undefined,
+      });
+      render(<CustomerDetailsSection invoice={invoice} expanded={true} onToggle={jest.fn()} />);
+      expect(screen.queryByTestId("customer-gstin-missing-alert")).not.toBeInTheDocument();
+    });
+  });
 });
