@@ -1,6 +1,6 @@
 import { QueryClient } from "@tanstack/react-query";
 
-export const QUERY_DEFAULTS = {
+const QUERY_DEFAULTS = {
   staleTime: 30_000,
   retry: 1,
   refetchOnWindowFocus: false,

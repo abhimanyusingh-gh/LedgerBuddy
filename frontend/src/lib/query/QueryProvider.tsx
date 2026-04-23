@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from "react";
 import { QueryClientProvider } from "@tanstack/react-query";
+import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { createQueryClient } from "@/lib/query/queryClient";
 
 type QueryProviderProps = {
@@ -8,5 +9,10 @@ type QueryProviderProps = {
 
 export function QueryProvider({ children }: QueryProviderProps) {
   const [client] = useState(() => createQueryClient());
-  return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
+  return (
+    <QueryClientProvider client={client}>
+      {children}
+      {import.meta.env.DEV && <ReactQueryDevtools initialIsOpen={false} />}
+    </QueryClientProvider>
+  );
 }
