@@ -17,7 +17,7 @@
     "test:e2e:email-oauth": "jest --config jest.config.cjs --runInBand ../dev/e2e/backend/emailOAuthIngestion.e2e.test.ts",
     "test:integration": "LOCALSTACK_ENDPOINT=http://localhost:4566 jest --config jest.config.cjs --runInBand --testPathPattern=\\.integration\\.test\\.ts$",
     "test:e2e:localstack": "LOCALSTACK_ENDPOINT=http://localhost:4566 jest --config jest.config.cjs --runInBand ../dev/e2e/backend/localstackDeploy.e2e.test.ts",
-    "test:harness": "MONGO_HARNESS=1 jest --config jest.config.cjs --runInBand --forceExit --testPathPattern=test-utils/",
+    "test:harness": "jest --config jest.config.cjs --runInBand --forceExit --testPathPattern=test-utils/",
     "benchmark:deepseek": "tsx src/scripts/runSampleInvoiceBenchmark.ts --ocr deepseek",
     "benchmark:llamaparse": "tsx src/scripts/runSampleInvoiceBenchmark.ts --ocr llamaparse",
     "benchmark:llamaextract": "LLAMA_PARSE_EXTRACT_ENABLED=true LLAMA_PARSE_EXTRACT_TIER=agentic tsx src/scripts/runSampleInvoiceBenchmark.ts --ocr llamaparse",

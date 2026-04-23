@@ -45,15 +45,18 @@ function pickInt(rng: () => number, min: number, max: number): number {
 
 /**
  * Deterministic ObjectId — uses a 24-char hex string derived from the
- * seed + index so the same fixture call yields the same `_id`.
+ * full tuple key so the same fixture call yields the same `_id`.
+ *
+ * The caller is responsible for encoding the full tuple (e.g.
+ * `invoice:${t}:${v}:${i}`) rather than a single scalar — this avoids
+ * collisions at perf scale where a packed `t*1000 + v` or `idx*100 + i`
+ * index would alias across distinct (t,v,i) triples.
  */
-function deterministicObjectId(prefix: string, n: number): Types.ObjectId {
-  // SHA-1 → 40 hex chars, use first 24 for a valid ObjectId. Collision
-  // resistant across prefix+index combinations at harness scale.
-  const hex = createHash("sha1")
-    .update(`${prefix}:${n}`)
-    .digest("hex")
-    .slice(0, 24);
+function deterministicObjectId(key: string): Types.ObjectId {
+  // SHA-1 → 40 hex chars, use first 24 for a valid ObjectId. The tuple
+  // encoding in `key` is what guarantees uniqueness across the harness
+  // scale (tenants × vendors × invoices).
+  const hex = createHash("sha1").update(key).digest("hex").slice(0, 24);
   return new Types.ObjectId(hex);
 }
 
@@ -132,7 +135,7 @@ export async function buildFixtures(
 
   for (let t = 0; t < tenantCount; t++) {
     const tenant: FixtureTenant = {
-      _id: deterministicObjectId("tenant", t),
+      _id: deterministicObjectId(`tenant:${t}`),
       name: `Test Tenant ${t}`
     };
     tenants.push(tenant);
@@ -150,9 +153,8 @@ export async function buildFixtures(
     }
 
     for (let v = 0; v < vendorsPerTenant; v++) {
-      const idx = t * 1000 + v;
       const vendor: FixtureVendor = {
-        _id: deterministicObjectId("vendor", idx),
+        _id: deterministicObjectId(`vendor:${t}:${v}`),
         tenantId: String(tenant._id),
         name: `Vendor ${t}-${v}`,
         gstin: synthGstin(rng),
@@ -177,9 +179,8 @@ export async function buildFixtures(
         // Integer minor units — the validator on `parsed.totalAmountMinor`
         // (Invoice.ts:181) requires `Number.isInteger(value)`.
         const totalAmountMinor = pickInt(rng, 100_00, 5_000_00);
-        const invoiceIdx = idx * 100 + i;
         const invoice: FixtureInvoice = {
-          _id: deterministicObjectId("invoice", invoiceIdx),
+          _id: deterministicObjectId(`invoice:${t}:${v}:${i}`),
           tenantId: vendor.tenantId,
           vendorName: vendor.name,
           totalAmountMinor,
@@ -194,7 +195,7 @@ export async function buildFixtures(
             workloadTier: "standard",
             sourceType: "harness",
             sourceKey: `harness-${seed}`,
-            sourceDocumentId: `doc-${invoiceIdx}`,
+            sourceDocumentId: `doc-${t}-${v}-${i}`,
             attachmentName: `${invoice.invoiceNumber}.pdf`,
             mimeType: "application/pdf",
             receivedAt: FIXTURE_NOW,
