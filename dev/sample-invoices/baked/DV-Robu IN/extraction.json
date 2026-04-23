@@ -1,0 +1,2111 @@
+{
+  "sourceFilename": "DV-Robu IN.pdf",
+  "mimeType": "application/pdf",
+  "parsed": {
+    "invoiceNumber": "INV2526/1995",
+    "vendorName": "MACFOS LIMITED",
+    "vendorAddress": "Sumant Building, Dynamic Logistics Trade Park Survey No. 78/1 Dighi, Bhosari Alandi Road Pune 411015 Maharashtra MH India",
+    "vendorGstin": "27AALCM3536H1ZA",
+    "customerName": "DREAMVU INDIA PRIVATE LIMITED",
+    "customerAddress": "C3-211, Vindhya C4, IIIT Campus Gachibowli, Hyderabad K.V.Rangareddy, 500032 Telangana,TS, India",
+    "customerGstin": "36AAGCD2767G1ZK",
+    "invoiceDate": "2025-04-02T00:00:00.000Z",
+    "dueDate": "2025-04-02T00:00:00.000Z",
+    "currency": "INR",
+    "totalAmountMinor": 717500,
+    "gst": {
+      "gstin": "27AALCM3536H1ZA",
+      "subtotalMinor": 608052,
+      "cgstMinor": 0,
+      "sgstMinor": 0,
+      "igstMinor": 109448,
+      "cessMinor": 0,
+      "totalTaxMinor": 109448
+    },
+    "lineItems": [
+      {
+        "description": "[1486412] Waveshare Power over Ethernet HAT (E) for Raspberry Pi",
+        "amountMinor": 111271,
+        "hsnSac": "84733010",
+        "quantity": 1,
+        "rate": 1112.71,
+        "taxRate": 18,
+        "cgstMinor": 0,
+        "sgstMinor": 0,
+        "igstMinor": 20029
+      },
+      {
+        "description": "[699525] Official Raspberry Pi Black 4 in 1 Heat Sink Set Aluminum for Pi 4B",
+        "amountMinor": 7458,
+        "hsnSac": "84799090",
+        "quantity": 1,
+        "rate": 74.58,
+        "taxRate": 18,
+        "cgstMinor": 0,
+        "sgstMinor": 0,
+        "igstMinor": 1342
+      },
+      {
+        "description": "[1308008] 3007 PI-Fan 30 x 30 x 7MM Black 2 x 1p",
+        "amountMinor": 6441,
+        "hsnSac": "84145930",
+        "quantity": 1,
+        "rate": 64.41,
+        "taxRate": 18,
+        "cgstMinor": 0,
+        "sgstMinor": 0,
+        "igstMinor": 1159
+      },
+      {
+        "description": "[471149] Raspberry Pi 4 Model-B with 4 GB RAM",
+        "amountMinor": 474492,
+        "hsnSac": "84733030",
+        "quantity": 1,
+        "rate": 4744.92,
+        "taxRate": 18,
+        "cgstMinor": 0,
+        "sgstMinor": 0,
+        "igstMinor": 85408
+      },
+      {
+        "description": "[bluedart_air] Bluedart Air",
+        "amountMinor": 8390,
+        "hsnSac": "996819",
+        "quantity": 1,
+        "rate": 83.9,
+        "taxRate": 18,
+        "cgstMinor": 0,
+        "sgstMinor": 0,
+        "igstMinor": 1510
+      }
+    ]
+  },
+  "ocrBlocks": [
+    {
+      "text": "TAX INVOICE (Original for Recipient)",
+      "page": 1,
+      "bbox": [
+        243.63,
+        15.01,
+        350.19,
+        22.12
+      ],
+      "blockType": "header",
+      "bboxNormalized": [
+        0.4094621848739496,
+        0.017826603325415677,
+        0.5885546218487395,
+        0.026270783847981
+      ]
+    },
+    {
+      "text": "ROBU.IN Your Ideas, Our Parts",
+      "page": 1,
+      "bbox": [
+        38.37835209544112,
+        22.311030824242568,
+        243.324391881431,
+        78.92765412121284
+      ],
+      "blockType": "image",
+      "bboxNormalized": [
+        0.06450143209317835,
+        0.02649766131145198,
+        0.40894855778391764,
+        0.0937383065572599
+      ]
+    },
+    {
+      "text": "MACFOS LIMITED",
+      "page": 1,
+      "bbox": [
+        396.9540289157774,
+        24.74569384691192,
+        478.30076398151675,
+        33.14504789771104
+      ],
+      "blockType": "heading",
+      "bboxNormalized": [
+        0.667149628429878,
+        0.029389185091344323,
+        0.8038668302210366,
+        0.039364664961652064
+      ]
+    },
+    {
+      "text": "QR Code",
+      "page": 1,
+      "bbox": [
+        264.2011022056021,
+        25.653216258723564,
+        355.0363540277249,
+        117.0653177698647
+      ],
+      "blockType": "image",
+      "bboxNormalized": [
+        0.4440354658917683,
+        0.030467002682569553,
+        0.5966997546684452,
+        0.13903244390720274
+      ]
+    },
+    {
+      "text": "(Formerly known as MACFOS PVT LTD)\nSumant Building, Dynamic Logistics Trade Park\nSurvey No. 78/1 Dighi, Bhosari Alandi Road Pune 411015\nMaharashtra MH\nIndia",
+      "page": 1,
+      "bbox": [
+        397.9881291087081,
+        37.01163918844084,
+        551.6435415872713,
+        76.68657292063645
+      ],
+      "blockType": "text",
+      "bboxNormalized": [
+        0.6688876119474085,
+        0.043956816138290784,
+        0.9271320026676829,
+        0.09107668992949697
+      ]
+    },
+    {
+      "text": " 02068197600",
+      "page": 1,
+      "bbox": [
+        397.3446819026296,
+        78.79070803758574,
+        441.63295362519057,
+        85.30812200778868
+      ],
+      "blockType": "text",
+      "bboxNormalized": [
+        0.6678061880716464,
+        0.09357566275247713,
+        0.7422402581935976,
+        0.10131605939167301
+      ]
+    },
+    {
+      "text": "https://www.facebook.com/robulabs",
+      "page": 1,
+      "bbox": [
+        49.980000000000004,
+        79.148,
+        156.485,
+        94.304
+      ],
+      "blockType": "link",
+      "bboxNormalized": [
+        0.084,
+        0.094,
+        0.263,
+        0.112
+      ]
+    },
+    {
+      "text": "https://plus.google.com/+RobuInlabs",
+      "page": 1,
+      "bbox": [
+        49.980000000000004,
+        79.148,
+        156.485,
+        94.304
+      ],
+      "blockType": "link",
+      "bboxNormalized": [
+        0.084,
+        0.094,
+        0.263,
+        0.112
+      ]
+    },
+    {
+      "text": "https://plus.google.com/+RobuInlabs",
+      "page": 1,
+      "bbox": [
+        50.74,
+        88.79,
+        144.14000000000001,
+        94.85000000000001
+      ],
+      "blockType": "link",
+      "bboxNormalized": [
+        0.08527731092436976,
+        0.10545130641330167,
+        0.24225210084033616,
+        0.11264845605700713
+      ]
+    },
+    {
+      "text": "Phone icon",
+      "page": 1,
+      "bbox": [
+        396.865,
+        79.148,
+        441.49,
+        85.042
+      ],
+      "blockType": "image",
+      "bboxNormalized": [
+        0.667,
+        0.094,
+        0.742,
+        0.101
+      ]
+    },
+    {
+      "text": "CIN icon",
+      "page": 1,
+      "bbox": [
+        396.27000000000004,
+        86.726,
+        487.90000000000003,
+        94.304
+      ],
+      "blockType": "image",
+      "bboxNormalized": [
+        0.666,
+        0.103,
+        0.8200000000000001,
+        0.112
+      ]
+    },
+    {
+      "text": " CIN: <u>L29309PN2017PLC172718</u>",
+      "page": 1,
+      "bbox": [
+        404.65980611661587,
+        87.55691194859946,
+        487.65868515386813,
+        94.19895055259147
+      ],
+      "blockType": "text",
+      "bboxNormalized": [
+        0.6801005144817074,
+        0.10398683129287348,
+        0.8195944288300305,
+        0.11187523818597561
+      ]
+    },
+    {
+      "text": "Email icon",
+      "page": 1,
+      "bbox": [
+        396.865,
+        95.146,
+        439.11,
+        101.882
+      ],
+      "blockType": "image",
+      "bboxNormalized": [
+        0.667,
+        0.113,
+        0.738,
+        0.12100000000000001
+      ]
+    },
+    {
+      "text": "info@robu.in",
+      "page": 1,
+      "bbox": [
+        405.08957400438265,
+        95.6679920177925,
+        439.2254031297638,
+        101.97117194943313
+      ],
+      "blockType": "link",
+      "bboxNormalized": [
+        0.680822813452744,
+        0.11361994301400534,
+        0.7381939548399391,
+        0.12110590492806785
+      ]
+    },
+    {
+      "text": "IRN No: 177547c12151667c814ddd54f4501d67d79fe2489b85fbe45119ef6db607a6c5",
+      "page": 1,
+      "bbox": [
+        38.675000000000004,
+        97.67200000000001,
+        233.835,
+        103.56600000000002
+      ],
+      "blockType": "text",
+      "bboxNormalized": [
+        0.065,
+        0.11600000000000002,
+        0.393,
+        0.12300000000000003
+      ]
+    },
+    {
+      "text": "GSTIN: 27AALCM3536H1ZA",
+      "page": 1,
+      "bbox": [
+        396.865,
+        104.408,
+        472.43,
+        110.302
+      ],
+      "blockType": "text",
+      "bboxNormalized": [
+        0.667,
+        0.124,
+        0.794,
+        0.131
+      ]
+    },
+    {
+      "text": "Customer icon",
+      "page": 1,
+      "bbox": [
+        47.6,
+        124.616,
+        89.845,
+        133.878
+      ],
+      "blockType": "image",
+      "bboxNormalized": [
+        0.08,
+        0.148,
+        0.151,
+        0.15899999999999997
+      ]
+    },
+    {
+      "text": "Shipping Address icon",
+      "page": 1,
+      "bbox": [
+        178.5,
+        124.616,
+        248.70999999999998,
+        134.72
+      ],
+      "blockType": "image",
+      "bboxNormalized": [
+        0.3,
+        0.148,
+        0.418,
+        0.16
+      ]
+    },
+    {
+      "text": " Shipping Address",
+      "page": 1,
+      "bbox": [
+        186.0524177365187,
+        124.93463795731708,
+        248.45480361566314,
+        134.35840367759147
+      ],
+      "blockType": "text",
+      "bboxNormalized": [
+        0.3126931390529726,
+        0.14837842987804878,
+        0.41757109851371954,
+        0.15957055068597562
+      ]
+    },
+    {
+      "text": " Customer",
+      "page": 1,
+      "bbox": [
+        56.711,
+        126.392,
+        90.439,
+        134.56900000000002
+      ],
+      "blockType": "text",
+      "bboxNormalized": [
+        0.0953126050420168,
+        0.15010926365795724,
+        0.15199831932773109,
+        0.15982066508313542
+      ]
+    },
+    {
+      "text": "DREAMVU INDIA PRIVATE LIMITED",
+      "page": 1,
+      "bbox": [
+        177.15996034203508,
+        146.88931816287158,
+        304.9075260813643,
+        171.5005054604135
+      ],
+      "blockType": "heading",
+      "bboxNormalized": [
+        0.297747832507622,
+        0.17445287192740092,
+        0.5124496236661585,
+        0.2036823105230564
+      ]
+    },
+    {
+      "text": "DREAMVU INDIA PRIVATE LIMITED",
+      "page": 1,
+      "bbox": [
+        48.48767618318883,
+        147.09087351729232,
+        135.3276898639958,
+        171.41786525819361
+      ],
+      "blockType": "heading",
+      "bboxNormalized": [
+        0.08149189274485517,
+        0.17469224883288875,
+        0.22744149556974083,
+        0.20358416301448173
+      ]
+    },
+    {
+      "text": "Invoice# INV2526/1995",
+      "page": 1,
+      "bbox": [
+        349.38779386194744,
+        150.46920698956745,
+        508.51741466987426,
+        163.3104014029154
+      ],
+      "blockType": "heading",
+      "bboxNormalized": [
+        0.5872063762385671,
+        0.178704521365282,
+        0.8546511170922256,
+        0.19395534608422257
+      ]
+    },
+    {
+      "text": "Invoice# INV2526/1995",
+      "page": 1,
+      "bbox": [
+        462.5,
+        187.96,
+        511.34000000000003,
+        196.04000000000002
+      ],
+      "blockType": "heading",
+      "bboxNormalized": [
+        0.7773109243697479,
+        0.22323040380047507,
+        0.8593949579831933,
+        0.2328266033254157
+      ]
+    },
+    {
+      "text": "Invoice Date: 02/04/2025\nSale Order: 2652549\nReference: INV2526/1995",
+      "page": 1,
+      "bbox": [
+        351.04999999999995,
+        175.136,
+        511.7,
+        197.028
+      ],
+      "blockType": "text",
+      "bboxNormalized": [
+        0.59,
+        0.208,
+        0.86,
+        0.23399999999999999
+      ]
+    },
+    {
+      "text": "Invoice Date: 02/04/2025\nSale Order: 2652549\nReference: INV2526/1995",
+      "page": 1,
+      "bbox": [
+        351.71,
+        176.43,
+        396.66999999999996,
+        184.52
+      ],
+      "blockType": "text",
+      "bboxNormalized": [
+        0.591109243697479,
+        0.20953681710213778,
+        0.6666722689075629,
+        0.21914489311163896
+      ]
+    },
+    {
+      "text": "Invoice Date: 02/04/2025\nSale Order: 2652549\nReference: INV2526/1995",
+      "page": 1,
+      "bbox": [
+        351.71,
+        176.34,
+        511.33,
+        199.91
+      ],
+      "blockType": "text",
+      "bboxNormalized": [
+        0.591109243697479,
+        0.20942992874109265,
+        0.8593781512605042,
+        0.2374228028503563
+      ]
+    },
+    {
+      "text": "Invoice Date: 02/04/2025\nSale Order: 2652549\nReference: INV2526/1995",
+      "page": 1,
+      "bbox": [
+        357.04,
+        176.34,
+        511.33000000000004,
+        199.91
+      ],
+      "blockType": "text",
+      "bboxNormalized": [
+        0.6000672268907563,
+        0.20942992874109265,
+        0.8593781512605043,
+        0.2374228028503563
+      ]
+    },
+    {
+      "text": "Invoice Date: 02/04/2025\nSale Order: 2652549\nReference: INV2526/1995",
+      "page": 1,
+      "bbox": [
+        351.71,
+        176.43,
+        511.33,
+        199.91
+      ],
+      "blockType": "text",
+      "bboxNormalized": [
+        0.591109243697479,
+        0.20953681710213778,
+        0.8593781512605042,
+        0.2374228028503563
+      ]
+    },
+    {
+      "text": "Invoice Date: 02/04/2025\nSale Order: 2652549\nReference: INV2526/1995",
+      "page": 1,
+      "bbox": [
+        462.5,
+        187.96,
+        511.34000000000003,
+        196.04000000000002
+      ],
+      "blockType": "text",
+      "bboxNormalized": [
+        0.7773109243697479,
+        0.22323040380047507,
+        0.8593949579831933,
+        0.2328266033254157
+      ]
+    },
+    {
+      "text": "Satya Sai",
+      "page": 1,
+      "bbox": [
+        48.45229030702173,
+        180.49129067025532,
+        76.0542214742521,
+        187.6762126048018
+      ],
+      "blockType": "text",
+      "bboxNormalized": [
+        0.08143242068407013,
+        0.21436020269626524,
+        0.12782222096512957,
+        0.2228933641387195
+      ]
+    },
+    {
+      "text": "Satya Sai",
+      "page": 1,
+      "bbox": [
+        176.9960604039634,
+        180.75536829506478,
+        204.89029928067836,
+        187.67315417778204
+      ],
+      "blockType": "text",
+      "bboxNormalized": [
+        0.2974723704268293,
+        0.21467383407964938,
+        0.3443534441692073,
+        0.2228897318025915
+      ]
+    },
+    {
+      "text": "C3-211, Vindhya C4, IIIT Campus\nGachibowli, Hyderabad\nK.V.Rangareddy, 500032\nTelangana,TS,",
+      "page": 1,
+      "bbox": [
+        176.715,
+        192.818,
+        283.22,
+        233.234
+      ],
+      "blockType": "text",
+      "bboxNormalized": [
+        0.297,
+        0.229,
+        0.47600000000000003,
+        0.277
+      ]
+    },
+    {
+      "text": "C3-211, Vindhya C4, IIIT Campus\nGachibowli, Hyderabad\nK.V.Rangareddy, 500032\nTelangana,TS,",
+      "page": 1,
+      "bbox": [
+        177.53,
+        194.59,
+        282.83,
+        230.41
+      ],
+      "blockType": "text",
+      "bboxNormalized": [
+        0.29836974789915965,
+        0.23110451306413302,
+        0.47534453781512603,
+        0.273646080760095
+      ]
+    },
+    {
+      "text": "C3-211, Vindhya C4, IIIT Campus\nGachibowli, Hyderabad\nK.V.Rangareddy, 500032\nTelangana,TS,",
+      "page": 1,
+      "bbox": [
+        211.64,
+        194.59,
+        282.83,
+        201.59
+      ],
+      "blockType": "text",
+      "bboxNormalized": [
+        0.3556974789915966,
+        0.23110451306413302,
+        0.47534453781512603,
+        0.23941805225653207
+      ]
+    },
+    {
+      "text": "C3-211, Vindhya C4, IIIT Campus\nGachibowli, Hyderabad\nK.V.Rangareddy, 500032\nTelangana,TS,",
+      "page": 1,
+      "bbox": [
+        177.53,
+        204.2,
+        208.38,
+        211.2
+      ],
+      "blockType": "text",
+      "bboxNormalized": [
+        0.29836974789915965,
+        0.24251781472684084,
+        0.350218487394958,
+        0.2508313539192399
+      ]
+    },
+    {
+      "text": "C3-211, Vindhya C4, IIIT Campus\nGachibowli, Hyderabad\nK.V.Rangareddy, 500032\nTelangana,TS,",
+      "page": 1,
+      "bbox": [
+        177.53,
+        194.59,
+        267.84000000000003,
+        229.55
+      ],
+      "blockType": "text",
+      "bboxNormalized": [
+        0.29836974789915965,
+        0.23110451306413302,
+        0.45015126050420173,
+        0.272624703087886
+      ]
+    },
+    {
+      "text": "C3-211, Vindhya C4, IIIT Campus\nGachibowli, Hyderabad\nK.V.Rangareddy, 500032\nTelangana,TS,",
+      "page": 1,
+      "bbox": [
+        177.53,
+        194.67,
+        267.84000000000003,
+        229.56
+      ],
+      "blockType": "text",
+      "bboxNormalized": [
+        0.29836974789915965,
+        0.23119952494061757,
+        0.45015126050420173,
+        0.2726365795724466
+      ]
+    },
+    {
+      "text": "C3-211, Vindhya C4, IIIT Campus\nGachibowli, Hyderabad\nK.V.Rangareddy, 500032\nTelangana,TS,",
+      "page": 1,
+      "bbox": [
+        177.53,
+        194.67,
+        282.83,
+        230.41
+      ],
+      "blockType": "text",
+      "bboxNormalized": [
+        0.29836974789915965,
+        0.23119952494061757,
+        0.47534453781512603,
+        0.273646080760095
+      ]
+    },
+    {
+      "text": "C3-211, Vindhya C4, IIIT Campus\nGachibowli, Hyderabad\nK.V.Rangareddy, 500032\nTelangana,TS,",
+      "page": 1,
+      "bbox": [
+        48.3615137984113,
+        193.2061494855183,
+        153.9339467118426,
+        232.06150938452743
+      ],
+      "blockType": "text",
+      "bboxNormalized": [
+        0.08127985512338035,
+        0.22946098513719512,
+        0.2587125154820884,
+        0.27560749333079265
+      ]
+    },
+    {
+      "text": "India",
+      "page": 1,
+      "bbox": [
+        177.05891351467224,
+        232.2700088724276,
+        191.51959317835366,
+        238.22852664110138
+      ],
+      "blockType": "text",
+      "bboxNormalized": [
+        0.29757800590701217,
+        0.275855117425686,
+        0.3218816692073171,
+        0.28293174185403963
+      ]
+    },
+    {
+      "text": "India",
+      "page": 1,
+      "bbox": [
+        48.817,
+        233.093,
+        63.113,
+        239.163
+      ],
+      "blockType": "text",
+      "bboxNormalized": [
+        0.0820453781512605,
+        0.27683254156769593,
+        0.10607226890756302,
+        0.284041567695962
+      ]
+    },
+    {
+      "text": "9494914275",
+      "page": 1,
+      "bbox": [
+        48.79,
+        240.81199999999998,
+        94.01,
+        248.39
+      ],
+      "blockType": "text",
+      "bboxNormalized": [
+        0.082,
+        0.286,
+        0.158,
+        0.295
+      ]
+    },
+    {
+      "text": "9494914275",
+      "page": 1,
+      "bbox": [
+        186.20513945788872,
+        241.39891214510288,
+        222.7068886361471,
+        247.98067216082316
+      ],
+      "blockType": "text",
+      "bboxNormalized": [
+        0.312949814214939,
+        0.2866970453029725,
+        0.37429729182545735,
+        0.29451386242378047
+      ]
+    },
+    {
+      "text": "Email icon",
+      "page": 1,
+      "bbox": [
+        48.195,
+        250.07399999999998,
+        127.33000000000001,
+        258.49399999999997
+      ],
+      "blockType": "image",
+      "bboxNormalized": [
+        0.081,
+        0.297,
+        0.21400000000000002,
+        0.30699999999999994
+      ]
+    },
+    {
+      "text": "Email icon",
+      "page": 1,
+      "bbox": [
+        177.31,
+        250.916,
+        255.85000000000002,
+        258.49399999999997
+      ],
+      "blockType": "image",
+      "bboxNormalized": [
+        0.298,
+        0.298,
+        0.43000000000000005,
+        0.30699999999999994
+      ]
+    },
+    {
+      "text": "satyasai@dreamvu.com",
+      "page": 1,
+      "bbox": [
+        177.44637778677594,
+        251.3254130740282,
+        255.58788764767533,
+        258.58331108279344
+      ],
+      "blockType": "link",
+      "bboxNormalized": [
+        0.2982292063643293,
+        0.29848623880525915,
+        0.4295594750381098,
+        0.3071060701695884
+      ]
+    },
+    {
+      "text": "satyasai@dreamvu.com",
+      "page": 1,
+      "bbox": [
+        56.88000138445598,
+        251.67437458317454,
+        127.26718586247142,
+        258.4623528010671
+      ],
+      "blockType": "link",
+      "bboxNormalized": [
+        0.09559664098227896,
+        0.29890068240282014,
+        0.21389443002096037,
+        0.3069624142530488
+      ]
+    },
+    {
+      "text": "GSTIN: 36AAGCD2767G1ZK",
+      "page": 1,
+      "bbox": [
+        48.195,
+        260.178,
+        132.685,
+        266.914
+      ],
+      "blockType": "text",
+      "bboxNormalized": [
+        0.081,
+        0.309,
+        0.223,
+        0.317
+      ]
+    },
+    {
+      "text": "GSTIN: 36AAGCD2767G1ZK",
+      "page": 1,
+      "bbox": [
+        71.87,
+        261.83,
+        132.36,
+        268.83
+      ],
+      "blockType": "text",
+      "bboxNormalized": [
+        0.12078991596638657,
+        0.31096199524940615,
+        0.22245378151260506,
+        0.31927553444180523
+      ]
+    },
+    {
+      "text": "Place of Supply: 36 - Telangana",
+      "page": 1,
+      "bbox": [
+        48.195,
+        270.282,
+        139.825,
+        277.86
+      ],
+      "blockType": "text",
+      "bboxNormalized": [
+        0.081,
+        0.32099999999999995,
+        0.235,
+        0.33
+      ]
+    },
+    {
+      "text": "|   | Description                                                                       | HSN      | Rate          | Qty    | Disc   | Amount     | IGST                 | Total      | Total |\n| - | --------------------------------------------------------------------------------- | -------- | ------------- | ------ | ------ | ---------- | -------------------- | ---------- | ----- |\n| 1 | \\[1486412] Waveshare Power over Ethernet HAT<br/>(E) for Raspberry Pi             | 84733010 | ₹ 1112.710000 | 1.00   | ₹ 0.00 | ₹ 1,112.71 | ₹ 200.29<br/>(18.0%) | ₹ 1,313.00 |       |\n| 2 | \\[699525] Official Raspberry Pi Black 4 in 1 Heat<br/>Sink Set Aluminum for Pi 4B | 84799090 | ₹ 74.580000   | 1.00   | ₹ 0.00 | ₹ 74.58    | ₹ 13.42<br/>(18.0%)  | ₹ 88.00    |       |\n| 3 | \\[1308008] 3007 PI-Fan 30 x 30 x 7MM Black 2 x 1p                                 | 84145930 | ₹ 64.410000   | 1.00   | ₹ 0.00 | ₹ 64.41    | ₹ 11.59<br/>(18.0%)  | ₹ 76.00    |       |\n| 4 | \\[471149] Raspberry Pi 4 Model-B with 4 GB RAM                                    | 84733030 | ₹ 4744.920000 | 1.00   | ₹ 0.00 | ₹ 4,744.92 | ₹ 854.08<br/>(18.0%) | ₹ 5,599.00 |       |\n| 5 | \\[bluedart\\_air] Bluedart Air                                                     | 996819   | ₹ 83.900000   | 1.00   | ₹ 0.00 | ₹ 83.90    | ₹ 15.10<br/>(18.0%)  | ₹ 99.00    |       |\n|   |                                                                                   |          |               | Total: | 5.000  |            |                      |            |       |",
+      "page": 1,
+      "bbox": [
+        38.501591491699216,
+        289.0823213605183,
+        556.5644370474466,
+        481.3619680116235
+      ],
+      "blockType": "table",
+      "bboxNormalized": [
+        0.06470855712890625,
+        0.3433281726371951,
+        0.9354024152057927,
+        0.5716887981135671
+      ]
+    },
+    {
+      "text": "|   | Description                                                                       | HSN      | Rate          | Qty    | Disc   | Amount     | IGST                 | Total      | Total |\n| - | --------------------------------------------------------------------------------- | -------- | ------------- | ------ | ------ | ---------- | -------------------- | ---------- | ----- |\n| 1 | \\[1486412] Waveshare Power over Ethernet HAT<br/>(E) for Raspberry Pi             | 84733010 | ₹ 1112.710000 | 1.00   | ₹ 0.00 | ₹ 1,112.71 | ₹ 200.29<br/>(18.0%) | ₹ 1,313.00 |       |\n| 2 | \\[699525] Official Raspberry Pi Black 4 in 1 Heat<br/>Sink Set Aluminum for Pi 4B | 84799090 | ₹ 74.580000   | 1.00   | ₹ 0.00 | ₹ 74.58    | ₹ 13.42<br/>(18.0%)  | ₹ 88.00    |       |\n| 3 | \\[1308008] 3007 PI-Fan 30 x 30 x 7MM Black 2 x 1p                                 | 84145930 | ₹ 64.410000   | 1.00   | ₹ 0.00 | ₹ 64.41    | ₹ 11.59<br/>(18.0%)  | ₹ 76.00    |       |\n| 4 | \\[471149] Raspberry Pi 4 Model-B with 4 GB RAM                                    | 84733030 | ₹ 4744.920000 | 1.00   | ₹ 0.00 | ₹ 4,744.92 | ₹ 854.08<br/>(18.0%) | ₹ 5,599.00 |       |\n| 5 | \\[bluedart\\_air] Bluedart Air                                                     | 996819   | ₹ 83.900000   | 1.00   | ₹ 0.00 | ₹ 83.90    | ₹ 15.10<br/>(18.0%)  | ₹ 99.00    |       |\n|   |                                                                                   |          |               | Total: | 5.000  |            |                      |            |       |",
+      "page": 1,
+      "bbox": [
+        287.98,
+        773.24,
+        307.94,
+        778.84
+      ],
+      "blockType": "table",
+      "bboxNormalized": [
+        0.48400000000000004,
+        0.9183372921615202,
+        0.5175462184873949,
+        0.9249881235154395
+      ]
+    },
+    {
+      "text": "|   | Description                                                                       | HSN      | Rate          | Qty    | Disc   | Amount     | IGST                 | Total      | Total |\n| - | --------------------------------------------------------------------------------- | -------- | ------------- | ------ | ------ | ---------- | -------------------- | ---------- | ----- |\n| 1 | \\[1486412] Waveshare Power over Ethernet HAT<br/>(E) for Raspberry Pi             | 84733010 | ₹ 1112.710000 | 1.00   | ₹ 0.00 | ₹ 1,112.71 | ₹ 200.29<br/>(18.0%) | ₹ 1,313.00 |       |\n| 2 | \\[699525] Official Raspberry Pi Black 4 in 1 Heat<br/>Sink Set Aluminum for Pi 4B | 84799090 | ₹ 74.580000   | 1.00   | ₹ 0.00 | ₹ 74.58    | ₹ 13.42<br/>(18.0%)  | ₹ 88.00    |       |\n| 3 | \\[1308008] 3007 PI-Fan 30 x 30 x 7MM Black 2 x 1p                                 | 84145930 | ₹ 64.410000   | 1.00   | ₹ 0.00 | ₹ 64.41    | ₹ 11.59<br/>(18.0%)  | ₹ 76.00    |       |\n| 4 | \\[471149] Raspberry Pi 4 Model-B with 4 GB RAM                                    | 84733030 | ₹ 4744.920000 | 1.00   | ₹ 0.00 | ₹ 4,744.92 | ₹ 854.08<br/>(18.0%) | ₹ 5,599.00 |       |\n| 5 | \\[bluedart\\_air] Bluedart Air                                                     | 996819   | ₹ 83.900000   | 1.00   | ₹ 0.00 | ₹ 83.90    | ₹ 15.10<br/>(18.0%)  | ₹ 99.00    |       |\n|   |                                                                                   |          |               | Total: | 5.000  |            |                      |            |       |",
+      "page": 1,
+      "bbox": [
+        295.26,
+        494.96,
+        351.06,
+        501.88
+      ],
+      "blockType": "table",
+      "bboxNormalized": [
+        0.49623529411764705,
+        0.5878384798099763,
+        0.5900168067226891,
+        0.5960570071258907
+      ]
+    },
+    {
+      "text": "| Subtotal | ₹ 6,080.52 |\n| -------- | ---------- |\n| Taxes    | ₹ 1,094.48 |\n| Total    | ₹ 7,175.00 |",
+      "page": 1,
+      "bbox": [
+        350.5067138671875,
+        519.3730516387195,
+        554.9962271341464,
+        594.9493403439405
+      ],
+      "blockType": "table",
+      "bboxNormalized": [
+        0.5890869140625,
+        0.6168326028963415,
+        0.9327667682926829,
+        0.7065906654916159
+      ]
+    },
+    {
+      "text": "| Item | Taxes           | Amount     |\n| ---- | --------------- | ---------- |\n| 1    | 18% IGST (Sale) | ₹ 1,094.48 |",
+      "page": 1,
+      "bbox": [
+        39.6920405690263,
+        521.7711091129954,
+        288.2910980968941,
+        565.6826003953888
+      ],
+      "blockType": "table",
+      "bboxNormalized": [
+        0.06670931188071647,
+        0.6196806521532012,
+        0.4845228539443598,
+        0.6718320669778964
+      ]
+    },
+    {
+      "text": "Amount in Words: <u>SEVEN THOUSAND, ONE HUNDRED AND SEVENTY-FIVE INDIAN RUPEE</u>",
+      "page": 1,
+      "bbox": [
+        38.710890756002286,
+        605.6845695979421,
+        317.39354099180645,
+        612.8071948837653
+      ],
+      "blockType": "text",
+      "bboxNormalized": [
+        0.06506032059832317,
+        0.7193403439405488,
+        0.533434522675305,
+        0.7277995188643294
+      ]
+    },
+    {
+      "text": "MACFOS LIMITED • 02068197600 • info@robu.in • CIN: L29309PN2017PLC172718 • 27AALCM3536H1ZA\n\n1 / 2",
+      "page": 1,
+      "bbox": [
+        146.79,
+        755.27,
+        454.75,
+        779.49
+      ],
+      "blockType": "footer",
+      "bboxNormalized": [
+        0.24670588235294116,
+        0.8969952494061757,
+        0.7642857142857142,
+        0.9257600950118765
+      ]
+    },
+    {
+      "text": "TAX INVOICE (Original for Recipient)",
+      "page": 2,
+      "bbox": [
+        243.66,
+        15.09,
+        350.18,
+        22.12
+      ],
+      "blockType": "header",
+      "bboxNormalized": [
+        0.4095126050420168,
+        0.017921615201900238,
+        0.5885378151260504,
+        0.026270783847981
+      ]
+    },
+    {
+      "text": "ROBU.IN Your Ideas, Our Parts",
+      "page": 2,
+      "bbox": [
+        38.422374074052016,
+        23.13651782524295,
+        243.92263019840894,
+        102.0934714266149
+      ],
+      "blockType": "image",
+      "bboxNormalized": [
+        0.06457541861185213,
+        0.027478049673685216,
+        0.4099540003334604,
+        0.12125115371331936
+      ]
+    },
+    {
+      "text": "https://www.facebook.com/robulabs",
+      "page": 2,
+      "bbox": [
+        38.422374074052016,
+        23.13651782524295,
+        243.92263019840894,
+        102.0934714266149
+      ],
+      "blockType": "link",
+      "bboxNormalized": [
+        0.06457541861185213,
+        0.027478049673685216,
+        0.4099540003334604,
+        0.12125115371331936
+      ]
+    },
+    {
+      "text": "MACFOS LIMITED",
+      "page": 2,
+      "bbox": [
+        396.9638076410061,
+        24.87056447098895,
+        478.2542796065168,
+        33.03035061719941
+      ],
+      "blockType": "heading",
+      "bboxNormalized": [
+        0.6671660632621951,
+        0.02953748749523628,
+        0.8037887052210366,
+        0.03922844491353849
+      ]
+    },
+    {
+      "text": "QR Code",
+      "page": 2,
+      "bbox": [
+        264.1020217523342,
+        25.61997780032274,
+        354.97892173208845,
+        117.1507657083651
+      ],
+      "blockType": "image",
+      "bboxNormalized": [
+        0.44386894412157013,
+        0.0304275270787681,
+        0.5966032298018293,
+        0.13913392601943597
+      ]
+    },
+    {
+      "text": "(Formerly known as MACFOS PVT LTD)\nSumant Building, Dynamic Logistics Trade Park\nSurvey No. 78/1 Dighi, Bhosari Alandi Road Pune 411015\nMaharashtra MH\nIndia",
+      "page": 2,
+      "bbox": [
+        398.055,
+        37.047999999999995,
+        551.565,
+        76.62199999999999
+      ],
+      "blockType": "text",
+      "bboxNormalized": [
+        0.669,
+        0.04399999999999999,
+        0.927,
+        0.09099999999999998
+      ]
+    },
+    {
+      "text": "02068197600",
+      "page": 2,
+      "bbox": [
+        396.865,
+        79.148,
+        441.49,
+        85.042
+      ],
+      "blockType": "text",
+      "bboxNormalized": [
+        0.667,
+        0.094,
+        0.742,
+        0.101
+      ]
+    },
+    {
+      "text": "CIN: L29309PN2017PLC172718",
+      "page": 2,
+      "bbox": [
+        396.27000000000004,
+        86.726,
+        487.90000000000003,
+        94.304
+      ],
+      "blockType": "text",
+      "bboxNormalized": [
+        0.666,
+        0.103,
+        0.8200000000000001,
+        0.112
+      ]
+    },
+    {
+      "text": "CIN: L29309PN2017PLC172718",
+      "page": 2,
+      "bbox": [
+        404.22,
+        88.73,
+        487.55,
+        94.86
+      ],
+      "blockType": "text",
+      "bboxNormalized": [
+        0.6793613445378152,
+        0.10538004750593824,
+        0.8194117647058824,
+        0.1126603325415677
+      ]
+    },
+    {
+      "text": "https://plus.google.com/+RobuInlabs",
+      "page": 2,
+      "bbox": [
+        50.06022629156345,
+        88.00233298697123,
+        143.77858998368427,
+        94.39095458984374
+      ],
+      "blockType": "link",
+      "bboxNormalized": [
+        0.08413483410346799,
+        0.104515834901391,
+        0.24164468904820885,
+        0.11210327148437499
+      ]
+    },
+    {
+      "text": "info@robu.in",
+      "page": 2,
+      "bbox": [
+        396.27000000000004,
+        95.146,
+        439.11,
+        101.882
+      ],
+      "blockType": "link",
+      "bboxNormalized": [
+        0.666,
+        0.113,
+        0.738,
+        0.12100000000000001
+      ]
+    },
+    {
+      "text": "IRN No: 177547c12151667c814ddd54f4501d67d79fe2489b85fbe45119ef6db607a6c5",
+      "page": 2,
+      "bbox": [
+        38.675000000000004,
+        97.67200000000001,
+        233.835,
+        103.56600000000002
+      ],
+      "blockType": "text",
+      "bboxNormalized": [
+        0.065,
+        0.11600000000000002,
+        0.393,
+        0.12300000000000003
+      ]
+    },
+    {
+      "text": "GSTIN: 27AALCM3536H1ZA",
+      "page": 2,
+      "bbox": [
+        396.60022329935214,
+        104.28079826541064,
+        472.2922333508003,
+        110.45960425400152
+      ],
+      "blockType": "text",
+      "bboxNormalized": [
+        0.6665549971417682,
+        0.12384892905630718,
+        0.7937684594131098,
+        0.13118717844893293
+      ]
+    },
+    {
+      "text": "Payment terms: Immediate Payment",
+      "page": 2,
+      "bbox": [
+        39.211,
+        115.265,
+        142.8,
+        121.336
+      ],
+      "blockType": "text",
+      "bboxNormalized": [
+        0.06590084033613446,
+        0.13689429928741093,
+        0.24000000000000002,
+        0.14410451306413302
+      ]
+    },
+    {
+      "text": "Whether tax is payable under reverse charge: No",
+      "page": 2,
+      "bbox": [
+        38.647913639719896,
+        123.8847451410061,
+        187.41346748165967,
+        131.36274961890246
+      ],
+      "blockType": "text",
+      "bboxNormalized": [
+        0.06495447670541159,
+        0.14713152629573173,
+        0.31498061761623475,
+        0.1560127667682927
+      ]
+    },
+    {
+      "text": "Terms & Conditions",
+      "page": 2,
+      "bbox": [
+        38.56668556027296,
+        143.6206117509051,
+        99.9090053651391,
+        150.00636921208078
+      ],
+      "blockType": "heading",
+      "bboxNormalized": [
+        0.0648179589248285,
+        0.1705707978039253,
+        0.1679142947313262,
+        0.1781548327934451
+      ]
+    },
+    {
+      "text": "1. **Customer Notification**: Notify us within 10 days of delivery, In case the delivered product is faulty, incorrect or not as specified. Post which such claim will not be liability of Macfos Limited.\n\n2. **Warranty Replacement**: Warranty claims result in product replacement then only product will be shipped. In case the product unavailable, a xx\\*\\* % refund will be issued. (\\*\\*based on scenario)\n\n3. **GST Compliance**: The buyer must ensure an active GST number at the time of order booking. Inactive or missing GST number on the invoice shall be considered as B2C Supply; in such case no input tax credit can be claimed by the buyer.\n\n4. **Online Orders**: Buyers must provide correct GST No. and other relevant details at the time of order booking only. No subsequent changes in the GST and other details shall be considered.",
+      "page": 2,
+      "bbox": [
+        38.11,
+        153.45,
+        552.25,
+        226.51
+      ],
+      "blockType": "list",
+      "bboxNormalized": [
+        0.06405042016806722,
+        0.18224465558194772,
+        0.9281512605042017,
+        0.26901425178147265
+      ]
+    },
+    {
+      "text": "This is a computer generated Invoice.",
+      "page": 2,
+      "bbox": [
+        239.10279928067837,
+        240.6385671327172,
+        353.7946330745046,
+        247.6381032655297
+      ],
+      "blockType": "text",
+      "bboxNormalized": [
+        0.4018534441692073,
+        0.2857940227229421,
+        0.5946128286966463,
+        0.29410701100419206
+      ]
+    },
+    {
+      "text": "Subject to PUNE Jurisdiction",
+      "page": 2,
+      "bbox": [
+        253.07200942621,
+        260.32643900057167,
+        341.5741318121189,
+        267.52582579077745
+      ],
+      "blockType": "text",
+      "bboxNormalized": [
+        0.42533110827934456,
+        0.3091762933498476,
+        0.5740741711128048,
+        0.3177266339557927
+      ]
+    },
+    {
+      "text": "MACFOS LIMITED • 02068197600 • info@robu.in • CIN: L29309PN2017PLC172718 • 27AALCM3536H1ZA\n2 / 2",
+      "page": 2,
+      "bbox": [
+        146.79,
+        755.33,
+        454.75,
+        778.86
+      ],
+      "blockType": "footer",
+      "bboxNormalized": [
+        0.24670588235294116,
+        0.8970665083135393,
+        0.7642857142857142,
+        0.9250118764845606
+      ]
+    }
+  ],
+  "fieldProvenance": {
+    "invoiceNumber": {
+      "source": "text-pattern",
+      "page": 1,
+      "bboxNormalized": [
+        0.5872063762385671,
+        0.178704521365282,
+        0.8546511170922256,
+        0.19395534608422257
+      ],
+      "confidence": 0.9999999478639471
+    },
+    "vendorName": {
+      "source": "text-pattern",
+      "page": 2,
+      "bboxNormalized": [
+        0.06405042016806722,
+        0.18224465558194772,
+        0.9281512605042017,
+        0.26901425178147265
+      ],
+      "confidence": 0.9999999217959217
+    },
+    "vendorAddress": {
+      "source": "text-pattern",
+      "page": 2,
+      "bboxNormalized": [
+        0.669,
+        0.04399999999999999,
+        0.927,
+        0.09099999999999998
+      ],
+      "confidence": 0.9999871807466697
+    },
+    "vendorGstin": {
+      "source": "text-pattern",
+      "page": 2,
+      "bboxNormalized": [
+        0.6665549971417682,
+        0.12384892905630718,
+        0.7937684594131098,
+        0.13118717844893293
+      ],
+      "confidence": 1
+    },
+    "customerName": {
+      "source": "text-pattern",
+      "page": 1,
+      "bboxNormalized": [
+        0.08149189274485517,
+        0.17469224883288875,
+        0.22744149556974083,
+        0.20358416301448173
+      ],
+      "confidence": 0.9999999677312256
+    },
+    "customerAddress": {
+      "source": "text-pattern",
+      "page": 1,
+      "bboxNormalized": [
+        0.297,
+        0.229,
+        0.47600000000000003,
+        0.277
+      ],
+      "confidence": 0.9964450092341887
+    },
+    "customerGstin": {
+      "source": "text-pattern",
+      "page": 1,
+      "bboxNormalized": [
+        0.081,
+        0.309,
+        0.223,
+        0.317
+      ],
+      "confidence": 1
+    },
+    "invoiceDate": {
+      "source": "text-pattern",
+      "page": 1,
+      "bboxNormalized": [
+        0.591109243697479,
+        0.20942992874109265,
+        0.8593781512605042,
+        0.2374228028503563
+      ],
+      "confidence": 0.9999999677312256
+    },
+    "dueDate": {
+      "source": "text-pattern",
+      "page": 1,
+      "bboxNormalized": [
+        0.591109243697479,
+        0.20942992874109265,
+        0.8593781512605042,
+        0.2374228028503563
+      ],
+      "confidence": 0.9997876695493899
+    },
+    "currency": {
+      "source": "text-pattern",
+      "page": 1,
+      "confidence": 0.9415
+    },
+    "totalAmountMinor": {
+      "source": "text-pattern",
+      "page": 1,
+      "bboxNormalized": [
+        0.5890869140625,
+        0.6168326028963415,
+        0.9327667682926829,
+        0.7065906654916159
+      ],
+      "confidence": 0.9999999031936799
+    },
+    "gst.gstin": {
+      "source": "text-pattern",
+      "page": 1,
+      "bbox": [
+        396.865,
+        104.408,
+        472.43,
+        110.302
+      ],
+      "bboxNormalized": [
+        0.667,
+        0.124,
+        0.794,
+        0.131
+      ],
+      "blockIndex": 15,
+      "confidence": 0.9415
+    },
+    "gst.subtotalMinor": {
+      "source": "text-pattern",
+      "page": 1,
+      "bbox": [
+        350.5067138671875,
+        519.3730516387195,
+        554.9962271341464,
+        594.9493403439405
+      ],
+      "bboxNormalized": [
+        0.5890869140625,
+        0.6168326028963415,
+        0.9327667682926829,
+        0.7065906654916159
+      ],
+      "blockIndex": 54,
+      "confidence": 0.9415
+    },
+    "gst.cgstMinor": {
+      "source": "text-pattern",
+      "page": 1,
+      "bbox": [
+        397.9881291087081,
+        37.01163918844084,
+        551.6435415872713,
+        76.68657292063645
+      ],
+      "bboxNormalized": [
+        0.6688876119474085,
+        0.043956816138290784,
+        0.9271320026676829,
+        0.09107668992949697
+      ],
+      "blockIndex": 4,
+      "confidence": 0.9415
+    },
+    "gst.sgstMinor": {
+      "source": "text-pattern",
+      "page": 1,
+      "bbox": [
+        397.9881291087081,
+        37.01163918844084,
+        551.6435415872713,
+        76.68657292063645
+      ],
+      "bboxNormalized": [
+        0.6688876119474085,
+        0.043956816138290784,
+        0.9271320026676829,
+        0.09107668992949697
+      ],
+      "blockIndex": 4,
+      "confidence": 0.9415
+    },
+    "gst.igstMinor": {
+      "source": "text-pattern",
+      "page": 1,
+      "bbox": [
+        39.6920405690263,
+        521.7711091129954,
+        288.2910980968941,
+        565.6826003953888
+      ],
+      "bboxNormalized": [
+        0.06670931188071647,
+        0.6196806521532012,
+        0.4845228539443598,
+        0.6718320669778964
+      ],
+      "blockIndex": 55,
+      "confidence": 0.9415
+    },
+    "gst.cessMinor": {
+      "source": "text-pattern",
+      "page": 1,
+      "bbox": [
+        397.9881291087081,
+        37.01163918844084,
+        551.6435415872713,
+        76.68657292063645
+      ],
+      "bboxNormalized": [
+        0.6688876119474085,
+        0.043956816138290784,
+        0.9271320026676829,
+        0.09107668992949697
+      ],
+      "blockIndex": 4,
+      "confidence": 0.9415
+    },
+    "gst.totalTaxMinor": {
+      "source": "text-pattern",
+      "page": 1,
+      "bbox": [
+        350.5067138671875,
+        519.3730516387195,
+        554.9962271341464,
+        594.9493403439405
+      ],
+      "bboxNormalized": [
+        0.5890869140625,
+        0.6168326028963415,
+        0.9327667682926829,
+        0.7065906654916159
+      ],
+      "blockIndex": 54,
+      "confidence": 0.9415
+    }
+  },
+  "lineItemProvenance": [
+    {
+      "index": 0,
+      "row": {
+        "source": "text-pattern",
+        "page": 1,
+        "bboxNormalized": [
+          0.06470855712890625,
+          0.3433281726371951,
+          0.9354024152057927,
+          0.5716887981135671
+        ],
+        "confidence": 0.8733
+      },
+      "fields": {
+        "hsnSac": {
+          "source": "text-pattern",
+          "page": 1,
+          "bbox": [
+            38.501591491699216,
+            289.0823213605183,
+            556.5644370474466,
+            481.3619680116235
+          ],
+          "bboxNormalized": [
+            0.06470855712890625,
+            0.3433281726371951,
+            0.9354024152057927,
+            0.5716887981135671
+          ],
+          "blockIndex": 51,
+          "confidence": 0.82
+        },
+        "amountMinor": {
+          "source": "text-pattern",
+          "page": 1,
+          "bbox": [
+            38.501591491699216,
+            289.0823213605183,
+            556.5644370474466,
+            481.3619680116235
+          ],
+          "bboxNormalized": [
+            0.06470855712890625,
+            0.3433281726371951,
+            0.9354024152057927,
+            0.5716887981135671
+          ],
+          "blockIndex": 51,
+          "confidence": 0.9
+        },
+        "igstMinor": {
+          "source": "text-pattern",
+          "page": 1,
+          "bbox": [
+            38.501591491699216,
+            289.0823213605183,
+            556.5644370474466,
+            481.3619680116235
+          ],
+          "bboxNormalized": [
+            0.06470855712890625,
+            0.3433281726371951,
+            0.9354024152057927,
+            0.5716887981135671
+          ],
+          "blockIndex": 51,
+          "confidence": 0.9
+        }
+      }
+    },
+    {
+      "index": 1,
+      "row": {
+        "source": "text-pattern",
+        "page": 1,
+        "bboxNormalized": [
+          0.06470855712890625,
+          0.3433281726371951,
+          0.9354024152057927,
+          0.5716887981135671
+        ],
+        "confidence": 0.8733
+      },
+      "fields": {
+        "hsnSac": {
+          "source": "text-pattern",
+          "page": 1,
+          "bbox": [
+            38.501591491699216,
+            289.0823213605183,
+            556.5644370474466,
+            481.3619680116235
+          ],
+          "bboxNormalized": [
+            0.06470855712890625,
+            0.3433281726371951,
+            0.9354024152057927,
+            0.5716887981135671
+          ],
+          "blockIndex": 51,
+          "confidence": 0.82
+        },
+        "amountMinor": {
+          "source": "text-pattern",
+          "page": 1,
+          "bbox": [
+            38.501591491699216,
+            289.0823213605183,
+            556.5644370474466,
+            481.3619680116235
+          ],
+          "bboxNormalized": [
+            0.06470855712890625,
+            0.3433281726371951,
+            0.9354024152057927,
+            0.5716887981135671
+          ],
+          "blockIndex": 51,
+          "confidence": 0.9
+        },
+        "igstMinor": {
+          "source": "text-pattern",
+          "page": 1,
+          "bbox": [
+            38.501591491699216,
+            289.0823213605183,
+            556.5644370474466,
+            481.3619680116235
+          ],
+          "bboxNormalized": [
+            0.06470855712890625,
+            0.3433281726371951,
+            0.9354024152057927,
+            0.5716887981135671
+          ],
+          "blockIndex": 51,
+          "confidence": 0.9
+        }
+      }
+    },
+    {
+      "index": 2,
+      "row": {
+        "source": "text-pattern",
+        "page": 1,
+        "bboxNormalized": [
+          0.06470855712890625,
+          0.043956816138290784,
+          0.9354024152057927,
+          0.5716887981135671
+        ],
+        "confidence": 0.86
+      },
+      "fields": {
+        "description": {
+          "source": "text-pattern",
+          "page": 1,
+          "bbox": [
+            38.501591491699216,
+            289.0823213605183,
+            556.5644370474466,
+            481.3619680116235
+          ],
+          "bboxNormalized": [
+            0.06470855712890625,
+            0.3433281726371951,
+            0.9354024152057927,
+            0.5716887981135671
+          ],
+          "blockIndex": 51,
+          "confidence": 0.82
+        },
+        "hsnSac": {
+          "source": "text-pattern",
+          "page": 1,
+          "bbox": [
+            38.501591491699216,
+            289.0823213605183,
+            556.5644370474466,
+            481.3619680116235
+          ],
+          "bboxNormalized": [
+            0.06470855712890625,
+            0.3433281726371951,
+            0.9354024152057927,
+            0.5716887981135671
+          ],
+          "blockIndex": 51,
+          "confidence": 0.82
+        },
+        "amountMinor": {
+          "source": "text-pattern",
+          "page": 1,
+          "bbox": [
+            38.501591491699216,
+            289.0823213605183,
+            556.5644370474466,
+            481.3619680116235
+          ],
+          "bboxNormalized": [
+            0.06470855712890625,
+            0.3433281726371951,
+            0.9354024152057927,
+            0.5716887981135671
+          ],
+          "blockIndex": 51,
+          "confidence": 0.9
+        },
+        "igstMinor": {
+          "source": "text-pattern",
+          "page": 1,
+          "bbox": [
+            397.9881291087081,
+            37.01163918844084,
+            551.6435415872713,
+            76.68657292063645
+          ],
+          "bboxNormalized": [
+            0.6688876119474085,
+            0.043956816138290784,
+            0.9271320026676829,
+            0.09107668992949697
+          ],
+          "blockIndex": 4,
+          "confidence": 0.9
+        }
+      }
+    },
+    {
+      "index": 3,
+      "row": {
+        "source": "text-pattern",
+        "page": 1,
+        "bboxNormalized": [
+          0.06470855712890625,
+          0.3433281726371951,
+          0.9354024152057927,
+          0.5716887981135671
+        ],
+        "confidence": 0.86
+      },
+      "fields": {
+        "description": {
+          "source": "text-pattern",
+          "page": 1,
+          "bbox": [
+            38.501591491699216,
+            289.0823213605183,
+            556.5644370474466,
+            481.3619680116235
+          ],
+          "bboxNormalized": [
+            0.06470855712890625,
+            0.3433281726371951,
+            0.9354024152057927,
+            0.5716887981135671
+          ],
+          "blockIndex": 51,
+          "confidence": 0.82
+        },
+        "hsnSac": {
+          "source": "text-pattern",
+          "page": 1,
+          "bbox": [
+            38.501591491699216,
+            289.0823213605183,
+            556.5644370474466,
+            481.3619680116235
+          ],
+          "bboxNormalized": [
+            0.06470855712890625,
+            0.3433281726371951,
+            0.9354024152057927,
+            0.5716887981135671
+          ],
+          "blockIndex": 51,
+          "confidence": 0.82
+        },
+        "amountMinor": {
+          "source": "text-pattern",
+          "page": 1,
+          "bbox": [
+            38.501591491699216,
+            289.0823213605183,
+            556.5644370474466,
+            481.3619680116235
+          ],
+          "bboxNormalized": [
+            0.06470855712890625,
+            0.3433281726371951,
+            0.9354024152057927,
+            0.5716887981135671
+          ],
+          "blockIndex": 51,
+          "confidence": 0.9
+        },
+        "igstMinor": {
+          "source": "text-pattern",
+          "page": 1,
+          "bbox": [
+            38.501591491699216,
+            289.0823213605183,
+            556.5644370474466,
+            481.3619680116235
+          ],
+          "bboxNormalized": [
+            0.06470855712890625,
+            0.3433281726371951,
+            0.9354024152057927,
+            0.5716887981135671
+          ],
+          "blockIndex": 51,
+          "confidence": 0.9
+        }
+      }
+    },
+    {
+      "index": 4,
+      "row": {
+        "source": "text-pattern",
+        "page": 1,
+        "bboxNormalized": [
+          0.06470855712890625,
+          0.043956816138290784,
+          0.9354024152057927,
+          0.5716887981135671
+        ],
+        "confidence": 0.86
+      },
+      "fields": {
+        "description": {
+          "source": "text-pattern",
+          "page": 1,
+          "bbox": [
+            38.501591491699216,
+            289.0823213605183,
+            556.5644370474466,
+            481.3619680116235
+          ],
+          "bboxNormalized": [
+            0.06470855712890625,
+            0.3433281726371951,
+            0.9354024152057927,
+            0.5716887981135671
+          ],
+          "blockIndex": 51,
+          "confidence": 0.82
+        },
+        "hsnSac": {
+          "source": "text-pattern",
+          "page": 1,
+          "bbox": [
+            38.501591491699216,
+            289.0823213605183,
+            556.5644370474466,
+            481.3619680116235
+          ],
+          "bboxNormalized": [
+            0.06470855712890625,
+            0.3433281726371951,
+            0.9354024152057927,
+            0.5716887981135671
+          ],
+          "blockIndex": 51,
+          "confidence": 0.82
+        },
+        "amountMinor": {
+          "source": "text-pattern",
+          "page": 1,
+          "bbox": [
+            38.501591491699216,
+            289.0823213605183,
+            556.5644370474466,
+            481.3619680116235
+          ],
+          "bboxNormalized": [
+            0.06470855712890625,
+            0.3433281726371951,
+            0.9354024152057927,
+            0.5716887981135671
+          ],
+          "blockIndex": 51,
+          "confidence": 0.9
+        },
+        "igstMinor": {
+          "source": "text-pattern",
+          "page": 1,
+          "bbox": [
+            397.9881291087081,
+            37.01163918844084,
+            551.6435415872713,
+            76.68657292063645
+          ],
+          "bboxNormalized": [
+            0.6688876119474085,
+            0.043956816138290784,
+            0.9271320026676829,
+            0.09107668992949697
+          ],
+          "blockIndex": 4,
+          "confidence": 0.9
+        }
+      }
+    }
+  ],
+  "extraction": {
+    "source": "llamaextract",
+    "strategy": "llamaextract",
+    "provider": "llamaparse",
+    "parsingConfidence": 0.9415,
+    "extractionConfidence": 96,
+    "fieldConfidence": {
+      "invoiceNumber": 1,
+      "vendorName": 1,
+      "vendorAddress": 1,
+      "vendorGstin": 1,
+      "customerName": 1,
+      "customerAddress": 0.9964,
+      "customerGstin": 1,
+      "invoiceDate": 1,
+      "dueDate": 0.9998,
+      "currency": 0.9415,
+      "totalAmountMinor": 1,
+      "gst.gstin": 0.9415,
+      "gst.subtotalMinor": 0.9415,
+      "gst.cgstMinor": 0.9415,
+      "gst.sgstMinor": 0.9415,
+      "gst.igstMinor": 0.9415,
+      "gst.cessMinor": 0.9415,
+      "gst.totalTaxMinor": 0.9415,
+      "lineItems.0.hsnSac": 0.82,
+      "lineItems.0.amountMinor": 0.9,
+      "lineItems.0.igstMinor": 0.9,
+      "lineItems.1.hsnSac": 0.82,
+      "lineItems.1.amountMinor": 0.9,
+      "lineItems.1.igstMinor": 0.9,
+      "lineItems.2.description": 0.82,
+      "lineItems.2.hsnSac": 0.82,
+      "lineItems.2.amountMinor": 0.9,
+      "lineItems.2.igstMinor": 0.9,
+      "lineItems.3.description": 0.82,
+      "lineItems.3.hsnSac": 0.82,
+      "lineItems.3.amountMinor": 0.9,
+      "lineItems.3.igstMinor": 0.9,
+      "lineItems.4.description": 0.82,
+      "lineItems.4.hsnSac": 0.82,
+      "lineItems.4.amountMinor": 0.9,
+      "lineItems.4.igstMinor": 0.9
+    }
+  },
+  "confidenceScore": 96,
+  "confidenceTone": "green",
+  "previewPageImages": {
+    "1": "preview-page-1.png",
+    "15": "preview-page-15.png"
+  }
+}

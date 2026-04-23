@@ -1,0 +1,1721 @@
+{
+  "sourceFilename": "FC-G4S Facility_.pdf",
+  "mimeType": "application/pdf",
+  "parsed": {
+    "invoiceNumber": "DI01/000046HYR26",
+    "vendorName": "An ALLIED UNIVERSAL Company",
+    "vendorAddress": "1501A, 15th Floor,, Manjeera Trinity Corporate JNTU to HITECH City Road, Kukatpally Hyderabad --500072, Telangana",
+    "vendorGstin": "36AABCG8346B1ZT",
+    "vendorPan": "AABCG8346B",
+    "customerName": "Ficosa India Engineering Center Pvt. Ltd.",
+    "customerAddress": "Plot no. 5, Software Units Layout, JVP Building, South Wing 4th Floor, Hitec City, Madhapur, Hyderabad, 500081",
+    "customerGstin": "36AADCF2749R1Z0",
+    "invoiceDate": "2026-01-31T00:00:00.000Z",
+    "dueDate": "2026-02-04T00:00:00.000Z",
+    "currency": "INR",
+    "totalAmountMinor": 5374500,
+    "gst": {
+      "gstin": "36AABCG8346B1ZT",
+      "subtotalMinor": 4554669,
+      "cgstMinor": 409920,
+      "sgstMinor": 409920,
+      "igstMinor": 0,
+      "cessMinor": 0,
+      "totalTaxMinor": 819840
+    },
+    "lineItems": [
+      {
+        "description": "1 X 8HR Housekeeping Boy @ 22624.00- For ( 192.00 HRS )",
+        "amountMinor": 2088369,
+        "hsnSac": "998533",
+        "quantity": 192,
+        "rate": 22624,
+        "taxRate": 0,
+        "cgstMinor": 0,
+        "sgstMinor": 0,
+        "igstMinor": 0
+      },
+      {
+        "description": "1 X 8HR Office Boy @ 24663.00",
+        "amountMinor": 2466300,
+        "hsnSac": "998599",
+        "quantity": 1,
+        "rate": 24663,
+        "taxRate": 0,
+        "cgstMinor": 0,
+        "sgstMinor": 0,
+        "igstMinor": 0
+      }
+    ],
+    "pan": "AABCG8346B"
+  },
+  "ocrBlocks": [
+    {
+      "text": "2/4/26, 5:39 PM about:blank",
+      "page": 1,
+      "bbox": [
+        24,
+        15.27,
+        361.48,
+        24.27
+      ],
+      "blockType": "header",
+      "bboxNormalized": [
+        0.04033884630899556,
+        0.018137115165336375,
+        0.6075702568239881,
+        0.0288269669327252
+      ]
+    },
+    {
+      "text": "TAX INVOICE",
+      "page": 1,
+      "bbox": [
+        249.64643613281254,
+        36.56554199456936,
+        324.7806133908156,
+        46.04747260504002
+      ],
+      "blockType": "heading",
+      "bboxNormalized": [
+        0.41960205078125,
+        0.04343113596846418,
+        0.5458864686547256,
+        0.05469340626786396
+      ]
+    },
+    {
+      "text": "ORIGINAL FOR RECIPIENT",
+      "page": 1,
+      "bbox": [
+        433.5054650247714,
+        38.222585074075845,
+        541.1095233469894,
+        45.27379542087462
+      ],
+      "blockType": "text",
+      "bboxNormalized": [
+        0.7286295969893294,
+        0.045399307623142156,
+        0.9094889124428354,
+        0.0537744624440263
+      ]
+    },
+    {
+      "text": "G4S Logo",
+      "page": 1,
+      "bbox": [
+        33.124061701779254,
+        49.91559532560023,
+        122.99958184427403,
+        115.00880323456556
+      ],
+      "blockType": "image",
+      "bboxNormalized": [
+        0.05567443475490664,
+        0.059287812767959226,
+        0.20673588450362046,
+        0.13660300650247717
+      ]
+    },
+    {
+      "text": "G4S Facility Services (India) Pvt. Ltd.",
+      "page": 1,
+      "bbox": [
+        181.47305634289256,
+        77.46091637766769,
+        392.41352465224855,
+        89.7495049661776
+      ],
+      "blockType": "heading",
+      "bboxNormalized": [
+        0.3050172387099848,
+        0.09200507931592988,
+        0.6595628691882622,
+        0.10660098936499621
+      ]
+    },
+    {
+      "text": "G4S Facility Services (India) Pvt. Ltd.",
+      "page": 1,
+      "bbox": [
+        286.58,
+        267.13,
+        325.53999999999996,
+        277.13
+      ],
+      "blockType": "heading",
+      "bboxNormalized": [
+        0.48167944063466445,
+        0.3172866780691752,
+        0.5471628344762672,
+        0.3291642911440517
+      ]
+    },
+    {
+      "text": "\nAn ALLIED UNIVERSAL Company",
+      "page": 1,
+      "bbox": [
+        43.38958703256003,
+        108.07263647103659,
+        112.95143916968371,
+        115.05569048208842
+      ],
+      "blockType": "text",
+      "bboxNormalized": [
+        0.07292857844655107,
+        0.12836449599847563,
+        0.18984711437690552,
+        0.13665869736089942
+      ]
+    },
+    {
+      "text": "QR Code",
+      "page": 1,
+      "bbox": [
+        417.0525196360519,
+        119.78019793730945,
+        557.3851526867379,
+        260.0411867663872
+      ],
+      "blockType": "image",
+      "bboxNormalized": [
+        0.7009757288490854,
+        0.14227028451314788,
+        0.9368447503810977,
+        0.3088668599942836
+      ]
+    },
+    {
+      "text": "Billing Location",
+      "page": 1,
+      "bbox": [
+        34.656142777605766,
+        154.5834825457317,
+        105.0702633527058,
+        164.24278193597561
+      ],
+      "blockType": "heading",
+      "bboxNormalized": [
+        0.05824953404868523,
+        0.18360827934451218,
+        0.17660055020960366,
+        0.19508122141768294
+      ]
+    },
+    {
+      "text": "1501A, 15th Floor,, Manjeera Trinity Corporate JNTU to HITECH City Road, Kukatpally\nHyderabad --500072, Telangana\nPhone No. : - .\nGSTIN : 36AABCG8346B1ZT\nAck No: 112628883522051 Ack Date: 2026-02-04T14:54:00.000Z\nIRN No: : 97732835badb8759376d158968d34cbd425a1be5dbfc8cdaa7aa719c1b9dc05f",
+      "page": 1,
+      "bbox": [
+        34.31615563905298,
+        167.07924107755338,
+        299.3531022627668,
+        226.5448168159299
+      ],
+      "blockType": "text",
+      "bboxNormalized": [
+        0.05767808867663873,
+        0.19845025783631864,
+        0.5031482826791159,
+        0.26908116782583846
+      ]
+    },
+    {
+      "text": "1501A, 15th Floor,, Manjeera Trinity Corporate JNTU to HITECH City Road, Kukatpally\nHyderabad --500072, Telangana\nPhone No. : - .\nGSTIN : 36AABCG8346B1ZT\nAck No: 112628883522051 Ack Date: 2026-02-04T14:54:00.000Z\nIRN No: : 97732835badb8759376d158968d34cbd425a1be5dbfc8cdaa7aa719c1b9dc05f",
+      "page": 1,
+      "bbox": [
+        35.02,
+        167.17,
+        299.71999999999997,
+        185.42999999999998
+      ],
+      "blockType": "text",
+      "bboxNormalized": [
+        0.05886109990587603,
+        0.19855805777271,
+        0.5037649589888396,
+        0.22024657924743443
+      ]
+    },
+    {
+      "text": "1501A, 15th Floor,, Manjeera Trinity Corporate JNTU to HITECH City Road, Kukatpally\nHyderabad --500072, Telangana\nPhone No. : - .\nGSTIN : 36AABCG8346B1ZT\nAck No: 112628883522051 Ack Date: 2026-02-04T14:54:00.000Z\nIRN No: : 97732835badb8759376d158968d34cbd425a1be5dbfc8cdaa7aa719c1b9dc05f",
+      "page": 1,
+      "bbox": [
+        35.02,
+        178.43,
+        131.45000000000002,
+        185.43
+      ],
+      "blockType": "text",
+      "bboxNormalized": [
+        0.05886109990587603,
+        0.21193225009502092,
+        0.22093922280489448,
+        0.22024657924743446
+      ]
+    },
+    {
+      "text": "1501A, 15th Floor,, Manjeera Trinity Corporate JNTU to HITECH City Road, Kukatpally\nHyderabad --500072, Telangana\nPhone No. : - .\nGSTIN : 36AABCG8346B1ZT\nAck No: 112628883522051 Ack Date: 2026-02-04T14:54:00.000Z\nIRN No: : 97732835badb8759376d158968d34cbd425a1be5dbfc8cdaa7aa719c1b9dc05f",
+      "page": 1,
+      "bbox": [
+        35.02,
+        189.69,
+        297.71999999999997,
+        226.32
+      ],
+      "blockType": "text",
+      "bboxNormalized": [
+        0.05886109990587603,
+        0.22530644241733183,
+        0.5004033884630898,
+        0.2688141391106043
+      ]
+    },
+    {
+      "text": "1501A, 15th Floor,, Manjeera Trinity Corporate JNTU to HITECH City Road, Kukatpally\nHyderabad --500072, Telangana\nPhone No. : - .\nGSTIN : 36AABCG8346B1ZT\nAck No: 112628883522051 Ack Date: 2026-02-04T14:54:00.000Z\nIRN No: : 97732835badb8759376d158968d34cbd425a1be5dbfc8cdaa7aa719c1b9dc05f",
+      "page": 1,
+      "bbox": [
+        61.09,
+        199.17,
+        123.16,
+        206.17
+      ],
+      "blockType": "text",
+      "bboxNormalized": [
+        0.10267917170902245,
+        0.2365664196123147,
+        0.20700551297566222,
+        0.24488074876472823
+      ]
+    },
+    {
+      "text": "1501A, 15th Floor,, Manjeera Trinity Corporate JNTU to HITECH City Road, Kukatpally\nHyderabad --500072, Telangana\nPhone No. : - .\nGSTIN : 36AABCG8346B1ZT\nAck No: 112628883522051 Ack Date: 2026-02-04T14:54:00.000Z\nIRN No: : 97732835badb8759376d158968d34cbd425a1be5dbfc8cdaa7aa719c1b9dc05f",
+      "page": 1,
+      "bbox": [
+        61.68,
+        209.24,
+        233.36,
+        216.24
+      ],
+      "blockType": "text",
+      "bboxNormalized": [
+        0.10367083501411858,
+        0.24852717597871535,
+        0.39222804894446683,
+        0.25684150513112886
+      ]
+    },
+    {
+      "text": "1501A, 15th Floor,, Manjeera Trinity Corporate JNTU to HITECH City Road, Kukatpally\nHyderabad --500072, Telangana\nPhone No. : - .\nGSTIN : 36AABCG8346B1ZT\nAck No: 112628883522051 Ack Date: 2026-02-04T14:54:00.000Z\nIRN No: : 97732835badb8759376d158968d34cbd425a1be5dbfc8cdaa7aa719c1b9dc05f",
+      "page": 1,
+      "bbox": [
+        65.24,
+        219.31,
+        297.71999999999997,
+        226.31
+      ],
+      "blockType": "text",
+      "bboxNormalized": [
+        0.10965443054995293,
+        0.2604879323451159,
+        0.5004033884630898,
+        0.26880226149752945
+      ]
+    },
+    {
+      "text": "PAYMENT TERMS :\nContact G4S WeCare for all your requests, service complaints or observations. Please dial 18002661003 (Toll Free) or email us at ",
+      "page": 1,
+      "bbox": [
+        264.46031518673783,
+        268.34259838033535,
+        325.0934761337653,
+        275.8986519054878
+      ],
+      "blockType": "text",
+      "bboxNormalized": [
+        0.4445010003810976,
+        0.31872695550685975,
+        0.5464123237423781,
+        0.32770174352134146
+      ]
+    },
+    {
+      "text": "PAYMENT TERMS :\nContact G4S WeCare for all your requests, service complaints or observations. Please dial 18002661003 (Toll Free) or email us at ",
+      "page": 1,
+      "bbox": [
+        286.58,
+        267.13,
+        325.53999999999996,
+        277.13
+      ],
+      "blockType": "text",
+      "bboxNormalized": [
+        0.48167944063466445,
+        0.3172866780691752,
+        0.5471628344762672,
+        0.3291642911440517
+      ]
+    },
+    {
+      "text": "PAYMENT TERMS :\nContact G4S WeCare for all your requests, service complaints or observations. Please dial 18002661003 (Toll Free) or email us at ",
+      "page": 1,
+      "bbox": [
+        264.66,
+        267.13,
+        325.54,
+        277.13
+      ],
+      "blockType": "text",
+      "bboxNormalized": [
+        0.4448366276724486,
+        0.3172866780691752,
+        0.5471628344762673,
+        0.3291642911440517
+      ]
+    },
+    {
+      "text": "PAYMENT TERMS :\nContact G4S WeCare for all your requests, service complaints or observations. Please dial 18002661003 (Toll Free) or email us at ",
+      "page": 1,
+      "bbox": [
+        231.43,
+        385.38,
+        291.53000000000003,
+        394.38
+      ],
+      "blockType": "text",
+      "bboxNormalized": [
+        0.38898413338711846,
+        0.45773945267958954,
+        0.4899993276858949,
+        0.46842930444697833
+      ]
+    },
+    {
+      "text": "Service Category :- Support Services Goods Services Reverse Charge Applicable : No",
+      "page": 1,
+      "bbox": [
+        77.3448,
+        268.57248,
+        489.65208000000007,
+        277.8336
+      ],
+      "blockType": "text",
+      "bboxNormalized": [
+        0.13,
+        0.319,
+        0.8230000000000001,
+        0.33
+      ]
+    },
+    {
+      "text": "Service Category :- Support Services Goods Services Reverse Charge Applicable : No",
+      "page": 1,
+      "bbox": [
+        77.9,
+        267.13,
+        148.89,
+        278.13
+      ],
+      "blockType": "text",
+      "bboxNormalized": [
+        0.1309331719779481,
+        0.3172866780691752,
+        0.2502521177894312,
+        0.33035205245153937
+      ]
+    },
+    {
+      "text": "Service Category :- Support Services Goods Services Reverse Charge Applicable : No",
+      "page": 1,
+      "bbox": [
+        156.7,
+        267.13,
+        225.27999999999997,
+        277.13
+      ],
+      "blockType": "text",
+      "bboxNormalized": [
+        0.2633790506924835,
+        0.3172866780691752,
+        0.3786473040204383,
+        0.3291642911440517
+      ]
+    },
+    {
+      "text": "Service Category :- Support Services Goods Services Reverse Charge Applicable : No",
+      "page": 1,
+      "bbox": [
+        264.66,
+        267.13,
+        325.54,
+        277.13
+      ],
+      "blockType": "text",
+      "bboxNormalized": [
+        0.4448366276724486,
+        0.3172866780691752,
+        0.5471628344762673,
+        0.3291642911440517
+      ]
+    },
+    {
+      "text": "Service Category :- Support Services Goods Services Reverse Charge Applicable : No",
+      "page": 1,
+      "bbox": [
+        360.72,
+        267.13,
+        490.15000000000003,
+        278.13
+      ],
+      "blockType": "text",
+      "bboxNormalized": [
+        0.6062928600242034,
+        0.3172866780691752,
+        0.8238368965980907,
+        0.33035205245153937
+      ]
+    },
+    {
+      "text": "Invoice No DI01/000046HYR26\nDate Customer Order No.\n31/01/2026\nOrder No. SO18/000031/HYD",
+      "page": 1,
+      "bbox": [
+        400.6516176591083,
+        279.8713465987043,
+        562.7696087080793,
+        371.4172372522866
+      ],
+      "blockType": "text",
+      "bboxNormalized": [
+        0.6734093345083842,
+        0.33242035656440555,
+        0.9458948647103659,
+        0.44115502334222567
+      ]
+    },
+    {
+      "text": "Invoice No DI01/000046HYR26\nDate Customer Order No.\n31/01/2026\nOrder No. SO18/000031/HYD",
+      "page": 1,
+      "bbox": [
+        407.77,
+        285.36,
+        545.3299999999999,
+        296.36
+      ],
+      "blockType": "text",
+      "bboxNormalized": [
+        0.6853738066424633,
+        0.33893956670467507,
+        0.9165826274035227,
+        0.35200494108703917
+      ]
+    },
+    {
+      "text": "Invoice No DI01/000046HYR26\nDate Customer Order No.\n31/01/2026\nOrder No. SO18/000031/HYD",
+      "page": 1,
+      "bbox": [
+        410.14,
+        285.36,
+        550.92,
+        349.68
+      ],
+      "blockType": "text",
+      "bboxNormalized": [
+        0.6893572677154766,
+        0.33893956670467507,
+        0.925978217022993,
+        0.4153363740022805
+      ]
+    },
+    {
+      "text": "Invoice No DI01/000046HYR26\nDate Customer Order No.\n31/01/2026\nOrder No. SO18/000031/HYD",
+      "page": 1,
+      "bbox": [
+        460.05,
+        303.14,
+        547.8100000000001,
+        314.14
+      ],
+      "blockType": "text",
+      "bboxNormalized": [
+        0.7732452601855586,
+        0.3600579627518054,
+        0.9207509748554525,
+        0.3731233371341695
+      ]
+    },
+    {
+      "text": "Invoice No DI01/000046HYR26\nDate Customer Order No.\n31/01/2026\nOrder No. SO18/000031/HYD",
+      "page": 1,
+      "bbox": [
+        407.92,
+        285.36,
+        545.33,
+        349.68
+      ],
+      "blockType": "text",
+      "bboxNormalized": [
+        0.6856259244318945,
+        0.33893956670467507,
+        0.9165826274035229,
+        0.4153363740022805
+      ]
+    },
+    {
+      "text": "Invoice No DI01/000046HYR26\nDate Customer Order No.\n31/01/2026\nOrder No. SO18/000031/HYD",
+      "page": 1,
+      "bbox": [
+        407.92,
+        285.36,
+        550.9300000000001,
+        349.68
+      ],
+      "blockType": "text",
+      "bboxNormalized": [
+        0.6856259244318945,
+        0.33893956670467507,
+        0.9259950248756219,
+        0.4153363740022805
+      ]
+    },
+    {
+      "text": "Invoice No DI01/000046HYR26\nDate Customer Order No.\n31/01/2026\nOrder No. SO18/000031/HYD",
+      "page": 1,
+      "bbox": [
+        469.27,
+        338.69,
+        550.92,
+        349.69
+      ],
+      "blockType": "text",
+      "bboxNormalized": [
+        0.7887421003092644,
+        0.4022828772329913,
+        0.925978217022993,
+        0.4153482516153554
+      ]
+    },
+    {
+      "text": "Bill To Address",
+      "page": 1,
+      "bbox": [
+        35.57611149277106,
+        283.69777714367376,
+        112.16238275176259,
+        292.16101932164634
+      ],
+      "blockType": "heading",
+      "bboxNormalized": [
+        0.059795803907440936,
+        0.3369652427115091,
+        0.18852087997808692,
+        0.34701755430640246
+      ]
+    },
+    {
+      "text": "Ficosa India Engineering Center Pvt. Ltd.\nPlot no. 5, Software Units Layout,\nJVP Building, South Wing 4th Floor, Hitec City, Madhapur,\nHyderabad,\n500081",
+      "page": 1,
+      "bbox": [
+        37.48248,
+        297.19775999999996,
+        217.1604,
+        340.9776
+      ],
+      "blockType": "text",
+      "bboxNormalized": [
+        0.063,
+        0.353,
+        0.365,
+        0.405
+      ]
+    },
+    {
+      "text": "Ficosa India Engineering Center Pvt. Ltd.\nPlot no. 5, Software Units Layout,\nJVP Building, South Wing 4th Floor, Hitec City, Madhapur,\nHyderabad,\n500081",
+      "page": 1,
+      "bbox": [
+        37.98,
+        296.93,
+        164.04,
+        303.93
+      ],
+      "blockType": "text",
+      "bboxNormalized": [
+        0.06383622428398547,
+        0.35268196503230714,
+        0.27571601452198463,
+        0.3609962941847207
+      ]
+    },
+    {
+      "text": "Ficosa India Engineering Center Pvt. Ltd.\nPlot no. 5, Software Units Layout,\nJVP Building, South Wing 4th Floor, Hitec City, Madhapur,\nHyderabad,\n500081",
+      "page": 1,
+      "bbox": [
+        37.98,
+        306.41,
+        140.71,
+        313.41
+      ],
+      "blockType": "text",
+      "bboxNormalized": [
+        0.06383622428398547,
+        0.36394194222729004,
+        0.23650329433911524,
+        0.3722562713797036
+      ]
+    },
+    {
+      "text": "Ficosa India Engineering Center Pvt. Ltd.\nPlot no. 5, Software Units Layout,\nJVP Building, South Wing 4th Floor, Hitec City, Madhapur,\nHyderabad,\n500081",
+      "page": 1,
+      "bbox": [
+        35.02,
+        416.61,
+        382.08,
+        423.61
+      ],
+      "blockType": "text",
+      "bboxNormalized": [
+        0.05886109990587603,
+        0.49483323831242876,
+        0.6421944332392093,
+        0.5031475674648423
+      ]
+    },
+    {
+      "text": "Ficosa India Engineering Center Pvt. Ltd.\nPlot no. 5, Software Units Layout,\nJVP Building, South Wing 4th Floor, Hitec City, Madhapur,\nHyderabad,\n500081",
+      "page": 1,
+      "bbox": [
+        35.02,
+        416.61,
+        382.08,
+        433.68
+      ],
+      "blockType": "text",
+      "bboxNormalized": [
+        0.05886109990587603,
+        0.49483323831242876,
+        0.6421944332392093,
+        0.5151083238312429
+      ]
+    },
+    {
+      "text": "Ficosa India Engineering Center Pvt. Ltd.\nPlot no. 5, Software Units Layout,\nJVP Building, South Wing 4th Floor, Hitec City, Madhapur,\nHyderabad,\n500081",
+      "page": 1,
+      "bbox": [
+        37.98,
+        315.89,
+        216.95,
+        332.37
+      ],
+      "blockType": "text",
+      "bboxNormalized": [
+        0.06383622428398547,
+        0.3752019194222729,
+        0.3646463627806911,
+        0.39477622576966936
+      ]
+    },
+    {
+      "text": "CUSTOMER No: 042227\nPlace of Supply : Telangana\nState Code : 36\nGSTIN: 36AADCF2749R1Z0",
+      "page": 1,
+      "bbox": [
+        245.71503287681023,
+        303.6955078125,
+        364.142863162157,
+        348.3884421779726
+      ],
+      "blockType": "text",
+      "bboxNormalized": [
+        0.4129942061261433,
+        0.36071777343750006,
+        0.6120459579839939,
+        0.41380231159489334
+      ]
+    },
+    {
+      "text": "CUSTOMER No: 042227\nPlace of Supply : Telangana\nState Code : 36\nGSTIN: 36AADCF2749R1Z0",
+      "page": 1,
+      "bbox": [
+        246.12,
+        302.54,
+        315.7,
+        313.54
+      ],
+      "blockType": "text",
+      "bboxNormalized": [
+        0.4136748688987495,
+        0.35934530596731284,
+        0.5306239074895791,
+        0.37241068034967695
+      ]
+    },
+    {
+      "text": "CUSTOMER No: 042227\nPlace of Supply : Telangana\nState Code : 36\nGSTIN: 36AADCF2749R1Z0",
+      "page": 1,
+      "bbox": [
+        246.12,
+        302.54,
+        358.36,
+        349.49
+      ],
+      "blockType": "text",
+      "bboxNormalized": [
+        0.4136748688987495,
+        0.35934530596731284,
+        0.6023262068038188,
+        0.41511069935385786
+      ]
+    },
+    {
+      "text": "CUSTOMER No: 042227\nPlace of Supply : Telangana\nState Code : 36\nGSTIN: 36AADCF2749R1Z0",
+      "page": 1,
+      "bbox": [
+        246.12,
+        314.99,
+        314.74,
+        325.99
+      ],
+      "blockType": "text",
+      "bboxNormalized": [
+        0.4136748688987495,
+        0.37413293424553407,
+        0.5290103536372193,
+        0.38719830862789817
+      ]
+    },
+    {
+      "text": "CUSTOMER No: 042227\nPlace of Supply : Telangana\nState Code : 36\nGSTIN: 36AADCF2749R1Z0",
+      "page": 1,
+      "bbox": [
+        246.12,
+        302.54,
+        363.69,
+        349.49
+      ],
+      "blockType": "text",
+      "bboxNormalized": [
+        0.4136748688987495,
+        0.35934530596731284,
+        0.6112847922549415,
+        0.41511069935385786
+      ]
+    },
+    {
+      "text": "CUSTOMER No: 042227\nPlace of Supply : Telangana\nState Code : 36\nGSTIN: 36AADCF2749R1Z0",
+      "page": 1,
+      "bbox": [
+        246.12,
+        302.54,
+        363.69,
+        349.49
+      ],
+      "blockType": "text",
+      "bboxNormalized": [
+        0.4136748688987495,
+        0.35934530596731284,
+        0.6112847922549415,
+        0.41511069935385786
+      ]
+    },
+    {
+      "text": "CUSTOMER No: 042227\nPlace of Supply : Telangana\nState Code : 36\nGSTIN: 36AADCF2749R1Z0",
+      "page": 1,
+      "bbox": [
+        246.72,
+        342.5,
+        324.37,
+        349.5
+      ],
+      "blockType": "text",
+      "bboxNormalized": [
+        0.41468334005647434,
+        0.40680824781451924,
+        0.5451963157187038,
+        0.4151225769669327
+      ]
+    },
+    {
+      "text": "GSTIN/UIN: 36AADCF2749R1Z0",
+      "page": 1,
+      "bbox": [
+        37.48248,
+        363.70944,
+        135.65088,
+        369.60287999999997
+      ],
+      "blockType": "text",
+      "bboxNormalized": [
+        0.063,
+        0.432,
+        0.22799999999999998,
+        0.439
+      ]
+    },
+    {
+      "text": "GSTIN/UIN: 36AADCF2749R1Z0",
+      "page": 1,
+      "bbox": [
+        75.31,
+        363.29,
+        136.19,
+        370.29
+      ],
+      "blockType": "text",
+      "bboxNormalized": [
+        0.12657993814710233,
+        0.4315018053971874,
+        0.22890614495092104,
+        0.43981613454960095
+      ]
+    },
+    {
+      "text": "| Service Details                                                                                                | HSN/SAC Code | Amount    |\n| -------------------------------------------------------------------------------------------------------------- | ------------ | --------- |\n| For Services provided during the month of January-2026 as per details given below :                            |              |           |\n| Plot no. 5, Software Units Layout, JVP Building, South Wing 4th Floor, Hitec City, Madhapur, Hyderabad, 500081 |              |           |\n| 1 X 8HR Housekeeping Boy @ 22624.00- For ( 192.00 HRS )                                                        | 998533       | 20,883.69 |\n| 1 X 8HR Office Boy @ 24663.00                                                                                  | 998599       | 24,663.00 |\n|                                                                                                                |              | 45,546.69 |\n| our                                                                                                            | CGST 9%      | 4,099.20  |\n| Pan No.----> AAB-CG-8346B                                                                                      | SGST 9%      | 4,099.20  |\n| FIFTY THREE THOUSAND SEVEN HUNDRED FORTY FIVE ONLY                                                             | TOTAL DUE    | 53,745.00 |",
+      "page": 1,
+      "bbox": [
+        32.7228,
+        373.81248,
+        562.2372,
+        527.0419199999999
+      ],
+      "blockType": "table",
+      "bboxNormalized": [
+        0.05499999999999999,
+        0.444,
+        0.945,
+        0.6259999999999999
+      ]
+    },
+    {
+      "text": "| Service Details                                                                                                | HSN/SAC Code | Amount    |\n| -------------------------------------------------------------------------------------------------------------- | ------------ | --------- |\n| For Services provided during the month of January-2026 as per details given below :                            |              |           |\n| Plot no. 5, Software Units Layout, JVP Building, South Wing 4th Floor, Hitec City, Madhapur, Hyderabad, 500081 |              |           |\n| 1 X 8HR Housekeeping Boy @ 22624.00- For ( 192.00 HRS )                                                        | 998533       | 20,883.69 |\n| 1 X 8HR Office Boy @ 24663.00                                                                                  | 998599       | 24,663.00 |\n|                                                                                                                |              | 45,546.69 |\n| our                                                                                                            | CGST 9%      | 4,099.20  |\n| Pan No.----> AAB-CG-8346B                                                                                      | SGST 9%      | 4,099.20  |\n| FIFTY THREE THOUSAND SEVEN HUNDRED FORTY FIVE ONLY                                                             | TOTAL DUE    | 53,745.00 |",
+      "page": 1,
+      "bbox": [
+        231.431,
+        385.381,
+        291.534,
+        394.381
+      ],
+      "blockType": "table",
+      "bboxNormalized": [
+        0.3889858141723813,
+        0.45774064044089696,
+        0.4900060508269463,
+        0.4684304922082858
+      ]
+    },
+    {
+      "text": "| Service Details                                                                                                | HSN/SAC Code | Amount    |\n| -------------------------------------------------------------------------------------------------------------- | ------------ | --------- |\n| For Services provided during the month of January-2026 as per details given below :                            |              |           |\n| Plot no. 5, Software Units Layout, JVP Building, South Wing 4th Floor, Hitec City, Madhapur, Hyderabad, 500081 |              |           |\n| 1 X 8HR Housekeeping Boy @ 22624.00- For ( 192.00 HRS )                                                        | 998533       | 20,883.69 |\n| 1 X 8HR Office Boy @ 24663.00                                                                                  | 998599       | 24,663.00 |\n|                                                                                                                |              | 45,546.69 |\n| our                                                                                                            | CGST 9%      | 4,099.20  |\n| Pan No.----> AAB-CG-8346B                                                                                      | SGST 9%      | 4,099.20  |\n| FIFTY THREE THOUSAND SEVEN HUNDRED FORTY FIVE ONLY                                                             | TOTAL DUE    | 53,745.00 |",
+      "page": 1,
+      "bbox": [
+        34.425,
+        405.357,
+        293.594,
+        412.357
+      ],
+      "blockType": "table",
+      "bboxNormalized": [
+        0.057861032674465504,
+        0.4814673603192703,
+        0.4934684684684684,
+        0.4897816894716838
+      ]
+    },
+    {
+      "text": "| Service Details                                                                                                | HSN/SAC Code | Amount    |\n| -------------------------------------------------------------------------------------------------------------- | ------------ | --------- |\n| For Services provided during the month of January-2026 as per details given below :                            |              |           |\n| Plot no. 5, Software Units Layout, JVP Building, South Wing 4th Floor, Hitec City, Madhapur, Hyderabad, 500081 |              |           |\n| 1 X 8HR Housekeeping Boy @ 22624.00- For ( 192.00 HRS )                                                        | 998533       | 20,883.69 |\n| 1 X 8HR Office Boy @ 24663.00                                                                                  | 998599       | 24,663.00 |\n|                                                                                                                |              | 45,546.69 |\n| our                                                                                                            | CGST 9%      | 4,099.20  |\n| Pan No.----> AAB-CG-8346B                                                                                      | SGST 9%      | 4,099.20  |\n| FIFTY THREE THOUSAND SEVEN HUNDRED FORTY FIVE ONLY                                                             | TOTAL DUE    | 53,745.00 |",
+      "page": 1,
+      "bbox": [
+        34.425,
+        405.357,
+        293.594,
+        412.357
+      ],
+      "blockType": "table",
+      "bboxNormalized": [
+        0.057861032674465504,
+        0.4814673603192703,
+        0.4934684684684684,
+        0.4897816894716838
+      ]
+    },
+    {
+      "text": "| Service Details                                                                                                | HSN/SAC Code | Amount    |\n| -------------------------------------------------------------------------------------------------------------- | ------------ | --------- |\n| For Services provided during the month of January-2026 as per details given below :                            |              |           |\n| Plot no. 5, Software Units Layout, JVP Building, South Wing 4th Floor, Hitec City, Madhapur, Hyderabad, 500081 |              |           |\n| 1 X 8HR Housekeeping Boy @ 22624.00- For ( 192.00 HRS )                                                        | 998533       | 20,883.69 |\n| 1 X 8HR Office Boy @ 24663.00                                                                                  | 998599       | 24,663.00 |\n|                                                                                                                |              | 45,546.69 |\n| our                                                                                                            | CGST 9%      | 4,099.20  |\n| Pan No.----> AAB-CG-8346B                                                                                      | SGST 9%      | 4,099.20  |\n| FIFTY THREE THOUSAND SEVEN HUNDRED FORTY FIVE ONLY                                                             | TOTAL DUE    | 53,745.00 |",
+      "page": 1,
+      "bbox": [
+        34.425,
+        385.381,
+        382.075,
+        452.647
+      ],
+      "blockType": "table",
+      "bboxNormalized": [
+        0.057861032674465504,
+        0.45774064044089696,
+        0.6421860293128949,
+        0.5376365925503611
+      ]
+    },
+    {
+      "text": "| Service Details                                                                                                | HSN/SAC Code | Amount    |\n| -------------------------------------------------------------------------------------------------------------- | ------------ | --------- |\n| For Services provided during the month of January-2026 as per details given below :                            |              |           |\n| Plot no. 5, Software Units Layout, JVP Building, South Wing 4th Floor, Hitec City, Madhapur, Hyderabad, 500081 |              |           |\n| 1 X 8HR Housekeeping Boy @ 22624.00- For ( 192.00 HRS )                                                        | 998533       | 20,883.69 |\n| 1 X 8HR Office Boy @ 24663.00                                                                                  | 998599       | 24,663.00 |\n|                                                                                                                |              | 45,546.69 |\n| our                                                                                                            | CGST 9%      | 4,099.20  |\n| Pan No.----> AAB-CG-8346B                                                                                      | SGST 9%      | 4,099.20  |\n| FIFTY THREE THOUSAND SEVEN HUNDRED FORTY FIVE ONLY                                                             | TOTAL DUE    | 53,745.00 |",
+      "page": 1,
+      "bbox": [
+        490.058,
+        378.863,
+        561.01,
+        474.703
+      ],
+      "blockType": "table",
+      "bboxNormalized": [
+        0.8236822643539061,
+        0.44999881223869254,
+        0.9429373403254,
+        0.5638338559483086
+      ]
+    },
+    {
+      "text": "| Service Details                                                                                                | HSN/SAC Code | Amount    |\n| -------------------------------------------------------------------------------------------------------------- | ------------ | --------- |\n| For Services provided during the month of January-2026 as per details given below :                            |              |           |\n| Plot no. 5, Software Units Layout, JVP Building, South Wing 4th Floor, Hitec City, Madhapur, Hyderabad, 500081 |              |           |\n| 1 X 8HR Housekeeping Boy @ 22624.00- For ( 192.00 HRS )                                                        | 998533       | 20,883.69 |\n| 1 X 8HR Office Boy @ 24663.00                                                                                  | 998599       | 24,663.00 |\n|                                                                                                                |              | 45,546.69 |\n| our                                                                                                            | CGST 9%      | 4,099.20  |\n| Pan No.----> AAB-CG-8346B                                                                                      | SGST 9%      | 4,099.20  |\n| FIFTY THREE THOUSAND SEVEN HUNDRED FORTY FIVE ONLY                                                             | TOTAL DUE    | 53,745.00 |",
+      "page": 1,
+      "bbox": [
+        35.018,
+        416.614,
+        382.07500000000005,
+        423.614
+      ],
+      "blockType": "table",
+      "bboxNormalized": [
+        0.058857738335350275,
+        0.49483798935765866,
+        0.642186029312895,
+        0.5031523185100722
+      ]
+    },
+    {
+      "text": "| Service Details                                                                                                | HSN/SAC Code | Amount    |\n| -------------------------------------------------------------------------------------------------------------- | ------------ | --------- |\n| For Services provided during the month of January-2026 as per details given below :                            |              |           |\n| Plot no. 5, Software Units Layout, JVP Building, South Wing 4th Floor, Hitec City, Madhapur, Hyderabad, 500081 |              |           |\n| 1 X 8HR Housekeeping Boy @ 22624.00- For ( 192.00 HRS )                                                        | 998533       | 20,883.69 |\n| 1 X 8HR Office Boy @ 24663.00                                                                                  | 998599       | 24,663.00 |\n|                                                                                                                |              | 45,546.69 |\n| our                                                                                                            | CGST 9%      | 4,099.20  |\n| Pan No.----> AAB-CG-8346B                                                                                      | SGST 9%      | 4,099.20  |\n| FIFTY THREE THOUSAND SEVEN HUNDRED FORTY FIVE ONLY                                                             | TOTAL DUE    | 53,745.00 |",
+      "page": 1,
+      "bbox": [
+        37.98,
+        445.647,
+        62.533,
+        452.647
+      ],
+      "blockType": "table",
+      "bboxNormalized": [
+        0.06383622428398547,
+        0.5293222633979475,
+        0.10510454484335081,
+        0.5376365925503611
+      ]
+    },
+    {
+      "text": "| Service Details                                                                                                | HSN/SAC Code | Amount    |\n| -------------------------------------------------------------------------------------------------------------- | ------------ | --------- |\n| For Services provided during the month of January-2026 as per details given below :                            |              |           |\n| Plot no. 5, Software Units Layout, JVP Building, South Wing 4th Floor, Hitec City, Madhapur, Hyderabad, 500081 |              |           |\n| 1 X 8HR Housekeeping Boy @ 22624.00- For ( 192.00 HRS )                                                        | 998533       | 20,883.69 |\n| 1 X 8HR Office Boy @ 24663.00                                                                                  | 998599       | 24,663.00 |\n|                                                                                                                |              | 45,546.69 |\n| our                                                                                                            | CGST 9%      | 4,099.20  |\n| Pan No.----> AAB-CG-8346B                                                                                      | SGST 9%      | 4,099.20  |\n| FIFTY THREE THOUSAND SEVEN HUNDRED FORTY FIVE ONLY                                                             | TOTAL DUE    | 53,745.00 |",
+      "page": 1,
+      "bbox": [
+        80.399,
+        426.687,
+        231.932,
+        433.687
+      ],
+      "blockType": "table",
+      "bboxNormalized": [
+        0.13513345434987226,
+        0.5068023090079818,
+        0.3898278875890816,
+        0.5151166381603953
+      ]
+    },
+    {
+      "text": "| Service Details                                                                                                | HSN/SAC Code | Amount    |\n| -------------------------------------------------------------------------------------------------------------- | ------------ | --------- |\n| For Services provided during the month of January-2026 as per details given below :                            |              |           |\n| Plot no. 5, Software Units Layout, JVP Building, South Wing 4th Floor, Hitec City, Madhapur, Hyderabad, 500081 |              |           |\n| 1 X 8HR Housekeeping Boy @ 22624.00- For ( 192.00 HRS )                                                        | 998533       | 20,883.69 |\n| 1 X 8HR Office Boy @ 24663.00                                                                                  | 998599       | 24,663.00 |\n|                                                                                                                |              | 45,546.69 |\n| our                                                                                                            | CGST 9%      | 4,099.20  |\n| Pan No.----> AAB-CG-8346B                                                                                      | SGST 9%      | 4,099.20  |\n| FIFTY THREE THOUSAND SEVEN HUNDRED FORTY FIVE ONLY                                                             | TOTAL DUE    | 53,745.00 |",
+      "page": 1,
+      "bbox": [
+        37.98,
+        445.647,
+        62.533,
+        452.647
+      ],
+      "blockType": "table",
+      "bboxNormalized": [
+        0.06383622428398547,
+        0.5293222633979475,
+        0.10510454484335081,
+        0.5376365925503611
+      ]
+    },
+    {
+      "text": "| Service Details                                                                                                | HSN/SAC Code | Amount    |\n| -------------------------------------------------------------------------------------------------------------- | ------------ | --------- |\n| For Services provided during the month of January-2026 as per details given below :                            |              |           |\n| Plot no. 5, Software Units Layout, JVP Building, South Wing 4th Floor, Hitec City, Madhapur, Hyderabad, 500081 |              |           |\n| 1 X 8HR Housekeeping Boy @ 22624.00- For ( 192.00 HRS )                                                        | 998533       | 20,883.69 |\n| 1 X 8HR Office Boy @ 24663.00                                                                                  | 998599       | 24,663.00 |\n|                                                                                                                |              | 45,546.69 |\n| our                                                                                                            | CGST 9%      | 4,099.20  |\n| Pan No.----> AAB-CG-8346B                                                                                      | SGST 9%      | 4,099.20  |\n| FIFTY THREE THOUSAND SEVEN HUNDRED FORTY FIVE ONLY                                                             | TOTAL DUE    | 53,745.00 |",
+      "page": 1,
+      "bbox": [
+        80.399,
+        445.647,
+        150.759,
+        452.647
+      ],
+      "blockType": "table",
+      "bboxNormalized": [
+        0.13513345434987226,
+        0.5293222633979475,
+        0.25339350544574424,
+        0.5376365925503611
+      ]
+    },
+    {
+      "text": "| Service Details                                                                                                | HSN/SAC Code | Amount    |\n| -------------------------------------------------------------------------------------------------------------- | ------------ | --------- |\n| For Services provided during the month of January-2026 as per details given below :                            |              |           |\n| Plot no. 5, Software Units Layout, JVP Building, South Wing 4th Floor, Hitec City, Madhapur, Hyderabad, 500081 |              |           |\n| 1 X 8HR Housekeeping Boy @ 22624.00- For ( 192.00 HRS )                                                        | 998533       | 20,883.69 |\n| 1 X 8HR Office Boy @ 24663.00                                                                                  | 998599       | 24,663.00 |\n|                                                                                                                |              | 45,546.69 |\n| our                                                                                                            | CGST 9%      | 4,099.20  |\n| Pan No.----> AAB-CG-8346B                                                                                      | SGST 9%      | 4,099.20  |\n| FIFTY THREE THOUSAND SEVEN HUNDRED FORTY FIVE ONLY                                                             | TOTAL DUE    | 53,745.00 |",
+      "page": 1,
+      "bbox": [
+        51.61,
+        480.43,
+        64.61,
+        490.43
+      ],
+      "blockType": "table",
+      "bboxNormalized": [
+        0.0867453274169692,
+        0.5706361649562904,
+        0.1085955358343418,
+        0.5825137780311669
+      ]
+    },
+    {
+      "text": "| Service Details                                                                                                | HSN/SAC Code | Amount    |\n| -------------------------------------------------------------------------------------------------------------- | ------------ | --------- |\n| For Services provided during the month of January-2026 as per details given below :                            |              |           |\n| Plot no. 5, Software Units Layout, JVP Building, South Wing 4th Floor, Hitec City, Madhapur, Hyderabad, 500081 |              |           |\n| 1 X 8HR Housekeeping Boy @ 22624.00- For ( 192.00 HRS )                                                        | 998533       | 20,883.69 |\n| 1 X 8HR Office Boy @ 24663.00                                                                                  | 998599       | 24,663.00 |\n|                                                                                                                |              | 45,546.69 |\n| our                                                                                                            | CGST 9%      | 4,099.20  |\n| Pan No.----> AAB-CG-8346B                                                                                      | SGST 9%      | 4,099.20  |\n| FIFTY THREE THOUSAND SEVEN HUNDRED FORTY FIVE ONLY                                                             | TOTAL DUE    | 53,745.00 |",
+      "page": 1,
+      "bbox": [
+        324.806,
+        480.426,
+        365.061,
+        490.426
+      ],
+      "blockType": "table",
+      "bboxNormalized": [
+        0.5459291380933171,
+        0.5706314139110604,
+        0.6135891488503428,
+        0.5825090269859369
+      ]
+    },
+    {
+      "text": "| Service Details                                                                                                | HSN/SAC Code | Amount    |\n| -------------------------------------------------------------------------------------------------------------- | ------------ | --------- |\n| For Services provided during the month of January-2026 as per details given below :                            |              |           |\n| Plot no. 5, Software Units Layout, JVP Building, South Wing 4th Floor, Hitec City, Madhapur, Hyderabad, 500081 |              |           |\n| 1 X 8HR Housekeeping Boy @ 22624.00- For ( 192.00 HRS )                                                        | 998533       | 20,883.69 |\n| 1 X 8HR Office Boy @ 24663.00                                                                                  | 998599       | 24,663.00 |\n|                                                                                                                |              | 45,546.69 |\n| our                                                                                                            | CGST 9%      | 4,099.20  |\n| Pan No.----> AAB-CG-8346B                                                                                      | SGST 9%      | 4,099.20  |\n| FIFTY THREE THOUSAND SEVEN HUNDRED FORTY FIVE ONLY                                                             | TOTAL DUE    | 53,745.00 |",
+      "page": 1,
+      "bbox": [
+        521.46,
+        480.293,
+        555.493,
+        505.513
+      ],
+      "blockType": "table",
+      "bboxNormalized": [
+        0.8764622831787011,
+        0.5704734416571646,
+        0.9336644480301197,
+        0.600428781832003
+      ]
+    },
+    {
+      "text": "| Service Details                                                                                                | HSN/SAC Code | Amount    |\n| -------------------------------------------------------------------------------------------------------------- | ------------ | --------- |\n| For Services provided during the month of January-2026 as per details given below :                            |              |           |\n| Plot no. 5, Software Units Layout, JVP Building, South Wing 4th Floor, Hitec City, Madhapur, Hyderabad, 500081 |              |           |\n| 1 X 8HR Housekeeping Boy @ 22624.00- For ( 192.00 HRS )                                                        | 998533       | 20,883.69 |\n| 1 X 8HR Office Boy @ 24663.00                                                                                  | 998599       | 24,663.00 |\n|                                                                                                                |              | 45,546.69 |\n| our                                                                                                            | CGST 9%      | 4,099.20  |\n| Pan No.----> AAB-CG-8346B                                                                                      | SGST 9%      | 4,099.20  |\n| FIFTY THREE THOUSAND SEVEN HUNDRED FORTY FIVE ONLY                                                             | TOTAL DUE    | 53,745.00 |",
+      "page": 1,
+      "bbox": [
+        51.44,
+        495.93,
+        166.72,
+        503.7
+      ],
+      "blockType": "table",
+      "bboxNormalized": [
+        0.08645959392228048,
+        0.5890464652223489,
+        0.28022051902648915,
+        0.5982753705815279
+      ]
+    },
+    {
+      "text": "| Service Details                                                                                                | HSN/SAC Code | Amount    |\n| -------------------------------------------------------------------------------------------------------------- | ------------ | --------- |\n| For Services provided during the month of January-2026 as per details given below :                            |              |           |\n| Plot no. 5, Software Units Layout, JVP Building, South Wing 4th Floor, Hitec City, Madhapur, Hyderabad, 500081 |              |           |\n| 1 X 8HR Housekeeping Boy @ 22624.00- For ( 192.00 HRS )                                                        | 998533       | 20,883.69 |\n| 1 X 8HR Office Boy @ 24663.00                                                                                  | 998599       | 24,663.00 |\n|                                                                                                                |              | 45,546.69 |\n| our                                                                                                            | CGST 9%      | 4,099.20  |\n| Pan No.----> AAB-CG-8346B                                                                                      | SGST 9%      | 4,099.20  |\n| FIFTY THREE THOUSAND SEVEN HUNDRED FORTY FIVE ONLY                                                             | TOTAL DUE    | 53,745.00 |",
+      "page": 1,
+      "bbox": [
+        324.806,
+        494.646,
+        363.876,
+        504.646
+      ],
+      "blockType": "table",
+      "bboxNormalized": [
+        0.5459291380933171,
+        0.5875213797035348,
+        0.6115974183138362,
+        0.5993989927784112
+      ]
+    },
+    {
+      "text": "| Service Details                                                                                                | HSN/SAC Code | Amount    |\n| -------------------------------------------------------------------------------------------------------------- | ------------ | --------- |\n| For Services provided during the month of January-2026 as per details given below :                            |              |           |\n| Plot no. 5, Software Units Layout, JVP Building, South Wing 4th Floor, Hitec City, Madhapur, Hyderabad, 500081 |              |           |\n| 1 X 8HR Housekeeping Boy @ 22624.00- For ( 192.00 HRS )                                                        | 998533       | 20,883.69 |\n| 1 X 8HR Office Boy @ 24663.00                                                                                  | 998599       | 24,663.00 |\n|                                                                                                                |              | 45,546.69 |\n| our                                                                                                            | CGST 9%      | 4,099.20  |\n| Pan No.----> AAB-CG-8346B                                                                                      | SGST 9%      | 4,099.20  |\n| FIFTY THREE THOUSAND SEVEN HUNDRED FORTY FIVE ONLY                                                             | TOTAL DUE    | 53,745.00 |",
+      "page": 1,
+      "bbox": [
+        34.425,
+        509.918,
+        298.755,
+        532.176
+      ],
+      "blockType": "table",
+      "bboxNormalized": [
+        0.057861032674465504,
+        0.6056608703914862,
+        0.5021430012101653,
+        0.6320980615735463
+      ]
+    },
+    {
+      "text": "| Service Details                                                                                                | HSN/SAC Code | Amount    |\n| -------------------------------------------------------------------------------------------------------------- | ------------ | --------- |\n| For Services provided during the month of January-2026 as per details given below :                            |              |           |\n| Plot no. 5, Software Units Layout, JVP Building, South Wing 4th Floor, Hitec City, Madhapur, Hyderabad, 500081 |              |           |\n| 1 X 8HR Housekeeping Boy @ 22624.00- For ( 192.00 HRS )                                                        | 998533       | 20,883.69 |\n| 1 X 8HR Office Boy @ 24663.00                                                                                  | 998599       | 24,663.00 |\n|                                                                                                                |              | 45,546.69 |\n| our                                                                                                            | CGST 9%      | 4,099.20  |\n| Pan No.----> AAB-CG-8346B                                                                                      | SGST 9%      | 4,099.20  |\n| FIFTY THREE THOUSAND SEVEN HUNDRED FORTY FIVE ONLY                                                             | TOTAL DUE    | 53,745.00 |",
+      "page": 1,
+      "bbox": [
+        330.138,
+        518.213,
+        384.131,
+        529.213
+      ],
+      "blockType": "table",
+      "bboxNormalized": [
+        0.5548910851149657,
+        0.6155133504370961,
+        0.6456417238133655,
+        0.6285787248194603
+      ]
+    },
+    {
+      "text": "| Service Details                                                                                                | HSN/SAC Code | Amount    |\n| -------------------------------------------------------------------------------------------------------------- | ------------ | --------- |\n| For Services provided during the month of January-2026 as per details given below :                            |              |           |\n| Plot no. 5, Software Units Layout, JVP Building, South Wing 4th Floor, Hitec City, Madhapur, Hyderabad, 500081 |              |           |\n| 1 X 8HR Housekeeping Boy @ 22624.00- For ( 192.00 HRS )                                                        | 998533       | 20,883.69 |\n| 1 X 8HR Office Boy @ 24663.00                                                                                  | 998599       | 24,663.00 |\n|                                                                                                                |              | 45,546.69 |\n| our                                                                                                            | CGST 9%      | 4,099.20  |\n| Pan No.----> AAB-CG-8346B                                                                                      | SGST 9%      | 4,099.20  |\n| FIFTY THREE THOUSAND SEVEN HUNDRED FORTY FIVE ONLY                                                             | TOTAL DUE    | 53,745.00 |",
+      "page": 1,
+      "bbox": [
+        513.757,
+        515.251,
+        555.493,
+        526.251
+      ],
+      "blockType": "table",
+      "bboxNormalized": [
+        0.8635151942987762,
+        0.6119952014443177,
+        0.9336644480301197,
+        0.6250605758266818
+      ]
+    },
+    {
+      "text": "* Interest @24% P.A. will be charged if the bill is not paid before due date as per contract.\n* Kindly pay by cheque / demand draft only in favour of the Company\n* For prompt updation of payment an advice with details is a must. Please mail your remittance advice at <advices.facility@in.g4s.com>.\n* Prompt issue of TDS certificate will be appreciated.",
+      "page": 1,
+      "bbox": [
+        47.31,
+        546.07,
+        374.76,
+        591.6400000000001
+      ],
+      "blockType": "list",
+      "bboxNormalized": [
+        0.0795179507866075,
+        0.6486008171797797,
+        0.6298910851149656,
+        0.7027270999619918
+      ]
+    },
+    {
+      "text": "NOTE : - In the event of any query concerning this invoice please contact the above local office quoting the invoice number.",
+      "page": 1,
+      "bbox": [
+        33.16363674852325,
+        616.0100472942074,
+        485.9637007002668,
+        624.9709886432928
+      ],
+      "blockType": "text",
+      "bboxNormalized": [
+        0.05574095191025153,
+        0.7316728991996952,
+        0.8168006264291159,
+        0.7423163586128051
+      ]
+    },
+    {
+      "text": " Our Centre is open 24/7 for your service needs.",
+      "page": 1,
+      "bbox": [
+        33.130640198051644,
+        643.2184375381098,
+        387.8415339557928,
+        659.0852024199695
+      ],
+      "blockType": "text",
+      "bboxNormalized": [
+        0.05568549179449315,
+        0.763989972370427,
+        0.6518783346036586,
+        0.7828359017721037
+      ]
+    },
+    {
+      "text": "For G4S Facility Services (India) Pvt. Ltd.",
+      "page": 1,
+      "bbox": [
+        423.73380961794976,
+        662.7730642911586,
+        561.8406214081556,
+        671.704527210366
+      ],
+      "blockType": "text",
+      "bboxNormalized": [
+        0.7122055425876525,
+        0.787216201410061,
+        0.9443334365472562,
+        0.7978246474847563
+      ]
+    },
+    {
+      "text": "Authorized Signatory",
+      "page": 1,
+      "bbox": [
+        480.60004078696653,
+        688.2316991615853,
+        561.6399938786205,
+        697.5595166158536
+      ],
+      "blockType": "text",
+      "bboxNormalized": [
+        0.8077854658917684,
+        0.8174549828506097,
+        0.9439962247522867,
+        0.8285342035060975
+      ]
+    },
+    {
+      "text": "\"Note: This is a computer generated document and does not require any signature.\"",
+      "page": 1,
+      "bbox": [
+        176.23341138052595,
+        760.4544038300305,
+        419.092132474276,
+        767.1312681974085
+      ],
+      "blockType": "text",
+      "bboxNormalized": [
+        0.29621052067454273,
+        0.9032383169778965,
+        0.7044038800495428,
+        0.911168838128811
+      ]
+    },
+    {
+      "text": "3rd floor, The iconic Plot no. 47,, Okhla Industrial Estate, Phase-III New Delhi - 110020\nTel.: 011-66222900 Fax : 01166222901 Web:- www.g4s.com CIN - U67120DL1981PTC102278\n\nabout:blank 1/1",
+      "page": 1,
+      "bbox": [
+        24,
+        763,
+        570.74,
+        827.51
+      ],
+      "blockType": "footer",
+      "bboxNormalized": [
+        0.04033884630899556,
+        0.906261877613075,
+        0.9592913809331719,
+        0.982884359559103
+      ]
+    }
+  ],
+  "fieldProvenance": {
+    "invoiceNumber": {
+      "source": "text-pattern",
+      "page": 1,
+      "bboxNormalized": [
+        0.6853738066424633,
+        0.33893956670467507,
+        0.9165826274035227,
+        0.35200494108703917
+      ],
+      "confidence": 0.9999999757984191
+    },
+    "vendorName": {
+      "source": "text-pattern",
+      "page": 1,
+      "bboxNormalized": [
+        0.7122055425876525,
+        0.787216201410061,
+        0.9443334365472562,
+        0.7978246474847563
+      ],
+      "confidence": 0.9999999441310589
+    },
+    "vendorAddress": {
+      "source": "text-pattern",
+      "page": 1,
+      "bboxNormalized": [
+        0.05886109990587603,
+        0.19855805777271,
+        0.5037649589888396,
+        0.22024657924743443
+      ],
+      "confidence": 0.9997274098732013
+    },
+    "vendorGstin": {
+      "source": "text-pattern",
+      "page": 1,
+      "bboxNormalized": [
+        0.05886109990587603,
+        0.22530644241733183,
+        0.5004033884630898,
+        0.2688141391106043
+      ],
+      "confidence": 0.9999999784874837
+    },
+    "vendorPan": {
+      "source": "text-pattern",
+      "page": 1,
+      "confidence": 0.9999985919543982
+    },
+    "customerName": {
+      "source": "text-pattern",
+      "page": 1,
+      "bboxNormalized": [
+        0.06383622428398547,
+        0.35268196503230714,
+        0.27571601452198463,
+        0.3609962941847207
+      ],
+      "confidence": 0.9999997705516244
+    },
+    "customerAddress": {
+      "source": "text-pattern",
+      "page": 1,
+      "bboxNormalized": [
+        0.05886109990587603,
+        0.49483323831242876,
+        0.6421944332392093,
+        0.5031475674648423
+      ],
+      "confidence": 0.9999762058508274
+    },
+    "customerGstin": {
+      "source": "text-pattern",
+      "page": 1,
+      "bboxNormalized": [
+        0.41468334005647434,
+        0.40680824781451924,
+        0.5451963157187038,
+        0.4151225769669327
+      ],
+      "confidence": 1
+    },
+    "invoiceDate": {
+      "source": "text-pattern",
+      "page": 1,
+      "bboxNormalized": [
+        0.6734093345083842,
+        0.33242035656440555,
+        0.9458948647103659,
+        0.44115502334222567
+      ],
+      "confidence": 1
+    },
+    "dueDate": {
+      "source": "text-pattern",
+      "page": 1,
+      "bboxNormalized": [
+        0.10367083501411858,
+        0.24852717597871535,
+        0.39222804894446683,
+        0.25684150513112886
+      ],
+      "confidence": 0.9669013055598285
+    },
+    "currency": {
+      "source": "text-pattern",
+      "page": 1,
+      "confidence": 0.9901
+    },
+    "totalAmountMinor": {
+      "source": "text-pattern",
+      "page": 1,
+      "bboxNormalized": [
+        0.8635151942987762,
+        0.6119952014443177,
+        0.9336644480301197,
+        0.6250605758266818
+      ],
+      "confidence": 1
+    },
+    "pan": {
+      "source": "text-pattern",
+      "page": 1,
+      "confidence": 0.9901
+    },
+    "gst.gstin": {
+      "source": "text-pattern",
+      "page": 1,
+      "confidence": 0.9901
+    },
+    "gst.subtotalMinor": {
+      "source": "text-pattern",
+      "page": 1,
+      "bbox": [
+        32.7228,
+        373.81248,
+        562.2372,
+        527.0419199999999
+      ],
+      "bboxNormalized": [
+        0.05499999999999999,
+        0.444,
+        0.945,
+        0.6259999999999999
+      ],
+      "blockIndex": 48,
+      "confidence": 0.9901
+    },
+    "gst.cgstMinor": {
+      "source": "text-pattern",
+      "page": 1,
+      "bbox": [
+        32.7228,
+        373.81248,
+        562.2372,
+        527.0419199999999
+      ],
+      "bboxNormalized": [
+        0.05499999999999999,
+        0.444,
+        0.945,
+        0.6259999999999999
+      ],
+      "blockIndex": 48,
+      "confidence": 0.9901
+    },
+    "gst.sgstMinor": {
+      "source": "text-pattern",
+      "page": 1,
+      "bbox": [
+        32.7228,
+        373.81248,
+        562.2372,
+        527.0419199999999
+      ],
+      "bboxNormalized": [
+        0.05499999999999999,
+        0.444,
+        0.945,
+        0.6259999999999999
+      ],
+      "blockIndex": 48,
+      "confidence": 0.9901
+    },
+    "gst.igstMinor": {
+      "source": "text-pattern",
+      "page": 1,
+      "bbox": [
+        34.31615563905298,
+        167.07924107755338,
+        299.3531022627668,
+        226.5448168159299
+      ],
+      "bboxNormalized": [
+        0.05767808867663873,
+        0.19845025783631864,
+        0.5031482826791159,
+        0.26908116782583846
+      ],
+      "blockIndex": 9,
+      "confidence": 0.9901
+    },
+    "gst.cessMinor": {
+      "source": "text-pattern",
+      "page": 1,
+      "bbox": [
+        34.31615563905298,
+        167.07924107755338,
+        299.3531022627668,
+        226.5448168159299
+      ],
+      "bboxNormalized": [
+        0.05767808867663873,
+        0.19845025783631864,
+        0.5031482826791159,
+        0.26908116782583846
+      ],
+      "blockIndex": 9,
+      "confidence": 0.9901
+    },
+    "gst.totalTaxMinor": {
+      "source": "text-pattern",
+      "page": 1,
+      "confidence": 0.9901
+    }
+  },
+  "lineItemProvenance": [
+    {
+      "index": 0,
+      "row": {
+        "source": "text-pattern",
+        "page": 1,
+        "bboxNormalized": [
+          0.05499999999999999,
+          0.444,
+          0.945,
+          0.6259999999999999
+        ],
+        "confidence": 0.8467
+      },
+      "fields": {
+        "description": {
+          "source": "text-pattern",
+          "page": 1,
+          "bbox": [
+            32.7228,
+            373.81248,
+            562.2372,
+            527.0419199999999
+          ],
+          "bboxNormalized": [
+            0.05499999999999999,
+            0.444,
+            0.945,
+            0.6259999999999999
+          ],
+          "blockIndex": 48,
+          "confidence": 0.82
+        },
+        "hsnSac": {
+          "source": "text-pattern",
+          "page": 1,
+          "bbox": [
+            32.7228,
+            373.81248,
+            562.2372,
+            527.0419199999999
+          ],
+          "bboxNormalized": [
+            0.05499999999999999,
+            0.444,
+            0.945,
+            0.6259999999999999
+          ],
+          "blockIndex": 48,
+          "confidence": 0.82
+        },
+        "amountMinor": {
+          "source": "text-pattern",
+          "page": 1,
+          "bbox": [
+            32.7228,
+            373.81248,
+            562.2372,
+            527.0419199999999
+          ],
+          "bboxNormalized": [
+            0.05499999999999999,
+            0.444,
+            0.945,
+            0.6259999999999999
+          ],
+          "blockIndex": 48,
+          "confidence": 0.9
+        }
+      }
+    },
+    {
+      "index": 1,
+      "row": {
+        "source": "text-pattern",
+        "page": 1,
+        "bboxNormalized": [
+          0.05499999999999999,
+          0.444,
+          0.945,
+          0.6259999999999999
+        ],
+        "confidence": 0.8467
+      },
+      "fields": {
+        "description": {
+          "source": "text-pattern",
+          "page": 1,
+          "bbox": [
+            32.7228,
+            373.81248,
+            562.2372,
+            527.0419199999999
+          ],
+          "bboxNormalized": [
+            0.05499999999999999,
+            0.444,
+            0.945,
+            0.6259999999999999
+          ],
+          "blockIndex": 48,
+          "confidence": 0.82
+        },
+        "hsnSac": {
+          "source": "text-pattern",
+          "page": 1,
+          "bbox": [
+            32.7228,
+            373.81248,
+            562.2372,
+            527.0419199999999
+          ],
+          "bboxNormalized": [
+            0.05499999999999999,
+            0.444,
+            0.945,
+            0.6259999999999999
+          ],
+          "blockIndex": 48,
+          "confidence": 0.82
+        },
+        "amountMinor": {
+          "source": "text-pattern",
+          "page": 1,
+          "bbox": [
+            32.7228,
+            373.81248,
+            562.2372,
+            527.0419199999999
+          ],
+          "bboxNormalized": [
+            0.05499999999999999,
+            0.444,
+            0.945,
+            0.6259999999999999
+          ],
+          "blockIndex": 48,
+          "confidence": 0.9
+        }
+      }
+    }
+  ],
+  "extraction": {
+    "source": "llamaextract",
+    "strategy": "llamaextract",
+    "provider": "llamaparse",
+    "parsingConfidence": 0.9901,
+    "extractionConfidence": 95,
+    "fieldConfidence": {
+      "invoiceNumber": 1,
+      "vendorName": 1,
+      "vendorAddress": 0.9997,
+      "vendorGstin": 1,
+      "vendorPan": 1,
+      "customerName": 1,
+      "customerAddress": 1,
+      "customerGstin": 1,
+      "invoiceDate": 1,
+      "dueDate": 0.9669,
+      "currency": 0.9901,
+      "totalAmountMinor": 1,
+      "pan": 0.9901,
+      "gst.gstin": 0.9901,
+      "gst.subtotalMinor": 0.9901,
+      "gst.cgstMinor": 0.9901,
+      "gst.sgstMinor": 0.9901,
+      "gst.igstMinor": 0.9901,
+      "gst.cessMinor": 0.9901,
+      "gst.totalTaxMinor": 0.9901,
+      "lineItems.0.description": 0.82,
+      "lineItems.0.hsnSac": 0.82,
+      "lineItems.0.amountMinor": 0.9,
+      "lineItems.1.description": 0.82,
+      "lineItems.1.hsnSac": 0.82,
+      "lineItems.1.amountMinor": 0.9
+    }
+  },
+  "confidenceScore": 95,
+  "confidenceTone": "green",
+  "previewPageImages": {
+    "1": "preview-page-1.png"
+  }
+}

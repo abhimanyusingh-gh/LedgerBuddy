@@ -1,0 +1,1627 @@
+{
+  "sourceFilename": "INV-FY2526-939.pdf",
+  "mimeType": "application/pdf",
+  "parsed": {
+    "invoiceNumber": "INV-FY2526-939",
+    "vendorName": "SPRINTO TECHNOLOGY PRIVATE LIMITED",
+    "vendorAddress": "Cabin 4.21, 4th Floor, 175 & 176\nBannerghatta Main Rd, Dollars Colony\nBengaluru Karnataka 560076\nIndia",
+    "vendorGstin": "29ABCCS8316F1Z7",
+    "vendorPan": "ABCCS8316F",
+    "customerName": "Global Innovation Hub Private Limited",
+    "customerAddress": "8th Floor, Sanali Spazio, Hitech City\nHyderabad\n500081 Telangana\nIndia",
+    "invoiceDate": "2026-03-15T00:00:00.000Z",
+    "dueDate": "2026-03-22T00:00:00.000Z",
+    "currency": "INR",
+    "totalAmountMinor": 11151000,
+    "gst": {
+      "gstin": "29ABCCS8316F1Z7",
+      "subtotalMinor": 9450000,
+      "cgstMinor": 850500,
+      "sgstMinor": 850500,
+      "igstMinor": 0,
+      "cessMinor": 0,
+      "totalTaxMinor": 1701000
+    },
+    "lineItems": [
+      {
+        "description": "Foundational Framework\nHIPAA Add on 2026-03-15\n2026-06-15",
+        "amountMinor": 1575000,
+        "hsnSac": "997331",
+        "quantity": 1,
+        "rate": 15750,
+        "taxRate": 18,
+        "cgstMinor": 141750,
+        "sgstMinor": 141750,
+        "igstMinor": 0
+      },
+      {
+        "description": "Starter Plan\nISO 27001 + Platform 2026-03-15 2026-06-15",
+        "amountMinor": 7875000,
+        "hsnSac": "997331",
+        "quantity": 1,
+        "rate": 78750,
+        "taxRate": 18,
+        "cgstMinor": 708750,
+        "sgstMinor": 708750,
+        "igstMinor": 0
+      }
+    ],
+    "pan": "ABCCS8316F"
+  },
+  "ocrBlocks": [
+    {
+      "text": "Sprinto Logo",
+      "page": 1,
+      "bbox": [
+        44.7916329615151,
+        51.646030312403234,
+        160.64336651045636,
+        166.0069583499071
+      ],
+      "blockType": "image",
+      "bboxNormalized": [
+        0.07522695401819741,
+        0.061359919106088026,
+        0.2697984053448933,
+        0.1972305223418445
+      ]
+    },
+    {
+      "text": "SPRINTO TECHNOLOGY PRIVATE LIMITED",
+      "page": 1,
+      "bbox": [
+        174.9440866079935,
+        60.06694301995999,
+        367.403312516673,
+        82.26006636605612
+      ],
+      "blockType": "heading",
+      "bboxNormalized": [
+        0.2938162752477134,
+        0.0713646865472561,
+        0.6170489948551829,
+        0.09773202291349085
+      ]
+    },
+    {
+      "text": "sprinto-billing@sprinto.com",
+      "page": 1,
+      "bbox": [
+        174.45806,
+        87.53576,
+        331.05352,
+        161.60448
+      ],
+      "blockType": "link",
+      "bboxNormalized": [
+        0.293,
+        0.104,
+        0.556,
+        0.19199999999999998
+      ]
+    },
+    {
+      "text": "Cabin 4.21, 4th Floor, 175 & 176\nBannerghatta Main Rd, Dollars Colony\nBengaluru Karnataka 560076\nIndia\nGSTIN 29ABCCS8316F1Z7\nMSME/Udyam No - UDYAM-KR-03-0261470\n",
+      "page": 1,
+      "bbox": [
+        175.35,
+        88.76,
+        312.74,
+        124.44
+      ],
+      "blockType": "text",
+      "bboxNormalized": [
+        0.2944980014107689,
+        0.10545450225142274,
+        0.5252426858352088,
+        0.1478454062659649
+      ]
+    },
+    {
+      "text": "Cabin 4.21, 4th Floor, 175 & 176\nBannerghatta Main Rd, Dollars Colony\nBengaluru Karnataka 560076\nIndia\nGSTIN 29ABCCS8316F1Z7\nMSME/Udyam No - UDYAM-KR-03-0261470\n",
+      "page": 1,
+      "bbox": [
+        175.35,
+        125.77,
+        269.3,
+        133.76999999999998
+      ],
+      "blockType": "text",
+      "bboxNormalized": [
+        0.2944980014107689,
+        0.14942556047951144,
+        0.4522857814651843,
+        0.1589302474782877
+      ]
+    },
+    {
+      "text": "Cabin 4.21, 4th Floor, 175 & 176\nBannerghatta Main Rd, Dollars Colony\nBengaluru Karnataka 560076\nIndia\nGSTIN 29ABCCS8316F1Z7\nMSME/Udyam No - UDYAM-KR-03-0261470\n",
+      "page": 1,
+      "bbox": [
+        175.35,
+        134.84,
+        240.22,
+        142.99
+      ],
+      "blockType": "text",
+      "bboxNormalized": [
+        0.2944980014107689,
+        0.16020149936437406,
+        0.4034463068086393,
+        0.16988439924437737
+      ]
+    },
+    {
+      "text": "Cabin 4.21, 4th Floor, 175 & 176\nBannerghatta Main Rd, Dollars Colony\nBengaluru Karnataka 560076\nIndia\nGSTIN 29ABCCS8316F1Z7\nMSME/Udyam No - UDYAM-KR-03-0261470\n",
+      "page": 1,
+      "bbox": [
+        244.83,
+        134.99,
+        330.83000000000004,
+        142.99
+      ],
+      "blockType": "text",
+      "bboxNormalized": [
+        0.4111887407208358,
+        0.1603797122456011,
+        0.5556246011218973,
+        0.16988439924437737
+      ]
+    },
+    {
+      "text": "TAX INVOICE",
+      "page": 1,
+      "bbox": [
+        429.9643205316311,
+        143.57044126676234,
+        561.3170514588891,
+        160.77478865341558
+      ],
+      "blockType": "heading",
+      "bboxNormalized": [
+        0.7221193788109757,
+        0.17057401331459604,
+        0.9427245498285061,
+        0.19101425543064024
+      ]
+    },
+    {
+      "text": "https://www.sprinto.com/",
+      "page": 1,
+      "bbox": [
+        175.35,
+        153.29,
+        269.35,
+        161.29
+      ],
+      "blockType": "link",
+      "bboxNormalized": [
+        0.2944980014107689,
+        0.1821216837553018,
+        0.4523697558026268,
+        0.1916263707540781
+      ]
+    },
+    {
+      "text": "Invoice Number: INV-FY2526-939\nInvoice Date: 15 Mar 2026\nTerms: Net 7\nDue Date: 22 Mar 2026\nP.O.#: I-IN-3959",
+      "page": 1,
+      "bbox": [
+        44.1,
+        172.58,
+        101.61,
+        180.68
+      ],
+      "blockType": "text",
+      "bboxNormalized": [
+        0.07406536562426523,
+        0.20503986028110113,
+        0.17065264855060294,
+        0.2146633558673621
+      ]
+    },
+    {
+      "text": "Invoice Number: INV-FY2526-939\nInvoice Date: 15 Mar 2026\nTerms: Net 7\nDue Date: 22 Mar 2026\nP.O.#: I-IN-3959",
+      "page": 1,
+      "bbox": [
+        175.44,
+        172.68,
+        236.44,
+        180.68
+      ],
+      "blockType": "text",
+      "bboxNormalized": [
+        0.29464915521816537,
+        0.2051586688685858,
+        0.397097846897988,
+        0.2146633558673621
+      ]
+    },
+    {
+      "text": "Invoice Number: INV-FY2526-939\nInvoice Date: 15 Mar 2026\nTerms: Net 7\nDue Date: 22 Mar 2026\nP.O.#: I-IN-3959",
+      "page": 1,
+      "bbox": [
+        44.1,
+        183.63,
+        89.61,
+        191.63
+      ],
+      "blockType": "text",
+      "bboxNormalized": [
+        0.07406536562426523,
+        0.21816820919816082,
+        0.15049880756440834,
+        0.2276728961969371
+      ]
+    },
+    {
+      "text": "Invoice Number: INV-FY2526-939\nInvoice Date: 15 Mar 2026\nTerms: Net 7\nDue Date: 22 Mar 2026\nP.O.#: I-IN-3959",
+      "page": 1,
+      "bbox": [
+        44.1,
+        172.68,
+        221.31,
+        213.53
+      ],
+      "blockType": "text",
+      "bboxNormalized": [
+        0.07406536562426523,
+        0.2051586688685858,
+        0.37168721238789426,
+        0.25369197685608713
+      ]
+    },
+    {
+      "text": "Invoice Number: INV-FY2526-939\nInvoice Date: 15 Mar 2026\nTerms: Net 7\nDue Date: 22 Mar 2026\nP.O.#: I-IN-3959",
+      "page": 1,
+      "bbox": [
+        44.1,
+        194.58,
+        196.62,
+        202.58
+      ],
+      "blockType": "text",
+      "bboxNormalized": [
+        0.07406536562426523,
+        0.23117774952773587,
+        0.3302206845587989,
+        0.24068243652651214
+      ]
+    },
+    {
+      "text": "Invoice Number: INV-FY2526-939\nInvoice Date: 15 Mar 2026\nTerms: Net 7\nDue Date: 22 Mar 2026\nP.O.#: I-IN-3959",
+      "page": 1,
+      "bbox": [
+        44.1,
+        183.63,
+        221.31,
+        213.53
+      ],
+      "blockType": "text",
+      "bboxNormalized": [
+        0.07406536562426523,
+        0.21816820919816082,
+        0.37168721238789426,
+        0.25369197685608713
+      ]
+    },
+    {
+      "text": "Invoice Number: INV-FY2526-939\nInvoice Date: 15 Mar 2026\nTerms: Net 7\nDue Date: 22 Mar 2026\nP.O.#: I-IN-3959",
+      "page": 1,
+      "bbox": [
+        44.1,
+        216.48,
+        210.44,
+        224.48
+      ],
+      "blockType": "text",
+      "bboxNormalized": [
+        0.07406536562426523,
+        0.2571968301868859,
+        0.35343119142789964,
+        0.26670151718566215
+      ]
+    },
+    {
+      "text": "Place Of Supply: Karnataka (29)",
+      "page": 1,
+      "bbox": [
+        307.24,
+        172.58,
+        363.62,
+        180.58
+      ],
+      "blockType": "text",
+      "bboxNormalized": [
+        0.5160055087165363,
+        0.20503986028110113,
+        0.610694971616674,
+        0.2145445472798774
+      ]
+    },
+    {
+      "text": "Place Of Supply: Karnataka (29)",
+      "page": 1,
+      "bbox": [
+        438.58,
+        172.53,
+        494.89,
+        180.59
+      ],
+      "blockType": "text",
+      "bboxNormalized": [
+        0.7365892983104364,
+        0.20498045598735876,
+        0.8311611971381546,
+        0.21455642813862585
+      ]
+    },
+    {
+      "text": "| Bill To | Ship To |\n| ------- | ------- |",
+      "page": 1,
+      "bbox": [
+        44.1,
+        235.2,
+        335.65000000000003,
+        243.29999999999998
+      ],
+      "blockType": "table",
+      "bboxNormalized": [
+        0.07406536562426523,
+        0.27943779776402233,
+        0.5637197272513521,
+        0.2890612933502833
+      ]
+    },
+    {
+      "text": "| Bill To | Ship To |\n| ------- | ------- |",
+      "page": 1,
+      "bbox": [
+        44.1,
+        235.204,
+        68.74600000000001,
+        243.3
+      ],
+      "blockType": "table",
+      "bboxNormalized": [
+        0.07406536562426523,
+        0.2794425501075218,
+        0.1154579960364113,
+        0.28906129335028335
+      ]
+    },
+    {
+      "text": "| Bill To | Ship To |\n| ------- | ------- |",
+      "page": 1,
+      "bbox": [
+        307.24,
+        235.204,
+        335.649,
+        243.3
+      ],
+      "blockType": "table",
+      "bboxNormalized": [
+        0.5160055087165363,
+        0.2794425501075218,
+        0.5637180477646032,
+        0.28906129335028335
+      ]
+    },
+    {
+      "text": "| \\*\\*Global Innovation Hub Private Limited\\*\\*<br/>8th Floor, Sanali Spazio, Hitech City<br/>Hyderabad<br/>500081 Telangana<br/>India | 8th Floor, Sanali Spazio, Hitech City<br/>Hyderabad<br/>500081 Telangana<br/>India |\n| ------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------- |",
+      "page": 1,
+      "bbox": [
+        44.1,
+        250.39,
+        208.54,
+        304.29999999999995
+      ],
+      "blockType": "table",
+      "bboxNormalized": [
+        0.07406536562426523,
+        0.2974848222029488,
+        0.3502401666050855,
+        0.36153453171595235
+      ]
+    },
+    {
+      "text": "| \\*\\*Global Innovation Hub Private Limited\\*\\*<br/>8th Floor, Sanali Spazio, Hitech City<br/>Hyderabad<br/>500081 Telangana<br/>India | 8th Floor, Sanali Spazio, Hitech City<br/>Hyderabad<br/>500081 Telangana<br/>India |\n| ------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------- |",
+      "page": 1,
+      "bbox": [
+        44.1,
+        250.388,
+        208.536,
+        259.48699999999997
+      ],
+      "blockType": "table",
+      "bboxNormalized": [
+        0.07406536562426523,
+        0.2974824460311991,
+        0.35023344865809014,
+        0.30829283940643226
+      ]
+    },
+    {
+      "text": "| \\*\\*Global Innovation Hub Private Limited\\*\\*<br/>8th Floor, Sanali Spazio, Hitech City<br/>Hyderabad<br/>500081 Telangana<br/>India | 8th Floor, Sanali Spazio, Hitech City<br/>Hyderabad<br/>500081 Telangana<br/>India |\n| ------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------- |",
+      "page": 1,
+      "bbox": [
+        44.1,
+        262.544,
+        171.143,
+        270.64
+      ],
+      "blockType": "table",
+      "bboxNormalized": [
+        0.07406536562426523,
+        0.31192481792583965,
+        0.28743240065835884,
+        0.3215435611686012
+      ]
+    },
+    {
+      "text": "| \\*\\*Global Innovation Hub Private Limited\\*\\*<br/>8th Floor, Sanali Spazio, Hitech City<br/>Hyderabad<br/>500081 Telangana<br/>India | 8th Floor, Sanali Spazio, Hitech City<br/>Hyderabad<br/>500081 Telangana<br/>India |\n| ------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------- |",
+      "page": 1,
+      "bbox": [
+        44.1,
+        273.794,
+        84.1,
+        281.794
+      ],
+      "blockType": "table",
+      "bboxNormalized": [
+        0.07406536562426523,
+        0.32529078401786876,
+        0.1412448355782473,
+        0.33479547101664503
+      ]
+    },
+    {
+      "text": "| \\*\\*Global Innovation Hub Private Limited\\*\\*<br/>8th Floor, Sanali Spazio, Hitech City<br/>Hyderabad<br/>500081 Telangana<br/>India | 8th Floor, Sanali Spazio, Hitech City<br/>Hyderabad<br/>500081 Telangana<br/>India |\n| ------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------- |",
+      "page": 1,
+      "bbox": [
+        44.1,
+        285.044,
+        109.98399999999998,
+        293.14
+      ],
+      "blockType": "table",
+      "bboxNormalized": [
+        0.07406536562426523,
+        0.3386567501098979,
+        0.18471667058546906,
+        0.3482754933526595
+      ]
+    },
+    {
+      "text": "| \\*\\*Global Innovation Hub Private Limited\\*\\*<br/>8th Floor, Sanali Spazio, Hitech City<br/>Hyderabad<br/>500081 Telangana<br/>India | 8th Floor, Sanali Spazio, Hitech City<br/>Hyderabad<br/>500081 Telangana<br/>India |\n| ------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------- |",
+      "page": 1,
+      "bbox": [
+        44.1,
+        296.294,
+        62.1,
+        304.294
+      ],
+      "blockType": "table",
+      "bboxNormalized": [
+        0.07406536562426523,
+        0.35202271620192704,
+        0.10429612710355717,
+        0.3615274032007033
+      ]
+    },
+    {
+      "text": "| \\*\\*Global Innovation Hub Private Limited\\*\\*<br/>8th Floor, Sanali Spazio, Hitech City<br/>Hyderabad<br/>500081 Telangana<br/>India | 8th Floor, Sanali Spazio, Hitech City<br/>Hyderabad<br/>500081 Telangana<br/>India |\n| ------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------- |",
+      "page": 1,
+      "bbox": [
+        44.1,
+        262.544,
+        171.143,
+        270.64
+      ],
+      "blockType": "table",
+      "bboxNormalized": [
+        0.07406536562426523,
+        0.31192481792583965,
+        0.28743240065835884,
+        0.3215435611686012
+      ]
+    },
+    {
+      "text": "| \\*\\*Global Innovation Hub Private Limited\\*\\*<br/>8th Floor, Sanali Spazio, Hitech City<br/>Hyderabad<br/>500081 Telangana<br/>India | 8th Floor, Sanali Spazio, Hitech City<br/>Hyderabad<br/>500081 Telangana<br/>India |\n| ------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------- |",
+      "page": 1,
+      "bbox": [
+        44.1,
+        273.794,
+        84.1,
+        281.794
+      ],
+      "blockType": "table",
+      "bboxNormalized": [
+        0.07406536562426523,
+        0.32529078401786876,
+        0.1412448355782473,
+        0.33479547101664503
+      ]
+    },
+    {
+      "text": "| \\*\\*Global Innovation Hub Private Limited\\*\\*<br/>8th Floor, Sanali Spazio, Hitech City<br/>Hyderabad<br/>500081 Telangana<br/>India | 8th Floor, Sanali Spazio, Hitech City<br/>Hyderabad<br/>500081 Telangana<br/>India |\n| ------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------- |",
+      "page": 1,
+      "bbox": [
+        44.1,
+        285.044,
+        109.98399999999998,
+        293.14
+      ],
+      "blockType": "table",
+      "bboxNormalized": [
+        0.07406536562426523,
+        0.3386567501098979,
+        0.18471667058546906,
+        0.3482754933526595
+      ]
+    },
+    {
+      "text": "| \\*\\*Global Innovation Hub Private Limited\\*\\*<br/>8th Floor, Sanali Spazio, Hitech City<br/>Hyderabad<br/>500081 Telangana<br/>India | 8th Floor, Sanali Spazio, Hitech City<br/>Hyderabad<br/>500081 Telangana<br/>India |\n| ------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------- |",
+      "page": 1,
+      "bbox": [
+        44.1,
+        296.294,
+        62.1,
+        304.294
+      ],
+      "blockType": "table",
+      "bboxNormalized": [
+        0.07406536562426523,
+        0.35202271620192704,
+        0.10429612710355717,
+        0.3615274032007033
+      ]
+    },
+    {
+      "text": "| # | Item & Description                                                | HSN/SAC | Qty            | Rate      | CGST<br/>% | CGST<br/>Amt | SGST<br/>% | SGST<br/>Amt | Amount    |\n| - | ----------------------------------------------------------------- | ------- | -------------- | --------- | ---------- | ------------ | ---------- | ------------ | --------- |\n| 1 | Foundational Framework<br/>HIPAA Add on 2026-03-15<br/>2026-06-15 | 997331  | 1.00<br/>count | 15,750.00 | 9%         | 1,417.50     | 9%         | 1,417.50     | 15,750.00 |\n| 2 | Starter Plan<br/>ISO 27001 + Platform 2026-03-15 2026-06-15       | 997331  | 1.00           | 78,750.00 | 9%         | 7,087.50     | 9%         | 7,087.50     | 78,750.00 |",
+      "page": 1,
+      "bbox": [
+        39.45936545380383,
+        311.500028455483,
+        566.0013889684166,
+        400.15000426144485
+      ],
+      "blockType": "table",
+      "bboxNormalized": [
+        0.0662714813976753,
+        0.37008878382240845,
+        0.9505918326028965,
+        0.475412567883003
+      ]
+    },
+    {
+      "text": "| Sub Total   | 94,500.00    |\n| ----------- | ------------ |\n| CGST9 (9%)  | 8,505.00     |\n| SGST9 (9%)  | 8,505.00     |\n| Total       | ₹1,11,510.00 |\n| Balance Due | ₹1,11,510.00 |",
+      "page": 1,
+      "bbox": [
+        414.34,
+        404.78,
+        560.98,
+        463.18999999999994
+      ],
+      "blockType": "table",
+      "bboxNormalized": [
+        0.6958785395183232,
+        0.48091340042058234,
+        0.9421584763696216,
+        0.5503094963703975
+      ]
+    },
+    {
+      "text": "| Sub Total   | 94,500.00    |\n| ----------- | ------------ |\n| CGST9 (9%)  | 8,505.00     |\n| SGST9 (9%)  | 8,505.00     |\n| Total       | ₹1,11,510.00 |\n| Balance Due | ₹1,11,510.00 |",
+      "page": 1,
+      "bbox": [
+        414.34,
+        404.784,
+        468.077,
+        463.196
+      ],
+      "blockType": "table",
+      "bboxNormalized": [
+        0.6958785395183232,
+        0.48091815276408173,
+        0.7861291189412516,
+        0.5503166248856467
+      ]
+    },
+    {
+      "text": "| Sub Total   | 94,500.00    |\n| ----------- | ------------ |\n| CGST9 (9%)  | 8,505.00     |\n| SGST9 (9%)  | 8,505.00     |\n| Total       | ₹1,11,510.00 |\n| Balance Due | ₹1,11,510.00 |",
+      "page": 1,
+      "bbox": [
+        507.98,
+        404.88,
+        560.98,
+        463.196
+      ],
+      "blockType": "table",
+      "bboxNormalized": [
+        0.8531456786805953,
+        0.4810322090080671,
+        0.9421584763696216,
+        0.5503166248856467
+      ]
+    },
+    {
+      "text": "| Sub Total   | 94,500.00    |\n| ----------- | ------------ |\n| CGST9 (9%)  | 8,505.00     |\n| SGST9 (9%)  | 8,505.00     |\n| Total       | ₹1,11,510.00 |\n| Balance Due | ₹1,11,510.00 |",
+      "page": 1,
+      "bbox": [
+        447.38,
+        441.454,
+        467.38,
+        449.454
+      ],
+      "blockType": "table",
+      "bboxNormalized": [
+        0.7513687817003124,
+        0.5244852617947225,
+        0.7849585166773034,
+        0.5339899487934988
+      ]
+    },
+    {
+      "text": "| Sub Total   | 94,500.00    |\n| ----------- | ------------ |\n| CGST9 (9%)  | 8,505.00     |\n| SGST9 (9%)  | 8,505.00     |\n| Total       | ₹1,11,510.00 |\n| Balance Due | ₹1,11,510.00 |",
+      "page": 1,
+      "bbox": [
+        525.15,
+        404.88,
+        560.15,
+        412.88
+      ],
+      "blockType": "table",
+      "bboxNormalized": [
+        0.8819824661583421,
+        0.4810322090080671,
+        0.9407645023680763,
+        0.49053689600684336
+      ]
+    },
+    {
+      "text": "| Sub Total   | 94,500.00    |\n| ----------- | ------------ |\n| CGST9 (9%)  | 8,505.00     |\n| SGST9 (9%)  | 8,505.00     |\n| Total       | ₹1,11,510.00 |\n| Balance Due | ₹1,11,510.00 |",
+      "page": 1,
+      "bbox": [
+        425.63,
+        416.948,
+        468.07,
+        425.1
+      ],
+      "blockType": "table",
+      "bboxNormalized": [
+        0.7148399449128346,
+        0.49537002934572105,
+        0.7861173625340097,
+        0.5050553053974741
+      ]
+    },
+    {
+      "text": "| Sub Total   | 94,500.00    |\n| ----------- | ------------ |\n| CGST9 (9%)  | 8,505.00     |\n| SGST9 (9%)  | 8,505.00     |\n| Total       | ₹1,11,510.00 |\n| Balance Due | ₹1,11,510.00 |",
+      "page": 1,
+      "bbox": [
+        529.65,
+        417.1,
+        560.65,
+        425.1
+      ],
+      "blockType": "table",
+      "bboxNormalized": [
+        0.889540156528165,
+        0.49555061839869785,
+        0.9416042457425011,
+        0.5050553053974741
+      ]
+    },
+    {
+      "text": "| Sub Total   | 94,500.00    |\n| ----------- | ------------ |\n| CGST9 (9%)  | 8,505.00     |\n| SGST9 (9%)  | 8,505.00     |\n| Total       | ₹1,11,510.00 |\n| Balance Due | ₹1,11,510.00 |",
+      "page": 1,
+      "bbox": [
+        426.34,
+        429.178,
+        468.077,
+        437.33
+      ],
+      "blockType": "table",
+      "bboxNormalized": [
+        0.7160323805045178,
+        0.5099003195951003,
+        0.7861291189412516,
+        0.5195855956468532
+      ]
+    },
+    {
+      "text": "| Sub Total   | 94,500.00    |\n| ----------- | ------------ |\n| CGST9 (9%)  | 8,505.00     |\n| SGST9 (9%)  | 8,505.00     |\n| Total       | ₹1,11,510.00 |\n| Balance Due | ₹1,11,510.00 |",
+      "page": 1,
+      "bbox": [
+        529.65,
+        417.1,
+        560.65,
+        425.1
+      ],
+      "blockType": "table",
+      "bboxNormalized": [
+        0.889540156528165,
+        0.49555061839869785,
+        0.9416042457425011,
+        0.5050553053974741
+      ]
+    },
+    {
+      "text": "| Sub Total   | 94,500.00    |\n| ----------- | ------------ |\n| CGST9 (9%)  | 8,505.00     |\n| SGST9 (9%)  | 8,505.00     |\n| Total       | ₹1,11,510.00 |\n| Balance Due | ₹1,11,510.00 |",
+      "page": 1,
+      "bbox": [
+        447.38,
+        441.454,
+        467.38,
+        449.454
+      ],
+      "blockType": "table",
+      "bboxNormalized": [
+        0.7513687817003124,
+        0.5244852617947225,
+        0.7849585166773034,
+        0.5339899487934988
+      ]
+    },
+    {
+      "text": "| Sub Total   | 94,500.00    |\n| ----------- | ------------ |\n| CGST9 (9%)  | 8,505.00     |\n| SGST9 (9%)  | 8,505.00     |\n| Total       | ₹1,11,510.00 |\n| Balance Due | ₹1,11,510.00 |",
+      "page": 1,
+      "bbox": [
+        513.86,
+        441.55,
+        560.86,
+        449.55
+      ],
+      "blockType": "table",
+      "bboxNormalized": [
+        0.8630210607638307,
+        0.5245993180387079,
+        0.9419569379597595,
+        0.5341040050374841
+      ]
+    },
+    {
+      "text": "| Sub Total   | 94,500.00    |\n| ----------- | ------------ |\n| CGST9 (9%)  | 8,505.00     |\n| SGST9 (9%)  | 8,505.00     |\n| Total       | ₹1,11,510.00 |\n| Balance Due | ₹1,11,510.00 |",
+      "page": 1,
+      "bbox": [
+        414.34,
+        454.088,
+        467.403,
+        463.196
+      ],
+      "blockType": "table",
+      "bboxNormalized": [
+        0.6958785395183232,
+        0.53949553873754,
+        0.784997144872527,
+        0.5503166248856467
+      ]
+    },
+    {
+      "text": "| Sub Total   | 94,500.00    |\n| ----------- | ------------ |\n| CGST9 (9%)  | 8,505.00     |\n| SGST9 (9%)  | 8,505.00     |\n| Total       | ₹1,11,510.00 |\n| Balance Due | ₹1,11,510.00 |",
+      "page": 1,
+      "bbox": [
+        513.86,
+        441.55,
+        560.86,
+        449.55
+      ],
+      "blockType": "table",
+      "bboxNormalized": [
+        0.8630210607638307,
+        0.5245993180387079,
+        0.9419569379597595,
+        0.5341040050374841
+      ]
+    },
+    {
+      "text": "Total In Words\nIndian Rupee One Lakh Eleven Thousand Five Hundred Ten Only",
+      "page": 1,
+      "bbox": [
+        45.286,
+        412.284,
+        290.156,
+        429.6
+      ],
+      "blockType": "text",
+      "bboxNormalized": [
+        0.0760572369084008,
+        0.4898287968254345,
+        0.48731315709919054,
+        0.5104016918342857
+      ]
+    },
+    {
+      "text": "Total In Words\nIndian Rupee One Lakh Eleven Thousand Five Hundred Ten Only",
+      "page": 1,
+      "bbox": [
+        45.6,
+        412.28,
+        97.82,
+        420.38
+      ],
+      "blockType": "text",
+      "bboxNormalized": [
+        0.07658459574753956,
+        0.4898240444819351,
+        0.16428739377246313,
+        0.4994475400681961
+      ]
+    },
+    {
+      "text": "Total In Words\nIndian Rupee One Lakh Eleven Thousand Five Hundred Ten Only",
+      "page": 1,
+      "bbox": [
+        45.29,
+        412.38,
+        290.16,
+        429.6
+      ],
+      "blockType": "text",
+      "bboxNormalized": [
+        0.0760639548553962,
+        0.4899428530694198,
+        0.48731987504618596,
+        0.5104016918342857
+      ]
+    },
+    {
+      "text": "Notes\nThanks for your business.",
+      "page": 1,
+      "bbox": [
+        45.6,
+        442.3,
+        136.94299999999998,
+        459.53
+      ],
+      "blockType": "text",
+      "bboxNormalized": [
+        0.07658459574753956,
+        0.5254903824448431,
+        0.22999395384770413,
+        0.5459611020684575
+      ]
+    },
+    {
+      "text": "Notes\nThanks for your business.",
+      "page": 1,
+      "bbox": [
+        45.6,
+        442.3,
+        67.6,
+        450.3
+      ],
+      "blockType": "text",
+      "bboxNormalized": [
+        0.07658459574753956,
+        0.5254903824448431,
+        0.11353330422222968,
+        0.5349950694436194
+      ]
+    },
+    {
+      "text": "Notes\nThanks for your business.",
+      "page": 1,
+      "bbox": [
+        45.6,
+        451.43,
+        136.94,
+        459.53000000000003
+      ],
+      "blockType": "text",
+      "bboxNormalized": [
+        0.07658459574753956,
+        0.5363376064821965,
+        0.2299889153874576,
+        0.5459611020684575
+      ]
+    },
+    {
+      "text": "Beneficiary Name: Sprinto Technology Private Limited\nBeneficiary Bank Name: HSBC Bank\nBank Account Number: 006380711002\nIFSC Code: HSBC0400002\nSwift Code: HSBCINBB\nMICR Code: 400039002",
+      "page": 1,
+      "bbox": [
+        45.6,
+        469.62,
+        240.29,
+        477.72
+      ],
+      "blockType": "text",
+      "bboxNormalized": [
+        0.07658459574753956,
+        0.557948888545664,
+        0.4035638708810588,
+        0.567572384131925
+      ]
+    },
+    {
+      "text": "Beneficiary Name: Sprinto Technology Private Limited\nBeneficiary Bank Name: HSBC Bank\nBank Account Number: 006380711002\nIFSC Code: HSBC0400002\nSwift Code: HSBCINBB\nMICR Code: 400039002",
+      "page": 1,
+      "bbox": [
+        45.6,
+        469.62,
+        240.29,
+        486.94
+      ],
+      "blockType": "text",
+      "bboxNormalized": [
+        0.07658459574753956,
+        0.557948888545664,
+        0.4035638708810588,
+        0.5785265358980146
+      ]
+    },
+    {
+      "text": "Beneficiary Name: Sprinto Technology Private Limited\nBeneficiary Bank Name: HSBC Bank\nBank Account Number: 006380711002\nIFSC Code: HSBC0400002\nSwift Code: HSBCINBB\nMICR Code: 400039002",
+      "page": 1,
+      "bbox": [
+        45.6,
+        478.84,
+        133.08,
+        486.94
+      ],
+      "blockType": "text",
+      "bboxNormalized": [
+        0.07658459574753956,
+        0.5689030403117536,
+        0.22350609653689835,
+        0.5785265358980146
+      ]
+    },
+    {
+      "text": "Beneficiary Name: Sprinto Technology Private Limited\nBeneficiary Bank Name: HSBC Bank\nBank Account Number: 006380711002\nIFSC Code: HSBC0400002\nSwift Code: HSBCINBB\nMICR Code: 400039002",
+      "page": 1,
+      "bbox": [
+        45.6,
+        488.07,
+        130.18,
+        496.17
+      ],
+      "blockType": "text",
+      "bboxNormalized": [
+        0.07658459574753956,
+        0.5798690729365918,
+        0.21863558496523466,
+        0.5894925685228528
+      ]
+    },
+    {
+      "text": "Beneficiary Name: Sprinto Technology Private Limited\nBeneficiary Bank Name: HSBC Bank\nBank Account Number: 006380711002\nIFSC Code: HSBC0400002\nSwift Code: HSBCINBB\nMICR Code: 400039002",
+      "page": 1,
+      "bbox": [
+        130.53,
+        488.17,
+        184.53,
+        496.17
+      ],
+      "blockType": "text",
+      "bboxNormalized": [
+        0.21922340532733198,
+        0.5799878815240765,
+        0.3099156897652078,
+        0.5894925685228528
+      ]
+    },
+    {
+      "text": "Beneficiary Name: Sprinto Technology Private Limited\nBeneficiary Bank Name: HSBC Bank\nBank Account Number: 006380711002\nIFSC Code: HSBC0400002\nSwift Code: HSBCINBB\nMICR Code: 400039002",
+      "page": 1,
+      "bbox": [
+        45.6,
+        478.94,
+        155.23,
+        523.74
+      ],
+      "blockType": "text",
+      "bboxNormalized": [
+        0.07658459574753956,
+        0.5690218488992383,
+        0.26070672802391587,
+        0.6222480960923855
+      ]
+    },
+    {
+      "text": "Beneficiary Name: Sprinto Technology Private Limited\nBeneficiary Bank Name: HSBC Bank\nBank Account Number: 006380711002\nIFSC Code: HSBC0400002\nSwift Code: HSBCINBB\nMICR Code: 400039002",
+      "page": 1,
+      "bbox": [
+        85.74,
+        497.39,
+        137.74,
+        505.39
+      ],
+      "blockType": "text",
+      "bboxNormalized": [
+        0.14399919384636056,
+        0.5909420332901661,
+        0.23133250478653727,
+        0.6004467202889424
+      ]
+    },
+    {
+      "text": "Beneficiary Name: Sprinto Technology Private Limited\nBeneficiary Bank Name: HSBC Bank\nBank Account Number: 006380711002\nIFSC Code: HSBC0400002\nSwift Code: HSBCINBB\nMICR Code: 400039002",
+      "page": 1,
+      "bbox": [
+        45.6,
+        497.294,
+        126.874,
+        523.744
+      ],
+      "blockType": "text",
+      "bboxNormalized": [
+        0.07658459574753956,
+        0.5908279770461808,
+        0.213083201773538,
+        0.6222528484358849
+      ]
+    },
+    {
+      "text": "Beneficiary Name: Sprinto Technology Private Limited\nBeneficiary Bank Name: HSBC Bank\nBank Account Number: 006380711002\nIFSC Code: HSBC0400002\nSwift Code: HSBCINBB\nMICR Code: 400039002",
+      "page": 1,
+      "bbox": [
+        45.6,
+        497.29,
+        130.19,
+        523.84
+      ],
+      "blockType": "text",
+      "bboxNormalized": [
+        0.07658459574753956,
+        0.5908232247026814,
+        0.21865237983272312,
+        0.6223669046798702
+      ]
+    },
+    {
+      "text": "Digital Signature",
+      "page": 1,
+      "bbox": [
+        364.39703999999995,
+        471.3464000000001,
+        537.0688399999999,
+        531.9480800000001
+      ],
+      "blockType": "image",
+      "bboxNormalized": [
+        0.612,
+        0.56,
+        0.9019999999999999,
+        0.6320000000000001
+      ]
+    },
+    {
+      "text": "\n[signature: BHOOPALAM BALRAJ NAGA SUBRAMANYA]",
+      "page": 1,
+      "bbox": [
+        364.39703999999995,
+        471.3464000000001,
+        537.0688399999999,
+        531.9480800000001
+      ],
+      "blockType": "text",
+      "bboxNormalized": [
+        0.612,
+        0.56,
+        0.9019999999999999,
+        0.6320000000000001
+      ]
+    },
+    {
+      "text": "BHOOPALAM BALRAJ NAGA SUBRAMANYA\n",
+      "page": 1,
+      "bbox": [
+        369.98,
+        472.15,
+        528.96,
+        480.15
+      ],
+      "blockType": "text",
+      "bboxNormalized": [
+        0.6213765073393571,
+        0.560954745809027,
+        0.888381310671459,
+        0.5704594328078033
+      ]
+    },
+    {
+      "text": "We are registered under the Micro, Small, and Medium Enterprises Development (MSMED) Act, 2006 [UDYAM-KR-03-0261470].",
+      "page": 1,
+      "bbox": [
+        45.6,
+        539.97,
+        287.35,
+        566.36
+      ],
+      "blockType": "text",
+      "bboxNormalized": [
+        0.07658459574753956,
+        0.6415307298411529,
+        0.4826005172819187,
+        0.6728843160783661
+      ]
+    },
+    {
+      "text": "We are registered under the Micro, Small, and Medium Enterprises Development (MSMED) Act, 2006 [UDYAM-KR-03-0261470].",
+      "page": 1,
+      "bbox": [
+        45.6,
+        558.37,
+        138.6,
+        566.37
+      ],
+      "blockType": "text",
+      "bboxNormalized": [
+        0.07658459574753956,
+        0.6633915099383383,
+        0.23277686339054784,
+        0.6728961969371146
+      ]
+    },
+    {
+      "text": "Authorized Signature",
+      "page": 1,
+      "bbox": [
+        412.88,
+        542.824,
+        490.139,
+        550.92
+      ],
+      "blockType": "text",
+      "bboxNormalized": [
+        0.6934264888650029,
+        0.6449215269279662,
+        0.8231819555943705,
+        0.6545402701707278
+      ]
+    },
+    {
+      "text": "As per Section 15, payment for this invoice is due within 45 days of acceptance or deemed acceptance of services. Delays beyond this period may incur interest as per Section 16. Non-payment may lead to recovery via the Micro and Small Enterprises Facilitation Council (MSEFC) under Sections 17 and 18. Non-compliance may also result in other legal consequences under the MSME Act. If no objection is raised within 15 days of receipt, this invoice will be considered as deemed acceptance of services.",
+      "page": 1,
+      "bbox": [
+        44.71629514993807,
+        566.6677824760624,
+        301.741288670684,
+        640.5597403588273
+      ],
+      "blockType": "text",
+      "bboxNormalized": [
+        0.07510042516196647,
+        0.6732499880907012,
+        0.5067704959032011,
+        0.7610399795160062
+      ]
+    }
+  ],
+  "fieldProvenance": {
+    "invoiceNumber": {
+      "source": "text-pattern",
+      "page": 1,
+      "bboxNormalized": [
+        0.29464915521816537,
+        0.2051586688685858,
+        0.397097846897988,
+        0.2146633558673621
+      ],
+      "confidence": 1
+    },
+    "vendorName": {
+      "source": "text-pattern",
+      "page": 1,
+      "bboxNormalized": [
+        0.07658459574753956,
+        0.557948888545664,
+        0.4035638708810588,
+        0.567572384131925
+      ],
+      "confidence": 0.9999993720923026
+    },
+    "vendorAddress": {
+      "source": "text-pattern",
+      "page": 1,
+      "bboxNormalized": [
+        0.2944980014107689,
+        0.10545450225142274,
+        0.5252426858352088,
+        0.1478454062659649
+      ],
+      "confidence": 0.9997006466643582
+    },
+    "vendorGstin": {
+      "source": "text-pattern",
+      "page": 1,
+      "bboxNormalized": [
+        0.2944980014107689,
+        0.14942556047951144,
+        0.4522857814651843,
+        0.1589302474782877
+      ],
+      "confidence": 1
+    },
+    "vendorPan": {
+      "source": "text-pattern",
+      "page": 1,
+      "confidence": 0.9999792687735798
+    },
+    "customerName": {
+      "source": "text-pattern",
+      "page": 1,
+      "bboxNormalized": [
+        0.07406536562426523,
+        0.2974824460311991,
+        0.35023344865809014,
+        0.30829283940643226
+      ],
+      "confidence": 0.9999998420738176
+    },
+    "customerAddress": {
+      "source": "text-pattern",
+      "page": 1,
+      "bboxNormalized": [
+        0.07406536562426523,
+        0.31192481792583965,
+        0.28743240065835884,
+        0.3215435611686012
+      ],
+      "confidence": 0.9999999496355912
+    },
+    "invoiceDate": {
+      "source": "text-pattern",
+      "page": 1,
+      "bboxNormalized": [
+        0.07406536562426523,
+        0.2051586688685858,
+        0.37168721238789426,
+        0.25369197685608713
+      ],
+      "confidence": 1
+    },
+    "dueDate": {
+      "source": "text-pattern",
+      "page": 1,
+      "bboxNormalized": [
+        0.07406536562426523,
+        0.21816820919816082,
+        0.37168721238789426,
+        0.25369197685608713
+      ],
+      "confidence": 1
+    },
+    "currency": {
+      "source": "text-pattern",
+      "page": 1,
+      "confidence": 0.9417
+    },
+    "totalAmountMinor": {
+      "source": "text-pattern",
+      "page": 1,
+      "bboxNormalized": [
+        0.8531456786805953,
+        0.4810322090080671,
+        0.9421584763696216,
+        0.5503166248856467
+      ],
+      "confidence": 1
+    },
+    "pan": {
+      "source": "text-pattern",
+      "page": 1,
+      "confidence": 0.9417
+    },
+    "gst.gstin": {
+      "source": "text-pattern",
+      "page": 1,
+      "confidence": 0.9417
+    },
+    "gst.subtotalMinor": {
+      "source": "text-pattern",
+      "page": 1,
+      "bbox": [
+        414.34,
+        404.78,
+        560.98,
+        463.18999999999994
+      ],
+      "bboxNormalized": [
+        0.6958785395183232,
+        0.48091340042058234,
+        0.9421584763696216,
+        0.5503094963703975
+      ],
+      "blockIndex": 32,
+      "confidence": 0.9417
+    },
+    "gst.cgstMinor": {
+      "source": "text-pattern",
+      "page": 1,
+      "bbox": [
+        414.34,
+        404.78,
+        560.98,
+        463.18999999999994
+      ],
+      "bboxNormalized": [
+        0.6958785395183232,
+        0.48091340042058234,
+        0.9421584763696216,
+        0.5503094963703975
+      ],
+      "blockIndex": 32,
+      "confidence": 0.9417
+    },
+    "gst.sgstMinor": {
+      "source": "text-pattern",
+      "page": 1,
+      "bbox": [
+        414.34,
+        404.78,
+        560.98,
+        463.18999999999994
+      ],
+      "bboxNormalized": [
+        0.6958785395183232,
+        0.48091340042058234,
+        0.9421584763696216,
+        0.5503094963703975
+      ],
+      "blockIndex": 32,
+      "confidence": 0.9417
+    },
+    "gst.igstMinor": {
+      "source": "text-pattern",
+      "page": 1,
+      "bbox": [
+        175.35,
+        88.76,
+        312.74,
+        124.44
+      ],
+      "bboxNormalized": [
+        0.2944980014107689,
+        0.10545450225142274,
+        0.5252426858352088,
+        0.1478454062659649
+      ],
+      "blockIndex": 3,
+      "confidence": 0.9417
+    },
+    "gst.cessMinor": {
+      "source": "text-pattern",
+      "page": 1,
+      "bbox": [
+        175.35,
+        88.76,
+        312.74,
+        124.44
+      ],
+      "bboxNormalized": [
+        0.2944980014107689,
+        0.10545450225142274,
+        0.5252426858352088,
+        0.1478454062659649
+      ],
+      "blockIndex": 3,
+      "confidence": 0.9417
+    },
+    "gst.totalTaxMinor": {
+      "source": "text-pattern",
+      "page": 1,
+      "confidence": 0.9417
+    }
+  },
+  "lineItemProvenance": [
+    {
+      "index": 0,
+      "row": {
+        "source": "text-pattern",
+        "page": 1,
+        "bboxNormalized": [
+          0.0662714813976753,
+          0.37008878382240845,
+          0.9505918326028965,
+          0.475412567883003
+        ],
+        "confidence": 0.88
+      },
+      "fields": {
+        "hsnSac": {
+          "source": "text-pattern",
+          "page": 1,
+          "bbox": [
+            39.45936545380383,
+            311.500028455483,
+            566.0013889684166,
+            400.15000426144485
+          ],
+          "bboxNormalized": [
+            0.0662714813976753,
+            0.37008878382240845,
+            0.9505918326028965,
+            0.475412567883003
+          ],
+          "blockIndex": 31,
+          "confidence": 0.82
+        },
+        "amountMinor": {
+          "source": "text-pattern",
+          "page": 1,
+          "bbox": [
+            39.45936545380383,
+            311.500028455483,
+            566.0013889684166,
+            400.15000426144485
+          ],
+          "bboxNormalized": [
+            0.0662714813976753,
+            0.37008878382240845,
+            0.9505918326028965,
+            0.475412567883003
+          ],
+          "blockIndex": 31,
+          "confidence": 0.9
+        },
+        "cgstMinor": {
+          "source": "text-pattern",
+          "page": 1,
+          "bbox": [
+            39.45936545380383,
+            311.500028455483,
+            566.0013889684166,
+            400.15000426144485
+          ],
+          "bboxNormalized": [
+            0.0662714813976753,
+            0.37008878382240845,
+            0.9505918326028965,
+            0.475412567883003
+          ],
+          "blockIndex": 31,
+          "confidence": 0.9
+        },
+        "sgstMinor": {
+          "source": "text-pattern",
+          "page": 1,
+          "bbox": [
+            39.45936545380383,
+            311.500028455483,
+            566.0013889684166,
+            400.15000426144485
+          ],
+          "bboxNormalized": [
+            0.0662714813976753,
+            0.37008878382240845,
+            0.9505918326028965,
+            0.475412567883003
+          ],
+          "blockIndex": 31,
+          "confidence": 0.9
+        }
+      }
+    },
+    {
+      "index": 1,
+      "row": {
+        "source": "text-pattern",
+        "page": 1,
+        "bboxNormalized": [
+          0.0662714813976753,
+          0.37008878382240845,
+          0.9505918326028965,
+          0.475412567883003
+        ],
+        "confidence": 0.88
+      },
+      "fields": {
+        "hsnSac": {
+          "source": "text-pattern",
+          "page": 1,
+          "bbox": [
+            39.45936545380383,
+            311.500028455483,
+            566.0013889684166,
+            400.15000426144485
+          ],
+          "bboxNormalized": [
+            0.0662714813976753,
+            0.37008878382240845,
+            0.9505918326028965,
+            0.475412567883003
+          ],
+          "blockIndex": 31,
+          "confidence": 0.82
+        },
+        "amountMinor": {
+          "source": "text-pattern",
+          "page": 1,
+          "bbox": [
+            39.45936545380383,
+            311.500028455483,
+            566.0013889684166,
+            400.15000426144485
+          ],
+          "bboxNormalized": [
+            0.0662714813976753,
+            0.37008878382240845,
+            0.9505918326028965,
+            0.475412567883003
+          ],
+          "blockIndex": 31,
+          "confidence": 0.9
+        },
+        "cgstMinor": {
+          "source": "text-pattern",
+          "page": 1,
+          "bbox": [
+            39.45936545380383,
+            311.500028455483,
+            566.0013889684166,
+            400.15000426144485
+          ],
+          "bboxNormalized": [
+            0.0662714813976753,
+            0.37008878382240845,
+            0.9505918326028965,
+            0.475412567883003
+          ],
+          "blockIndex": 31,
+          "confidence": 0.9
+        },
+        "sgstMinor": {
+          "source": "text-pattern",
+          "page": 1,
+          "bbox": [
+            39.45936545380383,
+            311.500028455483,
+            566.0013889684166,
+            400.15000426144485
+          ],
+          "bboxNormalized": [
+            0.0662714813976753,
+            0.37008878382240845,
+            0.9505918326028965,
+            0.475412567883003
+          ],
+          "blockIndex": 31,
+          "confidence": 0.9
+        }
+      }
+    }
+  ],
+  "extraction": {
+    "source": "llamaextract",
+    "strategy": "llamaextract",
+    "provider": "llamaparse",
+    "parsingConfidence": 0.9417,
+    "extractionConfidence": 92,
+    "fieldConfidence": {
+      "invoiceNumber": 1,
+      "vendorName": 1,
+      "vendorAddress": 0.9997,
+      "vendorGstin": 1,
+      "vendorPan": 1,
+      "customerName": 1,
+      "customerAddress": 1,
+      "invoiceDate": 1,
+      "dueDate": 1,
+      "currency": 0.9417,
+      "totalAmountMinor": 1,
+      "pan": 0.9417,
+      "gst.gstin": 0.9417,
+      "gst.subtotalMinor": 0.9417,
+      "gst.cgstMinor": 0.9417,
+      "gst.sgstMinor": 0.9417,
+      "gst.igstMinor": 0.9417,
+      "gst.cessMinor": 0.9417,
+      "gst.totalTaxMinor": 0.9417,
+      "lineItems.0.hsnSac": 0.82,
+      "lineItems.0.amountMinor": 0.9,
+      "lineItems.0.cgstMinor": 0.9,
+      "lineItems.0.sgstMinor": 0.9,
+      "lineItems.1.hsnSac": 0.82,
+      "lineItems.1.amountMinor": 0.9,
+      "lineItems.1.cgstMinor": 0.9,
+      "lineItems.1.sgstMinor": 0.9
+    }
+  },
+  "confidenceScore": 92,
+  "confidenceTone": "green",
+  "previewPageImages": {
+    "1": "preview-page-1.png"
+  }
+}

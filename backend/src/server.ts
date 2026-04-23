@@ -23,7 +23,7 @@ async function bootstrap() {
   const dependencies = await buildDependencies();
 
   if (env.LOCAL_DEMO_SEED) {
-    await seedLocalDemoData(dependencies.keycloakAdmin);
+    await seedLocalDemoData(dependencies.keycloakAdmin, { fileStore: dependencies.fileStore });
   }
 
   const app = await createApp(dependencies);

@@ -2,8 +2,9 @@
  * Tests for the demo-tenant invoice seed.
  *
  * Mongoose models are mocked with in-memory stores so we can assert the final
- * seeded state without spinning up Mongo. Only the methods the seed helper
- * calls are implemented.
+ * seeded state without spinning up Mongo. `fs.readFileSync` is stubbed so the
+ * seed's fixture loader returns deterministic parsed values without hitting
+ * disk.
  */
 
 type Row = Record<string, unknown>;
@@ -120,6 +121,63 @@ jest.mock("@/models/integration/MailboxNotificationEvent.js", () => ({
   }
 }));
 
+/* ----------------------------------------------------------- fs mock */
+
+// Keep the real fs for non-fixture reads (none in this path, but safe) while
+// returning deterministic fixture bodies for `dev/sample-invoices/baked/<dir>/
+// extraction.json`. PNG reads aren't exercised here because the test doesn't
+// supply a FileStore.
+jest.mock("node:fs", () => {
+  const actual = jest.requireActual<typeof import("node:fs")>("node:fs");
+  const buildFixture = (attachmentName: string): Record<string, unknown> => {
+    const stem = attachmentName.replace(/\.pdf$/i, "");
+    return {
+    sourceFilename: attachmentName,
+    mimeType: "application/pdf",
+    parsed: {
+      invoiceNumber: `${stem}-number`,
+      vendorName: `${stem}-vendor`,
+      invoiceDate: "2026-03-15T00:00:00.000Z",
+      totalAmountMinor: 100000,
+      currency: "INR",
+      customerName: "Global Innovation Hub",
+      customerAddress: "Sanali Spazio, Hitech City, Hyderabad"
+    },
+    ocrBlocks: [],
+    fieldProvenance: {
+      invoiceNumber: { source: "llama-extract", page: 1, bboxNormalized: [0, 0, 0.1, 0.1] }
+    },
+    lineItemProvenance: [],
+    extraction: { source: "llamaparse", strategy: "llama-extract" },
+    confidenceScore: 90,
+    confidenceTone: "green",
+    previewPageImages: {}
+    };
+  };
+  return {
+    ...actual,
+    readFileSync: (path: string | URL | number, options?: unknown) => {
+      const pathStr = typeof path === "string" ? path : String(path);
+      const match = /dev\/sample-invoices\/baked\/([^/]+)\/extraction\.json$/.exec(pathStr);
+      if (match) {
+        const dir = match[1];
+        const attachmentName = `${dir}.pdf`;
+        return JSON.stringify(buildFixture(attachmentName));
+      }
+      return actual.readFileSync(path as never, options as never);
+    },
+    existsSync: (path: string | URL) => {
+      const pathStr = typeof path === "string" ? path : String(path);
+      // Match both the directory itself (used by the fixture resolver's
+      // upward walk from cwd) and the per-invoice extraction.json paths.
+      if (/dev\/sample-invoices\/baked(\/[^/]+\/extraction\.json)?$/.test(pathStr)) {
+        return true;
+      }
+      return actual.existsSync(path as never);
+    }
+  };
+});
+
 /* ----------------------------------------------------------- import under test */
 
 import { seedDemoInvoices } from "./seedDemoInvoices.js";
@@ -158,10 +216,10 @@ describe("seedDemoInvoices", () => {
     expect(exportSub.batchId).toBe(exportBatchStore[0]._id);
   });
 
-  it("invoice #3 (FC-AIT_563.pdf) is AWAITING_APPROVAL with workflowState.currentStep === 2", async () => {
+  it("invoice #3 (FC-Vector_.pdf) is AWAITING_APPROVAL with workflowState.currentStep === 2", async () => {
     await seedDemoInvoices(TENANT_ID);
 
-    const inv = byAttachment("FC-AIT_563.pdf");
+    const inv = byAttachment("FC-Vector_.pdf");
     expect(inv).toBeDefined();
     expect(inv!.status).toBe("AWAITING_APPROVAL");
     const wf = inv!.workflowState as Row;
@@ -203,5 +261,15 @@ describe("seedDemoInvoices", () => {
     const stepResults = wf.stepResults as Array<Row>;
     expect(stepResults).toHaveLength(1);
     expect(stepResults[0].action).toBe("rejected");
+  });
+
+  it("parsed values come from the baked fixture (not hardcoded in the seed)", async () => {
+    await seedDemoInvoices(TENANT_ID);
+    const inv = byAttachment("INV-FY2526-939.pdf");
+    const parsed = inv!.parsed as Row;
+    expect(parsed.invoiceNumber).toBe("INV-FY2526-939-number");
+    expect(parsed.vendorName).toBe("INV-FY2526-939-vendor");
+    expect(inv!.confidenceScore).toBe(90);
+    expect(inv!.confidenceTone).toBe("green");
   });
 });

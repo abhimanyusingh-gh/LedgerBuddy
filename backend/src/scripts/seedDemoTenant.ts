@@ -4,6 +4,8 @@ import { TenantModel } from "@/models/core/Tenant.js";
 import { UserModel } from "@/models/core/User.js";
 import { seedDemoTenantConfig } from "@/bootstrap/seedDemoTenantConfig.js";
 import { seedDemoInvoices } from "@/bootstrap/seedDemoInvoices.js";
+import { resolveFileStore } from "@/core/dependencies.js";
+import { loadRuntimeManifest } from "@/core/runtimeManifest.js";
 import { env } from "@/config/env.js";
 
 const DEMO_TENANT_ID = "65f0000000000000000000c3";
@@ -31,7 +33,18 @@ async function run() {
   await seedDemoTenantConfig(DEMO_TENANT_ID, String(mahirUser._id));
 
   if (env.LOCAL_DEMO_INVOICES) {
-    await seedDemoInvoices(DEMO_TENANT_ID);
+    // Wire a FileStore so preview PNGs from the baked fixtures land in the
+    // same S3/MinIO bucket the app reads from at /api/invoices/:id/page/:n.
+    let fileStore;
+    try {
+      fileStore = resolveFileStore(loadRuntimeManifest());
+    } catch (error) {
+      logger.warn("seedDemoTenant.fileStore.unavailable", {
+        error: error instanceof Error ? error.message : String(error)
+      });
+      fileStore = undefined;
+    }
+    await seedDemoInvoices(DEMO_TENANT_ID, { fileStore });
     console.log(`Demo invoices seeded for ${DEMO_TENANT_NAME} (${DEMO_TENANT_ID}).`);
   }
 

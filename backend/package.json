@@ -22,7 +22,8 @@
     "benchmark:llamaextract": "LLAMA_PARSE_EXTRACT_ENABLED=true LLAMA_PARSE_EXTRACT_TIER=agentic tsx src/scripts/runSampleInvoiceBenchmark.ts --ocr llamaparse",
     "benchmark:llamaparse:dump": "tsx src/scripts/runSampleInvoiceBenchmark.ts --ocr llamaparse --dump-only",
     "benchmark:llamaparse:generate-spec": "tsx src/scripts/runSampleInvoiceBenchmark.ts --ocr llamaparse --dump-only --generate-spec",
-    "benchmark:llamaparse:generate-spec:new": "tsx src/scripts/runSampleInvoiceBenchmark.ts --ocr llamaparse --dump-only --generate-spec --file-prefix DV- --file-prefix FC-"
+    "benchmark:llamaparse:generate-spec:new": "tsx src/scripts/runSampleInvoiceBenchmark.ts --ocr llamaparse --dump-only --generate-spec --file-prefix DV- --file-prefix FC-",
+    "bake:demo-fixtures": "tsx src/scripts/bakeDemoFixtures.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1030.0",

@@ -23,6 +23,14 @@
       "workloadTier": "standard",
       "folderPath": "/app/sample-invoices/inbox/tenant-beta",
       "recursive": false
+    },
+    {
+      "type": "folder",
+      "key": "demo-seed",
+      "tenantId": "65f0000000000000000000c3",
+      "workloadTier": "standard",
+      "folderPath": "/app/sample-invoices/inbox",
+      "recursive": false
     }
   ],
   "export": {

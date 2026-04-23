@@ -1,0 +1,841 @@
+{
+  "sourceFilename": "FC-Vector_.pdf",
+  "mimeType": "application/pdf",
+  "parsed": {
+    "invoiceNumber": "930054455",
+    "vendorName": "Vector Informatik India Pvt. Ltd.",
+    "vendorAddress": "No 11-14, 6th floor, Tara Heights, Old Mumbai Pune Road, Wakadewadi, Shivaji Nagar Pune - 411 003, INDIA",
+    "customerName": "FICOSA INDIA ENGINEERING CENTER PRIVATE LIMITED",
+    "customerAddress": "4th Floor, South Wing, Plot No 5, JVP Soft Pvt Ltd, TSIIC Units Layout, Hitech city, Hyderabad, 500081 HYDERABAD 36 TELANGANA INDIA",
+    "customerGstin": "36AADCF2749R1Z0",
+    "invoiceDate": "2026-01-07T00:00:00.000Z",
+    "dueDate": "2026-03-07T00:00:00.000Z",
+    "currency": "INR",
+    "totalAmountMinor": 32571304,
+    "gst": {
+      "subtotalMinor": 27602800,
+      "cgstMinor": 0,
+      "sgstMinor": 0,
+      "igstMinor": 4968504,
+      "cessMinor": 0,
+      "totalTaxMinor": 4968504
+    },
+    "lineItems": [
+      {
+        "description": "VN5620A Ethernet/CAN Interface",
+        "amountMinor": 22500000,
+        "hsnSac": "85176290",
+        "quantity": 1,
+        "rate": 225000,
+        "taxRate": 18,
+        "cgstMinor": 0,
+        "sgstMinor": 0,
+        "igstMinor": 3888000
+      },
+      {
+        "description": "AEcable 2Y DSUB9 male",
+        "amountMinor": 1120000,
+        "hsnSac": "85444999",
+        "quantity": 2,
+        "rate": 5600,
+        "taxRate": 18,
+        "cgstMinor": 0,
+        "sgstMinor": 0,
+        "igstMinor": 193536
+      },
+      {
+        "description": "CANcable 2Y",
+        "amountMinor": 290000,
+        "hsnSac": "85444999",
+        "quantity": 1,
+        "rate": 2900,
+        "taxRate": 18,
+        "cgstMinor": 0,
+        "sgstMinor": 0,
+        "igstMinor": 50112
+      },
+      {
+        "description": "USB cable 3.1 Type A-C (dual screw lock)",
+        "amountMinor": 210000,
+        "hsnSac": "85444999",
+        "quantity": 1,
+        "rate": 2100,
+        "taxRate": 18,
+        "cgstMinor": 0,
+        "sgstMinor": 0,
+        "igstMinor": 36288
+      },
+      {
+        "description": "VH4110 IoT Enabler",
+        "amountMinor": 3910000,
+        "hsnSac": "85176290",
+        "quantity": 1,
+        "rate": 39100,
+        "taxRate": 18,
+        "cgstMinor": 0,
+        "sgstMinor": 0,
+        "igstMinor": 703800
+      },
+      {
+        "description": "AEcable 2Y DSUB9 male",
+        "amountMinor": 560000,
+        "hsnSac": "85444999",
+        "quantity": 1,
+        "rate": 5600,
+        "taxRate": 18,
+        "cgstMinor": 0,
+        "sgstMinor": 0,
+        "igstMinor": 96768
+      }
+    ]
+  },
+  "ocrBlocks": [
+    {
+      "text": "| No.                     | Part No.               | Description                              | Quantity   | Price/INR  | Total/INR  |   |\n| ----------------------- | ---------------------- | ---------------------------------------- | ---------- | ---------- | ---------- | - |\n| 1000                    | 07230                  | VN5620A Ethernet/CAN Interface           | 1 PCS      | 225,000.00 | 225,000.00 |   |\n|                         |                        | Discount \\[%]                            |            | -4.00%     | -9,000.00  |   |\n|                         |                        | IGST                                     |            | 18.00 %    | 38,880.00  |   |\n|                         |                        | Net Value                                |            | 216,000.00 | 216,000.00 |   |\n|                         |                        | Date of Delivery:                        | 2026-01-07 |            |            |   |\n|                         |                        | HSN/SAC Code                             | 85176290   |            |            |   |\n|                         |                        | Net weight:                              | 1,119 G    |            |            |   |\n| 1010                    | 05119                  | AEcable 2Y DSUB9 male                    | 2 PCS      | 5,600.00   | 11,200.00  |   |\n|                         |                        | Discount \\[%]                            |            | -4.00%     | -448.00    |   |\n|                         |                        | IGST                                     |            | 18.00 %    | 1,935.36   |   |\n|                         |                        | Net Value                                |            | 5,376.00   | 10,752.00  |   |\n|                         |                        | Date of Delivery:                        | 2026-01-07 |            |            |   |\n|                         |                        | HSN/SAC Code                             | 85444999   |            |            |   |\n|                         |                        | Net weight:                              | 274 G      |            |            |   |\n| 1020                    | 05075                  | CANcable 2Y                              | 1 PCS      | 2,900.00   | 2,900.00   |   |\n|                         |                        |                                          |            | -4.00%     | -116.00    |   |\n|                         |                        | Discount \\[%]                            |            |            |            |   |\n|                         |                        | IGST                                     |            | 18.00 %    | 501.12     |   |\n|                         |                        | Net Value                                |            | 2,784.00   | 2,784.00   |   |\n|                         |                        | Date of Delivery:                        | 2026-01-07 |            |            |   |\n|                         |                        | HSN/SAC Code                             | 85444999   |            |            |   |\n|                         |                        | Net weight:                              | 96.5 G     |            |            |   |\n| 1030                    | 05140                  | USB cable 3.1 Type A-C (dual screw lock) | 1 PCS      | 2,100.00   | 2,100.00   |   |\n|                         |                        | Discount \\[%]                            |            | -4.00%     | -84.00     |   |\n|                         |                        | IGST                                     |            | 18.00 %    | 362.88     |   |\n|                         |                        | Net Value                                |            | 2,016.00   | 2,016.00   |   |\n|                         |                        | Date of Delivery:                        | 2026-01-07 |            |            |   |\n|                         |                        | HSN/SAC Code                             | 85444999   |            |            |   |\n|                         |                        | Net weight:                              | 75 G       |            |            |   |\n| 2000                    | 16026                  | VH4110 IoT Enabler                       | 1 PCS      | 39,100.00  | 39,100.00  |   |\n|                         |                        | IGST                                     |            | 18.00 %    | 7,038.00   |   |\n|                         |                        | Date of Delivery:                        | 2026-01-07 |            |            |   |\n|                         |                        | HSN/SAC Code                             | 85176290   |            |            |   |\n|                         |                        | Net weight:                              | 405 G      |            |            |   |\n| 4050                    | 05119                  | AEcable 2Y DSUB9 male                    | 1 PCS      | 5,600.00   | 5,600.00   |   |\n|                         |                        | Discount \\[%]                            |            | -4.00%     | -224.00    |   |\n|                         |                        | IGST                                     |            | 18.00 %    | 967.68     |   |\n|                         |                        | Net Value                                |            | 5,376.00   | 5,376.00   |   |\n|                         |                        | Date of Delivery:                        | 2026-01-07 |            |            |   |\n|                         |                        | HSN/SAC Code                             | 85444999   |            |            |   |\n|                         |                        | Net weight:                              | 137 G      |            |            |   |\n| \\*\\*Net total items\\*\\* | \\*\\*276,028.00 INR\\*\\* |                                          |            |            |            |   |\n| \\*\\*IGST\\*\\*            | 18.00 %                | \\*\\*49,685.04 INR\\*\\*                    |            |            |            |   |\n| \\*\\*Total value\\*\\*     | \\*\\*325,713.04 INR\\*\\* |                                          |            |            |            |   |",
+      "page": 1,
+      "bbox": [
+        269,
+        14,
+        547,
+        89
+      ],
+      "blockType": "table",
+      "bboxNormalized": [
+        0.4520400618404248,
+        0.016633399866932803,
+        0.9192041406197485,
+        0.10574089915407281
+      ]
+    },
+    {
+      "text": "| No.                     | Part No.               | Description                              | Quantity   | Price/INR  | Total/INR  |   |\n| ----------------------- | ---------------------- | ---------------------------------------- | ---------- | ---------- | ---------- | - |\n| 1000                    | 07230                  | VN5620A Ethernet/CAN Interface           | 1 PCS      | 225,000.00 | 225,000.00 |   |\n|                         |                        | Discount \\[%]                            |            | -4.00%     | -9,000.00  |   |\n|                         |                        | IGST                                     |            | 18.00 %    | 38,880.00  |   |\n|                         |                        | Net Value                                |            | 216,000.00 | 216,000.00 |   |\n|                         |                        | Date of Delivery:                        | 2026-01-07 |            |            |   |\n|                         |                        | HSN/SAC Code                             | 85176290   |            |            |   |\n|                         |                        | Net weight:                              | 1,119 G    |            |            |   |\n| 1010                    | 05119                  | AEcable 2Y DSUB9 male                    | 2 PCS      | 5,600.00   | 11,200.00  |   |\n|                         |                        | Discount \\[%]                            |            | -4.00%     | -448.00    |   |\n|                         |                        | IGST                                     |            | 18.00 %    | 1,935.36   |   |\n|                         |                        | Net Value                                |            | 5,376.00   | 10,752.00  |   |\n|                         |                        | Date of Delivery:                        | 2026-01-07 |            |            |   |\n|                         |                        | HSN/SAC Code                             | 85444999   |            |            |   |\n|                         |                        | Net weight:                              | 274 G      |            |            |   |\n| 1020                    | 05075                  | CANcable 2Y                              | 1 PCS      | 2,900.00   | 2,900.00   |   |\n|                         |                        |                                          |            | -4.00%     | -116.00    |   |\n|                         |                        | Discount \\[%]                            |            |            |            |   |\n|                         |                        | IGST                                     |            | 18.00 %    | 501.12     |   |\n|                         |                        | Net Value                                |            | 2,784.00   | 2,784.00   |   |\n|                         |                        | Date of Delivery:                        | 2026-01-07 |            |            |   |\n|                         |                        | HSN/SAC Code                             | 85444999   |            |            |   |\n|                         |                        | Net weight:                              | 96.5 G     |            |            |   |\n| 1030                    | 05140                  | USB cable 3.1 Type A-C (dual screw lock) | 1 PCS      | 2,100.00   | 2,100.00   |   |\n|                         |                        | Discount \\[%]                            |            | -4.00%     | -84.00     |   |\n|                         |                        | IGST                                     |            | 18.00 %    | 362.88     |   |\n|                         |                        | Net Value                                |            | 2,016.00   | 2,016.00   |   |\n|                         |                        | Date of Delivery:                        | 2026-01-07 |            |            |   |\n|                         |                        | HSN/SAC Code                             | 85444999   |            |            |   |\n|                         |                        | Net weight:                              | 75 G       |            |            |   |\n| 2000                    | 16026                  | VH4110 IoT Enabler                       | 1 PCS      | 39,100.00  | 39,100.00  |   |\n|                         |                        | IGST                                     |            | 18.00 %    | 7,038.00   |   |\n|                         |                        | Date of Delivery:                        | 2026-01-07 |            |            |   |\n|                         |                        | HSN/SAC Code                             | 85176290   |            |            |   |\n|                         |                        | Net weight:                              | 405 G      |            |            |   |\n| 4050                    | 05119                  | AEcable 2Y DSUB9 male                    | 1 PCS      | 5,600.00   | 5,600.00   |   |\n|                         |                        | Discount \\[%]                            |            | -4.00%     | -224.00    |   |\n|                         |                        | IGST                                     |            | 18.00 %    | 967.68     |   |\n|                         |                        | Net Value                                |            | 5,376.00   | 5,376.00   |   |\n|                         |                        | Date of Delivery:                        | 2026-01-07 |            |            |   |\n|                         |                        | HSN/SAC Code                             | 85444999   |            |            |   |\n|                         |                        | Net weight:                              | 137 G      |            |            |   |\n| \\*\\*Net total items\\*\\* | \\*\\*276,028.00 INR\\*\\* |                                          |            |            |            |   |\n| \\*\\*IGST\\*\\*            | 18.00 %                | \\*\\*49,685.04 INR\\*\\*                    |            |            |            |   |\n| \\*\\*Total value\\*\\*     | \\*\\*325,713.04 INR\\*\\* |                                          |            |            |            |   |",
+      "page": 1,
+      "bbox": [
+        50,
+        93,
+        552,
+        645
+      ],
+      "blockType": "table",
+      "bboxNormalized": [
+        0.0840223163272165,
+        0.11049329911605361,
+        0.9276063722524702,
+        0.766324493869404
+      ]
+    }
+  ],
+  "fieldProvenance": {
+    "invoiceNumber": {
+      "source": "text-pattern",
+      "page": 1,
+      "confidence": 1
+    },
+    "vendorName": {
+      "source": "text-pattern",
+      "page": 1,
+      "confidence": 0.9999994505807414
+    },
+    "vendorAddress": {
+      "source": "text-pattern",
+      "page": 1,
+      "confidence": 0.9703425474769803
+    },
+    "customerName": {
+      "source": "text-pattern",
+      "page": 1,
+      "confidence": 0.9999999437301155
+    },
+    "customerAddress": {
+      "source": "text-pattern",
+      "page": 1,
+      "confidence": 0.9972323063651948
+    },
+    "customerGstin": {
+      "source": "text-pattern",
+      "page": 1,
+      "confidence": 1
+    },
+    "invoiceDate": {
+      "source": "text-pattern",
+      "page": 1,
+      "confidence": 1
+    },
+    "dueDate": {
+      "source": "text-pattern",
+      "page": 1,
+      "confidence": 0.9996687841324928
+    },
+    "currency": {
+      "source": "text-pattern",
+      "page": 1,
+      "confidence": 0.8816
+    },
+    "totalAmountMinor": {
+      "source": "text-pattern",
+      "page": 1,
+      "confidence": 0.999999724388213
+    },
+    "gst.subtotalMinor": {
+      "source": "text-pattern",
+      "page": 1,
+      "confidence": 0.8816
+    },
+    "gst.cgstMinor": {
+      "source": "text-pattern",
+      "page": 1,
+      "bbox": [
+        269,
+        14,
+        547,
+        89
+      ],
+      "bboxNormalized": [
+        0.4520400618404248,
+        0.016633399866932803,
+        0.9192041406197485,
+        0.10574089915407281
+      ],
+      "blockIndex": 0,
+      "confidence": 0.8816
+    },
+    "gst.sgstMinor": {
+      "source": "text-pattern",
+      "page": 1,
+      "bbox": [
+        269,
+        14,
+        547,
+        89
+      ],
+      "bboxNormalized": [
+        0.4520400618404248,
+        0.016633399866932803,
+        0.9192041406197485,
+        0.10574089915407281
+      ],
+      "blockIndex": 0,
+      "confidence": 0.8816
+    },
+    "gst.igstMinor": {
+      "source": "text-pattern",
+      "page": 1,
+      "bbox": [
+        269,
+        14,
+        547,
+        89
+      ],
+      "bboxNormalized": [
+        0.4520400618404248,
+        0.016633399866932803,
+        0.9192041406197485,
+        0.10574089915407281
+      ],
+      "blockIndex": 0,
+      "confidence": 0.8816
+    },
+    "gst.cessMinor": {
+      "source": "text-pattern",
+      "page": 1,
+      "bbox": [
+        269,
+        14,
+        547,
+        89
+      ],
+      "bboxNormalized": [
+        0.4520400618404248,
+        0.016633399866932803,
+        0.9192041406197485,
+        0.10574089915407281
+      ],
+      "blockIndex": 0,
+      "confidence": 0.8816
+    },
+    "gst.totalTaxMinor": {
+      "source": "text-pattern",
+      "page": 1,
+      "bbox": [
+        269,
+        14,
+        547,
+        89
+      ],
+      "bboxNormalized": [
+        0.4520400618404248,
+        0.016633399866932803,
+        0.9192041406197485,
+        0.10574089915407281
+      ],
+      "blockIndex": 0,
+      "confidence": 0.8816
+    }
+  },
+  "lineItemProvenance": [
+    {
+      "index": 0,
+      "row": {
+        "source": "text-pattern",
+        "page": 1,
+        "bboxNormalized": [
+          0.4520400618404248,
+          0.016633399866932803,
+          0.9192041406197485,
+          0.10574089915407281
+        ],
+        "confidence": 0.8467
+      },
+      "fields": {
+        "description": {
+          "source": "text-pattern",
+          "page": 1,
+          "bbox": [
+            269,
+            14,
+            547,
+            89
+          ],
+          "bboxNormalized": [
+            0.4520400618404248,
+            0.016633399866932803,
+            0.9192041406197485,
+            0.10574089915407281
+          ],
+          "blockIndex": 0,
+          "confidence": 0.82
+        },
+        "hsnSac": {
+          "source": "text-pattern",
+          "page": 1,
+          "bbox": [
+            269,
+            14,
+            547,
+            89
+          ],
+          "bboxNormalized": [
+            0.4520400618404248,
+            0.016633399866932803,
+            0.9192041406197485,
+            0.10574089915407281
+          ],
+          "blockIndex": 0,
+          "confidence": 0.82
+        },
+        "igstMinor": {
+          "source": "text-pattern",
+          "page": 1,
+          "bbox": [
+            269,
+            14,
+            547,
+            89
+          ],
+          "bboxNormalized": [
+            0.4520400618404248,
+            0.016633399866932803,
+            0.9192041406197485,
+            0.10574089915407281
+          ],
+          "blockIndex": 0,
+          "confidence": 0.9
+        }
+      }
+    },
+    {
+      "index": 1,
+      "row": {
+        "source": "text-pattern",
+        "page": 1,
+        "bboxNormalized": [
+          0.4520400618404248,
+          0.016633399866932803,
+          0.9192041406197485,
+          0.10574089915407281
+        ],
+        "confidence": 0.86
+      },
+      "fields": {
+        "description": {
+          "source": "text-pattern",
+          "page": 1,
+          "bbox": [
+            269,
+            14,
+            547,
+            89
+          ],
+          "bboxNormalized": [
+            0.4520400618404248,
+            0.016633399866932803,
+            0.9192041406197485,
+            0.10574089915407281
+          ],
+          "blockIndex": 0,
+          "confidence": 0.82
+        },
+        "hsnSac": {
+          "source": "text-pattern",
+          "page": 1,
+          "bbox": [
+            269,
+            14,
+            547,
+            89
+          ],
+          "bboxNormalized": [
+            0.4520400618404248,
+            0.016633399866932803,
+            0.9192041406197485,
+            0.10574089915407281
+          ],
+          "blockIndex": 0,
+          "confidence": 0.82
+        },
+        "amountMinor": {
+          "source": "text-pattern",
+          "page": 1,
+          "bbox": [
+            269,
+            14,
+            547,
+            89
+          ],
+          "bboxNormalized": [
+            0.4520400618404248,
+            0.016633399866932803,
+            0.9192041406197485,
+            0.10574089915407281
+          ],
+          "blockIndex": 0,
+          "confidence": 0.9
+        },
+        "igstMinor": {
+          "source": "text-pattern",
+          "page": 1,
+          "bbox": [
+            269,
+            14,
+            547,
+            89
+          ],
+          "bboxNormalized": [
+            0.4520400618404248,
+            0.016633399866932803,
+            0.9192041406197485,
+            0.10574089915407281
+          ],
+          "blockIndex": 0,
+          "confidence": 0.9
+        }
+      }
+    },
+    {
+      "index": 2,
+      "row": {
+        "source": "text-pattern",
+        "page": 1,
+        "bboxNormalized": [
+          0.4520400618404248,
+          0.016633399866932803,
+          0.9192041406197485,
+          0.10574089915407281
+        ],
+        "confidence": 0.86
+      },
+      "fields": {
+        "description": {
+          "source": "text-pattern",
+          "page": 1,
+          "bbox": [
+            269,
+            14,
+            547,
+            89
+          ],
+          "bboxNormalized": [
+            0.4520400618404248,
+            0.016633399866932803,
+            0.9192041406197485,
+            0.10574089915407281
+          ],
+          "blockIndex": 0,
+          "confidence": 0.82
+        },
+        "hsnSac": {
+          "source": "text-pattern",
+          "page": 1,
+          "bbox": [
+            269,
+            14,
+            547,
+            89
+          ],
+          "bboxNormalized": [
+            0.4520400618404248,
+            0.016633399866932803,
+            0.9192041406197485,
+            0.10574089915407281
+          ],
+          "blockIndex": 0,
+          "confidence": 0.82
+        },
+        "amountMinor": {
+          "source": "text-pattern",
+          "page": 1,
+          "bbox": [
+            269,
+            14,
+            547,
+            89
+          ],
+          "bboxNormalized": [
+            0.4520400618404248,
+            0.016633399866932803,
+            0.9192041406197485,
+            0.10574089915407281
+          ],
+          "blockIndex": 0,
+          "confidence": 0.9
+        },
+        "igstMinor": {
+          "source": "text-pattern",
+          "page": 1,
+          "bbox": [
+            269,
+            14,
+            547,
+            89
+          ],
+          "bboxNormalized": [
+            0.4520400618404248,
+            0.016633399866932803,
+            0.9192041406197485,
+            0.10574089915407281
+          ],
+          "blockIndex": 0,
+          "confidence": 0.9
+        }
+      }
+    },
+    {
+      "index": 3,
+      "row": {
+        "source": "text-pattern",
+        "page": 1,
+        "bboxNormalized": [
+          0.4520400618404248,
+          0.016633399866932803,
+          0.9192041406197485,
+          0.10574089915407281
+        ],
+        "confidence": 0.86
+      },
+      "fields": {
+        "description": {
+          "source": "text-pattern",
+          "page": 1,
+          "bbox": [
+            269,
+            14,
+            547,
+            89
+          ],
+          "bboxNormalized": [
+            0.4520400618404248,
+            0.016633399866932803,
+            0.9192041406197485,
+            0.10574089915407281
+          ],
+          "blockIndex": 0,
+          "confidence": 0.82
+        },
+        "hsnSac": {
+          "source": "text-pattern",
+          "page": 1,
+          "bbox": [
+            269,
+            14,
+            547,
+            89
+          ],
+          "bboxNormalized": [
+            0.4520400618404248,
+            0.016633399866932803,
+            0.9192041406197485,
+            0.10574089915407281
+          ],
+          "blockIndex": 0,
+          "confidence": 0.82
+        },
+        "amountMinor": {
+          "source": "text-pattern",
+          "page": 1,
+          "bbox": [
+            269,
+            14,
+            547,
+            89
+          ],
+          "bboxNormalized": [
+            0.4520400618404248,
+            0.016633399866932803,
+            0.9192041406197485,
+            0.10574089915407281
+          ],
+          "blockIndex": 0,
+          "confidence": 0.9
+        },
+        "igstMinor": {
+          "source": "text-pattern",
+          "page": 1,
+          "bbox": [
+            269,
+            14,
+            547,
+            89
+          ],
+          "bboxNormalized": [
+            0.4520400618404248,
+            0.016633399866932803,
+            0.9192041406197485,
+            0.10574089915407281
+          ],
+          "blockIndex": 0,
+          "confidence": 0.9
+        }
+      }
+    },
+    {
+      "index": 4,
+      "row": {
+        "source": "text-pattern",
+        "page": 1,
+        "bboxNormalized": [
+          0.4520400618404248,
+          0.016633399866932803,
+          0.9192041406197485,
+          0.10574089915407281
+        ],
+        "confidence": 0.86
+      },
+      "fields": {
+        "description": {
+          "source": "text-pattern",
+          "page": 1,
+          "bbox": [
+            269,
+            14,
+            547,
+            89
+          ],
+          "bboxNormalized": [
+            0.4520400618404248,
+            0.016633399866932803,
+            0.9192041406197485,
+            0.10574089915407281
+          ],
+          "blockIndex": 0,
+          "confidence": 0.82
+        },
+        "hsnSac": {
+          "source": "text-pattern",
+          "page": 1,
+          "bbox": [
+            269,
+            14,
+            547,
+            89
+          ],
+          "bboxNormalized": [
+            0.4520400618404248,
+            0.016633399866932803,
+            0.9192041406197485,
+            0.10574089915407281
+          ],
+          "blockIndex": 0,
+          "confidence": 0.82
+        },
+        "amountMinor": {
+          "source": "text-pattern",
+          "page": 1,
+          "bbox": [
+            269,
+            14,
+            547,
+            89
+          ],
+          "bboxNormalized": [
+            0.4520400618404248,
+            0.016633399866932803,
+            0.9192041406197485,
+            0.10574089915407281
+          ],
+          "blockIndex": 0,
+          "confidence": 0.9
+        },
+        "igstMinor": {
+          "source": "text-pattern",
+          "page": 1,
+          "bbox": [
+            269,
+            14,
+            547,
+            89
+          ],
+          "bboxNormalized": [
+            0.4520400618404248,
+            0.016633399866932803,
+            0.9192041406197485,
+            0.10574089915407281
+          ],
+          "blockIndex": 0,
+          "confidence": 0.9
+        }
+      }
+    },
+    {
+      "index": 5,
+      "row": {
+        "source": "text-pattern",
+        "page": 1,
+        "bboxNormalized": [
+          0.4520400618404248,
+          0.016633399866932803,
+          0.9192041406197485,
+          0.10574089915407281
+        ],
+        "confidence": 0.86
+      },
+      "fields": {
+        "description": {
+          "source": "text-pattern",
+          "page": 1,
+          "bbox": [
+            269,
+            14,
+            547,
+            89
+          ],
+          "bboxNormalized": [
+            0.4520400618404248,
+            0.016633399866932803,
+            0.9192041406197485,
+            0.10574089915407281
+          ],
+          "blockIndex": 0,
+          "confidence": 0.82
+        },
+        "hsnSac": {
+          "source": "text-pattern",
+          "page": 1,
+          "bbox": [
+            269,
+            14,
+            547,
+            89
+          ],
+          "bboxNormalized": [
+            0.4520400618404248,
+            0.016633399866932803,
+            0.9192041406197485,
+            0.10574089915407281
+          ],
+          "blockIndex": 0,
+          "confidence": 0.82
+        },
+        "amountMinor": {
+          "source": "text-pattern",
+          "page": 1,
+          "bbox": [
+            269,
+            14,
+            547,
+            89
+          ],
+          "bboxNormalized": [
+            0.4520400618404248,
+            0.016633399866932803,
+            0.9192041406197485,
+            0.10574089915407281
+          ],
+          "blockIndex": 0,
+          "confidence": 0.9
+        },
+        "igstMinor": {
+          "source": "text-pattern",
+          "page": 1,
+          "bbox": [
+            269,
+            14,
+            547,
+            89
+          ],
+          "bboxNormalized": [
+            0.4520400618404248,
+            0.016633399866932803,
+            0.9192041406197485,
+            0.10574089915407281
+          ],
+          "blockIndex": 0,
+          "confidence": 0.9
+        }
+      }
+    }
+  ],
+  "extraction": {
+    "source": "llamaextract",
+    "strategy": "llamaextract",
+    "provider": "llamaparse",
+    "parsingConfidence": 0.8816,
+    "extractionConfidence": 84,
+    "fieldConfidence": {
+      "invoiceNumber": 1,
+      "vendorName": 1,
+      "vendorAddress": 0.9703,
+      "customerName": 1,
+      "customerAddress": 0.9972,
+      "customerGstin": 1,
+      "invoiceDate": 1,
+      "dueDate": 0.9997,
+      "currency": 0.8816,
+      "totalAmountMinor": 1,
+      "gst.subtotalMinor": 0.8816,
+      "gst.cgstMinor": 0.8816,
+      "gst.sgstMinor": 0.8816,
+      "gst.igstMinor": 0.8816,
+      "gst.cessMinor": 0.8816,
+      "gst.totalTaxMinor": 0.8816,
+      "lineItems.0.description": 0.82,
+      "lineItems.0.hsnSac": 0.82,
+      "lineItems.0.igstMinor": 0.9,
+      "lineItems.1.description": 0.82,
+      "lineItems.1.hsnSac": 0.82,
+      "lineItems.1.amountMinor": 0.9,
+      "lineItems.1.igstMinor": 0.9,
+      "lineItems.2.description": 0.82,
+      "lineItems.2.hsnSac": 0.82,
+      "lineItems.2.amountMinor": 0.9,
+      "lineItems.2.igstMinor": 0.9,
+      "lineItems.3.description": 0.82,
+      "lineItems.3.hsnSac": 0.82,
+      "lineItems.3.amountMinor": 0.9,
+      "lineItems.3.igstMinor": 0.9,
+      "lineItems.4.description": 0.82,
+      "lineItems.4.hsnSac": 0.82,
+      "lineItems.4.amountMinor": 0.9,
+      "lineItems.4.igstMinor": 0.9,
+      "lineItems.5.description": 0.82,
+      "lineItems.5.hsnSac": 0.82,
+      "lineItems.5.amountMinor": 0.9,
+      "lineItems.5.igstMinor": 0.9
+    }
+  },
+  "confidenceScore": 84,
+  "confidenceTone": "yellow",
+  "previewPageImages": {
+    "1": "preview-page-1.png",
+    "5": "preview-page-5.png"
+  }
+}

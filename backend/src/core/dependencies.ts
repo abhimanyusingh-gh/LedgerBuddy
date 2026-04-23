@@ -167,7 +167,7 @@ export async function buildDependencies(): Promise<Dependencies> {
   };
 }
 
-function resolveFileStore(runtimeManifest: RuntimeManifest): FileStore {
+export function resolveFileStore(runtimeManifest: RuntimeManifest): FileStore {
   logger.info("Using file store provider", {
     provider: "s3",
     bucket: runtimeManifest.fileStore.configuration.bucket,

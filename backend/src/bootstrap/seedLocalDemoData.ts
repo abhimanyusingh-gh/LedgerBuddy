@@ -5,6 +5,7 @@ import { UserModel } from "@/models/core/User.js";
 import { logger } from "@/utils/logger.js";
 import { loadLocalDemoUsersConfig } from "@/config/localDemoUsers.js";
 import type { KeycloakAdminClient } from "@/keycloak/KeycloakAdminClient.js";
+import type { FileStore } from "@/core/interfaces/FileStore.js";
 import { seedTdsRates } from "@/bootstrap/seedTdsRates.js";
 import { getRoleDefaults } from "@/auth/personaDefaults.js";
 import { seedDefaultGlCodes } from "@/services/compliance/seedGlCodes.js";
@@ -12,7 +13,14 @@ import { seedDemoTenantConfig } from "@/bootstrap/seedDemoTenantConfig.js";
 import { seedDemoInvoices } from "@/bootstrap/seedDemoInvoices.js";
 import { env } from "@/config/env.js";
 
-export async function seedLocalDemoData(keycloakAdmin: KeycloakAdminClient): Promise<void> {
+interface SeedLocalDemoDataOptions {
+  fileStore?: FileStore;
+}
+
+export async function seedLocalDemoData(
+  keycloakAdmin: KeycloakAdminClient,
+  options: SeedLocalDemoDataOptions = {}
+): Promise<void> {
   const config = loadLocalDemoUsersConfig();
   logger.info("local.demo.seed.start");
 
@@ -94,7 +102,7 @@ export async function seedLocalDemoData(keycloakAdmin: KeycloakAdminClient): Pro
     if (mahirUser) {
       await seedDemoTenantConfig(DEMO_TENANT_ID, String(mahirUser._id));
       if (env.LOCAL_DEMO_INVOICES) {
-        await seedDemoInvoices(DEMO_TENANT_ID);
+        await seedDemoInvoices(DEMO_TENANT_ID, { fileStore: options.fileStore });
       }
     }
   }
