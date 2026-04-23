@@ -3,6 +3,7 @@ import type { AuthService } from "@/auth/AuthService.js";
 import { TenantModel } from "@/models/core/Tenant.js";
 import { TenantUserRoleModel } from "@/models/core/TenantUserRole.js";
 import { mergeCapabilitiesWithDefaults } from "@/auth/personaDefaults.js";
+import { getFeatureFlagEvaluator } from "@/services/flags/featureFlagEvaluator.js";
 
 export function createSessionRouter(authService: AuthService) {
   const router = Router();
@@ -15,10 +16,11 @@ export function createSessionRouter(authService: AuthService) {
         return;
       }
 
-      const [flags, tenantDoc, userRoleDoc] = await Promise.all([
+      const [flags, tenantDoc, userRoleDoc, featureFlags] = await Promise.all([
         authService.getSessionFlags(context),
         TenantModel.findById(context.tenantId).select({ mode: 1 }).lean(),
-        TenantUserRoleModel.findOne({ tenantId: context.tenantId, userId: context.userId }).lean()
+        TenantUserRoleModel.findOne({ tenantId: context.tenantId, userId: context.userId }).lean(),
+        getFeatureFlagEvaluator().evaluateAll({ tenantId: context.tenantId })
       ]);
 
       const rawRoleDoc = userRoleDoc as Record<string, unknown> | null;
@@ -42,7 +44,8 @@ export function createSessionRouter(authService: AuthService) {
           onboarding_status: context.onboardingStatus,
           mode: tenantDoc?.mode ?? "test"
         },
-        flags
+        flags,
+        featureFlags
       });
     } catch (error) {
       next(error);

@@ -24,6 +24,7 @@ export type WorkspaceSessionContext = {
     requires_admin_action: boolean;
     must_change_password: boolean;
   };
+  featureFlags: Record<string, boolean>;
 };
 
 interface UseTenantWorkspaceSessionOptions {
