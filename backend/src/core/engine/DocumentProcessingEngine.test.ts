@@ -325,6 +325,35 @@ describe("DocumentProcessingEngine", () => {
     expect(sentPrompt).toContain("Respond with ONLY a valid JSON object");
   });
 
+  it("does NOT leak the placeholder sentinel when the verifier produces no rawJson", async () => {
+    // Simulates NoopFieldVerifier: echoes input.parsed back with no contract.
+    // The engine pre-populates `input.parsed = { invoiceNumber: "__bank_statement_extraction__" }`
+    // as a placeholder to satisfy FieldVerifierInput — if callSlm's fallback
+    // returned that input verbatim, the sentinel would leak into
+    // `parsed.invoiceNumber` on every llamaparse-path extraction with no SLM.
+    const ocrProvider = makeOcrProvider("DOCUMENT TEXT");
+    const fieldVerifier: FieldVerifier = {
+      name: "noop-like",
+      verify: jest.fn().mockImplementation((input: FieldVerifierInput) => {
+        return Promise.resolve({
+          parsed: input.parsed,
+          issues: [],
+          changedFields: [],
+          reasonCodes: {}
+        } as FieldVerifierResult);
+      })
+    };
+    const engine = new DocumentProcessingEngine(new TestDocumentDefinition(), fieldVerifier, ocrProvider);
+
+    const result = await engine.process(makeCtx());
+
+    // Upstream the engine stringifies whatever it received as rawJson and
+    // passes it to parseOutput. The fallback must yield "{}", not the
+    // sentinel-bearing placeholder.
+    expect(result.output).toBe("PARSED:{}");
+    expect(result.output).not.toContain("__bank_statement_extraction__");
+  });
+
   it("onProgress callback receives DocumentProcessingProgressEvent for chunked SLM", async () => {
     const longText = "x".repeat(9000);
     const ocrProvider = makeOcrProvider(longText);

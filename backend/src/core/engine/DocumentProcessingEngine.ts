@@ -229,7 +229,12 @@ export class DocumentProcessingEngine<TOutput> {
     } else if (rawJson && typeof rawJson === "object") {
       return JSON.stringify(rawJson);
     }
-    return JSON.stringify(rawParsed);
+    // No rawJson produced by the verifier (e.g. NoopFieldVerifier on the
+    // llamaparse path) — return an empty object rather than echoing the
+    // placeholder input we passed in (`{ invoiceNumber: OCR_SENTINEL_KEY }`).
+    // Stringifying rawParsed would leak the sentinel into downstream parsed
+    // output, corrupting `parsed.invoiceNumber` to "__bank_statement_extraction__".
+    return "{}";
   }
 
   private runValidation(output: TOutput, processingIssues: string[]): ValidationResult {
