@@ -7,8 +7,6 @@ import { HEALTH_CHECK_STATUS } from "@/types/health.js";
 import { getFeatureFlagEvaluator } from "@/services/flags/featureFlagEvaluator.js";
 import { logger } from "@/utils/logger.js";
 
-const HEALTH_FLAG_TENANT_ID = "__platform_health__";
-
 export const healthRouter = Router();
 
 healthRouter.get("/health", async (_req, res) => {
@@ -25,7 +23,7 @@ healthRouter.get("/health", async (_req, res) => {
   const ready = mongoOk && ocrOk && slmOk;
 
   const verbose = await getFeatureFlagEvaluator()
-    .isEnabled("example.healthCheckVerbose", { tenantId: HEALTH_FLAG_TENANT_ID })
+    .evaluateGlobal("example.healthCheckVerbose")
     .catch(() => false);
   if (verbose) {
     logger.info("health.checks", { ready, checks });

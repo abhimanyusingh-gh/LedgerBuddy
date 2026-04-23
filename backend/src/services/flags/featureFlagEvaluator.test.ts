@@ -170,6 +170,28 @@ describe("FeatureFlagEvaluator", () => {
     expect(Object.keys(all).sort()).toEqual(Object.keys(FEATURE_FLAG_REGISTRY).sort());
   });
 
+  it("evaluateGlobal returns the registry default for a boolean-kind flag with no targeting", async () => {
+    const state: StubStoreState = { overrides: {}, calls: 0 };
+    const evaluator = new FeatureFlagEvaluator({ overrideStore: createStubStore(state) });
+    const enabled = await evaluator.evaluateGlobal(CANARY_FLAG);
+    expect(enabled).toBe(FEATURE_FLAG_REGISTRY[CANARY_FLAG].defaultEnabled);
+  });
+
+  it("evaluateGlobal throws when the flag declares percentage-rollout targeting", async () => {
+    const state: StubStoreState = { overrides: {}, calls: 0 };
+    const evaluator = new FeatureFlagEvaluator({
+      overrideStore: createStubStore(state),
+      registry: registryWith(CANARY_FLAG, {
+        description: "test",
+        defaultEnabled: false,
+        targeting: [
+          { kind: FEATURE_FLAG_TARGETING_KIND.PERCENTAGE_ROLLOUT, percentage: 50 }
+        ]
+      })
+    });
+    await expect(evaluator.evaluateGlobal(CANARY_FLAG)).rejects.toThrow(/tenant targeting/);
+  });
+
   it("throws on unknown flag names", async () => {
     const state: StubStoreState = { overrides: {}, calls: 0 };
     const evaluator = new FeatureFlagEvaluator({

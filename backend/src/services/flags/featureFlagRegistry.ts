@@ -1,5 +1,4 @@
 export const FEATURE_FLAG_TARGETING_KIND = {
-  DEFAULT: "default",
   TENANT_ALLOWLIST: "tenantAllowlist",
   TENANT_DENYLIST: "tenantDenylist",
   PERCENTAGE_ROLLOUT: "percentageRollout"

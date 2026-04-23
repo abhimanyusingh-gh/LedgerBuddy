@@ -120,6 +120,19 @@ export class FeatureFlagEvaluator {
     return applyTargeting(definition, flagName, context);
   }
 
+  async evaluateGlobal(flagName: FeatureFlagName): Promise<boolean> {
+    const definition = this.registry[flagName];
+    if (!definition) {
+      throw new Error(`Unknown feature flag: ${flagName}`);
+    }
+    if (definition.targeting.length > 0) {
+      throw new Error(
+        `Cannot evaluate flag ${flagName} globally: it declares tenant targeting rules and requires a tenant context`
+      );
+    }
+    return definition.defaultEnabled;
+  }
+
   async evaluateAll(
     context: FeatureFlagContext
   ): Promise<Record<FeatureFlagName, boolean>> {

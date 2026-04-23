@@ -2,6 +2,8 @@ import axios from "axios";
 import { apiClient } from "@/api/client";
 import type { SessionUser, TenantRole, TenantUser } from "@/types";
 
+export type FeatureFlagName = "example.healthCheckVerbose";
+
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:4100/api";
 
 export async function refreshSessionToken(currentToken: string): Promise<string> {
@@ -29,7 +31,7 @@ interface SessionContextResponse {
     requires_admin_action: boolean;
     must_change_password: boolean;
   };
-  featureFlags: Record<string, boolean>;
+  featureFlags: Record<FeatureFlagName, boolean>;
 }
 
 export async function loginWithCredentials(email: string, password: string): Promise<string> {
