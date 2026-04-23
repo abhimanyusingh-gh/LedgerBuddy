@@ -9,12 +9,12 @@ export const LLAMA_EXTRACT_INVOICE_SCHEMA = {
   vendor_name: {
     type: "string",
     description:
-      "The full legal name of the company or individual who ISSUED (sold/supplied) this invoice — the seller or service provider. Look in sections labeled 'Name of Supplier', 'Supplier', 'From', 'Sold By', or the letterhead. Do NOT return the buyer, recipient, consignee, or 'Bill To' / 'Ship To' party name.",
+      "The full legal name of the company or individual who ISSUED (sold/supplied) this invoice — the seller or service provider. Look in sections labeled 'Name of Supplier', 'Supplier', 'From', 'Sold By', or the letterhead. Do NOT return the buyer, recipient, consignee, or 'Bill To' / 'Ship To' party name. Return the COMPLETE legal name exactly as it appears on the document — do NOT return a possessive fragment (e.g. \"'s Organization\"), an abbreviated form, or a partial match. If only a fragment, placeholder, or ambiguous value is visible, return null rather than guessing. If the vendor's name shares a block with its address (common in letterheads and header stamps — e.g., 'ACME Corp\\nBannerghatta Main Rd\\nBengaluru 560076\\nIndia'), return ONLY the company name. Strip any address lines (street, city, state, PIN, country) from the result. The name must not contain postal address tokens.",
   },
   vendor_address: {
     type: "string",
     description:
-      "The full postal address of the vendor/supplier who issued this invoice. Look in sections labeled 'Supplier Address', 'From', 'Sold By', or near the vendor name in the letterhead. Include street, city, state, PIN/ZIP code, and country if present.",
+      "The full postal address of the vendor/supplier who issued this invoice. Look in sections labeled 'Supplier Address', 'From', 'Sold By', or near the vendor name in the letterhead. Include street, city, state, PIN/ZIP code, and country if present. Return exactly ONE contiguous postal address block belonging to the vendor. Do NOT concatenate the vendor address with the 'Bill To', 'Ship To', or any other address on the page. Do NOT invent or fill in missing address fragments.",
   },
   invoice_date: {
     type: "string",
@@ -74,12 +74,12 @@ export const LLAMA_EXTRACT_INVOICE_SCHEMA = {
   customer_name: {
     type: "string",
     description:
-      "The full legal name of the BUYER/CUSTOMER — the party receiving goods or services. Look in sections labeled 'Bill To', 'Buyer', 'Billed To', 'Ship To', 'Customer Name', 'Consignee', or 'Sold To'. Do NOT return the vendor/supplier name.",
+      "The full legal name of the BUYER/CUSTOMER — the party receiving goods or services. Look in sections labeled 'Bill To', 'Buyer', 'Billed To', 'Ship To', 'Customer Name', 'Consignee', or 'Sold To'. Do NOT return the vendor/supplier name. Return the COMPLETE legal name exactly as it appears on the document — do NOT return a possessive fragment (e.g. \"'s Organization\"), an abbreviated form, or a partial match. If only a fragment, placeholder, or ambiguous value is visible, return null rather than guessing. If the customer's name shares a block with its address (e.g., 'Global Innovation Hub\\n8th Floor Sanali Spazio\\nHyderabad 500081'), return ONLY the entity name. Strip any address lines from the result. The name must not contain postal address tokens.",
   },
   customer_address: {
     type: "string",
     description:
-      "The full postal address of the buyer/customer. Look in sections labeled 'Bill To', 'Buyer Address', 'Ship To', 'Consignee Address', or near the customer name. Include street, city, state, PIN/ZIP code, and country if present.",
+      "The full postal address of the buyer/customer. Look in sections labeled 'Bill To', 'Buyer Address', 'Ship To', 'Consignee Address', or near the customer name. Include street, city, state, PIN/ZIP code, and country if present. Return exactly ONE contiguous postal address block belonging to the buyer. Do NOT concatenate the 'Bill To' address with the 'Ship To' address or any other address on the page. Do NOT invent or fill in missing address fragments.",
   },
   customer_gstin: {
     type: "string",
