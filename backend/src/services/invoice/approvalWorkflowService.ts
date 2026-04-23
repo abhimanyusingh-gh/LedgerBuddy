@@ -7,7 +7,7 @@ import type { AuthenticatedRequestContext } from "@/types/auth.js";
 import { INVOICE_STATUS } from "@/types/invoice.js";
 import type { ApprovalStepType, ApproverType, ApprovalRule, ApprovalWorkflowMode } from "@/types/approvalWorkflow.js";
 
-interface WorkflowStep {
+export interface WorkflowStep {
   order: number;
   name: string;
   type?: ApprovalStepType;
@@ -22,7 +22,7 @@ interface WorkflowStep {
   escalateTo?: string | null;
 }
 
-interface WorkflowConfig {
+export interface WorkflowConfig {
   enabled: boolean;
   mode: ApprovalWorkflowMode;
   simpleConfig: { requireManagerReview: boolean; requireFinalSignoff: boolean };

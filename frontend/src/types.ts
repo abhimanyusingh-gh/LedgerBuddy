@@ -141,8 +141,18 @@ export interface Invoice {
     riskSignalCount: number;
     riskSignalMaxSeverity: "info" | "warning" | "critical" | null;
   };
+  actions?: InvoiceActions;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface InvoiceActions {
+  canApprove: boolean;
+  canReject: boolean;
+  canEditFields: boolean;
+  canDismissRiskSignals: boolean;
+  canOverrideGlCode: boolean;
+  canOverrideTds: boolean;
 }
 
 export interface InvoiceCompliance {

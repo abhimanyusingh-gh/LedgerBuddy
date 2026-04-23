@@ -105,6 +105,7 @@ interface InvoiceViewProps {
 }
 
 export function InvoiceView({
+  userId,
   userEmail,
   canViewAllInvoices,
   capabilities = {},
@@ -187,9 +188,6 @@ export function InvoiceView({
   const canUploadFiles = capabilities.canUploadFiles === true;
   const canStartIngestion = capabilities.canStartIngestion === true;
   const canExportToTally = capabilities.canExportToTally === true;
-  const canOverrideGlCode = capabilities.canOverrideGlCode === true;
-  const canOverrideTds = capabilities.canOverrideTds === true;
-  const canDismissRiskSignals = capabilities.canSignOffCompliance === true || canEditInvoiceFields;
 
   const {
     detail: activeInvoiceDetail,
@@ -1259,7 +1257,7 @@ export function InvoiceView({
                     ]
                       .filter(Boolean)
                       .join(" ");
-                    const canEditCell = invoice.status !== "EXPORTED" && canEditInvoiceFields;
+                    const canEditCell = invoice.actions?.canEditFields === true;
 
                     return (
                       <tr key={invoice._id} data-invoice-id={invoice._id} className={rowClasses || undefined} onClick={() => { setActiveId(invoice._id); setDetailsPanelVisible(true); }}>
@@ -1379,7 +1377,7 @@ export function InvoiceView({
                                 {invoice.complianceSummary?.glCode ?? invoice.compliance?.glCode?.name ?? ""}
                                 {!invoice.complianceSummary?.glCode && !invoice.compliance?.glCode?.name ? <span className="muted">—</span> : null}
                               </span>
-                              {canOverrideGlCode && invoice.status !== "EXPORTED" ? (
+                              {invoice.actions?.canOverrideGlCode === true ? (
                                 <button
                                   type="button"
                                   className="row-action-button field-edit-button"
@@ -1516,11 +1514,6 @@ export function InvoiceView({
                 <InvoiceDetailPanel
                   invoice={activeInvoice}
                   loading={activeInvoiceDetailLoading}
-                  canApproveInvoices={canApproveInvoices}
-                  canEditInvoiceFields={canEditInvoiceFields}
-                  canDismissRiskSignals={canDismissRiskSignals}
-                  canOverrideGlCode={canOverrideGlCode}
-                  canOverrideTds={canOverrideTds}
                   tenantGlCodes={tenantGlCodes}
                   tenantTdsRates={tenantTdsRates}
                   activeCropUrlByField={activeCropUrlByField}

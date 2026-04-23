@@ -13,6 +13,8 @@ import {
   type InvoiceService,
   type UpdateParsedFieldInput
 } from "@/services/invoice/invoiceService.js";
+import type { ApprovalWorkflowService } from "@/services/invoice/approvalWorkflowService.js";
+import { computeInvoiceActions, type InvoiceActionActor } from "@/services/invoice/invoiceActions.js";
 import { env } from "@/config/env.js";
 import { loadRuntimeManifest, type FolderSourceManifest } from "@/core/runtimeManifest.js";
 import { INVOICE_STATUS, GL_CODE_SOURCE, TDS_SOURCE, RISK_SIGNAL_STATUS } from "@/types/invoice.js";
@@ -58,11 +60,21 @@ function parseMetadataJsonField(metadata: Record<string, string | undefined> | u
   return trimOrNull(parsed[lookupKey]) ?? (fallbackKey ? trimOrNull(parsed[fallbackKey]) : null);
 }
 
-export function createInvoiceRouter(invoiceService: InvoiceService, fileStore?: FileStore) {
+export function createInvoiceRouter(
+  invoiceService: InvoiceService,
+  workflowService: ApprovalWorkflowService,
+  fileStore?: FileStore
+) {
   const router = Router();
   router.use(requireAuth);
   const runtimeManifest = loadRuntimeManifest();
   const ALLOWED_SORT_COLUMNS = new Set(["file", "vendor", "invoiceNumber", "invoiceDate", "total", "confidence", "status", "received"]);
+
+  async function buildActionActor(req: Request): Promise<InvoiceActionActor> {
+    const authContext = getAuth(req);
+    const capabilities = await resolveCapabilities(req);
+    return { userId: authContext.userId, role: authContext.role, capabilities };
+  }
 
   function findFolderSource(invoice: { sourceKey: string; tenantId: string; workloadTier: string }) {
     return runtimeManifest.sources.find(
@@ -95,15 +107,40 @@ export function createInvoiceRouter(invoiceService: InvoiceService, fileStore?: 
     const rawSortDir = typeof req.query.sortDir === "string" ? req.query.sortDir : undefined;
     const sortDir: SortDirection | undefined = rawSortDir === SORT_DIRECTION.ASC || rawSortDir === SORT_DIRECTION.DESC ? rawSortDir : undefined;
 
-    res.json(await invoiceService.listInvoices({
+    const response = await invoiceService.listInvoices({
       page, limit, status, tenantId: authContext.tenantId,
       from: fromDate ?? undefined, to: toDate ?? undefined, approvedBy, sortBy, sortDir
-    }));
+    });
+
+    // Attach per-invoice action claims so the UI can render approve/reject controls
+    // without duplicating gating logic. Workflow config is fetched once per request.
+    const actionActor: InvoiceActionActor = { userId: authContext.userId, role: authContext.role, capabilities };
+    const workflowConfig = await workflowService.getWorkflowConfig(authContext.tenantId);
+    const items = Array.isArray(response.items) ? (response.items as Array<Record<string, unknown>>) : [];
+    for (const item of items) {
+      const status = item.status as string;
+      const workflowState = item.workflowState as { currentStep?: number | null } | null | undefined;
+      item.actions = computeInvoiceActions(actionActor, { status, workflowState }, workflowConfig);
+    }
+
+    res.json(response);
   }));
 
   router.get("/invoices/:id", wrap(async (req, res) => {
-    const invoice = await invoiceService.getInvoiceById(req.params.id, getAuth(req).tenantId);
+    const authContext = getAuth(req);
+    const invoice = await invoiceService.getInvoiceById(req.params.id, authContext.tenantId);
     if (!invoice) { res.status(404).json({ message: "Invoice not found" }); return; }
+
+    const actor = await buildActionActor(req);
+    const workflowConfig = await workflowService.getWorkflowConfig(authContext.tenantId);
+    const invoiceRecord = invoice as Record<string, unknown>;
+    const workflowState = invoiceRecord.workflowState as { currentStep?: number | null } | null | undefined;
+    invoiceRecord.actions = computeInvoiceActions(
+      actor,
+      { status: invoiceRecord.status as string, workflowState },
+      workflowConfig
+    );
+
     res.json(invoice);
   }));
 

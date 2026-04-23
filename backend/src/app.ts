@@ -102,7 +102,7 @@ export async function createApp(prebuiltDependencies?: Awaited<ReturnType<typeof
   );
   app.use("/api", requireNonPlatformAdmin, createApprovalWorkflowRouter(dependencies.approvalWorkflowService));
   app.use("/api", createGmailConnectionRouter(dependencies.gmailIntegrationService));
-  app.use("/api", requireNonPlatformAdmin, requireTenantSetupCompleted, createInvoiceRouter(dependencies.invoiceService, dependencies.fileStore));
+  app.use("/api", requireNonPlatformAdmin, requireTenantSetupCompleted, createInvoiceRouter(dependencies.invoiceService, dependencies.approvalWorkflowService, dependencies.fileStore));
   app.use(
     "/api",
     requireNonPlatformAdmin,

@@ -30,11 +30,6 @@ function toIsoDateString(value: string): string {
 interface InvoiceDetailPanelProps {
   invoice: Invoice;
   loading: boolean;
-  canApproveInvoices: boolean;
-  canEditInvoiceFields: boolean;
-  canDismissRiskSignals: boolean;
-  canOverrideGlCode: boolean;
-  canOverrideTds: boolean;
   tenantGlCodes: GlCode[];
   tenantTdsRates: TdsRate[];
   activeCropUrlByField: Partial<Record<SourceFieldKey, CropSource>>;
@@ -64,11 +59,6 @@ interface InvoiceDetailPanelProps {
 export function InvoiceDetailPanel({
   invoice,
   loading,
-  canApproveInvoices,
-  canEditInvoiceFields,
-  canDismissRiskSignals,
-  canOverrideGlCode,
-  canOverrideTds,
   tenantGlCodes,
   tenantTdsRates,
   activeCropUrlByField,
@@ -99,7 +89,11 @@ export function InvoiceDetailPanel({
   const [saving, setSaving] = useState(false);
 
   const keyRows = extractedRows.filter((r) => KEY_FIELD_KEYS.includes(r.fieldKey));
-  const isEditable = invoice.status !== "EXPORTED" && canEditInvoiceFields;
+  const canEditFields = invoice.actions?.canEditFields === true;
+  const canDismissRiskSignals = invoice.actions?.canDismissRiskSignals === true;
+  const canOverrideGlCode = invoice.actions?.canOverrideGlCode === true;
+  const canOverrideTds = invoice.actions?.canOverrideTds === true;
+  const isEditable = canEditFields;
 
   function startDetailEdit(row: ExtractedFieldRow) {
     setEditingField(row.fieldKey);
@@ -205,23 +199,27 @@ export function InvoiceDetailPanel({
               })}
             </div>
           ) : null}
-          {invoice.status === "AWAITING_APPROVAL" && canApproveInvoices ? (
+          {invoice.actions?.canApprove || invoice.actions?.canReject ? (
             <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap", marginBottom: "1rem" }}>
-              <button
-                type="button"
-                className="app-button app-button-primary"
-                onClick={() => void onWorkflowApproveSingle(invoice._id)}
-              >
-                Approve Current Step
-              </button>
-              <button
-                type="button"
-                className="app-button app-button-destructive"
-                style={{ background: "var(--warn)", borderColor: "var(--warn)" }}
-                onClick={() => onWorkflowRejectSingle(invoice._id)}
-              >
-                Reject Current Step
-              </button>
+              {invoice.actions?.canApprove ? (
+                <button
+                  type="button"
+                  className="app-button app-button-primary"
+                  onClick={() => void onWorkflowApproveSingle(invoice._id)}
+                >
+                  Approve Current Step
+                </button>
+              ) : null}
+              {invoice.actions?.canReject ? (
+                <button
+                  type="button"
+                  className="app-button app-button-destructive"
+                  style={{ background: "var(--warn)", borderColor: "var(--warn)" }}
+                  onClick={() => onWorkflowRejectSingle(invoice._id)}
+                >
+                  Reject Current Step
+                </button>
+              ) : null}
             </div>
           ) : null}
           <VendorDetailsSection
@@ -250,7 +248,7 @@ export function InvoiceDetailPanel({
               <ExtractedFieldsTable
                 rows={extractedRows}
                 cropUrlByField={activeCropUrlByField}
-                editable={invoice.status !== "EXPORTED" && canEditInvoiceFields}
+                editable={canEditFields}
                 onSaveField={(fieldKey, value) => onSaveField(fieldKey, value, refreshActiveInvoiceDetail)}
               />
             ) : null}
