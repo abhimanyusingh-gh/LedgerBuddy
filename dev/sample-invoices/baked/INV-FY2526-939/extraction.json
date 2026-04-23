@@ -4,11 +4,11 @@
   "parsed": {
     "invoiceNumber": "INV-FY2526-939",
     "vendorName": "SPRINTO TECHNOLOGY PRIVATE LIMITED",
-    "vendorAddress": "Cabin 4.21, 4th Floor, 175 & 176\nBannerghatta Main Rd, Dollars Colony\nBengaluru Karnataka 560076\nIndia",
+    "vendorAddress": "Cabin 4.21, 4th Floor, 175 & 176 Bannerghatta Main Rd, Dollars Colony Bengaluru Karnataka 560076 India",
     "vendorGstin": "29ABCCS8316F1Z7",
     "vendorPan": "ABCCS8316F",
     "customerName": "Global Innovation Hub Private Limited",
-    "customerAddress": "8th Floor, Sanali Spazio, Hitech City\nHyderabad\n500081 Telangana\nIndia",
+    "customerAddress": "8th Floor, Sanali Spazio, Hitech City Hyderabad 500081 Telangana India",
     "invoiceDate": "2026-03-15T00:00:00.000Z",
     "dueDate": "2026-03-22T00:00:00.000Z",
     "currency": "INR",
@@ -24,23 +24,23 @@
     },
     "lineItems": [
       {
-        "description": "Foundational Framework\nHIPAA Add on 2026-03-15\n2026-06-15",
+        "description": "Foundational Framework HIPAA Add on 2026-03-15 2026-06-15",
         "amountMinor": 1575000,
         "hsnSac": "997331",
         "quantity": 1,
         "rate": 15750,
-        "taxRate": 18,
+        "taxRate": 9,
         "cgstMinor": 141750,
         "sgstMinor": 141750,
         "igstMinor": 0
       },
       {
-        "description": "Starter Plan\nISO 27001 + Platform 2026-03-15 2026-06-15",
+        "description": "Starter Plan ISO 27001 + Platform 2026-03-15 2026-06-15",
         "amountMinor": 7875000,
         "hsnSac": "997331",
         "quantity": 1,
         "rate": 78750,
-        "taxRate": 18,
+        "taxRate": 9,
         "cgstMinor": 708750,
         "sgstMinor": 708750,
         "igstMinor": 0
@@ -1199,18 +1199,18 @@
         0.397097846897988,
         0.2146633558673621
       ],
-      "confidence": 1
+      "confidence": 0.9999999553119545
     },
     "vendorName": {
       "source": "text-pattern",
       "page": 1,
       "bboxNormalized": [
-        0.07658459574753956,
-        0.557948888545664,
-        0.4035638708810588,
-        0.567572384131925
+        0.2938162752477134,
+        0.0713646865472561,
+        0.6170489948551829,
+        0.09773202291349085
       ],
-      "confidence": 0.9999993720923026
+      "confidence": 0.9999994231795535
     },
     "vendorAddress": {
       "source": "text-pattern",
@@ -1221,7 +1221,7 @@
         0.5252426858352088,
         0.1478454062659649
       ],
-      "confidence": 0.9997006466643582
+      "confidence": 0.9994368371207546
     },
     "vendorGstin": {
       "source": "text-pattern",
@@ -1237,7 +1237,7 @@
     "vendorPan": {
       "source": "text-pattern",
       "page": 1,
-      "confidence": 0.9999792687735798
+      "confidence": 0.9992506081405071
     },
     "customerName": {
       "source": "text-pattern",
@@ -1248,7 +1248,7 @@
         0.35023344865809014,
         0.30829283940643226
       ],
-      "confidence": 0.9999998420738176
+      "confidence": 0.9999918733790744
     },
     "customerAddress": {
       "source": "text-pattern",
@@ -1259,7 +1259,7 @@
         0.28743240065835884,
         0.3215435611686012
       ],
-      "confidence": 0.9999999496355912
+      "confidence": 0.9999935506629754
     },
     "invoiceDate": {
       "source": "text-pattern",
@@ -1281,7 +1281,7 @@
         0.37168721238789426,
         0.25369197685608713
       ],
-      "confidence": 1
+      "confidence": 0.9999998882621209
     },
     "currency": {
       "source": "text-pattern",
@@ -1415,7 +1415,7 @@
           0.0662714813976753,
           0.37008878382240845,
           0.9505918326028965,
-          0.475412567883003
+          0.42275067585270576
         ],
         "confidence": 0.88
       },
@@ -1427,13 +1427,13 @@
             39.45936545380383,
             311.500028455483,
             566.0013889684166,
-            400.15000426144485
+            355.8250163584639
           ],
           "bboxNormalized": [
             0.0662714813976753,
             0.37008878382240845,
             0.9505918326028965,
-            0.475412567883003
+            0.42275067585270576
           ],
           "blockIndex": 31,
           "confidence": 0.82
@@ -1445,13 +1445,13 @@
             39.45936545380383,
             311.500028455483,
             566.0013889684166,
-            400.15000426144485
+            355.8250163584639
           ],
           "bboxNormalized": [
             0.0662714813976753,
             0.37008878382240845,
             0.9505918326028965,
-            0.475412567883003
+            0.42275067585270576
           ],
           "blockIndex": 31,
           "confidence": 0.9
@@ -1463,13 +1463,13 @@
             39.45936545380383,
             311.500028455483,
             566.0013889684166,
-            400.15000426144485
+            355.8250163584639
           ],
           "bboxNormalized": [
             0.0662714813976753,
             0.37008878382240845,
             0.9505918326028965,
-            0.475412567883003
+            0.42275067585270576
           ],
           "blockIndex": 31,
           "confidence": 0.9
@@ -1481,13 +1481,13 @@
             39.45936545380383,
             311.500028455483,
             566.0013889684166,
-            400.15000426144485
+            355.8250163584639
           ],
           "bboxNormalized": [
             0.0662714813976753,
             0.37008878382240845,
             0.9505918326028965,
-            0.475412567883003
+            0.42275067585270576
           ],
           "blockIndex": 31,
           "confidence": 0.9
@@ -1501,7 +1501,7 @@
         "page": 1,
         "bboxNormalized": [
           0.0662714813976753,
-          0.37008878382240845,
+          0.42275067585270576,
           0.9505918326028965,
           0.475412567883003
         ],
@@ -1513,13 +1513,13 @@
           "page": 1,
           "bbox": [
             39.45936545380383,
-            311.500028455483,
+            355.8250163584639,
             566.0013889684166,
             400.15000426144485
           ],
           "bboxNormalized": [
             0.0662714813976753,
-            0.37008878382240845,
+            0.42275067585270576,
             0.9505918326028965,
             0.475412567883003
           ],
@@ -1531,13 +1531,13 @@
           "page": 1,
           "bbox": [
             39.45936545380383,
-            311.500028455483,
+            355.8250163584639,
             566.0013889684166,
             400.15000426144485
           ],
           "bboxNormalized": [
             0.0662714813976753,
-            0.37008878382240845,
+            0.42275067585270576,
             0.9505918326028965,
             0.475412567883003
           ],
@@ -1549,13 +1549,13 @@
           "page": 1,
           "bbox": [
             39.45936545380383,
-            311.500028455483,
+            355.8250163584639,
             566.0013889684166,
             400.15000426144485
           ],
           "bboxNormalized": [
             0.0662714813976753,
-            0.37008878382240845,
+            0.42275067585270576,
             0.9505918326028965,
             0.475412567883003
           ],
@@ -1567,13 +1567,13 @@
           "page": 1,
           "bbox": [
             39.45936545380383,
-            311.500028455483,
+            355.8250163584639,
             566.0013889684166,
             400.15000426144485
           ],
           "bboxNormalized": [
             0.0662714813976753,
-            0.37008878382240845,
+            0.42275067585270576,
             0.9505918326028965,
             0.475412567883003
           ],
@@ -1592,9 +1592,9 @@
     "fieldConfidence": {
       "invoiceNumber": 1,
       "vendorName": 1,
-      "vendorAddress": 0.9997,
+      "vendorAddress": 0.9994,
       "vendorGstin": 1,
-      "vendorPan": 1,
+      "vendorPan": 0.9993,
       "customerName": 1,
       "customerAddress": 1,
       "invoiceDate": 1,

@@ -6,6 +6,7 @@
     "vendorName": "MACFOS LIMITED",
     "vendorAddress": "Sumant Building, Dynamic Logistics Trade Park Survey No. 78/1 Dighi, Bhosari Alandi Road Pune 411015 Maharashtra MH India",
     "vendorGstin": "27AALCM3536H1ZA",
+    "vendorPan": "AALCM3536H",
     "customerName": "DREAMVU INDIA PRIVATE LIMITED",
     "customerAddress": "C3-211, Vindhya C4, IIIT Campus Gachibowli, Hyderabad K.V.Rangareddy, 500032 Telangana,TS, India",
     "customerGstin": "36AAGCD2767G1ZK",
@@ -78,7 +79,8 @@
         "sgstMinor": 0,
         "igstMinor": 1510
       }
-    ]
+    ],
+    "pan": "AALCM3536H"
   },
   "ocrBlocks": [
     {
@@ -1418,7 +1420,7 @@
         0.8546511170922256,
         0.19395534608422257
       ],
-      "confidence": 0.9999999478639471
+      "confidence": 1
     },
     "vendorName": {
       "source": "text-pattern",
@@ -1429,18 +1431,18 @@
         0.9281512605042017,
         0.26901425178147265
       ],
-      "confidence": 0.9999999217959217
+      "confidence": 0.9999999515968389
     },
     "vendorAddress": {
       "source": "text-pattern",
-      "page": 2,
+      "page": 1,
       "bboxNormalized": [
-        0.669,
-        0.04399999999999999,
-        0.927,
-        0.09099999999999998
+        0.6688876119474085,
+        0.043956816138290784,
+        0.9271320026676829,
+        0.09107668992949697
       ],
-      "confidence": 0.9999871807466697
+      "confidence": 0.9999174266532017
     },
     "vendorGstin": {
       "source": "text-pattern",
@@ -1453,6 +1455,11 @@
       ],
       "confidence": 1
     },
+    "vendorPan": {
+      "source": "text-pattern",
+      "page": 1,
+      "confidence": 0.9879208885807992
+    },
     "customerName": {
       "source": "text-pattern",
       "page": 1,
@@ -1462,7 +1469,7 @@
         0.22744149556974083,
         0.20358416301448173
       ],
-      "confidence": 0.9999999677312256
+      "confidence": 0.9999999081293959
     },
     "customerAddress": {
       "source": "text-pattern",
@@ -1473,7 +1480,7 @@
         0.47600000000000003,
         0.277
       ],
-      "confidence": 0.9964450092341887
+      "confidence": 0.9996145490667371
     },
     "customerGstin": {
       "source": "text-pattern",
@@ -1490,12 +1497,12 @@
       "source": "text-pattern",
       "page": 1,
       "bboxNormalized": [
-        0.591109243697479,
-        0.20942992874109265,
-        0.8593781512605042,
-        0.2374228028503563
+        0.59,
+        0.208,
+        0.86,
+        0.23399999999999999
       ],
-      "confidence": 0.9999999677312256
+      "confidence": 0.9999996101203126
     },
     "dueDate": {
       "source": "text-pattern",
@@ -1506,12 +1513,12 @@
         0.8593781512605042,
         0.2374228028503563
       ],
-      "confidence": 0.9997876695493899
+      "confidence": 0.999771949738106
     },
     "currency": {
       "source": "text-pattern",
       "page": 1,
-      "confidence": 0.9415
+      "confidence": 0.9992
     },
     "totalAmountMinor": {
       "source": "text-pattern",
@@ -1522,7 +1529,25 @@
         0.9327667682926829,
         0.7065906654916159
       ],
-      "confidence": 0.9999999031936799
+      "confidence": 1
+    },
+    "pan": {
+      "source": "text-pattern",
+      "page": 1,
+      "bbox": [
+        396.865,
+        104.408,
+        472.43,
+        110.302
+      ],
+      "bboxNormalized": [
+        0.667,
+        0.124,
+        0.794,
+        0.131
+      ],
+      "blockIndex": 15,
+      "confidence": 0.9992
     },
     "gst.gstin": {
       "source": "text-pattern",
@@ -1540,7 +1565,7 @@
         0.131
       ],
       "blockIndex": 15,
-      "confidence": 0.9415
+      "confidence": 0.9992
     },
     "gst.subtotalMinor": {
       "source": "text-pattern",
@@ -1558,7 +1583,7 @@
         0.7065906654916159
       ],
       "blockIndex": 54,
-      "confidence": 0.9415
+      "confidence": 0.9992
     },
     "gst.cgstMinor": {
       "source": "text-pattern",
@@ -1576,7 +1601,7 @@
         0.09107668992949697
       ],
       "blockIndex": 4,
-      "confidence": 0.9415
+      "confidence": 0.9992
     },
     "gst.sgstMinor": {
       "source": "text-pattern",
@@ -1594,7 +1619,7 @@
         0.09107668992949697
       ],
       "blockIndex": 4,
-      "confidence": 0.9415
+      "confidence": 0.9992
     },
     "gst.igstMinor": {
       "source": "text-pattern",
@@ -1612,7 +1637,7 @@
         0.6718320669778964
       ],
       "blockIndex": 55,
-      "confidence": 0.9415
+      "confidence": 0.9992
     },
     "gst.cessMinor": {
       "source": "text-pattern",
@@ -1630,7 +1655,7 @@
         0.09107668992949697
       ],
       "blockIndex": 4,
-      "confidence": 0.9415
+      "confidence": 0.9992
     },
     "gst.totalTaxMinor": {
       "source": "text-pattern",
@@ -1648,7 +1673,7 @@
         0.7065906654916159
       ],
       "blockIndex": 54,
-      "confidence": 0.9415
+      "confidence": 0.9992
     }
   },
   "lineItemProvenance": [
@@ -1661,7 +1686,7 @@
           0.06470855712890625,
           0.3433281726371951,
           0.9354024152057927,
-          0.5716887981135671
+          0.4194483811293191
         ],
         "confidence": 0.8733
       },
@@ -1673,13 +1698,13 @@
             38.501591491699216,
             289.0823213605183,
             556.5644370474466,
-            481.3619680116235
+            353.17553691088665
           ],
           "bboxNormalized": [
             0.06470855712890625,
             0.3433281726371951,
             0.9354024152057927,
-            0.5716887981135671
+            0.4194483811293191
           ],
           "blockIndex": 51,
           "confidence": 0.82
@@ -1691,13 +1716,13 @@
             38.501591491699216,
             289.0823213605183,
             556.5644370474466,
-            481.3619680116235
+            353.17553691088665
           ],
           "bboxNormalized": [
             0.06470855712890625,
             0.3433281726371951,
             0.9354024152057927,
-            0.5716887981135671
+            0.4194483811293191
           ],
           "blockIndex": 51,
           "confidence": 0.9
@@ -1709,13 +1734,13 @@
             38.501591491699216,
             289.0823213605183,
             556.5644370474466,
-            481.3619680116235
+            353.17553691088665
           ],
           "bboxNormalized": [
             0.06470855712890625,
             0.3433281726371951,
             0.9354024152057927,
-            0.5716887981135671
+            0.4194483811293191
           ],
           "blockIndex": 51,
           "confidence": 0.9
@@ -1729,9 +1754,9 @@
         "page": 1,
         "bboxNormalized": [
           0.06470855712890625,
-          0.3433281726371951,
+          0.4194483811293191,
           0.9354024152057927,
-          0.5716887981135671
+          0.4955685896214431
         ],
         "confidence": 0.8733
       },
@@ -1741,15 +1766,15 @@
           "page": 1,
           "bbox": [
             38.501591491699216,
-            289.0823213605183,
+            353.17553691088665,
             556.5644370474466,
-            481.3619680116235
+            417.2687524612551
           ],
           "bboxNormalized": [
             0.06470855712890625,
-            0.3433281726371951,
+            0.4194483811293191,
             0.9354024152057927,
-            0.5716887981135671
+            0.4955685896214431
           ],
           "blockIndex": 51,
           "confidence": 0.82
@@ -1759,15 +1784,15 @@
           "page": 1,
           "bbox": [
             38.501591491699216,
-            289.0823213605183,
+            353.17553691088665,
             556.5644370474466,
-            481.3619680116235
+            417.2687524612551
           ],
           "bboxNormalized": [
             0.06470855712890625,
-            0.3433281726371951,
+            0.4194483811293191,
             0.9354024152057927,
-            0.5716887981135671
+            0.4955685896214431
           ],
           "blockIndex": 51,
           "confidence": 0.9
@@ -1777,15 +1802,15 @@
           "page": 1,
           "bbox": [
             38.501591491699216,
-            289.0823213605183,
+            353.17553691088665,
             556.5644370474466,
-            481.3619680116235
+            417.2687524612551
           ],
           "bboxNormalized": [
             0.06470855712890625,
-            0.3433281726371951,
+            0.4194483811293191,
             0.9354024152057927,
-            0.5716887981135671
+            0.4955685896214431
           ],
           "blockIndex": 51,
           "confidence": 0.9
@@ -1801,7 +1826,7 @@
           0.06470855712890625,
           0.043956816138290784,
           0.9354024152057927,
-          0.5716887981135671
+          0.3078228071259289
         ],
         "confidence": 0.86
       },
@@ -1887,11 +1912,11 @@
         "page": 1,
         "bboxNormalized": [
           0.06470855712890625,
-          0.3433281726371951,
+          0.4955685896214431,
           0.9354024152057927,
           0.5716887981135671
         ],
-        "confidence": 0.86
+        "confidence": 0.8733
       },
       "fields": {
         "description": {
@@ -1899,13 +1924,13 @@
           "page": 1,
           "bbox": [
             38.501591491699216,
-            289.0823213605183,
+            417.2687524612551,
             556.5644370474466,
             481.3619680116235
           ],
           "bboxNormalized": [
             0.06470855712890625,
-            0.3433281726371951,
+            0.4955685896214431,
             0.9354024152057927,
             0.5716887981135671
           ],
@@ -1917,13 +1942,13 @@
           "page": 1,
           "bbox": [
             38.501591491699216,
-            289.0823213605183,
+            417.2687524612551,
             556.5644370474466,
             481.3619680116235
           ],
           "bboxNormalized": [
             0.06470855712890625,
-            0.3433281726371951,
+            0.4955685896214431,
             0.9354024152057927,
             0.5716887981135671
           ],
@@ -1935,13 +1960,13 @@
           "page": 1,
           "bbox": [
             38.501591491699216,
-            289.0823213605183,
+            417.2687524612551,
             556.5644370474466,
             481.3619680116235
           ],
           "bboxNormalized": [
             0.06470855712890625,
-            0.3433281726371951,
+            0.4955685896214431,
             0.9354024152057927,
             0.5716887981135671
           ],
@@ -1953,13 +1978,13 @@
           "page": 1,
           "bbox": [
             38.501591491699216,
-            289.0823213605183,
+            417.2687524612551,
             556.5644370474466,
             481.3619680116235
           ],
           "bboxNormalized": [
             0.06470855712890625,
-            0.3433281726371951,
+            0.4955685896214431,
             0.9354024152057927,
             0.5716887981135671
           ],
@@ -1975,7 +2000,7 @@
         "page": 1,
         "bboxNormalized": [
           0.06470855712890625,
-          0.043956816138290784,
+          0.3078228071259289,
           0.9354024152057927,
           0.5716887981135671
         ],
@@ -2061,27 +2086,29 @@
     "source": "llamaextract",
     "strategy": "llamaextract",
     "provider": "llamaparse",
-    "parsingConfidence": 0.9415,
-    "extractionConfidence": 96,
+    "parsingConfidence": 0.9992,
+    "extractionConfidence": 100,
     "fieldConfidence": {
       "invoiceNumber": 1,
       "vendorName": 1,
-      "vendorAddress": 1,
+      "vendorAddress": 0.9999,
       "vendorGstin": 1,
+      "vendorPan": 0.9879,
       "customerName": 1,
-      "customerAddress": 0.9964,
+      "customerAddress": 0.9996,
       "customerGstin": 1,
       "invoiceDate": 1,
       "dueDate": 0.9998,
-      "currency": 0.9415,
+      "currency": 0.9992,
       "totalAmountMinor": 1,
-      "gst.gstin": 0.9415,
-      "gst.subtotalMinor": 0.9415,
-      "gst.cgstMinor": 0.9415,
-      "gst.sgstMinor": 0.9415,
-      "gst.igstMinor": 0.9415,
-      "gst.cessMinor": 0.9415,
-      "gst.totalTaxMinor": 0.9415,
+      "pan": 0.9992,
+      "gst.gstin": 0.9992,
+      "gst.subtotalMinor": 0.9992,
+      "gst.cgstMinor": 0.9992,
+      "gst.sgstMinor": 0.9992,
+      "gst.igstMinor": 0.9992,
+      "gst.cessMinor": 0.9992,
+      "gst.totalTaxMinor": 0.9992,
       "lineItems.0.hsnSac": 0.82,
       "lineItems.0.amountMinor": 0.9,
       "lineItems.0.igstMinor": 0.9,
@@ -2102,7 +2129,7 @@
       "lineItems.4.igstMinor": 0.9
     }
   },
-  "confidenceScore": 96,
+  "confidenceScore": 100,
   "confidenceTone": "green",
   "previewPageImages": {
     "1": "preview-page-1.png",

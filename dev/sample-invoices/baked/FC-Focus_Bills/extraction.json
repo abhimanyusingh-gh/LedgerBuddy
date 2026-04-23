@@ -4,105 +4,72 @@
   "parsed": {
     "invoiceNumber": "DW25/19342",
     "vendorName": "FOCUS TOURS AND TRAVELS PVT. LTD.",
-    "vendorAddress": "ADMOFF: RD80,PLOT358,JUBILEE HILLS,Tel : 040-23684200, RGD#3-4-812, G3, B BLOCK PARAGON VENKATADRI APTS, BARKATPURA, HYD.",
+    "vendorAddress": "ADMOFF: RD80,PLOT358,JUBILEE HILLS,RGD#3-4-812, G3, B BLOCK PARAGON VENKATADRI APTS, BARKATPURA, HYD.",
     "vendorGstin": "36AAACF6195J1ZB",
     "vendorPan": "AAACF6195J",
     "customerName": "FICOSA INDIA ENGINEERING CENTER PVT LTD",
     "customerAddress": "4TH FLOOR, SOUTH WING, PLOT NO#5, TSIIC UNITS LAYOUT , HITECH CITY, HYDERABAD TELANGANA 500081",
     "customerGstin": "36AADCF2749R1Z0",
-    "invoiceDate": "2026-03-27T00:00:00.000Z",
+    "invoiceDate": "2026-03-17T00:00:00.000Z",
     "dueDate": "2026-03-17T00:00:00.000Z",
     "currency": "INR",
     "totalAmountMinor": 2079400,
     "gst": {
       "gstin": "36AAACF6195J1ZB",
       "subtotalMinor": 1758829,
-      "cgstMinor": 140958,
-      "sgstMinor": 140958,
+      "cgstMinor": 317543,
+      "sgstMinor": 317543,
       "igstMinor": 83399,
       "cessMinor": 0,
-      "totalTaxMinor": 365316
+      "totalTaxMinor": 718486
     },
     "lineItems": [
       {
-        "description": "6E R7GRYP-001 - SUBASH MANOHARAN MR - HYD/DEL - 6E 424 M 18Mar2026 DEL/HYD - 6E 850 MO 18Mar2026",
+        "description": "6E R7GRYP-001 SUBASH MANOHARAN MR HYD/DEL - 6E 424 M 18Mar2026 DEL/HYD - 6E 850 MO 18Mar2026",
         "amountMinor": 1758829,
         "hsnSac": "998551",
         "quantity": 1,
         "rate": 20794,
-        "taxRate": 9,
-        "cgstMinor": 1827,
-        "sgstMinor": 1827,
+        "taxRate": 5,
+        "cgstMinor": 45760,
+        "sgstMinor": 45760,
         "igstMinor": 0
       },
       {
-        "description": "6E R7GRYP-002 - BHUSHAN SAMPAT KADU MR - HYD/DEL - 6E 424 M 18Mar2026 DEL/HYD - 6E 850 MO 18Mar2026",
+        "description": "6E R7GRYP-002 BHUSHAN SAMPAT KADU MR HYD/DEL - 6E 424 M 18Mar2026 DEL/HYD - 6E 850 MO 18Mar2026",
         "amountMinor": 1758829,
         "hsnSac": "998551",
         "quantity": 1,
         "rate": 20794,
-        "taxRate": 9,
-        "cgstMinor": 1827,
-        "sgstMinor": 1827,
+        "taxRate": 5,
+        "cgstMinor": 45760,
+        "sgstMinor": 45760,
         "igstMinor": 0
       },
       {
-        "description": "6E R7GRYP-003 - SANGRAM KESHARI PANDA MR - HYD/DEL - 6E 424 M 18Mar2026 DEL/HYD - 6E 850 MO 18Mar2026",
+        "description": "6E R7GRYP-003 SANGRAM KESHARI PANDA MR HYD/DEL - 6E 424 M 18Mar2026 DEL/HYD - 6E 850 MO 18Mar2026",
         "amountMinor": 1758829,
         "hsnSac": "998551",
         "quantity": 1,
         "rate": 20794,
-        "taxRate": 9,
-        "cgstMinor": 1827,
-        "sgstMinor": 1827,
+        "taxRate": 5,
+        "cgstMinor": 45760,
+        "sgstMinor": 45760,
         "igstMinor": 0
       },
       {
-        "description": "6E R7GRYP-004 - SARATH CHANDRA CHAGANTI MR - HYD/DEL - 6E 424 M 18Mar2026 DEL/HYD - 6E 850 MO 18Mar2026",
+        "description": "6E R7GRYP-004 SARATH CHANDRA CHAGANTI MR HYD/DEL - 6E 424 M 18Mar2026 DEL/HYD - 6E 850 MO 18Mar2026",
         "amountMinor": 1758829,
         "hsnSac": "998551",
         "quantity": 1,
         "rate": 20794,
-        "taxRate": 9,
-        "cgstMinor": 1827,
-        "sgstMinor": 1827,
+        "taxRate": 5,
+        "cgstMinor": 45760,
+        "sgstMinor": 45760,
         "igstMinor": 0
       },
       {
-        "description": "6E F4YGFV-001 - SUBASH MANOHARAN MR - HYD/DEL - 6E 707 M 30Mar2026 DEL/HYD - 6E 717 MO 30Mar2026",
-        "amountMinor": 1120477,
-        "hsnSac": "998551",
-        "quantity": 1,
-        "rate": 13247,
-        "taxRate": 9,
-        "cgstMinor": 1827,
-        "sgstMinor": 1827,
-        "igstMinor": 0
-      },
-      {
-        "description": "6E F4YGFV-002 - BHUSHAN SAMPAT KADU MR - HYD/DEL - 6E 707 M 30Mar2026 DEL/HYD - 6E 717 MO 30Mar2026",
-        "amountMinor": 1120477,
-        "hsnSac": "998551",
-        "quantity": 1,
-        "rate": 13247,
-        "taxRate": 9,
-        "cgstMinor": 1827,
-        "sgstMinor": 1827,
-        "igstMinor": 0
-      },
-      {
-        "description": "6E F4YGFV-003 - SARATH CHANDRA CHAGANTI MR - HYD/DEL - 6E 707 M 30Mar2026 DEL/HYD - 6E 717 MO 30Mar2026",
-        "amountMinor": 1120477,
-        "hsnSac": "998551",
-        "quantity": 1,
-        "rate": 13247,
-        "taxRate": 9,
-        "cgstMinor": 1827,
-        "sgstMinor": 1827,
-        "igstMinor": 0
-      },
-      {
-        "description": "IX M85UUG-001 - SANGRAM KESHARI PANDA MR - BBI/DEL - IX 1065 E 29Mar2026 DEL/BBI - IX 1064 EO 30Mar2026",
+        "description": "IX M85UUG-001 SANGRAM KESHARI PANDA MR BBI/DEL - IX 1065 E 29Mar2026 DEL/BBI - IX 1064 EO 30Mar2026",
         "amountMinor": 1531553,
         "hsnSac": "998551",
         "quantity": 1,
@@ -111,6 +78,39 @@
         "cgstMinor": 0,
         "sgstMinor": 0,
         "igstMinor": 83399
+      },
+      {
+        "description": "6E F4YGFV-001 SUBASH MANOHARAN MR HYD/DEL - 6E 707 M 30Mar2026 DEL/HYD - 6E 717 MO 30Mar2026",
+        "amountMinor": 1120477,
+        "hsnSac": "998551",
+        "quantity": 1,
+        "rate": 13247,
+        "taxRate": 5,
+        "cgstMinor": 29858,
+        "sgstMinor": 29858,
+        "igstMinor": 0
+      },
+      {
+        "description": "6E F4YGFV-002 BHUSHAN SAMPAT KADU MR HYD/DEL - 6E 707 M 30Mar2026 DEL/HYD - 6E 717 MO 30Mar2026",
+        "amountMinor": 1120477,
+        "hsnSac": "998551",
+        "quantity": 1,
+        "rate": 13247,
+        "taxRate": 5,
+        "cgstMinor": 29858,
+        "sgstMinor": 29858,
+        "igstMinor": 0
+      },
+      {
+        "description": "6E F4YGFV-003 SARATH CHANDRA CHAGANTI MR HYD/DEL - 6E 707 M 30Mar2026 DEL/HYD - 6E 717 MO 30Mar2026",
+        "amountMinor": 1120477,
+        "hsnSac": "998551",
+        "quantity": 1,
+        "rate": 13247,
+        "taxRate": 5,
+        "cgstMinor": 29858,
+        "sgstMinor": 29858,
+        "igstMinor": 0
       }
     ],
     "pan": "AAACF6195J"
@@ -4931,36 +4931,30 @@
   "fieldProvenance": {
     "invoiceNumber": {
       "source": "text-pattern",
-      "page": 4,
+      "page": 3,
       "bboxNormalized": [
         0.6302521008403361,
         0.12929928741092636,
         0.826890756302521,
-        0.23975059382422803
+        0.13998812351543943
       ],
-      "confidence": 0.9994648424636249
+      "confidence": 0.9999975951250049
     },
     "vendorName": {
       "source": "text-pattern",
-      "page": 3,
-      "bboxNormalized": [
-        0.5862425566882622,
-        0.012620373237423781,
-        0.9825124452172256,
-        0.025302112858469897
-      ],
-      "confidence": 0.9999998086079789
+      "page": 1,
+      "confidence": 0.9999994281020572
     },
     "vendorAddress": {
       "source": "text-pattern",
-      "page": 1,
+      "page": 4,
       "bboxNormalized": [
         0.7202016806722689,
         0.027161520190023755,
         0.9831764705882353,
         0.048539192399049885
       ],
-      "confidence": 0.9807739595247416
+      "confidence": 0.9805578799800277
     },
     "vendorGstin": {
       "source": "text-pattern",
@@ -4971,7 +4965,7 @@
         0.9827731092436974,
         0.07585510688836104
       ],
-      "confidence": 0.9999998852758105
+      "confidence": 1
     },
     "vendorPan": {
       "source": "text-pattern",
@@ -4993,22 +4987,22 @@
         0.984,
         0.24450118764845608
       ],
-      "confidence": 0.9999999493571038
+      "confidence": 0.9999997750311022
     },
     "customerAddress": {
       "source": "text-pattern",
-      "page": 1,
+      "page": 2,
       "bboxNormalized": [
-        0.016,
-        0.11,
-        0.984,
+        0.015815126050420167,
+        0.10884798099762472,
+        0.9843025210084033,
         0.24450118764845608
       ],
-      "confidence": 0.9979013886206861
+      "confidence": 0.9953694625460181
     },
     "customerGstin": {
       "source": "text-pattern",
-      "page": 6,
+      "page": 3,
       "bboxNormalized": [
         0.01680672268907563,
         0.21005938242280286,
@@ -5026,28 +5020,28 @@
         0.8237310924369748,
         0.1827434679334917
       ],
-      "confidence": 0.943576977532453
+      "confidence": 0.9165039111884611
     },
     "dueDate": {
       "source": "text-pattern",
-      "page": 4,
+      "page": 3,
       "bboxNormalized": [
         0.6302521008403361,
         0.11504750593824228,
-        0.8909579831932773,
-        0.23975059382422803
+        0.8237310924369748,
+        0.1827434679334917
       ],
-      "confidence": 0.9831200652096618
+      "confidence": 0.976475045083723
     },
     "currency": {
       "source": "text-pattern",
       "page": 1,
-      "confidence": 0.9455
+      "confidence": 0.955
     },
     "totalAmountMinor": {
       "source": "text-pattern",
       "page": 1,
-      "confidence": 0.9906440569635531
+      "confidence": 0.9990537632677581
     },
     "pan": {
       "source": "text-pattern",
@@ -5065,7 +5059,7 @@
         0.098
       ],
       "blockIndex": 5,
-      "confidence": 0.9455
+      "confidence": 0.955
     },
     "gst.gstin": {
       "source": "text-pattern",
@@ -5083,48 +5077,48 @@
         0.098
       ],
       "blockIndex": 5,
-      "confidence": 0.9455
+      "confidence": 0.955
     },
     "gst.subtotalMinor": {
       "source": "text-pattern",
       "page": 1,
-      "confidence": 0.9455
+      "confidence": 0.955
     },
     "gst.cgstMinor": {
       "source": "text-pattern",
-      "page": 6,
+      "page": 4,
       "bbox": [
-        13.685,
-        389.846,
-        152.32000000000002,
-        397.424
+        42,
+        108.87,
+        530.12,
+        201.87
       ],
       "bboxNormalized": [
-        0.023,
-        0.463,
-        0.25600000000000006,
-        0.472
+        0.07058823529411765,
+        0.12929928741092636,
+        0.8909579831932773,
+        0.23975059382422803
       ],
-      "blockIndex": 212,
-      "confidence": 0.9455
+      "blockIndex": 106,
+      "confidence": 0.955
     },
     "gst.sgstMinor": {
       "source": "text-pattern",
-      "page": 6,
+      "page": 4,
       "bbox": [
-        13.685,
-        389.846,
-        152.32000000000002,
-        397.424
+        42,
+        108.87,
+        530.12,
+        201.87
       ],
       "bboxNormalized": [
-        0.023,
-        0.463,
-        0.25600000000000006,
-        0.472
+        0.07058823529411765,
+        0.12929928741092636,
+        0.8909579831932773,
+        0.23975059382422803
       ],
-      "blockIndex": 212,
-      "confidence": 0.9455
+      "blockIndex": 106,
+      "confidence": 0.955
     },
     "gst.igstMinor": {
       "source": "text-pattern",
@@ -5142,7 +5136,7 @@
         0.19699524940617577
       ],
       "blockIndex": 72,
-      "confidence": 0.9455
+      "confidence": 0.955
     },
     "gst.cessMinor": {
       "source": "text-pattern",
@@ -5160,12 +5154,12 @@
         0.05922802850356295
       ],
       "blockIndex": 2,
-      "confidence": 0.9455
+      "confidence": 0.955
     },
     "gst.totalTaxMinor": {
       "source": "text-pattern",
       "page": 1,
-      "confidence": 0.9455
+      "confidence": 0.955
     }
   },
   "lineItemProvenance": [
@@ -5178,497 +5172,7 @@
           0.016,
           0.245,
           0.982,
-          0.524
-        ],
-        "confidence": 0.8733
-      },
-      "fields": {
-        "hsnSac": {
-          "source": "text-pattern",
-          "page": 1,
-          "bbox": [
-            9.52,
-            206.29,
-            584.29,
-            441.208
-          ],
-          "bboxNormalized": [
-            0.016,
-            0.245,
-            0.982,
-            0.524
-          ],
-          "blockIndex": 10,
-          "confidence": 0.82
-        },
-        "cgstMinor": {
-          "source": "text-pattern",
-          "page": 1,
-          "bbox": [
-            9.52,
-            206.29,
-            584.29,
-            441.208
-          ],
-          "bboxNormalized": [
-            0.016,
-            0.245,
-            0.982,
-            0.524
-          ],
-          "blockIndex": 10,
-          "confidence": 0.9
-        },
-        "sgstMinor": {
-          "source": "text-pattern",
-          "page": 1,
-          "bbox": [
-            9.52,
-            206.29,
-            584.29,
-            441.208
-          ],
-          "bboxNormalized": [
-            0.016,
-            0.245,
-            0.982,
-            0.524
-          ],
-          "blockIndex": 10,
-          "confidence": 0.9
-        }
-      }
-    },
-    {
-      "index": 1,
-      "row": {
-        "source": "text-pattern",
-        "page": 1,
-        "bboxNormalized": [
-          0.016,
-          0.245,
-          0.982,
-          0.524
-        ],
-        "confidence": 0.8733
-      },
-      "fields": {
-        "hsnSac": {
-          "source": "text-pattern",
-          "page": 1,
-          "bbox": [
-            9.52,
-            206.29,
-            584.29,
-            441.208
-          ],
-          "bboxNormalized": [
-            0.016,
-            0.245,
-            0.982,
-            0.524
-          ],
-          "blockIndex": 10,
-          "confidence": 0.82
-        },
-        "cgstMinor": {
-          "source": "text-pattern",
-          "page": 1,
-          "bbox": [
-            9.52,
-            206.29,
-            584.29,
-            441.208
-          ],
-          "bboxNormalized": [
-            0.016,
-            0.245,
-            0.982,
-            0.524
-          ],
-          "blockIndex": 10,
-          "confidence": 0.9
-        },
-        "sgstMinor": {
-          "source": "text-pattern",
-          "page": 1,
-          "bbox": [
-            9.52,
-            206.29,
-            584.29,
-            441.208
-          ],
-          "bboxNormalized": [
-            0.016,
-            0.245,
-            0.982,
-            0.524
-          ],
-          "blockIndex": 10,
-          "confidence": 0.9
-        }
-      }
-    },
-    {
-      "index": 2,
-      "row": {
-        "source": "text-pattern",
-        "page": 1,
-        "bboxNormalized": [
-          0.016,
-          0.245,
-          0.982,
-          0.524
-        ],
-        "confidence": 0.8733
-      },
-      "fields": {
-        "hsnSac": {
-          "source": "text-pattern",
-          "page": 1,
-          "bbox": [
-            9.52,
-            206.29,
-            584.29,
-            441.208
-          ],
-          "bboxNormalized": [
-            0.016,
-            0.245,
-            0.982,
-            0.524
-          ],
-          "blockIndex": 10,
-          "confidence": 0.82
-        },
-        "cgstMinor": {
-          "source": "text-pattern",
-          "page": 1,
-          "bbox": [
-            9.52,
-            206.29,
-            584.29,
-            441.208
-          ],
-          "bboxNormalized": [
-            0.016,
-            0.245,
-            0.982,
-            0.524
-          ],
-          "blockIndex": 10,
-          "confidence": 0.9
-        },
-        "sgstMinor": {
-          "source": "text-pattern",
-          "page": 1,
-          "bbox": [
-            9.52,
-            206.29,
-            584.29,
-            441.208
-          ],
-          "bboxNormalized": [
-            0.016,
-            0.245,
-            0.982,
-            0.524
-          ],
-          "blockIndex": 10,
-          "confidence": 0.9
-        }
-      }
-    },
-    {
-      "index": 3,
-      "row": {
-        "source": "text-pattern",
-        "page": 1,
-        "bboxNormalized": [
-          0.016,
-          0.245,
-          0.982,
-          0.524
-        ],
-        "confidence": 0.8733
-      },
-      "fields": {
-        "hsnSac": {
-          "source": "text-pattern",
-          "page": 1,
-          "bbox": [
-            9.52,
-            206.29,
-            584.29,
-            441.208
-          ],
-          "bboxNormalized": [
-            0.016,
-            0.245,
-            0.982,
-            0.524
-          ],
-          "blockIndex": 10,
-          "confidence": 0.82
-        },
-        "cgstMinor": {
-          "source": "text-pattern",
-          "page": 1,
-          "bbox": [
-            9.52,
-            206.29,
-            584.29,
-            441.208
-          ],
-          "bboxNormalized": [
-            0.016,
-            0.245,
-            0.982,
-            0.524
-          ],
-          "blockIndex": 10,
-          "confidence": 0.9
-        },
-        "sgstMinor": {
-          "source": "text-pattern",
-          "page": 1,
-          "bbox": [
-            9.52,
-            206.29,
-            584.29,
-            441.208
-          ],
-          "bboxNormalized": [
-            0.016,
-            0.245,
-            0.982,
-            0.524
-          ],
-          "blockIndex": 10,
-          "confidence": 0.9
-        }
-      }
-    },
-    {
-      "index": 4,
-      "row": {
-        "source": "text-pattern",
-        "page": 1,
-        "bboxNormalized": [
-          0.016,
-          0.245,
-          0.982,
-          0.524
-        ],
-        "confidence": 0.8733
-      },
-      "fields": {
-        "hsnSac": {
-          "source": "text-pattern",
-          "page": 1,
-          "bbox": [
-            9.52,
-            206.29,
-            584.29,
-            441.208
-          ],
-          "bboxNormalized": [
-            0.016,
-            0.245,
-            0.982,
-            0.524
-          ],
-          "blockIndex": 10,
-          "confidence": 0.82
-        },
-        "cgstMinor": {
-          "source": "text-pattern",
-          "page": 1,
-          "bbox": [
-            9.52,
-            206.29,
-            584.29,
-            441.208
-          ],
-          "bboxNormalized": [
-            0.016,
-            0.245,
-            0.982,
-            0.524
-          ],
-          "blockIndex": 10,
-          "confidence": 0.9
-        },
-        "sgstMinor": {
-          "source": "text-pattern",
-          "page": 1,
-          "bbox": [
-            9.52,
-            206.29,
-            584.29,
-            441.208
-          ],
-          "bboxNormalized": [
-            0.016,
-            0.245,
-            0.982,
-            0.524
-          ],
-          "blockIndex": 10,
-          "confidence": 0.9
-        }
-      }
-    },
-    {
-      "index": 5,
-      "row": {
-        "source": "text-pattern",
-        "page": 1,
-        "bboxNormalized": [
-          0.016,
-          0.245,
-          0.982,
-          0.524
-        ],
-        "confidence": 0.8733
-      },
-      "fields": {
-        "hsnSac": {
-          "source": "text-pattern",
-          "page": 1,
-          "bbox": [
-            9.52,
-            206.29,
-            584.29,
-            441.208
-          ],
-          "bboxNormalized": [
-            0.016,
-            0.245,
-            0.982,
-            0.524
-          ],
-          "blockIndex": 10,
-          "confidence": 0.82
-        },
-        "cgstMinor": {
-          "source": "text-pattern",
-          "page": 1,
-          "bbox": [
-            9.52,
-            206.29,
-            584.29,
-            441.208
-          ],
-          "bboxNormalized": [
-            0.016,
-            0.245,
-            0.982,
-            0.524
-          ],
-          "blockIndex": 10,
-          "confidence": 0.9
-        },
-        "sgstMinor": {
-          "source": "text-pattern",
-          "page": 1,
-          "bbox": [
-            9.52,
-            206.29,
-            584.29,
-            441.208
-          ],
-          "bboxNormalized": [
-            0.016,
-            0.245,
-            0.982,
-            0.524
-          ],
-          "blockIndex": 10,
-          "confidence": 0.9
-        }
-      }
-    },
-    {
-      "index": 6,
-      "row": {
-        "source": "text-pattern",
-        "page": 1,
-        "bboxNormalized": [
-          0.016,
-          0.245,
-          0.982,
-          0.524
-        ],
-        "confidence": 0.8733
-      },
-      "fields": {
-        "hsnSac": {
-          "source": "text-pattern",
-          "page": 1,
-          "bbox": [
-            9.52,
-            206.29,
-            584.29,
-            441.208
-          ],
-          "bboxNormalized": [
-            0.016,
-            0.245,
-            0.982,
-            0.524
-          ],
-          "blockIndex": 10,
-          "confidence": 0.82
-        },
-        "cgstMinor": {
-          "source": "text-pattern",
-          "page": 1,
-          "bbox": [
-            9.52,
-            206.29,
-            584.29,
-            441.208
-          ],
-          "bboxNormalized": [
-            0.016,
-            0.245,
-            0.982,
-            0.524
-          ],
-          "blockIndex": 10,
-          "confidence": 0.9
-        },
-        "sgstMinor": {
-          "source": "text-pattern",
-          "page": 1,
-          "bbox": [
-            9.52,
-            206.29,
-            584.29,
-            441.208
-          ],
-          "bboxNormalized": [
-            0.016,
-            0.245,
-            0.982,
-            0.524
-          ],
-          "blockIndex": 10,
-          "confidence": 0.9
-        }
-      }
-    },
-    {
-      "index": 7,
-      "row": {
-        "source": "text-pattern",
-        "page": 1,
-        "bboxNormalized": [
-          0.016,
-          0.245,
-          0.982,
-          0.524
+          0.279875
         ],
         "confidence": 0.82
       },
@@ -5680,11 +5184,249 @@
             9.52,
             206.29,
             584.29,
-            441.208
+            235.65475
           ],
           "bboxNormalized": [
             0.016,
             0.245,
+            0.982,
+            0.279875
+          ],
+          "blockIndex": 10,
+          "confidence": 0.82
+        }
+      }
+    },
+    {
+      "index": 1,
+      "row": {
+        "source": "text-pattern",
+        "page": 1,
+        "bboxNormalized": [
+          0.016,
+          0.279875,
+          0.982,
+          0.31475
+        ],
+        "confidence": 0.82
+      },
+      "fields": {
+        "hsnSac": {
+          "source": "text-pattern",
+          "page": 1,
+          "bbox": [
+            9.52,
+            235.65475,
+            584.29,
+            265.0195
+          ],
+          "bboxNormalized": [
+            0.016,
+            0.279875,
+            0.982,
+            0.31475
+          ],
+          "blockIndex": 10,
+          "confidence": 0.82
+        }
+      }
+    },
+    {
+      "index": 2,
+      "row": {
+        "source": "text-pattern",
+        "page": 1,
+        "bboxNormalized": [
+          0.016,
+          0.31475,
+          0.982,
+          0.349625
+        ],
+        "confidence": 0.82
+      },
+      "fields": {
+        "hsnSac": {
+          "source": "text-pattern",
+          "page": 1,
+          "bbox": [
+            9.52,
+            265.0195,
+            584.29,
+            294.38425
+          ],
+          "bboxNormalized": [
+            0.016,
+            0.31475,
+            0.982,
+            0.349625
+          ],
+          "blockIndex": 10,
+          "confidence": 0.82
+        }
+      }
+    },
+    {
+      "index": 3,
+      "row": {
+        "source": "text-pattern",
+        "page": 1,
+        "bboxNormalized": [
+          0.016,
+          0.349625,
+          0.982,
+          0.3845
+        ],
+        "confidence": 0.82
+      },
+      "fields": {
+        "hsnSac": {
+          "source": "text-pattern",
+          "page": 1,
+          "bbox": [
+            9.52,
+            294.38425,
+            584.29,
+            323.749
+          ],
+          "bboxNormalized": [
+            0.016,
+            0.349625,
+            0.982,
+            0.3845
+          ],
+          "blockIndex": 10,
+          "confidence": 0.82
+        }
+      }
+    },
+    {
+      "index": 4,
+      "row": {
+        "source": "text-pattern",
+        "page": 1,
+        "bboxNormalized": [
+          0.016,
+          0.3845,
+          0.982,
+          0.419375
+        ],
+        "confidence": 0.82
+      },
+      "fields": {
+        "hsnSac": {
+          "source": "text-pattern",
+          "page": 1,
+          "bbox": [
+            9.52,
+            323.749,
+            584.29,
+            353.11375
+          ],
+          "bboxNormalized": [
+            0.016,
+            0.3845,
+            0.982,
+            0.419375
+          ],
+          "blockIndex": 10,
+          "confidence": 0.82
+        }
+      }
+    },
+    {
+      "index": 5,
+      "row": {
+        "source": "text-pattern",
+        "page": 1,
+        "bboxNormalized": [
+          0.016,
+          0.419375,
+          0.982,
+          0.45425000000000004
+        ],
+        "confidence": 0.82
+      },
+      "fields": {
+        "hsnSac": {
+          "source": "text-pattern",
+          "page": 1,
+          "bbox": [
+            9.52,
+            353.11375,
+            584.29,
+            382.47850000000005
+          ],
+          "bboxNormalized": [
+            0.016,
+            0.419375,
+            0.982,
+            0.45425000000000004
+          ],
+          "blockIndex": 10,
+          "confidence": 0.82
+        }
+      }
+    },
+    {
+      "index": 6,
+      "row": {
+        "source": "text-pattern",
+        "page": 1,
+        "bboxNormalized": [
+          0.016,
+          0.45425000000000004,
+          0.982,
+          0.48912500000000003
+        ],
+        "confidence": 0.82
+      },
+      "fields": {
+        "hsnSac": {
+          "source": "text-pattern",
+          "page": 1,
+          "bbox": [
+            9.52,
+            382.47850000000005,
+            584.29,
+            411.84325
+          ],
+          "bboxNormalized": [
+            0.016,
+            0.45425000000000004,
+            0.982,
+            0.48912500000000003
+          ],
+          "blockIndex": 10,
+          "confidence": 0.82
+        }
+      }
+    },
+    {
+      "index": 7,
+      "row": {
+        "source": "text-pattern",
+        "page": 1,
+        "bboxNormalized": [
+          0.016,
+          0.48912500000000003,
+          0.982,
+          0.524
+        ],
+        "confidence": 0.82
+      },
+      "fields": {
+        "hsnSac": {
+          "source": "text-pattern",
+          "page": 1,
+          "bbox": [
+            9.52,
+            411.84325,
+            584.29,
+            441.208
+          ],
+          "bboxNormalized": [
+            0.016,
+            0.48912500000000003,
             0.982,
             0.524
           ],
@@ -5698,54 +5440,40 @@
     "source": "llamaextract",
     "strategy": "llamaextract",
     "provider": "llamaparse",
-    "parsingConfidence": 0.9455,
-    "extractionConfidence": 80,
+    "parsingConfidence": 0.955,
+    "extractionConfidence": 85,
     "fieldConfidence": {
-      "invoiceNumber": 0.9995,
+      "invoiceNumber": 1,
       "vendorName": 1,
-      "vendorAddress": 0.9808,
+      "vendorAddress": 0.9806,
       "vendorGstin": 1,
       "vendorPan": 1,
       "customerName": 1,
-      "customerAddress": 0.9979,
+      "customerAddress": 0.9954,
       "customerGstin": 1,
-      "invoiceDate": 0.9436,
-      "dueDate": 0.9831,
-      "currency": 0.9455,
-      "totalAmountMinor": 0.9906,
-      "pan": 0.9455,
-      "gst.gstin": 0.9455,
-      "gst.subtotalMinor": 0.9455,
-      "gst.cgstMinor": 0.9455,
-      "gst.sgstMinor": 0.9455,
-      "gst.igstMinor": 0.9455,
-      "gst.cessMinor": 0.9455,
-      "gst.totalTaxMinor": 0.9455,
+      "invoiceDate": 0.9165,
+      "dueDate": 0.9765,
+      "currency": 0.955,
+      "totalAmountMinor": 0.9991,
+      "pan": 0.955,
+      "gst.gstin": 0.955,
+      "gst.subtotalMinor": 0.955,
+      "gst.cgstMinor": 0.955,
+      "gst.sgstMinor": 0.955,
+      "gst.igstMinor": 0.955,
+      "gst.cessMinor": 0.955,
+      "gst.totalTaxMinor": 0.955,
       "lineItems.0.hsnSac": 0.82,
-      "lineItems.0.cgstMinor": 0.9,
-      "lineItems.0.sgstMinor": 0.9,
       "lineItems.1.hsnSac": 0.82,
-      "lineItems.1.cgstMinor": 0.9,
-      "lineItems.1.sgstMinor": 0.9,
       "lineItems.2.hsnSac": 0.82,
-      "lineItems.2.cgstMinor": 0.9,
-      "lineItems.2.sgstMinor": 0.9,
       "lineItems.3.hsnSac": 0.82,
-      "lineItems.3.cgstMinor": 0.9,
-      "lineItems.3.sgstMinor": 0.9,
       "lineItems.4.hsnSac": 0.82,
-      "lineItems.4.cgstMinor": 0.9,
-      "lineItems.4.sgstMinor": 0.9,
       "lineItems.5.hsnSac": 0.82,
-      "lineItems.5.cgstMinor": 0.9,
-      "lineItems.5.sgstMinor": 0.9,
       "lineItems.6.hsnSac": 0.82,
-      "lineItems.6.cgstMinor": 0.9,
-      "lineItems.6.sgstMinor": 0.9,
       "lineItems.7.hsnSac": 0.82
     }
   },
-  "confidenceScore": 80,
+  "confidenceScore": 85,
   "confidenceTone": "yellow",
   "previewPageImages": {
     "1": "preview-page-1.png",

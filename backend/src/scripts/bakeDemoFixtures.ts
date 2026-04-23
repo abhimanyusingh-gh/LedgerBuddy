@@ -282,6 +282,29 @@ async function bake(): Promise<void> {
     );
   }
 
+  // Operator override: record gate failures but still write fixtures. Use when
+  // LlamaExtract cannot emit a bbox for a genuinely uncitable field (e.g. a
+  // vendor name that only appears inside a logo/letterhead raster block).
+  const skipGate = process.argv.includes("--skip-gate");
+
+  // Operator override: re-bake only a subset of files. Pass `--file X.pdf`
+  // one or more times. Useful after a transient LlamaParse failure on a single
+  // PDF so you don't burn credits re-extracting the rest. Matching files are
+  // still run through the full extract → stage → gate → write pipeline; other
+  // TARGET_PDFS are skipped entirely (no cache replay, no fixture rewrite).
+  const fileFilter = new Set<string>();
+  for (let i = 0; i < process.argv.length - 1; i++) {
+    if (process.argv[i] === "--file") {
+      fileFilter.add(process.argv[i + 1] as string);
+    }
+  }
+  const filteredTargets = fileFilter.size === 0
+    ? TARGET_PDFS
+    : TARGET_PDFS.filter((name) => fileFilter.has(name));
+  if (fileFilter.size > 0) {
+    process.stdout.write(`--file filter: ${filteredTargets.join(", ")}\n`);
+  }
+
   if (process.env.LLAMA_PARSE_EXTRACT_ENABLED !== "true") {
     process.stderr.write(
       "LLAMA_PARSE_EXTRACT_ENABLED must be 'true' to bake fixtures (llama-extract is the extraction strategy we're capturing).\n"
@@ -318,7 +341,7 @@ async function bake(): Promise<void> {
     failureCount: number;
   }> = [];
 
-  for (const file of TARGET_PDFS) {
+  for (const file of filteredTargets) {
     const fullPath = join(inboxDir, file);
     process.stdout.write(`\n=== ${file}\n`);
 
@@ -461,18 +484,28 @@ async function bake(): Promise<void> {
   }
 
   if (allFailures.length > 0) {
-    process.stderr.write("\n=== QUALITY GATE FAILED — no fixtures written\n");
-    process.stderr.write("STATUS | FILE | FIELD | ACTUAL | REQUIREMENT\n");
+    const header = skipGate
+      ? "\n=== QUALITY GATE FAILURES (--skip-gate set; writing fixtures anyway)\n"
+      : "\n=== QUALITY GATE FAILED — no fixtures written\n";
+    const stream = skipGate ? process.stdout : process.stderr;
+    stream.write(header);
+    stream.write("STATUS | FILE | FIELD | ACTUAL | REQUIREMENT\n");
     for (const failure of allFailures) {
-      process.stderr.write(
+      stream.write(
         `FAIL | ${failure.file} | ${failure.field} | ${truncate(failure.actual, 40)} | ${failure.reason}\n`
       );
     }
-    process.exit(1);
+    if (!skipGate) {
+      process.exit(1);
+    }
   }
 
-  // All passed — write fixtures.
-  process.stdout.write("\n=== Quality gate PASSED for all 6 PDFs — writing fixtures\n");
+  // All passed (or --skip-gate set) — write fixtures.
+  process.stdout.write(
+    allFailures.length === 0
+      ? "\n=== Quality gate PASSED for all 6 PDFs — writing fixtures\n"
+      : "\n=== Writing fixtures despite gate failures (--skip-gate set)\n"
+  );
   for (const entry of staged) {
     const outDir = join(bakedDir, entry.dirName);
     rmSync(outDir, { recursive: true, force: true });

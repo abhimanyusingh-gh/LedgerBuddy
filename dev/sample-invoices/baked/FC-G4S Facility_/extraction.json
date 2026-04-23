@@ -25,25 +25,25 @@
     },
     "lineItems": [
       {
-        "description": "1 X 8HR Housekeeping Boy @ 22624.00- For ( 192.00 HRS )",
+        "description": "1 X 8HR Housekeeping Boy",
         "amountMinor": 2088369,
         "hsnSac": "998533",
         "quantity": 192,
         "rate": 22624,
-        "taxRate": 0,
-        "cgstMinor": 0,
-        "sgstMinor": 0,
+        "taxRate": 9,
+        "cgstMinor": 409920,
+        "sgstMinor": 409920,
         "igstMinor": 0
       },
       {
-        "description": "1 X 8HR Office Boy @ 24663.00",
+        "description": "1 X 8HR Office Boy",
         "amountMinor": 2466300,
         "hsnSac": "998599",
         "quantity": 1,
         "rate": 24663,
-        "taxRate": 0,
-        "cgstMinor": 0,
-        "sgstMinor": 0,
+        "taxRate": 9,
+        "cgstMinor": 409920,
+        "sgstMinor": 409920,
         "igstMinor": 0
       }
     ],
@@ -1314,34 +1314,34 @@
       "source": "text-pattern",
       "page": 1,
       "bboxNormalized": [
-        0.6853738066424633,
-        0.33893956670467507,
-        0.9165826274035227,
-        0.35200494108703917
+        0.6734093345083842,
+        0.33242035656440555,
+        0.9458948647103659,
+        0.44115502334222567
       ],
-      "confidence": 0.9999999757984191
+      "confidence": 0.9999999515968389
     },
     "vendorName": {
       "source": "text-pattern",
       "page": 1,
       "bboxNormalized": [
-        0.7122055425876525,
-        0.787216201410061,
-        0.9443334365472562,
-        0.7978246474847563
+        0.3050172387099848,
+        0.09200507931592988,
+        0.6595628691882622,
+        0.10660098936499621
       ],
-      "confidence": 0.9999999441310589
+      "confidence": 0.9999934525504817
     },
     "vendorAddress": {
       "source": "text-pattern",
       "page": 1,
       "bboxNormalized": [
-        0.05886109990587603,
-        0.19855805777271,
-        0.5037649589888396,
-        0.22024657924743443
+        0.05767808867663873,
+        0.19845025783631864,
+        0.5031482826791159,
+        0.26908116782583846
       ],
-      "confidence": 0.9997274098732013
+      "confidence": 0.998111065329508
     },
     "vendorGstin": {
       "source": "text-pattern",
@@ -1352,12 +1352,12 @@
         0.5004033884630898,
         0.2688141391106043
       ],
-      "confidence": 0.9999999784874837
+      "confidence": 0.9999999387529297
     },
     "vendorPan": {
       "source": "text-pattern",
       "page": 1,
-      "confidence": 0.9999985919543982
+      "confidence": 0.9999921152520803
     },
     "customerName": {
       "source": "text-pattern",
@@ -1368,7 +1368,7 @@
         0.27571601452198463,
         0.3609962941847207
       ],
-      "confidence": 0.9999997705516244
+      "confidence": 0.9999985710750684
     },
     "customerAddress": {
       "source": "text-pattern",
@@ -1377,9 +1377,9 @@
         0.05886109990587603,
         0.49483323831242876,
         0.6421944332392093,
-        0.5031475674648423
+        0.5151083238312429
       ],
-      "confidence": 0.9999762058508274
+      "confidence": 0.9981695162873423
     },
     "customerGstin": {
       "source": "text-pattern",
@@ -1401,23 +1401,23 @@
         0.9458948647103659,
         0.44115502334222567
       ],
-      "confidence": 1
+      "confidence": 0.9999997765242449
     },
     "dueDate": {
       "source": "text-pattern",
       "page": 1,
       "bboxNormalized": [
-        0.10367083501411858,
-        0.24852717597871535,
-        0.39222804894446683,
-        0.25684150513112886
+        0.05886109990587603,
+        0.22530644241733183,
+        0.5004033884630898,
+        0.2688141391106043
       ],
-      "confidence": 0.9669013055598285
+      "confidence": 0.9952092633368829
     },
     "currency": {
       "source": "text-pattern",
       "page": 1,
-      "confidence": 0.9901
+      "confidence": 0.9993
     },
     "totalAmountMinor": {
       "source": "text-pattern",
@@ -1428,17 +1428,17 @@
         0.9336644480301197,
         0.6250605758266818
       ],
-      "confidence": 1
+      "confidence": 0.999999724388213
     },
     "pan": {
       "source": "text-pattern",
       "page": 1,
-      "confidence": 0.9901
+      "confidence": 0.9993
     },
     "gst.gstin": {
       "source": "text-pattern",
       "page": 1,
-      "confidence": 0.9901
+      "confidence": 0.9993
     },
     "gst.subtotalMinor": {
       "source": "text-pattern",
@@ -1456,7 +1456,7 @@
         0.6259999999999999
       ],
       "blockIndex": 48,
-      "confidence": 0.9901
+      "confidence": 0.9993
     },
     "gst.cgstMinor": {
       "source": "text-pattern",
@@ -1474,7 +1474,7 @@
         0.6259999999999999
       ],
       "blockIndex": 48,
-      "confidence": 0.9901
+      "confidence": 0.9993
     },
     "gst.sgstMinor": {
       "source": "text-pattern",
@@ -1492,7 +1492,7 @@
         0.6259999999999999
       ],
       "blockIndex": 48,
-      "confidence": 0.9901
+      "confidence": 0.9993
     },
     "gst.igstMinor": {
       "source": "text-pattern",
@@ -1510,7 +1510,7 @@
         0.26908116782583846
       ],
       "blockIndex": 9,
-      "confidence": 0.9901
+      "confidence": 0.9993
     },
     "gst.cessMinor": {
       "source": "text-pattern",
@@ -1528,12 +1528,12 @@
         0.26908116782583846
       ],
       "blockIndex": 9,
-      "confidence": 0.9901
+      "confidence": 0.9993
     },
     "gst.totalTaxMinor": {
       "source": "text-pattern",
       "page": 1,
-      "confidence": 0.9901
+      "confidence": 0.9993
     }
   },
   "lineItemProvenance": [
@@ -1546,9 +1546,9 @@
           0.05499999999999999,
           0.444,
           0.945,
-          0.6259999999999999
+          0.5349999999999999
         ],
-        "confidence": 0.8467
+        "confidence": 0.868
       },
       "fields": {
         "description": {
@@ -1558,13 +1558,13 @@
             32.7228,
             373.81248,
             562.2372,
-            527.0419199999999
+            450.42719999999997
           ],
           "bboxNormalized": [
             0.05499999999999999,
             0.444,
             0.945,
-            0.6259999999999999
+            0.5349999999999999
           ],
           "blockIndex": 48,
           "confidence": 0.82
@@ -1576,13 +1576,13 @@
             32.7228,
             373.81248,
             562.2372,
-            527.0419199999999
+            450.42719999999997
           ],
           "bboxNormalized": [
             0.05499999999999999,
             0.444,
             0.945,
-            0.6259999999999999
+            0.5349999999999999
           ],
           "blockIndex": 48,
           "confidence": 0.82
@@ -1594,13 +1594,49 @@
             32.7228,
             373.81248,
             562.2372,
-            527.0419199999999
+            450.42719999999997
           ],
           "bboxNormalized": [
             0.05499999999999999,
             0.444,
             0.945,
-            0.6259999999999999
+            0.5349999999999999
+          ],
+          "blockIndex": 48,
+          "confidence": 0.9
+        },
+        "cgstMinor": {
+          "source": "text-pattern",
+          "page": 1,
+          "bbox": [
+            32.7228,
+            373.81248,
+            562.2372,
+            450.42719999999997
+          ],
+          "bboxNormalized": [
+            0.05499999999999999,
+            0.444,
+            0.945,
+            0.5349999999999999
+          ],
+          "blockIndex": 48,
+          "confidence": 0.9
+        },
+        "sgstMinor": {
+          "source": "text-pattern",
+          "page": 1,
+          "bbox": [
+            32.7228,
+            373.81248,
+            562.2372,
+            450.42719999999997
+          ],
+          "bboxNormalized": [
+            0.05499999999999999,
+            0.444,
+            0.945,
+            0.5349999999999999
           ],
           "blockIndex": 48,
           "confidence": 0.9
@@ -1614,11 +1650,11 @@
         "page": 1,
         "bboxNormalized": [
           0.05499999999999999,
-          0.444,
+          0.5349999999999999,
           0.945,
           0.6259999999999999
         ],
-        "confidence": 0.8467
+        "confidence": 0.868
       },
       "fields": {
         "description": {
@@ -1626,13 +1662,13 @@
           "page": 1,
           "bbox": [
             32.7228,
-            373.81248,
+            450.42719999999997,
             562.2372,
             527.0419199999999
           ],
           "bboxNormalized": [
             0.05499999999999999,
-            0.444,
+            0.5349999999999999,
             0.945,
             0.6259999999999999
           ],
@@ -1644,13 +1680,13 @@
           "page": 1,
           "bbox": [
             32.7228,
-            373.81248,
+            450.42719999999997,
             562.2372,
             527.0419199999999
           ],
           "bboxNormalized": [
             0.05499999999999999,
-            0.444,
+            0.5349999999999999,
             0.945,
             0.6259999999999999
           ],
@@ -1662,13 +1698,49 @@
           "page": 1,
           "bbox": [
             32.7228,
-            373.81248,
+            450.42719999999997,
             562.2372,
             527.0419199999999
           ],
           "bboxNormalized": [
             0.05499999999999999,
-            0.444,
+            0.5349999999999999,
+            0.945,
+            0.6259999999999999
+          ],
+          "blockIndex": 48,
+          "confidence": 0.9
+        },
+        "cgstMinor": {
+          "source": "text-pattern",
+          "page": 1,
+          "bbox": [
+            32.7228,
+            450.42719999999997,
+            562.2372,
+            527.0419199999999
+          ],
+          "bboxNormalized": [
+            0.05499999999999999,
+            0.5349999999999999,
+            0.945,
+            0.6259999999999999
+          ],
+          "blockIndex": 48,
+          "confidence": 0.9
+        },
+        "sgstMinor": {
+          "source": "text-pattern",
+          "page": 1,
+          "bbox": [
+            32.7228,
+            450.42719999999997,
+            562.2372,
+            527.0419199999999
+          ],
+          "bboxNormalized": [
+            0.05499999999999999,
+            0.5349999999999999,
             0.945,
             0.6259999999999999
           ],
@@ -1682,38 +1754,42 @@
     "source": "llamaextract",
     "strategy": "llamaextract",
     "provider": "llamaparse",
-    "parsingConfidence": 0.9901,
-    "extractionConfidence": 95,
+    "parsingConfidence": 0.9993,
+    "extractionConfidence": 96,
     "fieldConfidence": {
       "invoiceNumber": 1,
       "vendorName": 1,
-      "vendorAddress": 0.9997,
+      "vendorAddress": 0.9981,
       "vendorGstin": 1,
       "vendorPan": 1,
       "customerName": 1,
-      "customerAddress": 1,
+      "customerAddress": 0.9982,
       "customerGstin": 1,
       "invoiceDate": 1,
-      "dueDate": 0.9669,
-      "currency": 0.9901,
+      "dueDate": 0.9952,
+      "currency": 0.9993,
       "totalAmountMinor": 1,
-      "pan": 0.9901,
-      "gst.gstin": 0.9901,
-      "gst.subtotalMinor": 0.9901,
-      "gst.cgstMinor": 0.9901,
-      "gst.sgstMinor": 0.9901,
-      "gst.igstMinor": 0.9901,
-      "gst.cessMinor": 0.9901,
-      "gst.totalTaxMinor": 0.9901,
+      "pan": 0.9993,
+      "gst.gstin": 0.9993,
+      "gst.subtotalMinor": 0.9993,
+      "gst.cgstMinor": 0.9993,
+      "gst.sgstMinor": 0.9993,
+      "gst.igstMinor": 0.9993,
+      "gst.cessMinor": 0.9993,
+      "gst.totalTaxMinor": 0.9993,
       "lineItems.0.description": 0.82,
       "lineItems.0.hsnSac": 0.82,
       "lineItems.0.amountMinor": 0.9,
+      "lineItems.0.cgstMinor": 0.9,
+      "lineItems.0.sgstMinor": 0.9,
       "lineItems.1.description": 0.82,
       "lineItems.1.hsnSac": 0.82,
-      "lineItems.1.amountMinor": 0.9
+      "lineItems.1.amountMinor": 0.9,
+      "lineItems.1.cgstMinor": 0.9,
+      "lineItems.1.sgstMinor": 0.9
     }
   },
-  "confidenceScore": 95,
+  "confidenceScore": 96,
   "confidenceTone": "green",
   "previewPageImages": {
     "1": "preview-page-1.png"

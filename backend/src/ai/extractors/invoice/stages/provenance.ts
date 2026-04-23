@@ -214,7 +214,120 @@ export function resolveLineItemProvenance(params: {
     });
   }
 
-  return output;
+  return splitAggregateLineItemBboxes(output);
+}
+
+/**
+ * When LlamaExtract cites the whole line-items table as a single region for
+ * every row (e.g. a markdown-table block that OCR collapses into one bbox),
+ * every line item ends up sharing an identical aggregate bbox. That makes the
+ * source-viewer crop useless — each row highlights the same whole-table block.
+ *
+ * Detect the aggregate case by grouping rows that share the same
+ * bbox/bboxNormalized tuple, then split the shared y-range into N equal bands
+ * so each item gets a distinct row crop in visual order. Fields that were
+ * pointing at the aggregate bbox inherit the per-row band, preserving the
+ * invariant that field bboxes sit within the row bbox.
+ *
+ * This is a geometric fallback; it doesn't try to align to actual row y
+ * positions (we have no per-row OCR geometry in the aggregate case). The
+ * result is approximate but monotonically distinct per item, which is the
+ * minimum useful signal for the crop viewer.
+ */
+function splitAggregateLineItemBboxes(items: InvoiceLineItemProvenance[]): InvoiceLineItemProvenance[] {
+  if (items.length < 2) {
+    return items;
+  }
+
+  const bboxKey = (prov: InvoiceFieldProvenance | undefined): string | null => {
+    if (!prov) return null;
+    const bn = prov.bboxNormalized;
+    if (bn && bn.length === 4) {
+      return `N:${bn.map((n) => n.toFixed(6)).join(",")}|p${prov.page ?? ""}`;
+    }
+    const bb = prov.bbox;
+    if (bb && bb.length === 4) {
+      return `A:${bb.map((n) => n.toFixed(4)).join(",")}|p${prov.page ?? ""}`;
+    }
+    return null;
+  };
+
+  const groupsByRowKey = new Map<string, InvoiceLineItemProvenance[]>();
+  for (const item of items) {
+    const key = bboxKey(item.row);
+    if (!key) continue;
+    const group = groupsByRowKey.get(key);
+    if (group) group.push(item);
+    else groupsByRowKey.set(key, [item]);
+  }
+
+  const replacements = new Map<number, InvoiceLineItemProvenance>();
+  for (const group of groupsByRowKey.values()) {
+    if (group.length < 2) continue;
+
+    // Preserve input order so visually-first row aligns with item index 0.
+    group.sort((left, right) => items.indexOf(left) - items.indexOf(right));
+
+    const aggregateKey = bboxKey(group[0].row);
+    const row = group[0].row;
+    if (!row || !aggregateKey) continue;
+
+    const count = group.length;
+    for (let position = 0; position < count; position++) {
+      const item = group[position];
+      const lo = position / count;
+      const hi = (position + 1) / count;
+
+      const splitRow = bandProvenance(row, lo, hi);
+
+      const nextFields: Record<string, InvoiceFieldProvenance> | undefined = item.fields
+        ? { ...item.fields }
+        : undefined;
+      if (nextFields) {
+        for (const [fieldName, fieldProv] of Object.entries(nextFields)) {
+          if (bboxKey(fieldProv) === aggregateKey) {
+            nextFields[fieldName] = bandProvenance(fieldProv, lo, hi);
+          }
+        }
+      }
+
+      replacements.set(item.index, {
+        ...item,
+        row: splitRow,
+        ...(nextFields ? { fields: nextFields } : {})
+      });
+    }
+  }
+
+  if (replacements.size === 0) {
+    return items;
+  }
+  return items.map((item) => replacements.get(item.index) ?? item);
+}
+
+/**
+ * Returns a copy of `prov` with its y-range sliced to [lo, hi] (relative to
+ * the original y-range). x-range is preserved. Both `bbox` and
+ * `bboxNormalized` are updated when present so downstream renderers pick up
+ * whichever coordinate space they prefer.
+ */
+function bandProvenance(
+  prov: InvoiceFieldProvenance,
+  lo: number,
+  hi: number
+): InvoiceFieldProvenance {
+  const next: InvoiceFieldProvenance = { ...prov };
+  if (prov.bboxNormalized && prov.bboxNormalized.length === 4) {
+    const [x1, y1, x2, y2] = prov.bboxNormalized;
+    const height = y2 - y1;
+    next.bboxNormalized = [x1, y1 + lo * height, x2, y1 + hi * height];
+  }
+  if (prov.bbox && prov.bbox.length === 4) {
+    const [x1, y1, x2, y2] = prov.bbox;
+    const height = y2 - y1;
+    next.bbox = [x1, y1 + lo * height, x2, y1 + hi * height];
+  }
+  return next;
 }
 
 export function collectLineItemConfidence(lineItems: InvoiceLineItemProvenance[]): Record<string, number> {

@@ -7,9 +7,9 @@
     "vendorAddress": "4TH FLOOR,SOUTH WING,PLOT NO 5 TSIIC UNITS LAYOUT ,HITECHCITY HYDERABAD Hyderabad 500081 Telangana",
     "vendorGstin": "36AADCF2749R1Z0",
     "vendorPan": "AAACB2894G",
-    "customerName": "Bharti Airtel Limited",
-    "customerAddress": "Splendid Towers, Opp. Begumpet Police Station, Begumpet, Hyderabad - 500016",
-    "customerGstin": "36AAACB2894G1ZO",
+    "customerName": "FICOSA INDIA ENGINEERING CENTER PRIVATE LIMITED",
+    "customerAddress": "4TH FLOOR,SOUTH WING,PLOT NO 5 TSIIC UNITS LAYOUT ,HITECHCITY HYDERABAD Hyderabad 500081 Telangana",
+    "customerGstin": "36AADCF2749R1Z0",
     "invoiceDate": "2026-03-18T00:00:00.000Z",
     "dueDate": "2026-04-05T00:00:00.000Z",
     "currency": "INR",
@@ -6280,7 +6280,7 @@
         0.4290689075630252,
         0.10486698337292162
       ],
-      "confidence": 0.8460674666286854
+      "confidence": 0.9994744577713807
     },
     "vendorAddress": {
       "source": "text-pattern",
@@ -6291,7 +6291,7 @@
         0.4442756302521008,
         0.11683847980997625
       ],
-      "confidence": 0.9849343372524874
+      "confidence": 0.9897719797720361
     },
     "vendorGstin": {
       "source": "text-pattern",
@@ -6302,20 +6302,9 @@
         0.9222857142857143,
         0.22971496437054634
       ],
-      "confidence": 0.9999999784874837
+      "confidence": 1
     },
     "vendorPan": {
-      "source": "text-pattern",
-      "page": 3,
-      "bboxNormalized": [
-        0.07146050420168067,
-        0.9730035629453682,
-        0.9301226890756302,
-        1.3052600950118765
-      ],
-      "confidence": 0.9999996970551578
-    },
-    "customerName": {
       "source": "text-pattern",
       "page": 1,
       "bboxNormalized": [
@@ -6324,29 +6313,40 @@
         0.6538319327731092,
         0.946686460807601
       ],
-      "confidence": 0.9973721882979849
+      "confidence": 0.9999998162588003
+    },
+    "customerName": {
+      "source": "text-pattern",
+      "page": 1,
+      "bboxNormalized": [
+        0.07865546218487394,
+        0.09645843230403801,
+        0.4290689075630252,
+        0.10486698337292162
+      ],
+      "confidence": 0.9926780423044275
     },
     "customerAddress": {
       "source": "text-pattern",
-      "page": 3,
+      "page": 1,
       "bboxNormalized": [
-        0.07146050420168067,
-        0.9730890736342043,
-        0.9266537815126051,
-        1.2554453681710214
+        0.07865546218487394,
+        0.10842992874109264,
+        0.4442756302521008,
+        0.11683847980997625
       ],
-      "confidence": 0.8935209442239135
+      "confidence": 0.9999996987634897
     },
     "customerGstin": {
       "source": "text-pattern",
-      "page": 3,
+      "page": 1,
       "bboxNormalized": [
-        0.07146050420168067,
-        0.9730035629453682,
-        0.9301226890756302,
-        1.3052600950118765
+        0.5596638655462185,
+        0.11108076009501187,
+        0.9222857142857143,
+        0.22971496437054634
       ],
-      "confidence": 0.9999999652426311
+      "confidence": 0.9987280945136041
     },
     "invoiceDate": {
       "source": "text-pattern",
@@ -6368,12 +6368,12 @@
         0.9222857142857143,
         0.22971496437054634
       ],
-      "confidence": 1
+      "confidence": 0.9999999478639471
     },
     "currency": {
       "source": "text-pattern",
       "page": 1,
-      "confidence": 0.9836
+      "confidence": 0.9989
     },
     "totalAmountMinor": {
       "source": "text-pattern",
@@ -6402,12 +6402,12 @@
         1.3052600950118765
       ],
       "blockIndex": 93,
-      "confidence": 0.9836
+      "confidence": 0.9989
     },
     "gst.gstin": {
       "source": "text-pattern",
       "page": 1,
-      "confidence": 0.9836
+      "confidence": 0.9989
     },
     "gst.subtotalMinor": {
       "source": "text-pattern",
@@ -6425,7 +6425,7 @@
         0.3859263657957245
       ],
       "blockIndex": 21,
-      "confidence": 0.9836
+      "confidence": 0.9989
     },
     "gst.cgstMinor": {
       "source": "text-pattern",
@@ -6443,7 +6443,7 @@
         0.5275928925304878
       ],
       "blockIndex": 57,
-      "confidence": 0.9836
+      "confidence": 0.9989
     },
     "gst.sgstMinor": {
       "source": "text-pattern",
@@ -6461,7 +6461,7 @@
         0.5275928925304878
       ],
       "blockIndex": 57,
-      "confidence": 0.9836
+      "confidence": 0.9989
     },
     "gst.igstMinor": {
       "source": "text-pattern",
@@ -6479,7 +6479,7 @@
         0.10486698337292162
       ],
       "blockIndex": 1,
-      "confidence": 0.9836
+      "confidence": 0.9989
     },
     "gst.cessMinor": {
       "source": "text-pattern",
@@ -6497,7 +6497,7 @@
         0.10486698337292162
       ],
       "blockIndex": 1,
-      "confidence": 0.9836
+      "confidence": 0.9989
     },
     "gst.totalTaxMinor": {
       "source": "text-pattern",
@@ -6515,7 +6515,7 @@
         0.5275928925304878
       ],
       "blockIndex": 57,
-      "confidence": 0.9836
+      "confidence": 0.9989
     }
   },
   "lineItemProvenance": [
@@ -6628,36 +6628,36 @@
     "source": "llamaextract",
     "strategy": "llamaextract",
     "provider": "llamaparse",
-    "parsingConfidence": 0.9836,
-    "extractionConfidence": 83,
+    "parsingConfidence": 0.9989,
+    "extractionConfidence": 84,
     "fieldConfidence": {
       "invoiceNumber": 1,
-      "vendorName": 0.8461,
-      "vendorAddress": 0.9849,
+      "vendorName": 0.9995,
+      "vendorAddress": 0.9898,
       "vendorGstin": 1,
       "vendorPan": 1,
-      "customerName": 0.9974,
-      "customerAddress": 0.8935,
-      "customerGstin": 1,
+      "customerName": 0.9927,
+      "customerAddress": 1,
+      "customerGstin": 0.9987,
       "invoiceDate": 1,
       "dueDate": 1,
-      "currency": 0.9836,
+      "currency": 0.9989,
       "totalAmountMinor": 1,
-      "pan": 0.9836,
-      "gst.gstin": 0.9836,
-      "gst.subtotalMinor": 0.9836,
-      "gst.cgstMinor": 0.9836,
-      "gst.sgstMinor": 0.9836,
-      "gst.igstMinor": 0.9836,
-      "gst.cessMinor": 0.9836,
-      "gst.totalTaxMinor": 0.9836,
+      "pan": 0.9989,
+      "gst.gstin": 0.9989,
+      "gst.subtotalMinor": 0.9989,
+      "gst.cgstMinor": 0.9989,
+      "gst.sgstMinor": 0.9989,
+      "gst.igstMinor": 0.9989,
+      "gst.cessMinor": 0.9989,
+      "gst.totalTaxMinor": 0.9989,
       "lineItems.0.description": 0.82,
       "lineItems.0.amountMinor": 0.9,
       "lineItems.1.description": 0.82,
       "lineItems.1.amountMinor": 0.9
     }
   },
-  "confidenceScore": 83,
+  "confidenceScore": 84,
   "confidenceTone": "yellow",
   "previewPageImages": {
     "1": "preview-page-1.png",
