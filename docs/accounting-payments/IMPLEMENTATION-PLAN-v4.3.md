@@ -141,7 +141,7 @@ RICE 180 TDS thin slice → design-partner demo Week 5. Jumpbox ships alongside 
 | 21 | **JUMPBOX-OBS** Observability: reachability SLO, per-tenant latency, allowlist-blocked alerts, creds-rotation telemetry | Ops | 2 | |
 | 22 | BRIDGE-1 → **TALLY-CLIENT** `TallyClient` backend (envelope builders, LINEERROR ordinal parser, per-tenant mutex + circuit breaker + exponential backoff, always-on `SVCURRENTCOMPANY`, **routes via JumpboxClient adapter**) | B | 5 | ✓ |
 | 23 | **JUMPBOX-2** `JumpboxClient` adapter in backend: auth (IAM sig v4), retry, CB, connects `TallyClient` ↔ jumpbox | B | 2 | ✓ |
-| 24 | **TALLY-NETCONF** `TenantTallyCompany` model (replaces v4.2 BRIDGE-2): `companyGuid`, `tallyBaseUrl`, `tallyPort`, `tallyAuthJson`, `f12OverwriteByGuidVerified`, `allowlistVerifiedAt`, AlterID cursors | B | 1.5 | |
+| 24 | **TALLY-NETCONF** `ClientOrganization` model (replaces v4.2 BRIDGE-2): `companyGuid`, `tallyBaseUrl`, `tallyPort`, `tallyAuthJson`, `f12OverwriteByGuidVerified`, `allowlistVerifiedAt`, AlterID cursors | B | 1.5 | |
 
 **Phase 2: 38 days** (jumpbox ships here). Parallelisable with Phase 3.
 

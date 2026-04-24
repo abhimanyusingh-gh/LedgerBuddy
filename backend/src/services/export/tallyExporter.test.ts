@@ -4,7 +4,7 @@ const stageInFlightExportVersionMock = jest.fn();
 const promoteExportVersionMock = jest.fn();
 const clearInFlightExportVersionMock = jest.fn();
 const buildTallyExportConfigMock = jest.fn();
-const tenantTallyCompanyFindOneMock = jest.fn();
+const clientOrganizationFindOneMock = jest.fn();
 const DEFAULT_TALLY_CONFIG = {
   endpoint: "http://example.test/tally",
   companyName: "Demo",
@@ -36,14 +36,14 @@ jest.mock("@/services/export/tenantExportConfigResolver.ts", () => ({
   buildCsvExportConfig: jest.fn()
 }));
 
-jest.mock("@/models/integration/TenantTallyCompany.ts", () => ({
+jest.mock("@/models/integration/ClientOrganization.ts", () => ({
   __esModule: true,
-  TenantTallyCompanyModel: {
+  ClientOrganizationModel: {
     findOne: (...args: unknown[]) => ({
-      lean: () => tenantTallyCompanyFindOneMock(...args)
+      lean: () => clientOrganizationFindOneMock(...args)
     })
   },
-  TALLY_VERSION: jest.requireActual("@/models/integration/TenantTallyCompany.ts").TALLY_VERSION
+  TALLY_VERSION: jest.requireActual("@/models/integration/ClientOrganization.ts").TALLY_VERSION
 }));
 
 import {
@@ -1374,8 +1374,8 @@ describe("TallyExporter re-export guard (BE-2) — 2-phase staging", () => {
     promoteExportVersionMock.mockReset();
     clearInFlightExportVersionMock.mockReset();
     buildTallyExportConfigMock.mockReset();
-    tenantTallyCompanyFindOneMock.mockReset();
-    tenantTallyCompanyFindOneMock.mockResolvedValue(null);
+    clientOrganizationFindOneMock.mockReset();
+    clientOrganizationFindOneMock.mockResolvedValue(null);
     stageInFlightExportVersionMock.mockResolvedValue(undefined);
     promoteExportVersionMock.mockResolvedValue(undefined);
     clearInFlightExportVersionMock.mockResolvedValue(undefined);
@@ -1576,8 +1576,8 @@ describe("TallyExporter re-export guard (BE-2) — 2-phase staging", () => {
     expect(payload).not.toContain("<PLACEOFSUPPLY>");
   });
 
-  it("reads detectedVersion from TenantTallyCompany when tenantId is provided", async () => {
-    tenantTallyCompanyFindOneMock.mockResolvedValue({ detectedVersion: "prime" });
+  it("reads detectedVersion from ClientOrganization when tenantId is provided", async () => {
+    clientOrganizationFindOneMock.mockResolvedValue({ detectedVersion: "prime" });
     resolveReExportDecisionMock.mockResolvedValue({
       guid: "sha-dv",
       action: "Create",
@@ -1596,7 +1596,7 @@ describe("TallyExporter re-export guard (BE-2) — 2-phase staging", () => {
     });
 
     await exporter.exportInvoices([invoice], TENANT_ID);
-    expect(tenantTallyCompanyFindOneMock).toHaveBeenCalledWith({ tenantId: TENANT_ID });
+    expect(clientOrganizationFindOneMock).toHaveBeenCalledWith({ tenantId: TENANT_ID });
   });
 
   it("does not engage the guard when tenantId is omitted (backward-compat)", async () => {

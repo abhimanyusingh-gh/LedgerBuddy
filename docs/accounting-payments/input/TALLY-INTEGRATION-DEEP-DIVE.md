@@ -701,7 +701,7 @@ company "ACME"                  Receive "TallyPrime Server
                                 is Running"
                                 
                                 Query "List of Companies"
-                                (§4.5)                  --->    Upsert TenantTallyCompany:
+                                (§4.5)                  --->    Upsert ClientOrganization:
                                                                 { companyGuid, name,
                                                                   stateName, gstin }
 

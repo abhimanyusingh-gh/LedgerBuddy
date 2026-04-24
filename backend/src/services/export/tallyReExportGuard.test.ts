@@ -1,6 +1,6 @@
 import { describeHarness } from "@/test-utils";
 import { InvoiceModel } from "@/models/invoice/Invoice.js";
-import { TenantTallyCompanyModel } from "@/models/integration/TenantTallyCompany.js";
+import { ClientOrganizationModel } from "@/models/integration/ClientOrganization.js";
 import {
   clearInFlightExportVersion,
   computeVoucherGuid,
@@ -61,9 +61,10 @@ describeHarness("resolveReExportDecision + 2-phase staging (BE-2)", ({ getHarnes
   });
 
   it("re-export throws F12OverwriteNotVerifiedError when toggle not verified", async () => {
-    await TenantTallyCompanyModel.create({
+    await ClientOrganizationModel.create({
       tenantId: "tenant-1",
       companyName: "ACME",
+      gstin: "29ABCDE1234F1Z5",
       f12OverwriteByGuidVerified: false
     });
 
@@ -72,17 +73,18 @@ describeHarness("resolveReExportDecision + 2-phase staging (BE-2)", ({ getHarnes
     ).rejects.toBeInstanceOf(F12OverwriteNotVerifiedError);
   });
 
-  it("re-export also throws when no TenantTallyCompany row exists", async () => {
+  it("re-export also throws when no ClientOrganization row exists", async () => {
     await expect(
       resolveReExportDecision({ tenantId: "tenant-missing", invoiceId: "inv-1", currentExportVersion: 1 })
     ).rejects.toBeInstanceOf(F12OverwriteNotVerifiedError);
   });
 
   it("re-export issues ACTION=Alter with same-invoice GUID bumped to next version when F12 verified", async () => {
-    await TenantTallyCompanyModel.create({
+    await ClientOrganizationModel.create({
       tenantId: "tenant-1",
       companyName: "ACME",
       stateName: "Karnataka",
+      gstin: "29ABCDE1234F1Z5",
       f12OverwriteByGuidVerified: true
     });
 

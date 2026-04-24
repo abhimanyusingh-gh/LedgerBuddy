@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { InvoiceModel } from "@/models/invoice/Invoice.js";
-import { TenantTallyCompanyModel } from "@/models/integration/TenantTallyCompany.js";
+import { ClientOrganizationModel } from "@/models/integration/ClientOrganization.js";
 import { TALLY_ACTION, type TallyAction } from "@/services/export/tallyExporter/xml.js";
 
 interface VoucherGuidInputs {
@@ -74,7 +74,7 @@ export async function resolveReExportDecision(params: {
   const nextExportVersion = currentExportVersion + 1;
   const action: TallyAction = currentExportVersion === 0 ? TALLY_ACTION.CREATE : TALLY_ACTION.ALTER;
 
-  const company = await TenantTallyCompanyModel.findOne({ tenantId }).lean();
+  const company = await ClientOrganizationModel.findOne({ tenantId }).lean();
 
   if (action === TALLY_ACTION.ALTER && !company?.f12OverwriteByGuidVerified) {
     throw new F12OverwriteNotVerifiedError(tenantId);

@@ -42,9 +42,9 @@ Operator steps to verify in Tally:
 
 1. Open any company. In Tally Prime: `F12 → Voucher Entry → Allow overwriting of existing vouchers when voucher with same GUID is imported → Yes`.
 2. In Tally ERP 9: the label differs slightly (`Overwrite voucher when voucher with same GUID exists`) but the semantics are identical.
-3. In onboarding, operator then clicks "Verify F12 overwrite" in the admin UI — this flips `TenantTallyCompany.f12OverwriteByGuidVerified` to `true`. Until then, any attempt to re-export raises `F12OverwriteNotVerifiedError` and is surfaced to the operator.
+3. In onboarding, operator then clicks "Verify F12 overwrite" in the admin UI — this flips `ClientOrganization.f12OverwriteByGuidVerified` to `true`. Until then, any attempt to re-export raises `F12OverwriteNotVerifiedError` and is surfaced to the operator.
 
-Persistence is on `backend/src/models/integration/TenantTallyCompany.ts:16` (`f12OverwriteByGuidVerified`). The gate is enforced at `backend/src/services/export/tallyReExportGuard.ts:79`. First-time export (`ACTION="Create"`) does not require the toggle.
+Persistence is on `backend/src/models/integration/ClientOrganization.ts` (`f12OverwriteByGuidVerified`). The gate is enforced at `backend/src/services/export/tallyReExportGuard.ts:79`. First-time export (`ACTION="Create"`) does not require the toggle.
 
 ## 2. First-export flow
 
@@ -112,7 +112,7 @@ Expected response (success path):
 |---|---|---|
 | `Ledger 'X' does not exist.` | Vendor ledger absent from Tally; exporter never runs `ALLOWCREATION=Yes` (rule #10, §13). | Create the vendor ledger via vendor-sync (§5) or in Tally directly, retry. |
 | `Could not set value for GSTIN` | Invalid 15-char GSTIN on the invoice. | Correct the invoice record, re-queue. |
-| `Company is not loaded.` | `SVCURRENTCOMPANY` in the envelope doesn't match any open company. | Onboarding operator must re-verify company name / GUID on `TenantTallyCompany`; confirm company is open in Tally. |
+| `Company is not loaded.` | `SVCURRENTCOMPANY` in the envelope doesn't match any open company. | Onboarding operator must re-verify company name / GUID on `ClientOrganization`; confirm company is open in Tally. |
 | `Voucher Totals do not match.` | Debit/credit sum ≠ 0 in `LEDGERENTRIES.LIST`. | Engineering: inspect the `<LEDGERENTRIES.LIST>` blocks in the logged envelope. Usually a GST subtotal rounding regression. |
 | `Date is not within the financial period.` | Invoice date outside the FY open in Tally. | User must open the financial period in Tally or reject the invoice. |
 
@@ -239,7 +239,7 @@ const placeOfSupplyStateName = (
 ) ? decision.buyerStateName : undefined;
 ```
 
-Plain-English rule: emit `<PLACEOFSUPPLY>` when the **buyer state** (our tenant's company state, from `TenantTallyCompany.stateName`) differs from the **vendor / party state**. Same-state purchases do not emit it (Tally infers intra-state from the ledger's `LEDSTATENAME`).
+Plain-English rule: emit `<PLACEOFSUPPLY>` when the **buyer state** (our tenant's company state, from `ClientOrganization.stateName`) differs from the **vendor / party state**. Same-state purchases do not emit it (Tally infers intra-state from the ledger's `LEDSTATENAME`).
 
 **Known gap.** The vendor's `partyStateName` is not yet derived from the invoice's vendor GSTIN prefix or address — this is tracked in **Issue #130** ("Wire vendor-state derivation for PLACEOFSUPPLY — BE-2 follow-up"). Until #130 lands, the emission path in production is effectively dormant (always `undefined`). Operators seeing missing `PLACEOFSUPPLY` on inter-state invoices should flag on #130; this is not a Tally-side bug.
 
@@ -292,7 +292,7 @@ Operators normally don't need to touch this. The one place it surfaces: if the T
 
 (Rule #11: detect ERP 9 vs Prime vs Prime Server once, cache per tenant.)
 
-`TenantTallyCompany.detectedVersion` at `backend/src/models/integration/TenantTallyCompany.ts:17` caches which Tally flavour the tenant runs. The enum values are in the same file:
+`ClientOrganization.detectedVersion` at `backend/src/models/integration/ClientOrganization.ts` caches which Tally flavour the tenant runs. The enum values are in the same file:
 
 ```ts
 export const TALLY_VERSION = {
@@ -304,7 +304,7 @@ export const TALLY_VERSION = {
 
 The exporter reads and logs this on every tenant-scoped export at `backend/src/services/export/tallyExporter.ts:79` (log event `tally.export.detected_version`). The detection probe itself is not yet implemented — it will land with the Tally onboarding health panel (TALLY-ONBOARD / TALLY-HEALTH).
 
-Operator use: if response shapes suddenly start looking unfamiliar (e.g. `<LASTMID>` where a tenant previously returned `<LASTVCHID>`, or missing `BANKDETAILS.LIST` structures), check the logged `detectedVersion` against the tenant's actual Tally build. A mismatch means the cached detection is stale — clear the field on `TenantTallyCompany` and re-run onboarding.
+Operator use: if response shapes suddenly start looking unfamiliar (e.g. `<LASTMID>` where a tenant previously returned `<LASTVCHID>`, or missing `BANKDETAILS.LIST` structures), check the logged `detectedVersion` against the tenant's actual Tally build. A mismatch means the cached detection is stale — clear the field on `ClientOrganization` and re-run onboarding.
 
 Prime Server is rare (<5% of installs) and supports concurrent request handling — do not assume single-in-flight semantics for tenants detected as `primeServer`.
 
@@ -318,14 +318,14 @@ Prime Server is rare (<5% of installs) and supports concurrent request handling 
 | `F12OverwriteNotVerifiedError` raised by exporter | Our own gate blocking the re-export before POST. | Same fix as above — the gate is there to prevent the Tally-side failure. |
 | Invalid XML / `STATUS=0` with no `LINEERROR` | Envelope-level parse failure (malformed XML from our side, or truncated stream). | Do **not** auto-retry (rule). Log the full request/response, open engineering ticket, surface to user. |
 | `Bills Outstanding REFERENCE not found` (settlement precheck) | Payment allocation targets a bill that is already fully settled, has a typo, or doesn't exist on the Tally side. | See §6. Refresh vendor bills, verify the reference string, retry or mark paid locally. |
-| `Company is not loaded.` | `SVCURRENTCOMPANY` in our envelope doesn't match an open company. | Re-verify `TenantTallyCompany.companyName` vs the name in Tally — customers sometimes rename. |
+| `Company is not loaded.` | `SVCURRENTCOMPANY` in our envelope doesn't match an open company. | Re-verify `ClientOrganization.companyName` vs the name in Tally — customers sometimes rename. |
 | `Could not set value for GSTIN` | 15-char GSTIN invalid on the invoice. | Fix on the invoice detail page; re-queue. |
 | `Ledger 'X' does not exist.` | Vendor ledger not yet created in Tally. | Run vendor-sync (once TALLY-VENDOR-PRECHECK lands) or have the customer create it in Tally. Do **not** enable `ALLOWCREATION=Yes` (rule #10) — it auto-creates under `Primary` with no GSTIN/state. |
 | `Invoice stuck with inFlightExportVersion set` | Prior export crashed mid-POST (§3.2). | Re-run exporter — auto-recovery re-POSTs the same GUID under `ACTION="Alter"`. If the crash is repeating, escalate to engineering. |
 | `ExportVersionConflictError: version-mismatch` | Two exporters raced; the other one advanced `exportVersion` first. | Retry with refreshed invoice state. If persistent, investigate duplicate export schedulers. |
 | `ExportVersionConflictError: in-flight-mismatch` | Another exporter is currently staging a different version. | Back off, let the in-flight attempt resolve, retry. |
 | Atlas `documentValidationFailure` events increasing | A code path writing non-integer into an `*Minor` field. | §8. Open engineering ticket with `ns` + `schemaRulesNotSatisfied` payload. |
-| Tally responds with `LASTMID` instead of `LASTVCHID` | Version drift (ERP 9 older response shape). | Confirm `TenantTallyCompany.detectedVersion` matches the tenant's Tally build (§10). The exporter accepts both — this is a diagnostic signal only. |
+| Tally responds with `LASTMID` instead of `LASTVCHID` | Version drift (ERP 9 older response shape). | Confirm `ClientOrganization.detectedVersion` matches the tenant's Tally build (§10). The exporter accepts both — this is a diagnostic signal only. |
 | Cannot import vouchers - company is locked | Another Tally user holds the edit lock. | Retry with 30–120s backoff; escalate to customer if lock persists. |
 | `Date is not within the financial period.` | Invoice date outside the FY open in Tally. | Customer must open the FY in Tally; do not retry until confirmed. |
 

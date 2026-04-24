@@ -25,7 +25,7 @@ import {
   stageInFlightExportVersion
 } from "@/services/export/tallyReExportGuard.js";
 import type { ReExportDecision } from "@/services/export/tallyReExportGuard.js";
-import { TenantTallyCompanyModel } from "@/models/integration/TenantTallyCompany.js";
+import { ClientOrganizationModel } from "@/models/integration/ClientOrganization.js";
 
 export {
   buildTallyBatchImportXml,
@@ -76,7 +76,7 @@ export class TallyExporter implements AccountingExporter {
       : this.config;
 
     if (tenantId) {
-      const company = await TenantTallyCompanyModel.findOne({ tenantId }).lean();
+      const company = await ClientOrganizationModel.findOne({ tenantId }).lean();
       logger.info("tally.export.detected_version", {
         tenantId,
         detectedVersion: company?.detectedVersion ?? null
