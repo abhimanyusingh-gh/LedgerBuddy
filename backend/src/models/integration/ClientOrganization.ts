@@ -6,7 +6,6 @@ export const TALLY_VERSION = {
   Prime: "prime",
   PrimeServer: "primeServer"
 } as const;
-export type TallyVersion = typeof TALLY_VERSION[keyof typeof TALLY_VERSION];
 
 const clientOrganizationSchema = new Schema(
   {
