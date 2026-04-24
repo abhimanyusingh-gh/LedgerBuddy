@@ -29,9 +29,7 @@ import {
   isInvoiceApprovable,
   isInvoiceExportable,
   isInvoiceRetryable,
-  isInvoiceSelectable,
-  mergeSelectedIds,
-  removeSelectedIds
+  isInvoiceSelectable
 } from "@/lib/common/selection";
 import { getInvoiceTallyMappings } from "@/lib/invoice/tallyMapping";
 import { formatMinorAmountWithCurrency } from "@/lib/common/currency";
@@ -43,7 +41,8 @@ import {
   STATUSES
 } from "@/lib/invoice/invoiceView";
 import { useInvoiceDetail } from "@/hooks/useInvoiceDetail";
-import { useDebouncedValue } from "@/hooks/useDebouncedValue";
+import { useInvoiceTableState } from "@/hooks/useInvoiceTableState";
+import { useInvoiceFilters, DATE_VALIDATION_ERROR } from "@/hooks/useInvoiceFilters";
 import { getUserFacingErrorMessage, isAuthenticationError } from "@/lib/common/apiError";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { EmptyState } from "@/components/common/EmptyState";
@@ -117,12 +116,45 @@ export function InvoiceView({
   onSessionExpired,
   addToast
 }: InvoiceViewProps) {
+  const {
+    searchQuery,
+    setSearchQuery,
+    debouncedSearch,
+    statusFilter,
+    setStatusFilter,
+    invoiceDateFrom,
+    setInvoiceDateFrom,
+    invoiceDateTo,
+    setInvoiceDateTo,
+    approvedByFilter,
+    setApprovedByFilter,
+    hasActiveFilters,
+    clearAllFilters,
+    validateDateRange
+  } = useInvoiceFilters();
+  const {
+    currentPage,
+    pageSize,
+    totalInvoices,
+    setCurrentPage,
+    setPageSize,
+    setTotalInvoices,
+    sortColumn,
+    sortDirection,
+    setSortColumn,
+    setSortDirection,
+    selectedIds,
+    toggleSelection,
+    toggleSelectAllVisible: toggleSelectAllVisibleRaw,
+    clearSelection,
+    removeFromSelection,
+    reconcileWithLoaded
+  } = useInvoiceTableState();
+
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(false);
   const [ingestingIds, setIngestingIds] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
-  const [statusFilter, setStatusFilter] = useState<(typeof STATUSES)[number]>("ALL");
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [popupInvoiceId, setPopupInvoiceId] = useState<string | null>(null);
   const [detailsPanelVisible, setDetailsPanelVisible] = useState(false);
@@ -131,18 +163,11 @@ export function InvoiceView({
     return stored ? Number(stored) : 58;
   });
   const contentRef = useRef<HTMLElement>(null);
-  const [invoiceDateFrom, setInvoiceDateFrom] = useState("");
-  const [invoiceDateTo, setInvoiceDateTo] = useState("");
   const [ingestionStatus, setIngestionStatus] = useState<IngestionJobStatus | null>(null);
   const [ingestionFading, setIngestionFading] = useState(false);
   const [editingListCell, setEditingListCell] = useState<{ invoiceId: string; field: string } | null>(null);
   const [editListValue, setEditListValue] = useState("");
   const [glCodeEditingInvoiceId, setGlCodeEditingInvoiceId] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [sortColumn, setSortColumnRaw] = useState<string | null>(() => localStorage.getItem("ledgerbuddy:sort-col"));
-  const [sortDirection, setSortDirectionRaw] = useState<"asc" | "desc">(() => localStorage.getItem("ledgerbuddy:sort-dir") === "desc" ? "desc" : "asc");
-  const setSortColumn = (col: string) => { setSortColumnRaw(col); localStorage.setItem("ledgerbuddy:sort-col", col); };
-  const setSortDirection = (v: "asc" | "desc" | ((d: "asc" | "desc") => "asc" | "desc")) => { setSortDirectionRaw((prev) => { const next = typeof v === "function" ? v(prev) : v; localStorage.setItem("ledgerbuddy:sort-dir", next); return next; }); };
   const [showShortcutsHelp, setShowShortcutsHelp] = useState(false);
   const [tableDensity, setTableDensity] = useState<"compact" | "comfortable" | "spacious">(() => {
     const stored = localStorage.getItem("ledgerbuddy:table-density");
@@ -176,11 +201,6 @@ export function InvoiceView({
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [confirmDialog, setConfirmDialog] = useState<{ title: string; message: string; confirmLabel: string; destructive: boolean; onConfirm: () => void } | null>(null);
   const [allStatusCounts, setAllStatusCounts] = useState<Record<string, number>>({});
-  const [approvedByFilter, setApprovedByFilter] = useState("");
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(20);
-  const [totalInvoices, setTotalInvoices] = useState(0);
-  const debouncedSearch = useDebouncedValue(searchQuery, 300);
   const canApproveInvoices = capabilities.canApproveInvoices === true;
   const canEditInvoiceFields = capabilities.canEditInvoiceFields === true;
   const canDeleteInvoices = capabilities.canDeleteInvoices === true;
@@ -205,18 +225,14 @@ export function InvoiceView({
     const prev = prevFiltersRef.current;
     const filtersChanged = prev.statusFilter !== statusFilter || prev.invoiceDateFrom !== invoiceDateFrom || prev.invoiceDateTo !== invoiceDateTo || prev.pageSize !== pageSize || prev.approvedByFilter !== approvedByFilter;
     prevFiltersRef.current = { statusFilter, invoiceDateFrom, invoiceDateTo, pageSize, approvedByFilter, sortColumn, sortDirection };
-    if (invoiceDateFrom && invoiceDateTo && invoiceDateFrom > invoiceDateTo) {
+    const dateError = validateDateRange();
+    if (dateError === DATE_VALIDATION_ERROR.START_AFTER_END) {
       addToast("error", "Start date must be before end date");
       return;
     }
-    if (invoiceDateTo) {
-      const maxDate = new Date();
-      maxDate.setFullYear(maxDate.getFullYear() + 1);
-      const maxDateStr = maxDate.toISOString().slice(0, 10);
-      if (invoiceDateTo > maxDateStr) {
-        addToast("error", "End date cannot be more than one year from today");
-        return;
-      }
+    if (dateError === DATE_VALIDATION_ERROR.END_TOO_FAR) {
+      addToast("error", "End date cannot be more than one year from today");
+      return;
     }
     if (filtersChanged && currentPage !== 1) {
       setCurrentPage(1);
@@ -491,7 +507,7 @@ export function InvoiceView({
     onApprove: () => { if (selectedApprovableIds.length > 0) void handleApprove(); },
     onExport: () => { if (selectedExportableIds.length > 0) handleExport(); },
     onEscape: () => {
-      if (selectedIds.length > 0) { setSelectedIds([]); return; }
+      if (selectedIds.length > 0) { clearSelection(); return; }
       if (detailsPanelVisible) { setDetailsPanelVisible(false); }
     },
     onShowHelp: () => setShowShortcutsHelp(true)
@@ -587,7 +603,7 @@ export function InvoiceView({
         });
       }
       const ids = new Set(data.items.map((item) => item._id));
-      setSelectedIds((currentSelectedIds) => mergeSelectedIds(currentSelectedIds, data.items));
+      reconcileWithLoaded(data.items);
       if (activeId && !ids.has(activeId)) {
         setActiveId(data.items[0]?._id ?? null);
       }
@@ -675,7 +691,7 @@ export function InvoiceView({
           } else {
             addToast("success", `${response.deletedCount} invoice(s) deleted.`);
           }
-          setSelectedIds([]);
+          clearSelection();
           await loadInvoices();
         } catch (deleteError) {
           addToast("error", getUserFacingErrorMessage(deleteError, "Deletion failed."));
@@ -790,7 +806,7 @@ export function InvoiceView({
           } else {
             addToast("success", `"${fileName}" deleted.`);
           }
-          setSelectedIds((current) => current.filter((id) => id !== invoiceId));
+          removeFromSelection([invoiceId]);
           await loadInvoices();
         } catch (deleteError) {
           addToast("error", getUserFacingErrorMessage(deleteError, "Deletion failed."));
@@ -814,7 +830,7 @@ export function InvoiceView({
       if (response.modifiedCount === 0) {
         addToast("info", "No invoices were eligible for retry.");
       }
-      setSelectedIds([]);
+      clearSelection();
       await loadInvoices();
     } catch (retryError) {
       addToast("error", getUserFacingErrorMessage(retryError, "Retry failed."));
@@ -839,7 +855,7 @@ export function InvoiceView({
       const fileResult = await generateTallyXmlFile(selectedExportableIds);
       if (!fileResult.batchId) {
         addToast("error", "Export failed — invoices may have invalid amounts or are already exported.");
-        setSelectedIds([]);
+        clearSelection();
         await loadInvoices();
         return;
       }
@@ -855,7 +871,7 @@ export function InvoiceView({
       const exportedIds = selectedExportableIds.filter(
         (id) => !fileResult.skippedItems.some((item) => item.invoiceId === id)
       );
-      setSelectedIds((currentSelectedIds) => removeSelectedIds(currentSelectedIds, exportedIds));
+      removeFromSelection(exportedIds);
       addToast("success", `${fileResult.includedCount} invoice(s) exported. XML file downloaded.`);
       await loadInvoices();
       if (fileResult.skippedCount > 0) {
@@ -1103,37 +1119,10 @@ export function InvoiceView({
     }
   }
 
-  function toggleSelection(invoice: Invoice) {
-    if (!isInvoiceSelectable(invoice)) {
-      return;
-    }
-    const id = invoice._id;
-    setSelectedIds((current) =>
-      current.includes(id) ? current.filter((currentId) => currentId !== id) : [...current, id]
-    );
-  }
-
-  function toggleSelectAllVisible() {
-    if (selectableVisibleIds.length === 0) {
-      return;
-    }
-    const visibleIdSet = new Set(selectableVisibleIds);
-    setSelectedIds((currentSelectedIds) => {
-      if (areAllVisibleSelectableSelected) {
-        return currentSelectedIds.filter((selectedId) => !visibleIdSet.has(selectedId));
-      }
-      return Array.from(new Set([...currentSelectedIds, ...selectableVisibleIds]));
-    });
-  }
-
-  const hasActiveFilters = searchQuery.trim() !== "" || invoiceDateFrom !== "" || invoiceDateTo !== "" || statusFilter !== "ALL";
-
-  function clearAllFilters() {
-    setSearchQuery("");
-    setInvoiceDateFrom("");
-    setInvoiceDateTo("");
-    setStatusFilter("ALL");
-  }
+  const toggleSelectAllVisible = useCallback(
+    () => toggleSelectAllVisibleRaw(selectableVisibleIds, areAllVisibleSelectableSelected),
+    [toggleSelectAllVisibleRaw, selectableVisibleIds, areAllVisibleSelectableSelected]
+  );
 
   return (
     <>
@@ -1479,7 +1468,7 @@ export function InvoiceView({
                     Delete ({selectedIds.length})
                   </button>
                 ) : null}
-                <button type="button" className="bulk-deselect" onClick={() => setSelectedIds([])}>Deselect All</button>
+                <button type="button" className="bulk-deselect" onClick={clearSelection}>Deselect All</button>
               </div>
             ) : null}
             {totalInvoices > 0 ? (
