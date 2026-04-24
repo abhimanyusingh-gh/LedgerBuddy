@@ -54,6 +54,8 @@ interface InvoiceDetailPanelProps {
   onOverrideGlCode: (glCode: string, glName?: string) => Promise<void>;
   onOverrideTdsSection: (section: string) => Promise<void>;
   onDismissRiskSignal: (signalCode: string) => Promise<void>;
+  riskSignalsExpanded?: boolean;
+  onToggleRiskSignalsExpanded?: () => void;
 }
 
 export function InvoiceDetailPanel({
@@ -82,7 +84,9 @@ export function InvoiceDetailPanel({
   extractedRows,
   onOverrideGlCode,
   onOverrideTdsSection,
-  onDismissRiskSignal
+  onDismissRiskSignal,
+  riskSignalsExpanded,
+  onToggleRiskSignalsExpanded
 }: InvoiceDetailPanelProps) {
   const [editingField, setEditingField] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
@@ -272,6 +276,9 @@ export function InvoiceDetailPanel({
           <RiskSignalList
             signals={invoice.compliance?.riskSignals ?? []}
             onDismiss={!canDismissRiskSignals ? undefined : onDismissRiskSignal}
+            expanded={riskSignalsExpanded}
+            onToggle={onToggleRiskSignalsExpanded}
+            controlsId={`risk-signals-${invoice._id}`}
           />
         </div>
       </div>

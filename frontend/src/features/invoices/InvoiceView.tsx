@@ -50,6 +50,7 @@ import { KeyboardShortcutsOverlay } from "@/components/common/KeyboardShortcutsO
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { InvoiceToolbar } from "@/components/invoice/InvoiceToolbar";
 import { InvoiceDetailPanel } from "@/components/invoice/InvoiceDetailPanel";
+import { RiskDot, RISK_SEVERITY, type RiskSeverity } from "@/components/compliance/RiskDot";
 import { InvoicePopup } from "@/components/invoice/InvoicePopup";
 import { GlCodeDropdown } from "@/components/compliance/GlCodeDropdown";
 
@@ -148,7 +149,9 @@ export function InvoiceView({
     toggleSelectAllVisible: toggleSelectAllVisibleRaw,
     clearSelection,
     removeFromSelection,
-    reconcileWithLoaded
+    reconcileWithLoaded,
+    isRiskSignalsExpanded,
+    toggleRiskSignalsExpanded
   } = useInvoiceTableState();
 
   const [invoices, setInvoices] = useState<Invoice[]>([]);
@@ -1387,10 +1390,13 @@ export function InvoiceView({
                         <td>
                           {(() => {
                             const count = invoice.complianceSummary?.riskSignalCount ?? invoice.compliance?.riskSignals?.filter(s => s.status === "open").length ?? 0;
-                            const maxSev = invoice.complianceSummary?.riskSignalMaxSeverity ?? (invoice.compliance?.riskSignals?.length ? invoice.compliance.riskSignals.reduce((m, s) => s.severity === "critical" ? "critical" : s.severity === "warning" && m !== "critical" ? "warning" : m, "info" as string) : null);
-                            if (count === 0) return <span className="muted">—</span>;
-                            const color = maxSev === "critical" ? "var(--color-error, #ef4444)" : maxSev === "warning" ? "var(--color-warning, #f59e0b)" : "var(--color-info, #3b82f6)";
-                            return <span style={{ fontSize: "0.7rem", fontWeight: 600, padding: "0.1rem 0.35rem", borderRadius: "0.75rem", backgroundColor: color, color: "#fff" }}>{count}</span>;
+                            const rawMaxSev = invoice.complianceSummary?.riskSignalMaxSeverity ?? (invoice.compliance?.riskSignals?.length ? invoice.compliance.riskSignals.reduce((m, s) => s.severity === "critical" ? "critical" : s.severity === "warning" && m !== "critical" ? "warning" : m, "info" as string) : null);
+                            const severity: RiskSeverity = count === 0 || rawMaxSev == null
+                              ? RISK_SEVERITY.CLEAN
+                              : rawMaxSev === "critical" ? RISK_SEVERITY.CRITICAL
+                              : rawMaxSev === "warning" ? RISK_SEVERITY.WARNING
+                              : RISK_SEVERITY.INFO;
+                            return <RiskDot severity={severity} count={count} />;
                           })()}
                         </td>
                         <td>
@@ -1562,6 +1568,8 @@ export function InvoiceView({
                       addToast("error", "Failed to dismiss signal.");
                     }
                   }}
+                  riskSignalsExpanded={isRiskSignalsExpanded(activeInvoice._id)}
+                  onToggleRiskSignalsExpanded={() => toggleRiskSignalsExpanded(activeInvoice._id)}
                 />
               ) : (
                 <section className="panel detail-panel">

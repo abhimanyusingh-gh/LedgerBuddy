@@ -81,7 +81,7 @@ export function VendorDetailsSection({ invoice, expanded, onToggle }: VendorDeta
           <FieldRow label="PAN">
             {vendorPan ? (
               <span className="details-field-inline">
-                <span>{vendorPan}</span>
+                <span aria-label={`PAN ${vendorPan}`}>{vendorPan}</span>
                 <PanBadge pan={vendorPan} gstin={vendorGstin} />
               </span>
             ) : (

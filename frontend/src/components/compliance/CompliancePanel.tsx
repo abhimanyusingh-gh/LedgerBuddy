@@ -128,7 +128,7 @@ export function CompliancePanel({
       {compliance.pan && compliance.pan.value && (
         <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.4rem", fontSize: "0.85rem" }}>
           <span style={{ fontWeight: 500 }}>PAN:</span>
-          <span>{compliance.pan.value}</span>
+          <span aria-label={`PAN ${compliance.pan.value}`}>{compliance.pan.value}</span>
           {compliance.pan.validationResult === "valid" && (
             <span style={{ color: "var(--color-success, #22c55e)" }} title={compliance.pan.gstinCrossRef ? "Matches GSTIN" : "Format valid"}>
               {compliance.pan.gstinCrossRef ? "L2" : "L1"}

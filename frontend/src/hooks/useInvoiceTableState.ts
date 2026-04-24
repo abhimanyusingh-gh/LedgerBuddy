@@ -41,6 +41,10 @@ interface UseInvoiceTableStateResult {
   clearSelection: () => void;
   removeFromSelection: (ids: string[]) => void;
   reconcileWithLoaded: (items: Invoice[]) => void;
+
+  isRiskSignalsExpanded: (invoiceId: string) => boolean;
+  toggleRiskSignalsExpanded: (invoiceId: string) => void;
+  setRiskSignalsExpanded: (invoiceId: string, value: boolean) => void;
 }
 
 function readStoredSortDirection(): SortDirection {
@@ -80,6 +84,38 @@ export function useInvoiceTableState(
   );
 
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+
+  const [collapsedRiskRows, setCollapsedRiskRows] = useState<Record<string, true>>({});
+
+  const isRiskSignalsExpanded = useCallback(
+    (invoiceId: string) => collapsedRiskRows[invoiceId] !== true,
+    [collapsedRiskRows]
+  );
+
+  const toggleRiskSignalsExpanded = useCallback((invoiceId: string) => {
+    setCollapsedRiskRows((current) => {
+      const next = { ...current };
+      if (next[invoiceId]) {
+        delete next[invoiceId];
+      } else {
+        next[invoiceId] = true;
+      }
+      return next;
+    });
+  }, []);
+
+  const setRiskSignalsExpanded = useCallback((invoiceId: string, value: boolean) => {
+    setCollapsedRiskRows((current) => {
+      if (value) {
+        if (!current[invoiceId]) return current;
+        const next = { ...current };
+        delete next[invoiceId];
+        return next;
+      }
+      if (current[invoiceId]) return current;
+      return { ...current, [invoiceId]: true };
+    });
+  }, []);
 
   const toggleSelection = useCallback((invoice: Invoice) => {
     if (!isInvoiceSelectable(invoice)) {
@@ -136,7 +172,10 @@ export function useInvoiceTableState(
       toggleSelectAllVisible,
       clearSelection,
       removeFromSelection,
-      reconcileWithLoaded
+      reconcileWithLoaded,
+      isRiskSignalsExpanded,
+      toggleRiskSignalsExpanded,
+      setRiskSignalsExpanded
     }),
     [
       currentPage,
@@ -151,7 +190,10 @@ export function useInvoiceTableState(
       toggleSelectAllVisible,
       clearSelection,
       removeFromSelection,
-      reconcileWithLoaded
+      reconcileWithLoaded,
+      isRiskSignalsExpanded,
+      toggleRiskSignalsExpanded,
+      setRiskSignalsExpanded
     ]
   );
 }
