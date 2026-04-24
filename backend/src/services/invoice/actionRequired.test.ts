@@ -1,4 +1,4 @@
-import mongoose, { Types } from "mongoose";
+import { Types } from "mongoose";
 import { describeHarness } from "@/test-utils/index.ts";
 import { InvoiceModel } from "@/models/invoice/Invoice.js";
 import { INVOICE_STATUS, RISK_SIGNAL_CATEGORY, RISK_SIGNAL_SEVERITY, RISK_SIGNAL_STATUS } from "@/types/invoice.js";
@@ -272,9 +272,49 @@ describeHarness("fetchActionRequired (mongo aggregation)", ({ getHarness }) => {
     expect(ids.size).toBe(7);
   });
 
-  afterAll(async () => {
-    if (mongoose.connection.readyState === 1) {
-      await InvoiceModel.deleteMany({});
+  it("paginates disjointly when severity + createdAt tie on every row (ObjectId tiebreak)", async () => {
+    const tieCreatedAt = new Date("2026-04-24T00:00:00.000Z");
+    const tieIds: Types.ObjectId[] = [];
+    for (let i = 0; i < 5; i++) {
+      const _id = new Types.ObjectId();
+      tieIds.push(_id);
+      await InvoiceModel.collection.insertOne({
+        _id,
+        tenantId,
+        workloadTier: "standard",
+        sourceType: "harness",
+        sourceKey: `harness-tie-${i}`,
+        sourceDocumentId: `doc-tie-${i}`,
+        attachmentName: `tie-${i}.pdf`,
+        mimeType: "application/pdf",
+        receivedAt: tieCreatedAt,
+        createdAt: tieCreatedAt,
+        updatedAt: tieCreatedAt,
+        status: INVOICE_STATUS.FAILED_OCR,
+        parsed: { currency: "INR", customerGstin: "27AAAAA0000A1Z5", vendorName: `tie-${i}`, totalAmountMinor: 10_000 }
+      } as unknown as Record<string, unknown>);
+    }
+
+    const page1 = await fetchActionRequired({ tenantId, limit: 2, cursor: null });
+    expect(page1.items).toHaveLength(2);
+    expect(page1.nextCursor).not.toBeNull();
+
+    const page2 = await fetchActionRequired({ tenantId, limit: 2, cursor: page1.nextCursor });
+    expect(page2.items).toHaveLength(2);
+    expect(page2.nextCursor).not.toBeNull();
+
+    const page3 = await fetchActionRequired({ tenantId, limit: 2, cursor: page2.nextCursor });
+    expect(page3.items).toHaveLength(1);
+    expect(page3.nextCursor).toBeNull();
+
+    const returnedIds = new Set<string>();
+    for (const item of [...page1.items, ...page2.items, ...page3.items]) {
+      expect(returnedIds.has(item.invoiceId)).toBe(false);
+      returnedIds.add(item.invoiceId);
+    }
+    expect(returnedIds.size).toBe(5);
+    for (const _id of tieIds) {
+      expect(returnedIds.has(_id.toHexString())).toBe(true);
     }
   });
 });

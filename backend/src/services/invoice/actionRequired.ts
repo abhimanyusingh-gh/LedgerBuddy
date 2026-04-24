@@ -1,4 +1,4 @@
-import type { PipelineStage } from "mongoose";
+import mongoose, { type PipelineStage } from "mongoose";
 import { InvoiceModel } from "@/models/invoice/Invoice.js";
 import {
   INVOICE_STATUS,
@@ -40,7 +40,6 @@ interface ActionRequiredItem {
   vendorName: string;
   amountMinor: number;
   createdAt: string;
-  detail?: string;
 }
 
 interface ActionRequiredQueryResult {
@@ -185,6 +184,7 @@ function severityStageExpression() {
 
 function cursorMatch(cursor: ActionRequiredCursor) {
   const cursorDate = new Date(cursor.lastCreatedAt);
+  const cursorObjectId = new mongoose.Types.ObjectId(cursor.lastInvoiceId);
   return {
     $or: [
       { severity: { $lt: cursor.lastSeverity } },
@@ -195,7 +195,7 @@ function cursorMatch(cursor: ActionRequiredCursor) {
       {
         severity: cursor.lastSeverity,
         createdAt: cursorDate,
-        _id: { $lt: cursor.lastInvoiceId }
+        _id: { $lt: cursorObjectId }
       }
     ]
   };
@@ -210,20 +210,13 @@ interface QueryParams {
 export async function fetchActionRequired(params: QueryParams): Promise<ActionRequiredQueryResult> {
   const { tenantId, limit, cursor } = params;
 
-  const basePipeline: PipelineStage[] = [
-    { $match: { tenantId, status: { $in: ACTIONABLE_STATUSES } } },
-    { $addFields: { reason: classifierStageExpression() } },
-    { $match: { reason: { $ne: null } } },
-    { $addFields: { severity: severityStageExpression() } }
-  ];
-
-  const paginatedPipeline: PipelineStage[] = [...basePipeline];
+  const itemsBranch: PipelineStage.FacetPipelineStage[] = [];
   if (cursor) {
-    paginatedPipeline.push({ $match: cursorMatch(cursor) });
+    itemsBranch.push({ $match: cursorMatch(cursor) });
   }
-  paginatedPipeline.push({ $sort: { severity: -1, createdAt: -1, _id: -1 } });
-  paginatedPipeline.push({ $limit: limit + 1 });
-  paginatedPipeline.push({
+  itemsBranch.push({ $sort: { severity: -1, createdAt: -1, _id: -1 } });
+  itemsBranch.push({ $limit: limit + 1 });
+  itemsBranch.push({
     $project: {
       _id: 1,
       reason: 1,
@@ -234,22 +227,30 @@ export async function fetchActionRequired(params: QueryParams): Promise<ActionRe
     }
   });
 
-  const countsPipeline: PipelineStage[] = [
-    ...basePipeline,
-    { $group: { _id: "$reason", n: { $sum: 1 } } }
+  const pipeline: PipelineStage[] = [
+    { $match: { tenantId, status: { $in: ACTIONABLE_STATUSES } } },
+    { $addFields: { reason: classifierStageExpression() } },
+    { $match: { reason: { $ne: null } } },
+    { $addFields: { severity: severityStageExpression() } },
+    {
+      $facet: {
+        items: itemsBranch,
+        totalByReason: [{ $group: { _id: "$reason", n: { $sum: 1 } } }],
+        total: [{ $count: "n" }]
+      }
+    }
   ];
 
-  const [rawItems, rawCounts] = await Promise.all([
-    InvoiceModel.aggregate(paginatedPipeline),
-    InvoiceModel.aggregate(countsPipeline)
-  ]);
+  const [facetResult] = await InvoiceModel.aggregate(pipeline);
+  const rawItems = (facetResult?.items ?? []) as Array<Record<string, unknown>>;
+  const rawCounts = (facetResult?.totalByReason ?? []) as Array<{ _id: ActionReason; n: number }>;
+  const totalRow = (facetResult?.total ?? []) as Array<{ n: number }>;
 
   const totalByReason = emptyReasonCounts();
-  let total = 0;
-  for (const row of rawCounts as Array<{ _id: ActionReason; n: number }>) {
+  for (const row of rawCounts) {
     totalByReason[row._id] = row.n;
-    total += row.n;
   }
+  const total = totalRow.length > 0 ? totalRow[0].n : 0;
 
   const hasMore = rawItems.length > limit;
   const sliced = hasMore ? rawItems.slice(0, limit) : rawItems;
@@ -260,7 +261,7 @@ export async function fetchActionRequired(params: QueryParams): Promise<ActionRe
     severity: Number(row.severity),
     vendorName: String(row.vendorName ?? ""),
     amountMinor: Number(row.amountMinor ?? 0),
-    createdAt: new Date(row.createdAt).toISOString()
+    createdAt: new Date(row.createdAt as string | number | Date).toISOString()
   }));
 
   let nextCursor: ActionRequiredCursor | null = null;
@@ -268,7 +269,7 @@ export async function fetchActionRequired(params: QueryParams): Promise<ActionRe
     const last = sliced[sliced.length - 1];
     nextCursor = {
       lastSeverity: Number(last.severity),
-      lastCreatedAt: new Date(last.createdAt).toISOString(),
+      lastCreatedAt: new Date(last.createdAt as string | number | Date).toISOString(),
       lastInvoiceId: String(last._id)
     };
   }

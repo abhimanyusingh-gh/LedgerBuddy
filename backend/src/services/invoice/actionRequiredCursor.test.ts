@@ -29,7 +29,9 @@ describe("actionRequiredCursor", () => {
     ["base64 of non-object json", Buffer.from("42").toString("base64url")],
     ["missing lastSeverity", Buffer.from(JSON.stringify({ lastCreatedAt: sample.lastCreatedAt, lastInvoiceId: sample.lastInvoiceId })).toString("base64url")],
     ["invalid date", Buffer.from(JSON.stringify({ ...sample, lastCreatedAt: "not-a-date" })).toString("base64url")],
-    ["empty invoiceId", Buffer.from(JSON.stringify({ ...sample, lastInvoiceId: "" })).toString("base64url")]
+    ["empty invoiceId", Buffer.from(JSON.stringify({ ...sample, lastInvoiceId: "" })).toString("base64url")],
+    ["non-hex invoiceId", Buffer.from(JSON.stringify({ ...sample, lastInvoiceId: "not-an-object-id" })).toString("base64url")],
+    ["short hex invoiceId", Buffer.from(JSON.stringify({ ...sample, lastInvoiceId: "abc123" })).toString("base64url")]
   ])("rejects %s", (_label, input) => {
     expect(() => decodeActionRequiredCursor(input)).toThrow(ActionRequiredCursorError);
   });

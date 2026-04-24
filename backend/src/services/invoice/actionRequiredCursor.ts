@@ -1,3 +1,5 @@
+const OBJECT_ID_HEX = /^[a-fA-F0-9]{24}$/;
+
 export interface ActionRequiredCursor {
   lastSeverity: number;
   lastCreatedAt: string;
@@ -41,6 +43,9 @@ export function decodeActionRequiredCursor(raw: string): ActionRequiredCursor {
   }
   if (typeof lastInvoiceId !== "string" || lastInvoiceId.length === 0) {
     throw new ActionRequiredCursorError("Invalid cursor: lastInvoiceId must be a non-empty string.");
+  }
+  if (!OBJECT_ID_HEX.test(lastInvoiceId)) {
+    throw new ActionRequiredCursorError("Invalid cursor: lastInvoiceId must be a 24-char hex ObjectId.");
   }
 
   return { lastSeverity, lastCreatedAt, lastInvoiceId };
