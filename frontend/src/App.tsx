@@ -9,6 +9,7 @@ import { PlatformUsageOverviewSection } from "@/features/platform-admin/Platform
 import { PlatformAnalyticsDashboard } from "@/features/platform-admin/PlatformAnalyticsDashboard";
 import { WorkspaceTopNav } from "@/features/workspace/WorkspaceTopNav";
 import { WorkspaceTabBar } from "@/features/workspace/WorkspaceTabBar";
+import { TenantSidebar } from "@/features/workspace/TenantSidebar";
 import { TenantConfigTab } from "@/features/tenant-admin/TenantConfigTab";
 import { InvoiceView } from "@/features/invoices/InvoiceView";
 import { ExportHistoryDashboard } from "@/features/exports/ExportHistoryDashboard";
@@ -327,7 +328,18 @@ export function App() {
         {error && <p className="error">{error}</p>}
       </div>
 
-      {!isPlatformAdmin && activeTab === "overview" && <OverviewDashboard />}
+      {!isPlatformAdmin && activeTab === "overview" && (
+        <div className="tenant-overview-layout">
+          <TenantSidebar
+            activeTab={activeTab}
+            onTabChange={setActiveTab}
+            canViewTenantConfig={canViewConfig}
+            canViewConnections={canViewConnections}
+            invoiceActionRequiredCount={navCounts.failed}
+          />
+          <OverviewDashboard />
+        </div>
+      )}
 
       {!isPlatformAdmin && activeTab === "dashboard" && (
         <InvoiceView
