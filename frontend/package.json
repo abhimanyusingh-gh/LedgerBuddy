@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "check:bundle-size": "node scripts/checkBundleSize.mjs",
     "preview": "vite preview",
     "test": "jest --config jest.config.cjs --runInBand",
     "coverage": "jest --config jest.config.cjs --runInBand --coverage",

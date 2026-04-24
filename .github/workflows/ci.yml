@@ -107,11 +107,30 @@ jobs:
       - run: corepack enable
       - run: yarn install --immutable
       - run: yarn workspace ledgerbuddy-frontend run build
+      - name: Enforce bundle-size budget (INFRA-3)
+        run: yarn workspace ledgerbuddy-frontend run check:bundle-size
       - uses: actions/upload-artifact@v4
         with:
           name: frontend-dist
           path: frontend/dist/
           retention-days: 3
+
+  backend-perf-gates:
+    name: Backend Perf Gates (INFRA-3)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: yarn
+      - run: corepack enable
+      - run: yarn install --immutable
+      - name: TDS compute p95 < 200ms (NFR-001)
+        run: yarn workspace ledgerbuddy-backend run perf:tds
+      - name: Payment recording p95 < 500ms (NFR-002)
+        run: yarn workspace ledgerbuddy-backend run perf:payment
 
   frontend-test:
     name: Frontend Unit Tests
