@@ -576,6 +576,91 @@ describe("TallyExporter.exportInvoices", () => {
   });
 });
 
+describe("dual-tag ERP9/Prime alias emission", () => {
+  const base = {
+    companyName: "Demo Company",
+    purchaseLedgerName: "Purchase",
+    voucherNumber: "INV-ALIAS",
+    partyLedgerName: "ACME Vendor",
+    amountMinor: 100000,
+    currency: "INR",
+    date: new Date("2026-03-01")
+  } as const;
+
+  it("emits both PARTYGSTIN and GSTIN when gstin is provided", () => {
+    const xml = buildTallyPurchaseVoucherPayload({ ...base, gstin: "29ABCDE1234F1Z5" });
+    expect(xml).toContain("<PARTYGSTIN>29ABCDE1234F1Z5</PARTYGSTIN>");
+    expect(xml).toContain("<GSTIN>29ABCDE1234F1Z5</GSTIN>");
+  });
+
+  it("emits both PANIT and INCOMETAXNUMBER when partyPan is provided", () => {
+    const xml = buildTallyPurchaseVoucherPayload({ ...base, partyPan: "ABCDE1234F" });
+    expect(xml).toContain("<PANIT>ABCDE1234F</PANIT>");
+    expect(xml).toContain("<INCOMETAXNUMBER>ABCDE1234F</INCOMETAXNUMBER>");
+  });
+
+  it("emits both STATENAME and LEDSTATENAME when partyStateName is provided", () => {
+    const xml = buildTallyPurchaseVoucherPayload({ ...base, partyStateName: "Karnataka" });
+    expect(xml).toContain("<STATENAME>Karnataka</STATENAME>");
+    expect(xml).toContain("<LEDSTATENAME>Karnataka</LEDSTATENAME>");
+  });
+
+  it("emits SVCURRENTCOMPANY on every envelope (single + batch)", () => {
+    const singleXml = buildTallyPurchaseVoucherPayload({ ...base });
+    const batchXml = buildTallyBatchImportXml("Demo Company", [{ ...base }]);
+    expect(singleXml).toContain("<SVCURRENTCOMPANY>Demo Company</SVCURRENTCOMPANY>");
+    expect(batchXml).toContain("<SVCURRENTCOMPANY>Demo Company</SVCURRENTCOMPANY>");
+  });
+
+  it("omits alias tags when the value is absent", () => {
+    const xml = buildTallyPurchaseVoucherPayload({ ...base });
+    expect(xml).not.toContain("<PARTYGSTIN>");
+    expect(xml).not.toContain("<GSTIN>");
+    expect(xml).not.toContain("<PANIT>");
+    expect(xml).not.toContain("<INCOMETAXNUMBER>");
+    expect(xml).not.toContain("<STATENAME>");
+    expect(xml).not.toContain("<LEDSTATENAME>");
+  });
+
+  it("XML-escapes alias values to prevent injection", () => {
+    const xml = buildTallyPurchaseVoucherPayload({ ...base, partyStateName: "A & B <State>" });
+    expect(xml).toContain("<STATENAME>A &amp; B &lt;State&gt;</STATENAME>");
+    expect(xml).toContain("<LEDSTATENAME>A &amp; B &lt;State&gt;</LEDSTATENAME>");
+  });
+});
+
+describe("parseTallyImportResponse — tolerant alias reads", () => {
+  const envelope = (bodyInner: string) => [
+    "<ENVELOPE>",
+    "  <HEADER><STATUS>1</STATUS></HEADER>",
+    "  <BODY><DATA><IMPORTRESULT>",
+    "    <CREATED>1</CREATED><ALTERED>0</ALTERED><ERRORS>0</ERRORS>",
+    bodyInner,
+    "  </IMPORTRESULT></DATA></BODY>",
+    "</ENVELOPE>"
+  ].join("\n");
+
+  it("accepts LASTVCHID (voucher import response)", () => {
+    const parsed = parseTallyImportResponse(envelope("<LASTVCHID>42</LASTVCHID>"));
+    expect(parsed.lastVchId).toBe("42");
+  });
+
+  it("accepts LASTMID as an alias for master-import response", () => {
+    const parsed = parseTallyImportResponse(envelope("<LASTMID>99</LASTMID>"));
+    expect(parsed.lastVchId).toBe("99");
+  });
+
+  it("prefers LASTVCHID when both are present", () => {
+    const parsed = parseTallyImportResponse(envelope("<LASTVCHID>42</LASTVCHID>\n<LASTMID>99</LASTMID>"));
+    expect(parsed.lastVchId).toBe("42");
+  });
+
+  it("returns null when neither alias is present", () => {
+    const parsed = parseTallyImportResponse(envelope(""));
+    expect(parsed.lastVchId).toBeNull();
+  });
+});
+
 describe("buildTallyBatchImportXml", () => {
   it("wraps multiple vouchers in a single import envelope", () => {
     const xml = buildTallyBatchImportXml("Demo Company", [

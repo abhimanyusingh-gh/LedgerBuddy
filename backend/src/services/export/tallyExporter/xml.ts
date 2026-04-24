@@ -1,5 +1,15 @@
 import { isPositiveMinorUnits, minorUnitsToMajorString } from "@/utils/currency.js";
 
+const TALLY_WRITE_ALIASES = {
+  GSTIN: ["PARTYGSTIN", "GSTIN"],
+  PAN: ["PANIT", "INCOMETAXNUMBER"],
+  STATE_NAME: ["STATENAME", "LEDSTATENAME"]
+} as const;
+
+const TALLY_READ_ALIASES = {
+  LAST_ENTITY_ID: ["LASTVCHID", "LASTMID"]
+} as const;
+
 export interface TallyGstLedgerConfig {
   cgstLedger: string;
   sgstLedger: string;
@@ -54,6 +64,8 @@ export interface VoucherPayloadInput {
   date: Date;
   narration?: string;
   gstin?: string;
+  partyPan?: string;
+  partyStateName?: string;
   gst?: GstAmounts;
   gstLedgers?: TallyGstLedgerConfig;
   tds?: TdsExportData;
@@ -76,7 +88,7 @@ export function parseTallyImportResponse(xml: string): TallyImportSummary {
   const created = readNumberTag(xml, "CREATED") ?? 0;
   const altered = readNumberTag(xml, "ALTERED") ?? 0;
   const errors = readNumberTag(xml, "ERRORS") ?? 0;
-  const lastVchId = readTextTag(xml, "LASTVCHID");
+  const lastVchId = readAliasedTextTag(xml, TALLY_READ_ALIASES.LAST_ENTITY_ID);
   const lineErrors = readAllTextTags(xml, "LINEERROR");
 
   return {
@@ -119,7 +131,15 @@ function buildVoucherElement(input: VoucherPayloadInput): string {
   ];
 
   if (input.gstin) {
-    lines.push(`          <PARTYGSTIN>${xmlEscape(input.gstin)}</PARTYGSTIN>`);
+    lines.push(...dualAliasTags(TALLY_WRITE_ALIASES.GSTIN, input.gstin));
+  }
+
+  if (input.partyPan) {
+    lines.push(...dualAliasTags(TALLY_WRITE_ALIASES.PAN, input.partyPan));
+  }
+
+  if (input.partyStateName) {
+    lines.push(...dualAliasTags(TALLY_WRITE_ALIASES.STATE_NAME, input.partyStateName));
   }
 
   lines.push(
@@ -254,6 +274,21 @@ function readNumberTag(xml: string, tagName: string): number | null {
 
   const parsed = Number(value.trim());
   return Number.isNaN(parsed) ? null : parsed;
+}
+
+function dualAliasTags(aliases: ReadonlyArray<string>, value: string): string[] {
+  const escaped = xmlEscape(value);
+  return aliases.map((tag) => `          <${tag}>${escaped}</${tag}>`);
+}
+
+function readAliasedTextTag(xml: string, aliases: ReadonlyArray<string>): string | null {
+  for (const tag of aliases) {
+    const value = readTextTag(xml, tag);
+    if (value !== null) {
+      return value;
+    }
+  }
+  return null;
 }
 
 function readTextTag(xml: string, tagName: string): string | null {
