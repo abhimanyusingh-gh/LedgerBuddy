@@ -96,6 +96,65 @@ describeHarness("resolveReExportDecision + 2-phase staging (BE-2)", ({ getHarnes
     expect(decision.buyerStateName).toBe("Karnataka");
   });
 
+  it("explicit stateName wins over GSTIN-derived state", async () => {
+    await TenantTallyCompanyModel.create({
+      tenantId: "tenant-1",
+      companyName: "ACME",
+      stateName: "Karnataka",
+      gstin: "27AABCA1234C1Z5",
+      f12OverwriteByGuidVerified: true
+    });
+
+    const decision = await resolveReExportDecision({
+      tenantId: "tenant-1",
+      invoiceId: "inv-1",
+      currentExportVersion: 0
+    });
+    expect(decision.buyerStateName).toBe("Karnataka");
+  });
+
+  it("falls back to GSTIN-derived state when stateName is unset", async () => {
+    await TenantTallyCompanyModel.create({
+      tenantId: "tenant-1",
+      companyName: "ACME",
+      gstin: "27AABCA1234C1Z5",
+      f12OverwriteByGuidVerified: true
+    });
+
+    const decision = await resolveReExportDecision({
+      tenantId: "tenant-1",
+      invoiceId: "inv-1",
+      currentExportVersion: 0
+    });
+    expect(decision.buyerStateName).toBe("Maharashtra");
+  });
+
+  it("returns null buyerStateName when both stateName and gstin are unset (PLACEOFSUPPLY absent)", async () => {
+    await TenantTallyCompanyModel.create({
+      tenantId: "tenant-1",
+      companyName: "ACME",
+      f12OverwriteByGuidVerified: true
+    });
+
+    const decision = await resolveReExportDecision({
+      tenantId: "tenant-1",
+      invoiceId: "inv-1",
+      currentExportVersion: 0
+    });
+    expect(decision.buyerStateName).toBeNull();
+  });
+
+  it("rejects malformed gstin on write via mongoose validation", async () => {
+    await expect(
+      TenantTallyCompanyModel.create({
+        tenantId: "tenant-1",
+        companyName: "ACME",
+        gstin: "INVALID-GSTIN",
+        f12OverwriteByGuidVerified: true
+      })
+    ).rejects.toMatchObject({ name: "ValidationError" });
+  });
+
   it("Phase 1 stages inFlightExportVersion to v+1 when exportVersion matches and inFlight is null", async () => {
     const invoice = await InvoiceModel.create({
       tenantId: "tenant-1",

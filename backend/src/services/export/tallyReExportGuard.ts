@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { InvoiceModel } from "@/models/invoice/Invoice.js";
 import { TenantTallyCompanyModel } from "@/models/integration/TenantTallyCompany.js";
+import { deriveVendorState } from "@/constants/gstinStateCodes.js";
 import { TALLY_ACTION, type TallyAction } from "@/services/export/tallyExporter/xml.js";
 
 interface VoucherGuidInputs {
@@ -85,8 +86,18 @@ export async function resolveReExportDecision(params: {
     action,
     priorExportVersion: currentExportVersion,
     nextExportVersion,
-    buyerStateName: company?.stateName ?? null
+    buyerStateName: resolveBuyerStateName(company)
   };
+}
+
+function resolveBuyerStateName(
+  company: { stateName?: string | null; gstin?: string | null } | null | undefined
+): string | null {
+  const explicit = company?.stateName?.trim();
+  if (explicit) {
+    return explicit;
+  }
+  return deriveVendorState(company?.gstin ?? null, null);
 }
 
 export async function stageInFlightExportVersion(params: {
