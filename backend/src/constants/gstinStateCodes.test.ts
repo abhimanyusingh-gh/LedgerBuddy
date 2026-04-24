@@ -79,6 +79,18 @@ describe("deriveVendorState — address-state fallback", () => {
   it("returns null for an unrecognised address state", () => {
     expect(deriveVendorState(null, "Atlantis")).toBeNull();
   });
+
+  it("picks the longest whole-token match when an address mentions two state names", () => {
+    expect(
+      deriveVendorState(null, "Head office in Goa with a branch in Andhra Pradesh")
+    ).toBe("Andhra Pradesh");
+  });
+
+  it("breaks ties between equal-length matches alphabetically on the canonical name", () => {
+    expect(
+      deriveVendorState(null, "Shared facility between Bihar and Delhi - both 6 chars")
+    ).toBe("Bihar");
+  });
 });
 
 describe("deriveVendorState — precedence + missing inputs", () => {

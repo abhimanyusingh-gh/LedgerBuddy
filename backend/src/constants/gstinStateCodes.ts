@@ -76,12 +76,22 @@ function stateFromAddress(addressState?: string | null): CanonicalStateName | nu
   if (exact) {
     return exact;
   }
+  const matches: Array<{ candidate: string; canonical: CanonicalStateName }> = [];
   for (const [candidate, canonical] of CANONICAL_BY_NORMALIZED) {
     if (matchesWholeToken(normalized, candidate)) {
-      return canonical;
+      matches.push({ candidate, canonical });
     }
   }
-  return null;
+  if (matches.length === 0) {
+    return null;
+  }
+  matches.sort((a, b) => {
+    if (b.candidate.length !== a.candidate.length) {
+      return b.candidate.length - a.candidate.length;
+    }
+    return a.canonical.localeCompare(b.canonical);
+  });
+  return matches[0].canonical;
 }
 
 function matchesWholeToken(haystack: string, needle: string): boolean {
