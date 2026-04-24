@@ -25,6 +25,7 @@ export async function buildTallyExportConfig(
   tenantId: string,
   systemDefaults: Pick<TallyExporterConfig, "companyName" | "purchaseLedgerName" | "gstLedgers" | "tdsLedgerPrefix" | "tcsLedgerName">
 ): Promise<ResolvedTallyConfig> {
+  // TenantExportConfig is keyed on tenantId only (not an accounting leaf).
   const tenantConfig = await TenantExportConfigModel.findOne({ tenantId }).lean();
 
   return {
@@ -42,6 +43,7 @@ export async function buildTallyExportConfig(
 }
 
 export async function buildCsvExportConfig(tenantId: string): Promise<ResolvedCsvColumnConfig> {
+  // TenantExportConfig is keyed on tenantId only (not an accounting leaf).
   const tenantConfig = await TenantExportConfigModel.findOne({ tenantId }).lean();
 
   if (tenantConfig?.csvColumns && tenantConfig.csvColumns.length > 0) {

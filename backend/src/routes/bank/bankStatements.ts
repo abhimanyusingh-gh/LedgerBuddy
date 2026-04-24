@@ -280,7 +280,7 @@ export function createBankStatementsRouter(
         await BankStatementModel.updateOne({ _id: result.statementId }, { $set: { s3Key } });
       }
 
-      const reconciliation = await reconciler.reconcileStatement(tenantId, result.statementId);
+      const reconciliation = await reconciler.reconcileStatement(tenantId, req.activeClientOrgId!, result.statementId);
 
       res.status(201).json({
         statementId: result.statementId,
@@ -317,7 +317,7 @@ export function createBankStatementsRouter(
           await BankStatementModel.updateOne({ _id: result.statementId }, { $set: { s3Key } });
         }
 
-        const reconciliation = await reconciler.reconcileStatement(tenantId, result.statementId);
+        const reconciliation = await reconciler.reconcileStatement(tenantId, req.activeClientOrgId!, result.statementId);
 
         res.status(201).json({
           statementId: result.statementId,
@@ -352,7 +352,7 @@ export function createBankStatementsRouter(
         await BankStatementModel.updateOne({ _id: result.statementId }, { $set: { s3Key } });
       }
 
-      const reconciliation = await reconciler.reconcileStatement(tenantId, result.statementId);
+      const reconciliation = await reconciler.reconcileStatement(tenantId, req.activeClientOrgId!, result.statementId);
 
       res.status(201).json({
         statementId: result.statementId,
@@ -380,7 +380,7 @@ export function createBankStatementsRouter(
   router.post("/bank-statements/:id/reconcile", requireNotViewer, requireCap("canManageConnections"), requireActiveClientOrg, async (req, res, next) => {
     try {
       const tenantId = req.authContext!.tenantId;
-      const result = await reconciler.reconcileStatement(tenantId, req.params.id);
+      const result = await reconciler.reconcileStatement(tenantId, req.activeClientOrgId!, req.params.id);
       res.json(result);
     } catch (error) { next(error); }
   });
@@ -391,7 +391,7 @@ export function createBankStatementsRouter(
       const invoiceId = req.body.invoiceId;
       if (!invoiceId) { res.status(400).json({ message: "invoiceId is required." }); return; }
 
-      await reconciler.manualMatch(tenantId, req.params.txnId, invoiceId);
+      await reconciler.manualMatch(tenantId, req.activeClientOrgId!, req.params.txnId, invoiceId);
       res.json({ matched: true });
     } catch (error) { next(error); }
   });
@@ -399,7 +399,7 @@ export function createBankStatementsRouter(
   router.delete("/bank-statements/transactions/:txnId/match", requireNotViewer, requireCap("canApproveInvoices"), requireActiveClientOrg, async (req, res, next) => {
     try {
       const tenantId = req.authContext!.tenantId;
-      await reconciler.unmatch(tenantId, req.params.txnId);
+      await reconciler.unmatch(tenantId, req.activeClientOrgId!, req.params.txnId);
       res.json({ unmatched: true });
     } catch (error) { next(error); }
   });

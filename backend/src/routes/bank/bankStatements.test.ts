@@ -1,4 +1,7 @@
+import { Types } from "mongoose";
 import { mockRequest, mockResponse, defaultAuth } from "@/routes/testHelpers.ts";
+
+const TEST_CLIENT_ORG_ID = new Types.ObjectId("0123456789abcdef01234567");
 
 const mockStatementFind = jest.fn();
 const mockStatementFindOne = jest.fn();
@@ -98,7 +101,7 @@ describe("bankStatements route handlers", () => {
     jest.clearAllMocks();
   });
 
-  it("DELETE unmatch calls reconciler.unmatch with tenantId and txnId", async () => {
+  it("DELETE unmatch calls reconciler.unmatch with {tenantId, clientOrgId, txnId}", async () => {
     mockUnmatch.mockResolvedValue(undefined);
 
     const router = createBankStatementsRouter();
@@ -106,12 +109,16 @@ describe("bankStatements route handlers", () => {
 
     const res = mockResponse();
     await handler(
-      mockRequest({ authContext: defaultAuth, params: { txnId: "txn-42" } }),
+      mockRequest({
+        authContext: defaultAuth,
+        params: { txnId: "txn-42" },
+        activeClientOrgId: TEST_CLIENT_ORG_ID
+      }),
       res,
       jest.fn()
     );
 
-    expect(mockUnmatch).toHaveBeenCalledWith("tenant-a", "txn-42");
+    expect(mockUnmatch).toHaveBeenCalledWith("tenant-a", TEST_CLIENT_ORG_ID, "txn-42");
     expect((res.jsonBody as { unmatched: boolean }).unmatched).toBe(true);
   });
 

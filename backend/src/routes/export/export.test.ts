@@ -1,6 +1,10 @@
+import { Types } from "mongoose";
 import { createExportRouter } from "@/routes/export/export.ts";
 import { defaultAuth, findHandler, mockRequest, mockResponse } from "@/routes/testHelpers.ts";
 import type { ExportService } from "@/services/export/exportService.ts";
+
+const TEST_CLIENT_ORG_ID = new Types.ObjectId("0123456789abcdef01234567");
+const authWithClientOrg = { authContext: defaultAuth, activeClientOrgId: TEST_CLIENT_ORG_ID };
 
 function createMockExportService(overrides?: Partial<ExportService>): ExportService {
   return {
@@ -40,7 +44,7 @@ describe("export routes", () => {
       const res = mockResponse();
       const next = jest.fn();
 
-      await handler(mockRequest({ authContext: defaultAuth }), res, next);
+      await handler(mockRequest(authWithClientOrg), res, next);
 
       expect(res.statusCode).toBe(400);
     });
@@ -71,7 +75,7 @@ describe("export routes", () => {
       const handler = findHandler(router, "get", "/exports/tally/history");
       const res = mockResponse();
 
-      await handler(mockRequest({ authContext: defaultAuth }), res, jest.fn());
+      await handler(mockRequest(authWithClientOrg), res, jest.fn());
 
       expect(res.statusCode).toBe(200);
       const body = res.jsonBody as { items: unknown[]; total: number };
@@ -79,6 +83,7 @@ describe("export routes", () => {
       expect(body.total).toBe(1);
       expect(mockService.listExportHistory).toHaveBeenCalledWith({
         tenantId: "tenant-a",
+        clientOrgId: TEST_CLIENT_ORG_ID,
         page: 1,
         limit: 20
       });
@@ -90,10 +95,11 @@ describe("export routes", () => {
       const handler = findHandler(router, "get", "/exports/tally/history");
       const res = mockResponse();
 
-      await handler(mockRequest({ authContext: defaultAuth, query: { page: "3", limit: "50" } }), res, jest.fn());
+      await handler(mockRequest({ ...authWithClientOrg, query: { page: "3", limit: "50" } }), res, jest.fn());
 
       expect(mockService.listExportHistory).toHaveBeenCalledWith({
         tenantId: "tenant-a",
+        clientOrgId: TEST_CLIENT_ORG_ID,
         page: 3,
         limit: 50
       });
@@ -108,7 +114,7 @@ describe("export routes", () => {
       const handler = findHandler(router, "get", "/exports/tally/history");
       const res = mockResponse();
 
-      await handler(mockRequest({ authContext: defaultAuth, query }), res, jest.fn());
+      await handler(mockRequest({ ...authWithClientOrg, query }), res, jest.fn());
 
       expect(mockService.listExportHistory).toHaveBeenCalledWith(
         expect.objectContaining(expected)
@@ -125,7 +131,7 @@ describe("export routes", () => {
       const res = mockResponse();
       const next = jest.fn();
 
-      await handler(mockRequest({ authContext: defaultAuth }), res, next);
+      await handler(mockRequest(authWithClientOrg), res, next);
 
       expect(next).toHaveBeenCalledWith(thrownError);
     });
@@ -141,7 +147,7 @@ describe("export routes", () => {
       const handler = findHandler(router, "get", "/exports/tally/download/:batchId");
       const res = mockResponse();
 
-      await handler(mockRequest({ authContext: defaultAuth, params: { batchId: "batch-123" } }), res, jest.fn());
+      await handler(mockRequest({ ...authWithClientOrg, params: { batchId: "batch-123" } }), res, jest.fn());
 
       expect(res.statusCode).toBe(404);
     });
@@ -159,7 +165,7 @@ describe("export routes", () => {
       const handler = findHandler(router, "get", "/exports/tally/download/:batchId");
       const res = mockResponse();
 
-      await handler(mockRequest({ authContext: defaultAuth, params: { batchId: "batch-1" } }), res, jest.fn());
+      await handler(mockRequest({ ...authWithClientOrg, params: { batchId: "batch-1" } }), res, jest.fn());
 
       expect((res.headers as Record<string, string>)["content-type"]).toBe("text/xml");
       expect((res.headers as Record<string, string>)["content-disposition"]).toContain("tally-batch.xml");
@@ -171,7 +177,7 @@ describe("export routes", () => {
       const handler = findHandler(router, "get", "/exports/tally/download/:batchId");
       const res = mockResponse();
 
-      await handler(mockRequest({ authContext: defaultAuth, params: { batchId: "batch-1" } }), res, jest.fn());
+      await handler(mockRequest({ ...authWithClientOrg, params: { batchId: "batch-1" } }), res, jest.fn());
 
       expect(res.statusCode).toBe(503);
       expect((res.jsonBody as { message: string }).message).toContain("File store is not configured");
@@ -187,7 +193,7 @@ describe("export routes", () => {
       const res = mockResponse();
       const next = jest.fn();
 
-      await handler(mockRequest({ authContext: defaultAuth, params: { batchId: "batch-1" } }), res, next);
+      await handler(mockRequest({ ...authWithClientOrg, params: { batchId: "batch-1" } }), res, next);
 
       expect(next).toHaveBeenCalledWith(thrownError);
     });
@@ -204,7 +210,7 @@ describe("export routes", () => {
       const res = mockResponse();
       const next = jest.fn();
 
-      await handler(mockRequest({ authContext: defaultAuth, body: {} }), res, next);
+      await handler(mockRequest({ ...authWithClientOrg, body: {} }), res, next);
 
       expect(next).toHaveBeenCalledWith(thrownError);
     });
@@ -228,7 +234,7 @@ describe("export routes", () => {
       const handler = findHandler(router, "post", "/exports/tally/download");
       const res = mockResponse();
 
-      await handler(mockRequest({ authContext: defaultAuth, body: {} }), res, jest.fn());
+      await handler(mockRequest({ ...authWithClientOrg, body: {} }), res, jest.fn());
 
       expect(res.statusCode).toBe(404);
     });
@@ -239,7 +245,7 @@ describe("export routes", () => {
       const handler = findHandler(router, "post", "/exports/tally/download");
       const res = mockResponse();
 
-      await handler(mockRequest({ authContext: defaultAuth, body: {} }), res, jest.fn());
+      await handler(mockRequest({ ...authWithClientOrg, body: {} }), res, jest.fn());
 
       expect(res.statusCode).toBe(200);
       expect((res.jsonBody as { batchId: string }).batchId).toBe("batch-1");
@@ -251,7 +257,7 @@ describe("export routes", () => {
       const handler = findHandler(router, "post", "/exports/tally/download");
       const res = mockResponse();
 
-      await handler(mockRequest({ authContext: defaultAuth, body: {} }), res, jest.fn());
+      await handler(mockRequest({ ...authWithClientOrg, body: {} }), res, jest.fn());
 
       expect(res.statusCode).toBe(503);
       expect((res.jsonBody as { message: string }).message).toContain("File store is not configured");
@@ -267,7 +273,7 @@ describe("export routes", () => {
       const res = mockResponse();
       const next = jest.fn();
 
-      await handler(mockRequest({ authContext: defaultAuth, body: {} }), res, next);
+      await handler(mockRequest({ ...authWithClientOrg, body: {} }), res, next);
 
       expect(next).toHaveBeenCalledWith(thrownError);
     });
@@ -277,7 +283,7 @@ describe("export routes", () => {
       const handler = findHandler(router, "post", "/exports/tally/download");
       const res = mockResponse();
 
-      await handler(mockRequest({ authContext: defaultAuth, body: {} }), res, jest.fn());
+      await handler(mockRequest({ ...authWithClientOrg, body: {} }), res, jest.fn());
 
       expect(res.statusCode).toBe(400);
     });

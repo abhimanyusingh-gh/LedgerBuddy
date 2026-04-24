@@ -12,6 +12,7 @@ interface ExportRequest {
   ids?: string[];
   requestedBy: string;
   tenantId: UUID;
+  clientOrgId: Types.ObjectId;
 }
 
 export class ExportService {
@@ -27,7 +28,8 @@ export class ExportService {
   private async fetchExportableInvoices(request: ExportRequest) {
     const query: Record<string, unknown> = {
       status: INVOICE_STATUS.APPROVED,
-      tenantId: request.tenantId
+      tenantId: request.tenantId,
+      clientOrgId: request.clientOrgId
     };
 
     if (request.ids && request.ids.length > 0) {
@@ -70,6 +72,7 @@ export class ExportService {
 
     const batch = await ExportBatchModel.create({
       tenantId: request.tenantId,
+      clientOrgId: request.clientOrgId,
       system: this.exporter.system,
       total: results.length,
       successCount,
@@ -99,7 +102,10 @@ export class ExportService {
         update.$push = { processingIssues: `Export failed: ${result.error}` };
       }
 
-      await InvoiceModel.updateOne({ _id: invoice._id }, update);
+      await InvoiceModel.updateOne(
+        { _id: invoice._id, tenantId: request.tenantId, clientOrgId: request.clientOrgId },
+        update
+      );
     });
     for (const r of saveResults) {
       if (r.status === "rejected") {
@@ -144,6 +150,7 @@ export class ExportService {
         alreadyExportedCount = await InvoiceModel.countDocuments({
           _id: { $in: missingIds.map((id) => new Types.ObjectId(id)) },
           tenantId: request.tenantId,
+          clientOrgId: request.clientOrgId,
           status: INVOICE_STATUS.EXPORTED
         });
       }
@@ -190,6 +197,7 @@ export class ExportService {
 
     const batch = await ExportBatchModel.create({
       tenantId: request.tenantId,
+      clientOrgId: request.clientOrgId,
       system: this.exporter.system,
       total: invoices.length,
       successCount: fileResult.includedCount,
@@ -205,7 +213,7 @@ export class ExportService {
       .filter((invoice) => !skippedIds.has(toUUID(String(invoice._id))))
       .map((invoice) => ({
         updateOne: {
-          filter: { _id: invoice._id },
+          filter: { _id: invoice._id, tenantId: request.tenantId, clientOrgId: request.clientOrgId },
           update: {
             status: INVOICE_STATUS.EXPORTED,
             export: {
@@ -247,8 +255,8 @@ export class ExportService {
     };
   }
 
-  async listExportHistory(params: { tenantId: UUID; page: number; limit: number }) {
-    const query = { tenantId: params.tenantId };
+  async listExportHistory(params: { tenantId: UUID; clientOrgId: Types.ObjectId; page: number; limit: number }) {
+    const query = { tenantId: params.tenantId, clientOrgId: params.clientOrgId };
     const skip = (params.page - 1) * params.limit;
 
     const [items, total] = await Promise.all([
@@ -276,15 +284,13 @@ export class ExportService {
 
   async downloadExportFile(
     batchId: string,
-    tenantId?: string
+    tenantId: string,
+    clientOrgId: Types.ObjectId
   ): Promise<{ body: Buffer; contentType: string; filename: string } | null> {
     if (!this.fileStore) {
       throw new Error("File store is required for export file retrieval.");
     }
-    const query: Record<string, unknown> = { _id: batchId };
-    if (tenantId) {
-      query.tenantId = tenantId;
-    }
+    const query: Record<string, unknown> = { _id: batchId, tenantId, clientOrgId };
     const batch = await ExportBatchModel.findOne(query);
     if (!batch?.fileKey) {
       return null;

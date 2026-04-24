@@ -1,3 +1,4 @@
+import { Types } from "mongoose";
 import {
   ReconciliationService,
   scoreAmountMatch,
@@ -12,6 +13,9 @@ import { TenantTcsConfigModel } from "@/models/integration/TenantTcsConfig.ts";
 import { TenantComplianceConfigModel } from "@/models/integration/TenantComplianceConfig.ts";
 import { toUUID } from "@/types/uuid.js";
 import { RISK_SIGNAL_CODE } from "@/types/riskSignals.js";
+
+// Deterministic client-org for filter assertions.
+const CLIENT_ORG_ID = new Types.ObjectId("0123456789abcdef01234567");
 
 jest.mock("@/models/invoice/Invoice.ts");
 jest.mock("@/models/bank/BankTransaction.ts");
@@ -195,7 +199,7 @@ describe("ReconciliationService", () => {
     (BankTransactionModel.updateOne as jest.Mock).mockResolvedValue({});
     (InvoiceModel.updateOne as jest.Mock).mockResolvedValue({});
 
-    const candidates = await service.findMatchCandidates(toUUID("t1"), { debitMinor: 100000, description: "Payment INV-001", date: new Date("2026-01-15") });
+    const candidates = await service.findMatchCandidates(toUUID("t1"), CLIENT_ORG_ID, { debitMinor: 100000, description: "Payment INV-001", date: new Date("2026-01-15") });
 
     expect(candidates).toHaveLength(1);
     expect(candidates[0].invoiceId).toBe("inv-1");
@@ -206,11 +210,11 @@ describe("ReconciliationService", () => {
     const invoice = makeInvoice({ parsed: { invoiceNumber: "INV-999", vendorName: "Acme", totalAmountMinor: 100000 } });
     (InvoiceModel.find as jest.Mock).mockReturnValue({ lean: jest.fn().mockResolvedValue([invoice]) });
 
-    const withInvNum = await service.findMatchCandidates(toUUID("t1"), { debitMinor: 100000, description: "Ref INV-999 payment", date: new Date("2026-01-15") });
+    const withInvNum = await service.findMatchCandidates(toUUID("t1"), CLIENT_ORG_ID, { debitMinor: 100000, description: "Ref INV-999 payment", date: new Date("2026-01-15") });
 
     (InvoiceModel.find as jest.Mock).mockReturnValue({ lean: jest.fn().mockResolvedValue([invoice]) });
 
-    const withoutInvNum = await service.findMatchCandidates(toUUID("t1"), { debitMinor: 100000, description: "Wire transfer ref unknown", date: new Date("2026-01-15") });
+    const withoutInvNum = await service.findMatchCandidates(toUUID("t1"), CLIENT_ORG_ID, { debitMinor: 100000, description: "Wire transfer ref unknown", date: new Date("2026-01-15") });
 
     expect(withInvNum).toHaveLength(1);
     expect(withInvNum[0].invoiceId).toBe("inv-1");
@@ -222,7 +226,7 @@ describe("ReconciliationService", () => {
     const invoice = makeInvoice({ parsed: { invoiceNumber: "INV-ZZZ", vendorName: "Unknown Vendor XYZ", totalAmountMinor: 100000 } });
     (InvoiceModel.find as jest.Mock).mockReturnValue({ lean: jest.fn().mockResolvedValue([invoice]) });
 
-    const candidates = await service.findMatchCandidates(toUUID("t1"), { debitMinor: 100000, description: "Wire transfer", date: new Date("2026-01-20") });
+    const candidates = await service.findMatchCandidates(toUUID("t1"), CLIENT_ORG_ID, { debitMinor: 100000, description: "Wire transfer", date: new Date("2026-01-20") });
 
     expect(candidates).toHaveLength(1);
     expect(candidates[0].invoiceId).toBe("inv-1");
@@ -232,7 +236,7 @@ describe("ReconciliationService", () => {
   it("leaves unmatched when no candidates found", async () => {
     (InvoiceModel.find as jest.Mock).mockReturnValue({ lean: jest.fn().mockResolvedValue([]) });
 
-    const candidates = await service.findMatchCandidates(toUUID("t1"), { debitMinor: 100000, description: "Unknown", date: new Date("2026-01-15") });
+    const candidates = await service.findMatchCandidates(toUUID("t1"), CLIENT_ORG_ID, { debitMinor: 100000, description: "Unknown", date: new Date("2026-01-15") });
 
     expect(candidates).toHaveLength(0);
   });
@@ -245,7 +249,7 @@ describe("ReconciliationService", () => {
     });
     (InvoiceModel.find as jest.Mock).mockReturnValue({ lean: jest.fn().mockResolvedValue([invoice]) });
 
-    const candidates = await service.findMatchCandidates(toUUID("t1"), { debitMinor: 91818, description: "Payment", date: new Date("2026-01-15") }, 1);
+    const candidates = await service.findMatchCandidates(toUUID("t1"), CLIENT_ORG_ID, { debitMinor: 91818, description: "Payment", date: new Date("2026-01-15") }, 1);
 
     expect(candidates).toHaveLength(1);
     expect(candidates[0].invoiceId).toBe("inv-1");
@@ -256,14 +260,14 @@ describe("ReconciliationService", () => {
     (BankTransactionModel.updateOne as jest.Mock).mockResolvedValue({});
     (InvoiceModel.updateOne as jest.Mock).mockResolvedValue({});
 
-    await service.manualMatch(toUUID("t1"), "txn-1", "inv-1");
+    await service.manualMatch(toUUID("t1"), CLIENT_ORG_ID, "txn-1", "inv-1");
 
     expect(BankTransactionModel.updateOne).toHaveBeenCalledWith(
-      { _id: "txn-1" },
+      { _id: "txn-1", tenantId: "t1", clientOrgId: CLIENT_ORG_ID },
       expect.objectContaining({ $set: expect.objectContaining({ matchConfidence: 100 }) })
     );
     expect(BankTransactionModel.updateOne).toHaveBeenCalledWith(
-      { _id: "txn-1" },
+      { _id: "txn-1", tenantId: "t1", clientOrgId: CLIENT_ORG_ID },
       { $set: { matchStatus: "manual" } }
     );
   });
@@ -274,14 +278,14 @@ describe("ReconciliationService", () => {
     (BankTransactionModel.updateOne as jest.Mock).mockResolvedValue({});
     (InvoiceModel.updateOne as jest.Mock).mockResolvedValue({});
 
-    await service.unmatch(toUUID("t1"), "txn-1");
+    await service.unmatch(toUUID("t1"), CLIENT_ORG_ID, "txn-1");
 
     expect(BankTransactionModel.updateOne).toHaveBeenCalledWith(
-      { _id: "txn-1" },
+      { _id: "txn-1", tenantId: "t1", clientOrgId: CLIENT_ORG_ID },
       { $set: { matchedInvoiceId: null, matchConfidence: null, matchStatus: "unmatched" } }
     );
     expect(InvoiceModel.updateOne).toHaveBeenCalledWith(
-      { _id: "inv-1", tenantId: "t1" },
+      { _id: "inv-1", tenantId: "t1", clientOrgId: CLIENT_ORG_ID },
       expect.objectContaining({ $unset: { "compliance.reconciliation": 1 } })
     );
   });
@@ -290,7 +294,7 @@ describe("ReconciliationService", () => {
     (BankTransactionModel.updateOne as jest.Mock).mockResolvedValue({});
     (InvoiceModel.updateOne as jest.Mock).mockResolvedValue({});
 
-    await service.applyMatch(toUUID("t1"), "txn-1", "inv-1", 85);
+    await service.applyMatch(toUUID("t1"), CLIENT_ORG_ID, "txn-1", "inv-1", 85);
 
     const invoiceUpdateCall = (InvoiceModel.updateOne as jest.Mock).mock.calls[0];
     const updateDoc = invoiceUpdateCall[1] as Record<string, unknown>;
@@ -308,7 +312,7 @@ describe("ReconciliationService", () => {
   it("passes amount range pre-filter in MongoDB query", async () => {
     (InvoiceModel.find as jest.Mock).mockReturnValue({ lean: jest.fn().mockResolvedValue([]) });
 
-    await service.findMatchCandidates(toUUID("t1"), { debitMinor: 100000, description: "Payment", date: new Date("2026-01-15") }, 0);
+    await service.findMatchCandidates(toUUID("t1"), CLIENT_ORG_ID, { debitMinor: 100000, description: "Payment", date: new Date("2026-01-15") }, 0);
 
     const findCall = (InvoiceModel.find as jest.Mock).mock.calls[0];
     const query = findCall[0] as Record<string, unknown>;
@@ -317,12 +321,14 @@ describe("ReconciliationService", () => {
     expect(amountFilter).toBeDefined();
     expect(amountFilter.$gte).toBeLessThan(100000);
     expect(amountFilter.$lte).toBeGreaterThan(100000);
+    expect(query.tenantId).toBe("t1");
+    expect(query.clientOrgId).toBe(CLIENT_ORG_ID);
   });
 
   it("amount pre-filter range widens with TCS rate", async () => {
     (InvoiceModel.find as jest.Mock).mockReturnValue({ lean: jest.fn().mockResolvedValue([]) });
 
-    await service.findMatchCandidates(toUUID("t1"), { debitMinor: 100000, description: "Payment", date: new Date("2026-01-15") }, 10);
+    await service.findMatchCandidates(toUUID("t1"), CLIENT_ORG_ID, { debitMinor: 100000, description: "Payment", date: new Date("2026-01-15") }, 10);
 
     const findCall = (InvoiceModel.find as jest.Mock).mock.calls[0];
     const query = findCall[0] as Record<string, unknown>;
@@ -338,11 +344,11 @@ describe("ReconciliationService", () => {
     });
     (InvoiceModel.find as jest.Mock).mockReturnValue({ lean: jest.fn().mockResolvedValue([invoice]) });
 
-    const withOverlap = await service.findMatchCandidates(toUUID("t1"), { debitMinor: 100000, description: "Payment Acme Corporation ref", date: new Date("2026-01-15") });
+    const withOverlap = await service.findMatchCandidates(toUUID("t1"), CLIENT_ORG_ID, { debitMinor: 100000, description: "Payment Acme Corporation ref", date: new Date("2026-01-15") });
 
     (InvoiceModel.find as jest.Mock).mockReturnValue({ lean: jest.fn().mockResolvedValue([invoice]) });
 
-    const withoutOverlap = await service.findMatchCandidates(toUUID("t1"), { debitMinor: 100000, description: "Wire transfer xyz", date: new Date("2026-01-15") });
+    const withoutOverlap = await service.findMatchCandidates(toUUID("t1"), CLIENT_ORG_ID, { debitMinor: 100000, description: "Wire transfer xyz", date: new Date("2026-01-15") });
 
     expect(withOverlap[0].score).toBeGreaterThan(withoutOverlap[0].score);
   });
@@ -364,7 +370,7 @@ describe("ReconciliationService", () => {
       .mockReturnValueOnce({ lean: jest.fn().mockResolvedValue([highScoreInvoice]) })
       .mockReturnValueOnce({ lean: jest.fn().mockResolvedValue([midScoreInvoice]) });
 
-    const result = await service.reconcileStatement(toUUID("t1"), "stmt-1");
+    const result = await service.reconcileStatement(toUUID("t1"), CLIENT_ORG_ID, "stmt-1");
 
     expect(result).toHaveProperty("suggested");
     expect(typeof result.suggested).toBe("number");
@@ -388,7 +394,7 @@ describe("ReconciliationService", () => {
     const invoice = makeInvoice();
     (InvoiceModel.find as jest.Mock).mockReturnValue({ lean: jest.fn().mockResolvedValue([invoice]) });
 
-    const candidates = await service.findMatchCandidates(toUUID("t1"), { debitMinor: 100000, description: "Payment INV-001", date: new Date("2026-01-15") });
+    const candidates = await service.findMatchCandidates(toUUID("t1"), CLIENT_ORG_ID, { debitMinor: 100000, description: "Payment INV-001", date: new Date("2026-01-15") });
 
     expect(candidates).toHaveLength(1);
     expect(candidates[0].score).toBe(70);
