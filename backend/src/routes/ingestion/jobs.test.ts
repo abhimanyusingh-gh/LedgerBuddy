@@ -11,6 +11,23 @@ jest.mock("../../utils/logger.js", () => ({
   runWithLogContext: jest.fn((_id, cb) => cb())
 }));
 
+// Post hierarchy-pivot (#156): every upload carries a `clientOrgId`
+// that is re-verified to belong to the caller's tenant. Stub the scope
+// helper so route tests don't need a real ClientOrganization row.
+jest.mock("@/services/auth/tenantScope.js", () => {
+  const { Types } = jest.requireActual("mongoose");
+  const OWNED_ID = new Types.ObjectId("000000000000000000000001");
+  return {
+    findClientOrgIdByIdForTenant: jest.fn(async (raw: string) => {
+      if (!raw || raw === "not-owned") return null;
+      return OWNED_ID;
+    }),
+    findClientOrgIdsForTenant: jest.fn(async () => [OWNED_ID])
+  };
+});
+
+const DEFAULT_CLIENT_ORG_ID = "000000000000000000000001";
+
 import type { IngestionService } from "@/services/ingestion/ingestionService.ts";
 import { defaultAuth, findHandler, findSecondHandler, mockRequest, mockResponse, createMockFileStore } from "@/routes/testHelpers.ts";
 
@@ -29,6 +46,18 @@ beforeEach(async () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     runWithLogContext: jest.fn((_id, cb) => cb())
   }));
+
+  jest.mock("@/services/auth/tenantScope.js", () => {
+    const { Types } = jest.requireActual("mongoose");
+    const OWNED_ID = new Types.ObjectId("000000000000000000000001");
+    return {
+      findClientOrgIdByIdForTenant: jest.fn(async (raw: string) => {
+        if (!raw || raw === "not-owned") return null;
+        return OWNED_ID;
+      }),
+      findClientOrgIdsForTenant: jest.fn(async () => [OWNED_ID])
+    };
+  });
 
   const mod = await import("./jobs.ts");
   createJobsRouter = mod.createJobsRouter;
@@ -158,7 +187,11 @@ describe("jobs routes", () => {
       ];
       const res = mockResponse();
 
-      await findSecondHandler(router, "post", "/jobs/upload")(mockRequest({ authContext: defaultAuth, files }), res, jest.fn());
+      await findSecondHandler(router, "post", "/jobs/upload")(
+        mockRequest({ authContext: defaultAuth, files, body: { clientOrgId: DEFAULT_CLIENT_ORG_ID } }),
+        res,
+        jest.fn()
+      );
 
       expect(res.statusCode).toBe(201);
       expect((res.jsonBody as { count: number }).count).toBe(2);
@@ -188,7 +221,11 @@ describe("jobs routes", () => {
       const files = [{ originalname: "malware.exe", buffer: Buffer.from("bad"), mimetype: "application/octet-stream" }];
       const res = mockResponse();
 
-      await findSecondHandler(router, "post", "/jobs/upload")(mockRequest({ authContext: defaultAuth, files }), res, jest.fn());
+      await findSecondHandler(router, "post", "/jobs/upload")(
+        mockRequest({ authContext: defaultAuth, files, body: { clientOrgId: DEFAULT_CLIENT_ORG_ID } }),
+        res,
+        jest.fn()
+      );
 
       expect(res.statusCode).toBe(400);
       expect((res.jsonBody as { message: string }).message).toContain("Unsupported file type");
@@ -224,7 +261,7 @@ describe("jobs routes", () => {
       const pdfBuffer = Buffer.from("%PDF-1.4 test content");
       const res = mockResponse();
       await findSecondHandler(router, "post", "/jobs/upload")(
-        mockRequest({ authContext: defaultAuth, files: [
+        mockRequest({ authContext: defaultAuth, body: { clientOrgId: DEFAULT_CLIENT_ORG_ID }, files: [
           { originalname: "a.pdf", buffer: pdfBuffer, mimetype: "application/pdf" },
           { originalname: "b.pdf", buffer: pdfBuffer, mimetype: "application/pdf" }
         ] }),
@@ -246,7 +283,7 @@ describe("jobs routes", () => {
       const res = mockResponse();
 
       await findHandler(router, "post", "/jobs/upload/by-keys")(
-        mockRequest({ authContext: defaultAuth, body: { keys } }),
+        mockRequest({ authContext: defaultAuth, body: { keys, clientOrgId: DEFAULT_CLIENT_ORG_ID } }),
         res, jest.fn()
       );
 
@@ -294,7 +331,7 @@ describe("jobs routes", () => {
 
       const res = mockResponse();
       await findHandler(router, "post", "/jobs/upload/by-keys")(
-        mockRequest({ authContext: defaultAuth, body: { keys: [`uploads/${defaultAuth.tenantId}/a.pdf`] } }),
+        mockRequest({ authContext: defaultAuth, body: { keys: [`uploads/${defaultAuth.tenantId}/a.pdf`], clientOrgId: DEFAULT_CLIENT_ORG_ID } }),
         res, jest.fn()
       );
       expect(res.statusCode).toBe(201);

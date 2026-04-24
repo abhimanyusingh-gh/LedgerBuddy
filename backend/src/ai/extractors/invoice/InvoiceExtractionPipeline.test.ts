@@ -52,7 +52,7 @@ function buildDeps(overrides?: {
 
   const templateStore: VendorTemplateStore = overrides?.templateStore ?? {
     findByFingerprint: jest.fn(async () => ({
-      tenantId: "tenant-1",
+      clientOrgId: "org-1",
       fingerprintKey: "f-1",
       layoutSignature: "layout-a",
       vendorName: "Acme Pvt Ltd",

@@ -136,6 +136,7 @@ describeHarness("resolveReExportDecision + 2-phase staging (BE-2)", ({ getHarnes
 
   async function createInvoice(overrides: Record<string, unknown>) {
     return InvoiceModel.create({
+      tenantId: "tenant-1",
       clientOrgId: new Types.ObjectId(CLIENT_ORG_A),
       sourceType: "manual",
       sourceKey: `k-${Math.random().toString(36).slice(2)}`,

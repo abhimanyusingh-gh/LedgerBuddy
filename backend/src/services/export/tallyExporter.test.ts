@@ -41,6 +41,9 @@ jest.mock("@/models/integration/ClientOrganization.ts", () => ({
   ClientOrganizationModel: {
     findOne: (...args: unknown[]) => ({
       lean: () => clientOrganizationFindOneMock(...args)
+    }),
+    findById: (...args: unknown[]) => ({
+      lean: () => clientOrganizationFindOneMock(...args)
     })
   },
   TALLY_VERSION: jest.requireActual("@/models/integration/ClientOrganization.ts").TALLY_VERSION
@@ -1224,6 +1227,7 @@ interface InvoiceStubInput {
   processingIssues?: string[];
   compliance?: Record<string, unknown>;
   exportVersion?: number;
+  clientOrgId?: string | null;
 }
 
 function createInvoiceStub(input: InvoiceStubInput) {
@@ -1232,8 +1236,13 @@ function createInvoiceStub(input: InvoiceStubInput) {
     processingIssues: input.processingIssues ?? []
   };
 
+  const clientOrgId = input.clientOrgId === null
+    ? null
+    : (input.clientOrgId ?? "000000000000000000000001");
+
   return {
     _id: input._id,
+    clientOrgId,
     sourceType: input.sourceType ?? "email",
     sourceKey: input.sourceKey ?? "inbox",
     attachmentName: input.attachmentName ?? "file.pdf",
@@ -1592,20 +1601,28 @@ describe("TallyExporter re-export guard (BE-2) — 2-phase staging", () => {
     const exporter = createExporter();
     const invoice = createInvoiceStub({
       _id: "re-dv",
+      clientOrgId: "000000000000000000000099",
       parsed: { invoiceNumber: "RE-DV", vendorName: "Vendor", currency: "INR", totalAmountMinor: 50000 }
     });
 
     await exporter.exportInvoices([invoice], TENANT_ID);
-    expect(clientOrganizationFindOneMock).toHaveBeenCalledWith({ tenantId: TENANT_ID });
+    // Post hierarchy-pivot (#156): detected-version is looked up by
+    // invoice.clientOrgId (not tenantId) since each ClientOrganization
+    // now owns its own Tally version metadata.
+    expect(clientOrganizationFindOneMock).toHaveBeenCalledWith("000000000000000000000099");
   });
 
-  it("does not engage the guard when tenantId is omitted (backward-compat)", async () => {
+  it("does not engage the guard when invoice clientOrgId is absent (triage state)", async () => {
+    // Post hierarchy-pivot (#159): triage-state invoices carry
+    // `clientOrgId: null`. The guard is keyed on clientOrgId now, so
+    // a null clientOrgId short-circuits re-export decision resolution.
     axiosPostMock.mockResolvedValue({
       data: makeImportResponse({ status: 1, created: 1, lastVchId: "903" })
     });
     const exporter = createExporter();
     const invoice = createInvoiceStub({
       _id: "re-nt",
+      clientOrgId: null,
       parsed: { invoiceNumber: "RE-NT", vendorName: "Vendor", currency: "INR", totalAmountMinor: 50000 }
     });
 
