@@ -17,6 +17,7 @@ interface FeatureFlagContext {
 
 export interface FeatureFlagOverrideStore {
   findOverride(flagName: string, tenantId: string): Promise<boolean | null>;
+  findOverrides?(flagNames: string[], tenantId: string): Promise<Record<string, boolean>>;
 }
 
 interface FeatureFlagEvaluatorOptions {
@@ -29,7 +30,7 @@ interface FeatureFlagEvaluatorOptions {
 const DEFAULT_TTL_MS = 30_000;
 
 interface CachedOverride {
-  enabled: boolean;
+  value: boolean | null;
   expiresAt: number;
 }
 
@@ -90,6 +91,30 @@ class MongoOverrideStore implements FeatureFlagOverrideStore {
     );
     return globalDoc ? globalDoc.enabled : null;
   }
+
+  async findOverrides(flagNames: string[], tenantId: string): Promise<Record<string, boolean>> {
+    const docs = await FeatureFlagOverrideModel.find({
+      flagName: { $in: flagNames },
+      $or: [
+        { scope: FEATURE_FLAG_OVERRIDE_SCOPE.TENANT, tenantId },
+        { scope: FEATURE_FLAG_OVERRIDE_SCOPE.GLOBAL }
+      ]
+    })
+      .lean()
+      .exec();
+    const result: Record<string, boolean> = {};
+    for (const name of flagNames) {
+      const tenantDoc = docs.find(
+        (doc) => doc.flagName === name && doc.scope === FEATURE_FLAG_OVERRIDE_SCOPE.TENANT && doc.tenantId === tenantId
+      );
+      if (tenantDoc) { result[name] = tenantDoc.enabled; continue; }
+      const globalDoc = docs.find(
+        (doc) => doc.flagName === name && doc.scope === FEATURE_FLAG_OVERRIDE_SCOPE.GLOBAL
+      );
+      if (globalDoc) { result[name] = globalDoc.enabled; }
+    }
+    return result;
+  }
 }
 
 export class FeatureFlagEvaluator {
@@ -136,10 +161,17 @@ export class FeatureFlagEvaluator {
   async evaluateAll(
     context: FeatureFlagContext
   ): Promise<Record<FeatureFlagName, boolean>> {
+    const names = Object.keys(this.registry) as FeatureFlagName[];
+    if (this.overrideStore.findOverrides) {
+      const batch = await this.overrideStore.findOverrides(names as string[], context.tenantId);
+      const nowTs = this.now();
+      for (const name of names) {
+        const value = Object.prototype.hasOwnProperty.call(batch, name) ? batch[name] : null;
+        this.cache.set(`${name}::${context.tenantId}`, { value, expiresAt: nowTs + this.ttlMs });
+      }
+    }
     const entries = await Promise.all(
-      (Object.keys(this.registry) as FeatureFlagName[]).map(
-        async (name) => [name, await this.isEnabled(name, context)] as const
-      )
+      names.map(async (name) => [name, await this.isEnabled(name, context)] as const)
     );
     return Object.fromEntries(entries) as Record<FeatureFlagName, boolean>;
   }
@@ -152,14 +184,10 @@ export class FeatureFlagEvaluator {
     const cached = this.cache.get(cacheKey);
     const nowTs = this.now();
     if (cached && cached.expiresAt > nowTs) {
-      return cached.enabled;
+      return cached.value;
     }
     const value = await this.overrideStore.findOverride(flagName, tenantId);
-    if (value === null) {
-      this.cache.delete(cacheKey);
-      return null;
-    }
-    this.cache.set(cacheKey, { enabled: value, expiresAt: nowTs + this.ttlMs });
+    this.cache.set(cacheKey, { value, expiresAt: nowTs + this.ttlMs });
     return value;
   }
 }

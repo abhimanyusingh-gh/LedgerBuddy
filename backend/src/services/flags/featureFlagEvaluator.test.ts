@@ -15,6 +15,7 @@ const CANARY_FLAG: FeatureFlagName = "example.healthCheckVerbose";
 interface StubStoreState {
   overrides: Record<string, boolean | null>;
   calls: number;
+  batchCalls: number;
 }
 
 function createStubStore(state: StubStoreState): FeatureFlagOverrideStore {
@@ -25,6 +26,17 @@ function createStubStore(state: StubStoreState): FeatureFlagOverrideStore {
       if (scoped !== undefined) return scoped;
       const global = state.overrides[`${flagName}::*`];
       return global === undefined ? null : global;
+    },
+    async findOverrides(flagNames: string[], tenantId: string) {
+      state.batchCalls += 1;
+      const result: Record<string, boolean> = {};
+      for (const name of flagNames) {
+        const scoped = state.overrides[`${name}::${tenantId}`];
+        if (scoped !== undefined && scoped !== null) { result[name] = scoped; continue; }
+        const global = state.overrides[`${name}::*`];
+        if (global !== undefined && global !== null) { result[name] = global; }
+      }
+      return result;
     }
   };
 }
@@ -35,7 +47,7 @@ function registryWith(flagName: string, definition: FeatureFlagDefinition) {
 
 describe("FeatureFlagEvaluator", () => {
   it("returns the registry default when no override applies", async () => {
-    const state: StubStoreState = { overrides: {}, calls: 0 };
+    const state: StubStoreState = { overrides: {}, calls: 0, batchCalls: 0 };
     const evaluator = new FeatureFlagEvaluator({ overrideStore: createStubStore(state) });
     const enabled = await evaluator.isEnabled(CANARY_FLAG, { tenantId: "t1" });
     expect(enabled).toBe(FEATURE_FLAG_REGISTRY[CANARY_FLAG].defaultEnabled);
@@ -44,7 +56,7 @@ describe("FeatureFlagEvaluator", () => {
   it("respects a global DB override over the registry default", async () => {
     const state: StubStoreState = {
       overrides: { [`${CANARY_FLAG}::*`]: true },
-      calls: 0
+      calls: 0, batchCalls: 0
     };
     const evaluator = new FeatureFlagEvaluator({ overrideStore: createStubStore(state) });
     expect(await evaluator.isEnabled(CANARY_FLAG, { tenantId: "t1" })).toBe(true);
@@ -56,7 +68,7 @@ describe("FeatureFlagEvaluator", () => {
         [`${CANARY_FLAG}::*`]: true,
         [`${CANARY_FLAG}::t1`]: false
       },
-      calls: 0
+      calls: 0, batchCalls: 0
     };
     const evaluator = new FeatureFlagEvaluator({ overrideStore: createStubStore(state) });
     expect(await evaluator.isEnabled(CANARY_FLAG, { tenantId: "t1" })).toBe(false);
@@ -105,7 +117,7 @@ describe("FeatureFlagEvaluator", () => {
   });
 
   it("evaluator routes through an injected registry", async () => {
-    const state: StubStoreState = { overrides: {}, calls: 0 };
+    const state: StubStoreState = { overrides: {}, calls: 0, batchCalls: 0 };
     const evaluator = new FeatureFlagEvaluator({
       overrideStore: createStubStore(state),
       registry: registryWith(CANARY_FLAG, {
@@ -123,7 +135,7 @@ describe("FeatureFlagEvaluator", () => {
   it("caches override lookups within TTL and refreshes after expiry", async () => {
     const state: StubStoreState = {
       overrides: { [`${CANARY_FLAG}::t1`]: true },
-      calls: 0
+      calls: 0, batchCalls: 0
     };
     let nowValue = 1_000;
     const evaluator = new FeatureFlagEvaluator({
@@ -144,7 +156,7 @@ describe("FeatureFlagEvaluator", () => {
   it("reflects hot-toggle by re-reading the store after TTL expiry", async () => {
     const state: StubStoreState = {
       overrides: { [`${CANARY_FLAG}::t1`]: false },
-      calls: 0
+      calls: 0, batchCalls: 0
     };
     let nowValue = 1_000;
     const evaluator = new FeatureFlagEvaluator({
@@ -164,21 +176,21 @@ describe("FeatureFlagEvaluator", () => {
   });
 
   it("evaluateAll returns every registered flag", async () => {
-    const state: StubStoreState = { overrides: {}, calls: 0 };
+    const state: StubStoreState = { overrides: {}, calls: 0, batchCalls: 0 };
     const evaluator = new FeatureFlagEvaluator({ overrideStore: createStubStore(state) });
     const all = await evaluator.evaluateAll({ tenantId: "t1" });
     expect(Object.keys(all).sort()).toEqual(Object.keys(FEATURE_FLAG_REGISTRY).sort());
   });
 
   it("evaluateGlobal returns the registry default for a boolean-kind flag with no targeting", async () => {
-    const state: StubStoreState = { overrides: {}, calls: 0 };
+    const state: StubStoreState = { overrides: {}, calls: 0, batchCalls: 0 };
     const evaluator = new FeatureFlagEvaluator({ overrideStore: createStubStore(state) });
     const enabled = await evaluator.evaluateGlobal(CANARY_FLAG);
     expect(enabled).toBe(FEATURE_FLAG_REGISTRY[CANARY_FLAG].defaultEnabled);
   });
 
   it("evaluateGlobal throws when the flag declares percentage-rollout targeting", async () => {
-    const state: StubStoreState = { overrides: {}, calls: 0 };
+    const state: StubStoreState = { overrides: {}, calls: 0, batchCalls: 0 };
     const evaluator = new FeatureFlagEvaluator({
       overrideStore: createStubStore(state),
       registry: registryWith(CANARY_FLAG, {
@@ -193,7 +205,7 @@ describe("FeatureFlagEvaluator", () => {
   });
 
   it("throws on unknown flag names", async () => {
-    const state: StubStoreState = { overrides: {}, calls: 0 };
+    const state: StubStoreState = { overrides: {}, calls: 0, batchCalls: 0 };
     const evaluator = new FeatureFlagEvaluator({
       overrideStore: createStubStore(state),
       registry: {}
@@ -201,6 +213,53 @@ describe("FeatureFlagEvaluator", () => {
     await expect(
       evaluator.isEnabled(CANARY_FLAG, { tenantId: "t1" })
     ).rejects.toThrow(/Unknown feature flag/);
+  });
+
+  it("caches null overrides so repeat lookups do not re-query the store", async () => {
+    const state: StubStoreState = { overrides: {}, calls: 0, batchCalls: 0 };
+    const evaluator = new FeatureFlagEvaluator({ overrideStore: createStubStore(state) });
+    await evaluator.isEnabled(CANARY_FLAG, { tenantId: "t1" });
+    await evaluator.isEnabled(CANARY_FLAG, { tenantId: "t1" });
+    await evaluator.isEnabled(CANARY_FLAG, { tenantId: "t1" });
+    expect(state.calls).toBe(1);
+  });
+
+  it("evaluateAll issues a single batch store call for all registered flags", async () => {
+    const state: StubStoreState = { overrides: {}, calls: 0, batchCalls: 0 };
+    const evaluator = new FeatureFlagEvaluator({ overrideStore: createStubStore(state) });
+    await evaluator.evaluateAll({ tenantId: "t1" });
+    expect(state.batchCalls).toBe(1);
+    expect(state.calls).toBe(0);
+  });
+
+  it("percentage rollout at 0% is always off and at 100% is always on", () => {
+    const off: FeatureFlagDefinition = {
+      description: "test",
+      defaultEnabled: false,
+      targeting: [{ kind: FEATURE_FLAG_TARGETING_KIND.PERCENTAGE_ROLLOUT, percentage: 0 }]
+    };
+    const on: FeatureFlagDefinition = {
+      description: "test",
+      defaultEnabled: false,
+      targeting: [{ kind: FEATURE_FLAG_TARGETING_KIND.PERCENTAGE_ROLLOUT, percentage: 100 }]
+    };
+    for (const tenantId of ["a", "b", "c", "d", "e"]) {
+      expect(applyTargeting(off, "f", { tenantId })).toBe(false);
+      expect(applyTargeting(on, "f", { tenantId })).toBe(true);
+    }
+  });
+
+  it("percentage rollout is stable across evaluator instances", () => {
+    const def: FeatureFlagDefinition = {
+      description: "test",
+      defaultEnabled: false,
+      targeting: [{ kind: FEATURE_FLAG_TARGETING_KIND.PERCENTAGE_ROLLOUT, percentage: 50 }]
+    };
+    for (const tenantId of ["alpha", "beta", "gamma", "delta"]) {
+      const first = applyTargeting(def, "f", { tenantId });
+      const second = applyTargeting(def, "f", { tenantId });
+      expect(first).toBe(second);
+    }
   });
 });
 
