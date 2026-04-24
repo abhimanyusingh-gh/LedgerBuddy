@@ -18,6 +18,14 @@ import type {
 } from "@/services/export/tallyExporter/xml.js";
 import { resolveInvoiceTotalAmountMinor } from "@/services/export/tallyExporter/amountResolution.js";
 import { buildTallyExportConfig } from "@/services/export/tenantExportConfigResolver.js";
+import {
+  clearInFlightExportVersion,
+  promoteExportVersion,
+  resolveReExportDecision,
+  stageInFlightExportVersion
+} from "@/services/export/tallyReExportGuard.js";
+import type { ReExportDecision } from "@/services/export/tallyReExportGuard.js";
+import { TenantTallyCompanyModel } from "@/models/integration/TenantTallyCompany.js";
 
 export {
   buildTallyBatchImportXml,
@@ -67,6 +75,14 @@ export class TallyExporter implements AccountingExporter {
       ? await this.resolveEffectiveConfig(tenantId)
       : this.config;
 
+    if (tenantId) {
+      const company = await TenantTallyCompanyModel.findOne({ tenantId }).lean();
+      logger.info("tally.export.detected_version", {
+        tenantId,
+        detectedVersion: company?.detectedVersion ?? null
+      });
+    }
+
     for (const invoice of invoices) {
       const invoiceId = toUUID(String(invoice._id));
 
@@ -83,18 +99,62 @@ export class TallyExporter implements AccountingExporter {
           continue;
         }
 
-        const voucherPayload = mapInvoiceToVoucher(invoice, effectiveConfig, invoiceId);
+        const decision = tenantId
+          ? await resolveReExportDecision({
+              tenantId,
+              invoiceId,
+              currentExportVersion: invoice.exportVersion ?? 0
+            })
+          : undefined;
 
-        const response = await postWithRetry(effectiveConfig.endpoint, voucherPayload, {
-          headers: {
-            "Content-Type": "text/xml; charset=utf-8"
-          },
-          timeout: 30_000,
-          responseType: "text"
-        });
+        if (decision) {
+          await stageInFlightExportVersion({
+            invoiceId: String(invoice._id),
+            expectedPriorVersion: decision.priorExportVersion
+          });
+        }
 
-        const summary = parseTallyImportResponse(String(response.data ?? ""));
+        const voucherPayload = mapInvoiceToVoucher(invoice, effectiveConfig, invoiceId, decision);
+
+        let summary;
+        try {
+          const response = await postWithRetry(effectiveConfig.endpoint, voucherPayload, {
+            headers: {
+              "Content-Type": "text/xml; charset=utf-8"
+            },
+            timeout: 30_000,
+            responseType: "text"
+          });
+          summary = parseTallyImportResponse(String(response.data ?? ""));
+        } catch (postError) {
+          if (decision) {
+            await clearInFlightExportVersion({
+              invoiceId: String(invoice._id),
+              stagedVersion: decision.nextExportVersion
+            }).catch((clearErr) => {
+              logger.error("tally.export.inflight.clear_failed", {
+                invoiceId,
+                stagedVersion: decision.nextExportVersion,
+                error: (clearErr as Error).message
+              });
+            });
+          }
+          throw postError;
+        }
+
         if (!isSuccessfulImport(summary)) {
+          if (decision) {
+            await clearInFlightExportVersion({
+              invoiceId: String(invoice._id),
+              stagedVersion: decision.nextExportVersion
+            }).catch((clearErr) => {
+              logger.error("tally.export.inflight.clear_failed", {
+                invoiceId,
+                stagedVersion: decision.nextExportVersion,
+                error: (clearErr as Error).message
+              });
+            });
+          }
           const detail = summary.lineErrors[0] ?? `Import failed with ERRORS=${summary.errors}`;
           logger.warn("tally.export.invoice.failed", { invoiceId, error: detail });
           results.push({
@@ -103,6 +163,13 @@ export class TallyExporter implements AccountingExporter {
             error: detail
           });
           continue;
+        }
+
+        if (decision) {
+          await promoteExportVersion({
+            invoiceId: String(invoice._id),
+            stagedVersion: decision.nextExportVersion
+          });
         }
 
         logger.info("tally.export.invoice.success", { invoiceId, reference: summary.lastVchId ?? null });
@@ -367,12 +434,36 @@ function validateInvoiceForExport(invoice: InvoiceDocument, invoiceId: string): 
   return null;
 }
 
-function mapInvoiceToVoucher(invoice: InvoiceDocument, config: TallyExporterConfig, invoiceId: string): string {
+function mapInvoiceToVoucher(
+  invoice: InvoiceDocument,
+  config: TallyExporterConfig,
+  invoiceId: string,
+  decision?: ReExportDecision
+): string {
   const resolvedTotalAmountMinor = resolveInvoiceTotalAmountMinor(
     invoice.parsed?.totalAmountMinor,
     invoice.parsed?.currency,
     invoice.ocrText
   )!;
 
-  return buildTallyPurchaseVoucherPayload(buildVoucherInput(config, invoice, invoiceId, resolvedTotalAmountMinor));
+  const input = buildVoucherInput(config, invoice, invoiceId, resolvedTotalAmountMinor);
+  return buildTallyPurchaseVoucherPayload(decision ? applyReExportDecision(input, decision) : input);
+}
+
+function applyReExportDecision(
+  input: VoucherPayloadInput,
+  decision: ReExportDecision
+): VoucherPayloadInput {
+  const placeOfSupplyStateName = (
+    decision.buyerStateName &&
+    input.partyStateName &&
+    decision.buyerStateName.trim().toLowerCase() !== input.partyStateName.trim().toLowerCase()
+  ) ? decision.buyerStateName : undefined;
+
+  return {
+    ...input,
+    guid: decision.guid,
+    action: decision.action,
+    placeOfSupplyStateName: placeOfSupplyStateName ?? input.placeOfSupplyStateName
+  };
 }

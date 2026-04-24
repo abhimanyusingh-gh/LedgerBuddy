@@ -251,6 +251,24 @@ const invoiceSchema = new Schema(
     },
 
     export: { type: invoiceExportSchema, default: undefined },
+    exportVersion: {
+      type: Number,
+      default: 0,
+      min: 0,
+      validate: {
+        validator: Number.isInteger,
+        message: "exportVersion must be a non-negative integer."
+      }
+    },
+    inFlightExportVersion: {
+      type: Number,
+      default: null,
+      min: 0,
+      validate: {
+        validator: (value: number | null) => value === null || Number.isInteger(value),
+        message: "inFlightExportVersion must be a non-negative integer or null."
+      }
+    },
 
     compliance: {
       type: new Schema({

@@ -10,6 +10,16 @@ const TALLY_READ_ALIASES = {
   LAST_ENTITY_ID: ["LASTVCHID", "LASTMID"]
 } as const;
 
+export const TALLY_ACTION = {
+  CREATE: "Create",
+  ALTER: "Alter"
+} as const;
+export type TallyAction = typeof TALLY_ACTION[keyof typeof TALLY_ACTION];
+
+export const TALLY_BATCH_SIZE = 25 as const;
+
+const XML_PROLOG = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>";
+
 export interface TallyGstLedgerConfig {
   cgstLedger: string;
   sgstLedger: string;
@@ -66,6 +76,9 @@ export interface VoucherPayloadInput {
   gstin?: string;
   partyPan?: string;
   partyStateName?: string;
+  placeOfSupplyStateName?: string;
+  guid?: string;
+  action?: TallyAction;
   gst?: GstAmounts;
   gstLedgers?: TallyGstLedgerConfig;
   tds?: TdsExportData;
@@ -118,9 +131,10 @@ function buildVoucherElement(input: VoucherPayloadInput): string {
   const tcsAmountMinor = (input.tcs && input.tcs.amountMinor > 0) ? input.tcs.amountMinor : 0;
   const partyTotalMinor = Math.abs(input.amountMinor) + tcsAmountMinor;
   const totalAmount = formatAmount(partyTotalMinor, input.currency);
+  const action: TallyAction = input.action ?? TALLY_ACTION.CREATE;
 
   const lines: string[] = [
-    "        <VOUCHER VCHTYPE=\"Purchase\" ACTION=\"Create\" OBJVIEW=\"Accounting Voucher View\">",
+    `        <VOUCHER VCHTYPE="Purchase" ACTION="${action}" OBJVIEW="Accounting Voucher View">`,
     `          <DATE>${formatTallyDate(input.date)}</DATE>`,
     "          <VOUCHERTYPENAME>Purchase</VOUCHERTYPENAME>",
     `          <VOUCHERNUMBER>${voucherNumber}</VOUCHERNUMBER>`,
@@ -129,6 +143,14 @@ function buildVoucherElement(input: VoucherPayloadInput): string {
     `          <PARTYLEDGERNAME>${partyLedgerName}</PARTYLEDGERNAME>`,
     `          <NARRATION>${narration}</NARRATION>`
   ];
+
+  if (input.guid) {
+    lines.push(`          <GUID>${xmlEscape(input.guid)}</GUID>`);
+  }
+
+  if (input.placeOfSupplyStateName) {
+    lines.push(`          <PLACEOFSUPPLY>${xmlEscape(input.placeOfSupplyStateName)}</PLACEOFSUPPLY>`);
+  }
 
   if (input.gstin) {
     lines.push(...dualAliasTags(TALLY_WRITE_ALIASES.GSTIN, input.gstin));
@@ -243,6 +265,7 @@ function buildVoucherElement(input: VoucherPayloadInput): string {
 
 function wrapVouchersInEnvelope(escapedCompanyName: string, voucherElements: string[]): string {
   return [
+    XML_PROLOG,
     "<ENVELOPE>",
     "  <HEADER>",
     "    <VERSION>1</VERSION>",
@@ -264,6 +287,25 @@ function wrapVouchersInEnvelope(escapedCompanyName: string, voucherElements: str
     "  </BODY>",
     "</ENVELOPE>"
   ].join("\n");
+}
+
+export function chunkVoucherInputs<T>(inputs: readonly T[], size: number = TALLY_BATCH_SIZE): T[][] {
+  if (size <= 0) {
+    throw new Error(`chunkVoucherInputs: size must be > 0 (got ${size})`);
+  }
+  const chunks: T[][] = [];
+  for (let i = 0; i < inputs.length; i += size) {
+    chunks.push(inputs.slice(i, i + size));
+  }
+  return chunks;
+}
+
+export function buildTallyBatchImportXmlChunks(
+  companyName: string,
+  inputs: readonly VoucherPayloadInput[],
+  size: number = TALLY_BATCH_SIZE
+): string[] {
+  return chunkVoucherInputs(inputs, size).map((chunk) => buildTallyBatchImportXml(companyName, chunk as VoucherPayloadInput[]));
 }
 
 function readNumberTag(xml: string, tagName: string): number | null {
