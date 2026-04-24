@@ -17,7 +17,7 @@ const SHORTCUT_ROWS = [
 ] as const;
 
 export function KeyboardShortcutsOverlay({ open, onClose }: KeyboardShortcutsOverlayProps) {
-  useModalDismiss({ open, onClose });
+  useModalDismiss({ open, onClose, options: { saveFocusOnOpen: true } });
   if (!open) return null;
 
   return (

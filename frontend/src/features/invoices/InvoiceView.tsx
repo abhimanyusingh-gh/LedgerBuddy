@@ -512,24 +512,28 @@ export function InvoiceView({
     },
     onToggleExpand: () => {
       if (!activeId) return;
+      const willExpand = !isRiskSignalsExpanded(activeId);
       toggleRiskSignalsExpanded(activeId);
-      const expandedNow = !isRiskSignalsExpanded(activeId);
-      announceShortcut(expandedNow ? "Expanded risk signals" : "Collapsed risk signals");
+      announceShortcut(willExpand ? "Expanded risk signals" : "Collapsed risk signals");
     },
     onOpenDetail: () => { if (activeId) setPopupInvoiceId(activeId); },
     onApprove: () => {
       if (!activeId) return;
       const inv = filteredInvoices.find((i) => i._id === activeId);
       if (!inv || !isInvoiceApprovable(inv) || !canApproveInvoices) return;
-      announceShortcut(`Approved invoice ${inv.attachmentName}`);
-      void handleApproveSingle(activeId);
+      announceShortcut(`Approving invoice ${inv.attachmentName}`);
+      void handleApproveSingle(activeId).then((ok) => {
+        announceShortcut(ok ? `Approved invoice ${inv.attachmentName}` : `Failed to approve invoice ${inv.attachmentName}`);
+      });
     },
     onExport: () => {
       if (!activeId) return;
       const inv = filteredInvoices.find((i) => i._id === activeId);
       if (!inv || !isInvoiceExportable(inv) || !canExportToTally) return;
-      announceShortcut(`Exported invoice ${inv.attachmentName}`);
-      void handleExportSingle(activeId);
+      announceShortcut(`Exporting invoice ${inv.attachmentName}`);
+      void handleExportSingle(activeId).then((ok) => {
+        announceShortcut(ok ? `Exported invoice ${inv.attachmentName}` : `Failed to export invoice ${inv.attachmentName}`);
+      });
     },
     onEscape: () => {
       if (selectedIds.length > 0) { clearSelection(); return; }
@@ -727,34 +731,38 @@ export function InvoiceView({
     });
   }
 
-  async function handleApproveSingle(invoiceId: string) {
+  async function handleApproveSingle(invoiceId: string): Promise<boolean> {
     if (!canApproveInvoices) {
       addToast("error", "You do not have permission to approve invoices.");
-      return;
+      return false;
     }
     try {
       const response = await approveInvoices([invoiceId], userEmail);
       if (response.modifiedCount === 0) {
         addToast("info", "Invoice was not eligible for approval.");
+        await loadInvoices();
+        return false;
       }
       await loadInvoices();
+      return true;
     } catch (approveError) {
       addToast("error", getUserFacingErrorMessage(approveError, "Approval failed."));
+      return false;
     }
   }
 
-  async function handleExportSingle(invoiceId: string) {
-    if (!canExportToTally) {
-      addToast("error", "You do not have permission to export invoices.");
-      return;
-    }
+  async function exportInvoices(ids: string[], mode: "single" | "bulk"): Promise<boolean> {
     try {
       setActionLoading("export");
-      const fileResult = await generateTallyXmlFile([invoiceId]);
+      const fileResult = await generateTallyXmlFile(ids);
       if (!fileResult.batchId) {
-        addToast("error", "Export failed — invoice may have invalid amounts or is already exported.");
+        const msg = mode === "single"
+          ? "Export failed — invoice may have invalid amounts or is already exported."
+          : "Export failed — invoices may have invalid amounts or are already exported.";
+        addToast("error", msg);
+        if (mode === "bulk") clearSelection();
         await loadInvoices();
-        return;
+        return false;
       }
       const blob = await downloadTallyXmlFile(fileResult.batchId);
       const url = URL.createObjectURL(blob);
@@ -765,14 +773,33 @@ export function InvoiceView({
       anchor.click();
       document.body.removeChild(anchor);
       URL.revokeObjectURL(url);
-      await loadInvoices();
+      if (mode === "bulk") {
+        const exportedIds = ids.filter(
+          (id) => !fileResult.skippedItems.some((item) => item.invoiceId === id)
+        );
+        removeFromSelection(exportedIds);
+      }
       addToast("success", `${fileResult.includedCount} invoice(s) exported. XML file downloaded.`);
+      await loadInvoices();
+      if (mode === "bulk" && fileResult.skippedCount > 0) {
+        addToast("info", `${fileResult.skippedCount} invoice(s) skipped (already exported or missing fields).`);
+      }
+      return true;
     } catch (downloadError) {
       addToast("error", getUserFacingErrorMessage(downloadError, "Export failed."));
       await loadInvoices();
+      return false;
     } finally {
       setActionLoading(null);
     }
+  }
+
+  async function handleExportSingle(invoiceId: string): Promise<boolean> {
+    if (!canExportToTally) {
+      addToast("error", "You do not have permission to export invoices.");
+      return false;
+    }
+    return exportInvoices([invoiceId], "single");
   }
 
   async function handleWorkflowApproveSingle(invoiceId: string) {
@@ -907,39 +934,7 @@ export function InvoiceView({
       addToast("error", "Deselect non-approved invoices before exporting.");
       return;
     }
-    try {
-      setActionLoading("export");
-      const fileResult = await generateTallyXmlFile(selectedExportableIds);
-      if (!fileResult.batchId) {
-        addToast("error", "Export failed — invoices may have invalid amounts or are already exported.");
-        clearSelection();
-        await loadInvoices();
-        return;
-      }
-      const blob = await downloadTallyXmlFile(fileResult.batchId);
-      const url = URL.createObjectURL(blob);
-      const anchor = document.createElement("a");
-      anchor.href = url;
-      anchor.download = fileResult.filename ?? "tally-import.xml";
-      document.body.appendChild(anchor);
-      anchor.click();
-      document.body.removeChild(anchor);
-      URL.revokeObjectURL(url);
-      const exportedIds = selectedExportableIds.filter(
-        (id) => !fileResult.skippedItems.some((item) => item.invoiceId === id)
-      );
-      removeFromSelection(exportedIds);
-      addToast("success", `${fileResult.includedCount} invoice(s) exported. XML file downloaded.`);
-      await loadInvoices();
-      if (fileResult.skippedCount > 0) {
-        addToast("info", `${fileResult.skippedCount} invoice(s) skipped (already exported or missing fields).`);
-      }
-    } catch (downloadError) {
-      addToast("error", getUserFacingErrorMessage(downloadError, "Export failed."));
-      await loadInvoices();
-    } finally {
-      setActionLoading(null);
-    }
+    await exportInvoices(selectedExportableIds, "bulk");
   }
 
   async function uploadFiles(files: File[]) {

@@ -175,6 +175,21 @@ describe("useKeyboardShortcuts", () => {
     expect(h.onApprove).not.toHaveBeenCalled();
   });
 
+  it("falls back to document.activeElement when event target is not an HTMLElement", () => {
+    const input = document.createElement("input");
+    document.body.appendChild(input);
+    input.focus();
+
+    const h = makeHandlers();
+    renderShortcuts(h);
+
+    fireEvent.keyDown(window, { key: "j" });
+    fireEvent.keyDown(window, { key: "a" });
+
+    expect(h.onMoveDown).not.toHaveBeenCalled();
+    expect(h.onApprove).not.toHaveBeenCalled();
+  });
+
   it("removes the listener on unmount", () => {
     const h = makeHandlers();
     const { unmount } = renderShortcuts(h);

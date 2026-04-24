@@ -72,15 +72,19 @@ export function useKeyboardShortcuts(actions: KeyboardShortcutActions): void {
           a.onOpenDetail?.();
           break;
         case SHORTCUT_KEY.Approve:
+          event.preventDefault();
           a.onApprove?.();
           break;
         case SHORTCUT_KEY.Export:
+          event.preventDefault();
           a.onExport?.();
           break;
         case SHORTCUT_KEY.Escape:
+          event.preventDefault();
           a.onEscape?.();
           break;
         case SHORTCUT_KEY.Help:
+          event.preventDefault();
           a.onShowHelp?.();
           break;
       }
