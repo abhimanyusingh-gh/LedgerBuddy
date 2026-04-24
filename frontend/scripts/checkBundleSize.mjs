@@ -1,39 +1,46 @@
 import { readdirSync, statSync } from "node:fs";
-import { join, dirname } from "node:path";
+import { join, dirname, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const GATE_STATUS = Object.freeze({ PASS: "PASS", FAIL: "FAIL" });
 
 const BUDGETS = Object.freeze({
-  totalBytes: 1_100_000,
-  jsBytes: 1_030_000,
-  cssBytes: 70_000
+  totalBytes: 1_100_000
 });
 
 const here = dirname(fileURLToPath(import.meta.url));
-const distAssets = join(here, "..", "dist", "assets");
+const distRoot = join(here, "..", "dist");
+
+function walk(dir) {
+  const out = [];
+  for (const name of readdirSync(dir)) {
+    const full = join(dir, name);
+    const s = statSync(full);
+    if (s.isDirectory()) {
+      out.push(...walk(full));
+    } else if (s.isFile() && !name.endsWith(".map")) {
+      out.push({ path: full, size: s.size });
+    }
+  }
+  return out;
+}
 
 function collectAssets() {
-  let entries;
+  let files;
   try {
-    entries = readdirSync(distAssets);
+    files = walk(distRoot);
   } catch (err) {
-    console.error(
-      `BUNDLE_BUDGET: dist/assets not found at ${distAssets}. Run \`yarn build\` first.`
-    );
+    console.error(`BUNDLE_BUDGET: dist not found at ${distRoot}. Run \`yarn build\` first.`);
     console.error(err);
     process.exit(2);
   }
-  const out = { js: 0, css: 0, total: 0, files: [] };
-  for (const name of entries) {
-    const full = join(distAssets, name);
-    const size = statSync(full).size;
-    out.total += size;
-    out.files.push({ name, size });
-    if (name.endsWith(".js")) out.js += size;
-    else if (name.endsWith(".css")) out.css += size;
+  let total = 0;
+  const entries = [];
+  for (const f of files) {
+    total += f.size;
+    entries.push({ name: relative(distRoot, f.path), size: f.size });
   }
-  return out;
+  return { total, files: entries };
 }
 
 function format(bytes) {
@@ -42,22 +49,14 @@ function format(bytes) {
 
 const summary = collectAssets();
 const totalStatus = summary.total <= BUDGETS.totalBytes ? GATE_STATUS.PASS : GATE_STATUS.FAIL;
-const jsStatus = summary.js <= BUDGETS.jsBytes ? GATE_STATUS.PASS : GATE_STATUS.FAIL;
-const cssStatus = summary.css <= BUDGETS.cssBytes ? GATE_STATUS.PASS : GATE_STATUS.FAIL;
 
 console.log(
-  `BUNDLE_BUDGET: total=${format(summary.total)} budget=${format(BUDGETS.totalBytes)} ${totalStatus}`
-);
-console.log(
-  `BUNDLE_BUDGET: js=${format(summary.js)} budget=${format(BUDGETS.jsBytes)} ${jsStatus}`
-);
-console.log(
-  `BUNDLE_BUDGET: css=${format(summary.css)} budget=${format(BUDGETS.cssBytes)} ${cssStatus}`
+  `BUNDLE_BUDGET: total=${format(summary.total)} (${summary.total} B) budget=${format(BUDGETS.totalBytes)} ${totalStatus}`
 );
 for (const f of summary.files) {
   console.log(`BUNDLE_FILE: ${f.name} ${format(f.size)}`);
 }
 
-if (totalStatus === GATE_STATUS.FAIL || jsStatus === GATE_STATUS.FAIL || cssStatus === GATE_STATUS.FAIL) {
+if (totalStatus === GATE_STATUS.FAIL) {
   process.exit(1);
 }

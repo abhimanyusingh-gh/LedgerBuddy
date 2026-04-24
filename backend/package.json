@@ -21,6 +21,7 @@
     "perf:tds": "tsx scripts/perf/tdsComputeGate.ts",
     "perf:payment": "tsx scripts/perf/paymentRecordingGate.ts",
     "perf:gates": "yarn perf:tds && yarn perf:payment",
+    "perf:test": "node --import tsx --test scripts/perf/perfGate.test.ts",
     "benchmark:deepseek": "tsx src/scripts/runSampleInvoiceBenchmark.ts --ocr deepseek",
     "benchmark:llamaparse": "tsx src/scripts/runSampleInvoiceBenchmark.ts --ocr llamaparse",
     "benchmark:llamaextract": "LLAMA_PARSE_EXTRACT_ENABLED=true LLAMA_PARSE_EXTRACT_TIER=agentic tsx src/scripts/runSampleInvoiceBenchmark.ts --ocr llamaparse",

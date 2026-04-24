@@ -1,9 +1,4 @@
-import {
-  IMPLEMENTATION_STATUS,
-  exitFromOutcome,
-  reportPerfGate,
-  runPerfGate
-} from "./perfGate.js";
+import { IMPLEMENTATION_STATUS, runAndReportPerfGate } from "./perfGate.js";
 
 const PAYMENT_P95_BUDGET_MS = 500;
 const ITERATIONS = Number(process.env.PERF_ITERATIONS ?? 100);
@@ -24,7 +19,7 @@ function placeholderPaymentRecording(): void {
 }
 
 async function main(): Promise<void> {
-  const outcome = await runPerfGate({
+  const code = await runAndReportPerfGate({
     id: "payment_recording",
     nfr: "NFR-002",
     budgetMs: PAYMENT_P95_BUDGET_MS,
@@ -33,8 +28,7 @@ async function main(): Promise<void> {
     implementation: IMPLEMENTATION_STATUS.PLACEHOLDER,
     compute: placeholderPaymentRecording
   });
-  reportPerfGate(outcome);
-  exitFromOutcome(outcome);
+  process.exit(code);
 }
 
 main().catch((err) => {

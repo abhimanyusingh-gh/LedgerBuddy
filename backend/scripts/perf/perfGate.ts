@@ -15,6 +15,8 @@ export const IMPLEMENTATION_STATUS = {
 type ImplementationStatus =
   (typeof IMPLEMENTATION_STATUS)[keyof typeof IMPLEMENTATION_STATUS];
 
+const DEFAULT_MIN_SAMPLES = 20;
+
 interface PerfGateConfig {
   id: string;
   nfr: string;
@@ -23,6 +25,7 @@ interface PerfGateConfig {
   warmup: number;
   implementation: ImplementationStatus;
   compute: () => Promise<void> | void;
+  minSamples?: number;
 }
 
 interface PerfGateOutcome {
@@ -37,6 +40,9 @@ interface PerfGateOutcome {
   implementation: ImplementationStatus;
 }
 
+// Nearest-rank percentile (ceil((p/100)*n) - 1): picks the sample whose
+// rank is the smallest integer >= p% of n. Chosen over linear interpolation
+// because gate budgets are integer-ms and we want an actual observed sample.
 function percentile(sorted: number[], p: number): number {
   if (sorted.length === 0) return 0;
   const rank = Math.min(sorted.length - 1, Math.ceil((p / 100) * sorted.length) - 1);
@@ -44,6 +50,14 @@ function percentile(sorted: number[], p: number): number {
 }
 
 export async function runPerfGate(config: PerfGateConfig): Promise<PerfGateOutcome> {
+  const minSamples = config.minSamples ?? DEFAULT_MIN_SAMPLES;
+  if (config.iterations < minSamples) {
+    throw new Error(
+      `runPerfGate: iterations=${config.iterations} < minSamples=${minSamples}; ` +
+        "sub-threshold p95 is noise. Raise iterations or lower minSamples explicitly."
+    );
+  }
+
   for (let i = 0; i < config.warmup; i += 1) {
     await config.compute();
   }
@@ -74,7 +88,7 @@ export async function runPerfGate(config: PerfGateConfig): Promise<PerfGateOutco
   };
 }
 
-export function reportPerfGate(outcome: PerfGateOutcome): void {
+function reportPerfGate(outcome: PerfGateOutcome): void {
   const line =
     `PERF_BUDGET: ${outcome.id} nfr=${outcome.nfr} ` +
     `p95=${outcome.p95Ms.toFixed(2)}ms p99=${outcome.p99Ms.toFixed(2)}ms ` +
@@ -83,16 +97,16 @@ export function reportPerfGate(outcome: PerfGateOutcome): void {
   // eslint-disable-next-line no-console
   console.log(line);
   if (outcome.implementation === IMPLEMENTATION_STATUS.PLACEHOLDER) {
+    const msg =
+      `${outcome.id} is measuring a placeholder compute. ` +
+      "Phase 2/4 must swap in the real module; the budget still enforces end-to-end.";
     // eslint-disable-next-line no-console
-    console.warn(
-      `PERF_BUDGET_WARN: ${outcome.id} is measuring a placeholder compute. ` +
-        "Phase 2/4 must swap in the real module; the budget still enforces end-to-end."
-    );
+    console.warn(`::warning title=Perf Gate Placeholder::${msg}`);
   }
 }
 
-export function exitFromOutcome(outcome: PerfGateOutcome): void {
-  if (outcome.status === GATE_STATUS.FAIL) {
-    process.exit(1);
-  }
+export async function runAndReportPerfGate(config: PerfGateConfig): Promise<number> {
+  const outcome = await runPerfGate(config);
+  reportPerfGate(outcome);
+  return outcome.status === GATE_STATUS.FAIL ? 1 : 0;
 }

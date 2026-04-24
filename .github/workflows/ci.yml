@@ -117,7 +117,6 @@ jobs:
 
   backend-perf-gates:
     name: Backend Perf Gates (INFRA-3)
-    needs: backend-typecheck
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
