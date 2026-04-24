@@ -4,6 +4,8 @@ import axios from "axios";
 import { env } from "@/config/env.js";
 import { OCR_PROVIDER_NAME } from "@/constants.js";
 import { HEALTH_CHECK_STATUS } from "@/types/health.js";
+import { getFeatureFlagEvaluator } from "@/services/flags/featureFlagEvaluator.js";
+import { logger } from "@/utils/logger.js";
 
 export const healthRouter = Router();
 
@@ -13,17 +15,26 @@ healthRouter.get("/health", async (_req, res) => {
     env.OCR_PROVIDER === OCR_PROVIDER_NAME.LLAMAPARSE ? Promise.resolve(true) : probeService(env.OCR_PROVIDER_BASE_URL),
     probeService(env.FIELD_VERIFIER_BASE_URL)
   ]);
+  const checks = {
+    mongo: mongoOk ? HEALTH_CHECK_STATUS.OK : HEALTH_CHECK_STATUS.FAIL,
+    ocr: ocrOk ? HEALTH_CHECK_STATUS.OK : HEALTH_CHECK_STATUS.FAIL,
+    slm: slmOk ? HEALTH_CHECK_STATUS.OK : HEALTH_CHECK_STATUS.FAIL
+  };
   const ready = mongoOk && ocrOk && slmOk;
+
+  const verbose = await getFeatureFlagEvaluator()
+    .evaluateGlobal("example.healthCheckVerbose")
+    .catch(() => false);
+  if (verbose) {
+    logger.info("health.checks", { ready, checks });
+  }
+
   res.status(ready ? 200 : 503).json({
     ok: ready,
     ready,
     env: env.ENV,
     timestamp: new Date().toISOString(),
-    checks: {
-      mongo: mongoOk ? HEALTH_CHECK_STATUS.OK : HEALTH_CHECK_STATUS.FAIL,
-      ocr: ocrOk ? HEALTH_CHECK_STATUS.OK : HEALTH_CHECK_STATUS.FAIL,
-      slm: slmOk ? HEALTH_CHECK_STATUS.OK : HEALTH_CHECK_STATUS.FAIL
-    }
+    checks
   });
 });
 

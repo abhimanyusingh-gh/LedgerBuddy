@@ -10,6 +10,7 @@ import {
   scheduleProactiveRefresh,
   setStoredSessionToken
 } from "@/api";
+import type { FeatureFlagName } from "@/api/auth";
 import { getUserFacingErrorMessage } from "@/lib/common/apiError";
 import type { SessionUser } from "@/types";
 
@@ -24,6 +25,7 @@ export type WorkspaceSessionContext = {
     requires_admin_action: boolean;
     must_change_password: boolean;
   };
+  featureFlags: Record<FeatureFlagName, boolean>;
 };
 
 interface UseTenantWorkspaceSessionOptions {
