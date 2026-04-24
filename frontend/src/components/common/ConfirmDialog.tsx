@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { useModalDismiss } from "@/hooks/useModalDismiss";
 
 interface ConfirmDialogProps {
   open: boolean;
@@ -13,24 +14,12 @@ interface ConfirmDialogProps {
 export function ConfirmDialog({ open, title, message, confirmLabel = "Confirm", destructive, onConfirm, onCancel }: ConfirmDialogProps) {
   const cancelRef = useRef<HTMLButtonElement>(null);
 
+  useModalDismiss({ open, onClose: onCancel });
+
   useEffect(() => {
     if (!open) return;
     cancelRef.current?.focus();
-
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-
-    const handleKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        onCancel();
-      }
-    };
-    window.addEventListener("keydown", handleKey);
-    return () => {
-      document.body.style.overflow = prev;
-      window.removeEventListener("keydown", handleKey);
-    };
-  }, [open, onCancel]);
+  }, [open]);
 
   if (!open) return null;
 
