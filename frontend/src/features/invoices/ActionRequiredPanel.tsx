@@ -1,5 +1,5 @@
 import { SlideOverPanel } from "@/components/ds/SlideOverPanel";
-import { Badge, BADGE_SIZE, type BadgeTone } from "@/components/ds/Badge";
+import { Badge, BADGE_SIZE } from "@/components/ds/Badge";
 import { tokens } from "@/components/ds/tokens";
 import { formatMinorAmountWithCurrency } from "@/lib/common/currency";
 import type { ActionQueueGroup, ActionQueueItem } from "@/lib/invoice/actionRequired";
@@ -17,7 +17,7 @@ type ActionPanelView = (typeof ACTION_PANEL_VIEW)[keyof typeof ACTION_PANEL_VIEW
 interface ActionRequiredPanelProps {
   open: boolean;
   onClose: () => void;
-  onSelectInvoice: (invoiceId: string) => void;
+  onSelectInvoice?: (invoiceId: string) => void;
   panelId?: string;
 }
 
@@ -170,7 +170,6 @@ function QueueGroup({
   group: ActionQueueGroup;
   onSelect: (invoiceId: string) => void;
 }) {
-  const tone: BadgeTone = group.tone as BadgeTone;
   return (
     <section data-testid="action-panel-group" data-reason={group.reason} style={{ marginBottom: tokens.space.s4 }}>
       <header
@@ -184,7 +183,7 @@ function QueueGroup({
         <h3 style={{ margin: 0, fontSize: tokens.font.size.md, fontWeight: tokens.font.weight.semibold }}>
           {group.label}
         </h3>
-        <Badge tone={tone} size={BADGE_SIZE.sm}>
+        <Badge tone={group.tone} size={BADGE_SIZE.sm}>
           {group.items.length}
         </Badge>
       </header>
@@ -195,15 +194,25 @@ function QueueGroup({
   );
 }
 
+function TruncationFooter({ scanned, total }: { scanned: number; total: number }) {
+  return (
+    <p className="action-panel-truncation" data-testid="action-panel-truncation">
+      Showing first {scanned} of {total} action-required invoices. More will
+      surface when this queue is cleared.
+    </p>
+  );
+}
+
 export function ActionRequiredPanel({ open, onClose, onSelectInvoice, panelId }: ActionRequiredPanelProps) {
-  const { groups, isLoading, isError, refetch } = useActionRequiredQueue();
+  const { groups, isLoading, isError, refetch, scannedCount, totalAvailable } = useActionRequiredQueue();
   const view = resolveView({ isLoading, isError, groupCount: groups.length });
+  const truncated = view === ACTION_PANEL_VIEW.Data && totalAvailable > scannedCount;
 
   return (
-    <SlideOverPanel open={open} onClose={onClose} title="Action required" width="lg">
-      <div id={panelId} data-testid="action-panel-body" data-view={view}>
+    <SlideOverPanel open={open} onClose={onClose} title="Action required" width="lg" id={panelId}>
+      <div data-testid="action-panel-body" data-view={view}>
         {view === ACTION_PANEL_VIEW.Loading ? <LoadingState /> : null}
-        {view === ACTION_PANEL_VIEW.Error ? <ErrorState onRetry={refetch} /> : null}
+        {view === ACTION_PANEL_VIEW.Error ? <ErrorState onRetry={() => void refetch()} /> : null}
         {view === ACTION_PANEL_VIEW.Empty ? <EmptyState /> : null}
         {view === ACTION_PANEL_VIEW.Data
           ? groups.map((group) => (
@@ -211,12 +220,13 @@ export function ActionRequiredPanel({ open, onClose, onSelectInvoice, panelId }:
                 key={group.reason}
                 group={group}
                 onSelect={(invoiceId) => {
-                  onSelectInvoice(invoiceId);
+                  onSelectInvoice?.(invoiceId);
                   onClose();
                 }}
               />
             ))
           : null}
+        {truncated ? <TruncationFooter scanned={scannedCount} total={totalAvailable} /> : null}
       </div>
     </SlideOverPanel>
   );

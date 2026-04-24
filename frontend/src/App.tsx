@@ -213,6 +213,9 @@ export function App() {
           onChangePassword={() => setShowChangePassword(true)}
           counts={navCounts}
           themeToggle={themeToggle}
+          onSelectActionInvoice={(invoiceId) => {
+            window.location.search = `?invoiceDetail=${encodeURIComponent(invoiceId)}`;
+          }}
         />
       )}
 

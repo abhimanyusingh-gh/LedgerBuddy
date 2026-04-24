@@ -39,9 +39,7 @@ export function WorkspaceTopNav({ userEmail, onLogout, onChangePassword, counts,
       </div>
 
       <div className="tenant-top-nav-right">
-        <ActionRequiredTrigger
-          onSelectInvoice={(invoiceId) => onSelectActionInvoice?.(invoiceId)}
-        />
+        <ActionRequiredTrigger onSelectInvoice={onSelectActionInvoice} />
         {themeToggle ?? null}
         <div className="tenant-avatar" aria-label={`Signed in as ${userEmail}`} title={userEmail}>
           {avatarLabel}

@@ -1,3 +1,4 @@
+import { BADGE_TONE, type BadgeTone } from "@/components/ds/Badge";
 import type { Invoice } from "@/types";
 
 export const ACTION_REASON = {
@@ -20,23 +21,23 @@ const ACTION_REASON_LABEL: Record<ActionReason, string> = {
   [ACTION_REASON.CriticalRisk]: "Critical risk signal"
 };
 
-const ACTION_REASON_TONE = {
-  [ACTION_REASON.MissingGstin]: "warning",
-  [ACTION_REASON.FailedOcr]: "danger",
-  [ACTION_REASON.NeedsReview]: "warning",
-  [ACTION_REASON.AwaitingApproval]: "info",
-  [ACTION_REASON.ExportFailed]: "danger",
-  [ACTION_REASON.CriticalRisk]: "danger"
-} as const;
+const ACTION_REASON_TONE: Record<ActionReason, BadgeTone> = {
+  [ACTION_REASON.MissingGstin]: BADGE_TONE.warning,
+  [ACTION_REASON.FailedOcr]: BADGE_TONE.danger,
+  [ACTION_REASON.NeedsReview]: BADGE_TONE.warning,
+  [ACTION_REASON.AwaitingApproval]: BADGE_TONE.info,
+  [ACTION_REASON.ExportFailed]: BADGE_TONE.danger,
+  [ACTION_REASON.CriticalRisk]: BADGE_TONE.danger
+};
 
-const REASON_ORDER: ActionReason[] = [
-  ACTION_REASON.FailedOcr,
-  ACTION_REASON.CriticalRisk,
-  ACTION_REASON.ExportFailed,
-  ACTION_REASON.MissingGstin,
-  ACTION_REASON.NeedsReview,
-  ACTION_REASON.AwaitingApproval
-];
+export const ACTION_REASON_SEVERITY: Record<ActionReason, number> = {
+  [ACTION_REASON.FailedOcr]: 100,
+  [ACTION_REASON.CriticalRisk]: 90,
+  [ACTION_REASON.ExportFailed]: 80,
+  [ACTION_REASON.MissingGstin]: 70,
+  [ACTION_REASON.NeedsReview]: 50,
+  [ACTION_REASON.AwaitingApproval]: 30
+};
 
 export interface ActionQueueItem {
   invoiceId: string;
@@ -51,7 +52,7 @@ export interface ActionQueueItem {
 export interface ActionQueueGroup {
   reason: ActionReason;
   label: string;
-  tone: (typeof ACTION_REASON_TONE)[ActionReason];
+  tone: BadgeTone;
   items: ActionQueueItem[];
 }
 
@@ -106,7 +107,10 @@ export function buildActionQueue(invoices: readonly Invoice[]): ActionQueueGroup
     }
   }
   const ordered: ActionQueueGroup[] = [];
-  for (const reason of REASON_ORDER) {
+  const reasons = Array.from(groups.keys()).sort(
+    (a, b) => ACTION_REASON_SEVERITY[b] - ACTION_REASON_SEVERITY[a]
+  );
+  for (const reason of reasons) {
     const items = groups.get(reason);
     if (!items || items.length === 0) continue;
     ordered.push({

@@ -4,7 +4,7 @@ import { useActionRequiredQueue } from "@/hooks/useActionRequiredQueue";
 import { ActionRequiredPanel } from "@/features/invoices/ActionRequiredPanel";
 
 interface ActionRequiredTriggerProps {
-  onSelectInvoice: (invoiceId: string) => void;
+  onSelectInvoice?: (invoiceId: string) => void;
 }
 
 export function ActionRequiredTrigger({ onSelectInvoice }: ActionRequiredTriggerProps) {

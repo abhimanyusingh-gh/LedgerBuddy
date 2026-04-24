@@ -7,16 +7,18 @@ import {
   type ActionQueueGroup
 } from "@/lib/invoice/actionRequired";
 
-const ACTION_QUEUE_PAGE_SIZE = 100;
+const ACTION_QUEUE_PAGE_SIZE = 500;
 const ACTION_QUEUE_STALE_MS = 15_000;
 const ACTION_QUEUE_QUERY_KEY = ["invoices", "action-required"] as const;
 
 interface UseActionRequiredQueueResult {
   groups: ActionQueueGroup[];
   totalCount: number;
+  scannedCount: number;
+  totalAvailable: number;
   isLoading: boolean;
   isError: boolean;
-  refetch: () => void;
+  refetch: () => Promise<unknown>;
 }
 
 export function useActionRequiredQueue(): UseActionRequiredQueueResult {
@@ -34,10 +36,10 @@ export function useActionRequiredQueue(): UseActionRequiredQueueResult {
   return {
     groups,
     totalCount: totalActionCount(groups),
+    scannedCount: query.data?.items.length ?? 0,
+    totalAvailable: query.data?.total ?? 0,
     isLoading: query.isPending,
     isError: query.isError,
-    refetch: () => {
-      void query.refetch();
-    }
+    refetch: query.refetch
   };
 }

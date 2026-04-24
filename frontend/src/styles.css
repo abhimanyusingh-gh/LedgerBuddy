@@ -3838,6 +3838,15 @@ pre {
   border: 1px solid var(--badge-tenant-match-border);
 }
 
+.action-panel-truncation {
+  margin: var(--sp-4) 0 0;
+  padding: var(--sp-3);
+  border-top: 1px solid var(--line);
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+  text-align: center;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;

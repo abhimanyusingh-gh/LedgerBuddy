@@ -23,6 +23,7 @@ export interface SlideOverPanelProps {
   width?: SlideOverWidth;
   side?: SlideOverSide;
   dismissOnBackdrop?: boolean;
+  id?: string;
 }
 
 const FOCUSABLE_SELECTOR = [
@@ -49,7 +50,8 @@ export function SlideOverPanel({
   footer,
   width = "md",
   side = "right",
-  dismissOnBackdrop = true
+  dismissOnBackdrop = true,
+  id
 }: SlideOverPanelProps) {
   const titleId = useId();
   const panelRef = useRef<HTMLElement>(null);
@@ -119,6 +121,7 @@ export function SlideOverPanel({
     >
       <aside
         ref={panelRef}
+        id={id}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
