@@ -3,6 +3,7 @@ import { Router } from "express";
 import { VendorMasterModel } from "@/models/compliance/VendorMaster.js";
 import { InvoiceModel } from "@/models/invoice/Invoice.js";
 import { requireAuth } from "@/auth/requireAuth.js";
+import { requireActiveClientOrg } from "@/auth/activeClientOrg.js";
 import { requireCap } from "@/auth/requireCapability.js";
 import { requireNotViewer } from "@/auth/middleware.js";
 
@@ -11,11 +12,12 @@ const MSME_STATUTORY_MAX_DAYS = 45;
 export function createVendorsRouter() {
   const router = Router();
   router.use(requireAuth);
+  router.use(requireActiveClientOrg);
 
   router.get("/vendors", requireCap("canViewAllInvoices"), async (req, res, next) => {
     try {
       const tenantId = getAuth(req).tenantId;
-      const query: Record<string, unknown> = { tenantId };
+      const query: Record<string, unknown> = { tenantId, clientOrgId: req.activeClientOrgId };
 
       if (typeof req.query.search === "string" && req.query.search.trim()) {
         const escaped = req.query.search.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -57,7 +59,7 @@ export function createVendorsRouter() {
   router.get("/vendors/:id", requireCap("canViewAllInvoices"), async (req, res, next) => {
     try {
       const tenantId = getAuth(req).tenantId;
-      const vendor = await VendorMasterModel.findOne({ _id: req.params.id, tenantId }).lean();
+      const vendor = await VendorMasterModel.findOne({ _id: req.params.id, tenantId, clientOrgId: req.activeClientOrgId }).lean();
       if (!vendor) { res.status(404).json({ message: "Vendor not found." }); return; }
       res.json(vendor);
     } catch (error) { next(error); }
@@ -66,7 +68,7 @@ export function createVendorsRouter() {
   router.patch("/vendors/:id", requireNotViewer, requireCap("canConfigureCompliance"), async (req, res, next) => {
     try {
       const tenantId = getAuth(req).tenantId;
-      const vendor = await VendorMasterModel.findOne({ _id: req.params.id, tenantId });
+      const vendor = await VendorMasterModel.findOne({ _id: req.params.id, tenantId, clientOrgId: req.activeClientOrgId });
       if (!vendor) { res.status(404).json({ message: "Vendor not found." }); return; }
 
       const body = req.body as Record<string, unknown>;
@@ -91,6 +93,7 @@ export function createVendorsRouter() {
 
         const unpaidInvoices = await InvoiceModel.find({
           tenantId,
+          clientOrgId: req.activeClientOrgId,
           "metadata.vendorFingerprint": fingerprint,
           status: { $nin: ["EXPORTED"] }
         }).select({ "parsed.invoiceDate": 1 });
@@ -115,7 +118,7 @@ export function createVendorsRouter() {
         }
       }
 
-      const updated = await VendorMasterModel.findOne({ _id: req.params.id, tenantId }).lean();
+      const updated = await VendorMasterModel.findOne({ _id: req.params.id, tenantId, clientOrgId: req.activeClientOrgId }).lean();
       res.json(updated);
     } catch (error) { next(error); }
   });

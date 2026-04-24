@@ -2,6 +2,7 @@ import { Router } from "express";
 import multer from "multer";
 import { GlCodeMasterModel } from "@/models/compliance/GlCodeMaster.js";
 import { requireAuth } from "@/auth/requireAuth.js";
+import { requireActiveClientOrg } from "@/auth/activeClientOrg.js";
 import { requireCap } from "@/auth/requireCapability.js";
 
 const MAX_CSV_FILE_SIZE = 1024 * 1024;
@@ -106,11 +107,12 @@ function splitCsvLine(line: string): string[] {
 export function createGlCodesRouter() {
   const router = Router();
   router.use(requireAuth);
+  router.use(requireActiveClientOrg);
 
   router.get("/admin/gl-codes", async (req, res, next) => {
     try {
       const tenantId = req.authContext!.tenantId;
-      const query: Record<string, unknown> = { tenantId };
+      const query: Record<string, unknown> = { tenantId, clientOrgId: req.activeClientOrgId };
 
       if (typeof req.query.category === "string") query.category = req.query.category;
       if (req.query.active === "true") query.isActive = true;
@@ -147,7 +149,7 @@ export function createGlCodesRouter() {
         return;
       }
 
-      const existing = await GlCodeMasterModel.findOne({ tenantId, code: code.trim() });
+      const existing = await GlCodeMasterModel.findOne({ tenantId, clientOrgId: req.activeClientOrgId, code: code.trim() });
       if (existing) {
         res.status(409).json({ message: `GL code "${code.trim()}" already exists.` });
         return;
@@ -155,6 +157,7 @@ export function createGlCodesRouter() {
 
       const doc = await GlCodeMasterModel.create({
         tenantId,
+        clientOrgId: req.activeClientOrgId,
         code: code.trim(),
         name: name.trim(),
         category: category?.trim() ?? "Other",
@@ -177,7 +180,7 @@ export function createGlCodesRouter() {
       if (typeof req.body.isActive === "boolean") update.isActive = req.body.isActive;
 
       const doc = await GlCodeMasterModel.findOneAndUpdate(
-        { tenantId, code: req.params.code },
+        { tenantId, clientOrgId: req.activeClientOrgId, code: req.params.code },
         { $set: update },
         { new: true }
       );
@@ -191,7 +194,7 @@ export function createGlCodesRouter() {
     try {
       const tenantId = req.authContext!.tenantId;
       const doc = await GlCodeMasterModel.findOneAndUpdate(
-        { tenantId, code: req.params.code },
+        { tenantId, clientOrgId: req.activeClientOrgId, code: req.params.code },
         { $set: { isActive: false } },
         { new: true }
       );
@@ -233,7 +236,7 @@ export function createGlCodesRouter() {
       }
 
       const existingCodes = new Set(
-        (await GlCodeMasterModel.find({ tenantId }, { code: 1 }).lean()).map((d) => d.code)
+        (await GlCodeMasterModel.find({ tenantId, clientOrgId: req.activeClientOrgId }, { code: 1 }).lean()).map((d) => d.code)
       );
 
       let imported = 0;
@@ -251,6 +254,7 @@ export function createGlCodesRouter() {
         try {
           await GlCodeMasterModel.create({
             tenantId,
+            clientOrgId: req.activeClientOrgId,
             code: row.code,
             name: row.name,
             category: row.category || "Other",

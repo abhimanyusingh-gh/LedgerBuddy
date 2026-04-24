@@ -7,6 +7,7 @@ import { BankStatementParseProgress } from "@/ai/extractors/bank/BankStatementPa
 import { ReconciliationService } from "@/services/bank/ReconciliationService.js";
 import { InvoiceModel } from "@/models/invoice/Invoice.js";
 import { requireAuth } from "@/auth/requireAuth.js";
+import { requireActiveClientOrg } from "@/auth/activeClientOrg.js";
 import { requireCap } from "@/auth/requireCapability.js";
 import { requireNotViewer } from "@/auth/middleware.js";
 import type { FileStore } from "@/core/interfaces/FileStore.js";
@@ -51,11 +52,11 @@ export function createBankStatementsRouter(
     parseProgress.addSubscriber(req.authContext!.tenantId, res, req);
   });
 
-  router.get("/bank-statements/vendor-gstins", async (req, res, next) => {
+  router.get("/bank-statements/vendor-gstins", requireActiveClientOrg, async (req, res, next) => {
     try {
       const tenantId = req.authContext!.tenantId;
       const invoices = await InvoiceModel.find(
-        { tenantId, "parsed.gst.gstin": { $exists: true, $nin: [null, ""] } },
+        { tenantId, clientOrgId: req.activeClientOrgId, "parsed.gst.gstin": { $exists: true, $nin: [null, ""] } },
         { "parsed.gst.gstin": 1, "parsed.vendorName": 1 }
       ).lean();
 
@@ -80,11 +81,11 @@ export function createBankStatementsRouter(
     } catch (error) { next(error); }
   });
 
-  router.get("/bank-statements/account-names", async (req, res, next) => {
+  router.get("/bank-statements/account-names", requireActiveClientOrg, async (req, res, next) => {
     try {
       const tenantId = req.authContext!.tenantId;
       const statements = await BankStatementModel.find(
-        { tenantId, bankName: { $ne: null } },
+        { tenantId, clientOrgId: req.activeClientOrgId, bankName: { $ne: null } },
         { bankName: 1, accountNumberMasked: 1 }
       ).lean();
 
@@ -108,14 +109,14 @@ export function createBankStatementsRouter(
     } catch (error) { next(error); }
   });
 
-  router.get("/bank-statements", async (req, res, next) => {
+  router.get("/bank-statements", requireActiveClientOrg, async (req, res, next) => {
     try {
       const tenantId = req.authContext!.tenantId;
       const page = Math.max(Number(req.query.page ?? 1), 1);
       const limit = Math.min(Math.max(Number(req.query.limit ?? 20), 1), 200);
       const skip = (page - 1) * limit;
 
-      const query: Record<string, unknown> = { tenantId };
+      const query: Record<string, unknown> = { tenantId, clientOrgId: req.activeClientOrgId };
 
       if (typeof req.query.accountName === "string" && req.query.accountName) {
         const parts = req.query.accountName.split(" ");
@@ -143,16 +144,16 @@ export function createBankStatementsRouter(
     } catch (error) { next(error); }
   });
 
-  router.get("/bank-statements/:id/matches", async (req, res, next) => {
+  router.get("/bank-statements/:id/matches", requireActiveClientOrg, async (req, res, next) => {
     try {
       const tenantId = req.authContext!.tenantId;
 
       const { BankStatementModel } = await import("@/models/bank/BankStatement.js");
-      const statement = await BankStatementModel.findOne({ _id: req.params.id, tenantId }).lean();
+      const statement = await BankStatementModel.findOne({ _id: req.params.id, tenantId, clientOrgId: req.activeClientOrgId }).lean();
       if (!statement) { res.status(404).json({ message: "Bank statement not found." }); return; }
 
       const transactions = await BankTransactionModel.find(
-        { tenantId, statementId: req.params.id }
+        { tenantId, clientOrgId: req.activeClientOrgId, statementId: req.params.id }
       ).sort({ date: 1 }).lean();
 
       const invoiceIds = [...new Set(
@@ -170,7 +171,7 @@ export function createBankStatementsRouter(
 
       if (invoiceIds.length > 0) {
         const invoices = await InvoiceModel.find(
-          { _id: { $in: invoiceIds }, tenantId },
+          { _id: { $in: invoiceIds }, tenantId, clientOrgId: req.activeClientOrgId },
           { "parsed.invoiceNumber": 1, "parsed.vendorName": 1, "parsed.totalAmountMinor": 1, "parsed.invoiceDate": 1, status: 1 }
         ).lean();
         for (const inv of invoices) {
@@ -218,14 +219,14 @@ export function createBankStatementsRouter(
     } catch (error) { next(error); }
   });
 
-  router.get("/bank-statements/:id/transactions", async (req, res, next) => {
+  router.get("/bank-statements/:id/transactions", requireActiveClientOrg, async (req, res, next) => {
     try {
       const tenantId = req.authContext!.tenantId;
       const page = Math.max(Number(req.query.page ?? 1), 1);
       const limit = Math.min(Math.max(Number(req.query.limit ?? 50), 1), 200);
       const skip = (page - 1) * limit;
 
-      const query: Record<string, unknown> = { tenantId, statementId: req.params.id };
+      const query: Record<string, unknown> = { tenantId, clientOrgId: req.activeClientOrgId, statementId: req.params.id };
 
       if (typeof req.query.status === "string" && (Object.values(BANK_TRANSACTION_MATCH_STATUS) as string[]).includes(req.query.status)) {
         query.matchStatus = req.query.status as BankTransactionMatchStatus;
@@ -256,7 +257,7 @@ export function createBankStatementsRouter(
     } catch (error) { next(error); }
   });
 
-  router.post("/bank-statements/upload-csv", requireNotViewer, requireCap("canManageConnections"), upload.single("file") as unknown as import("express").RequestHandler, async (req, res, next) => {
+  router.post("/bank-statements/upload-csv", requireNotViewer, requireCap("canManageConnections"), requireActiveClientOrg, upload.single("file") as unknown as import("express").RequestHandler, async (req, res, next) => {
     try {
       const tenantId = req.authContext!.tenantId;
       const file = req.file;
@@ -290,7 +291,7 @@ export function createBankStatementsRouter(
     } catch (error) { next(error); }
   });
 
-  router.post("/bank-statements/upload", requireNotViewer, requireCap("canManageConnections"), upload.single("file") as unknown as import("express").RequestHandler, async (req, res, next) => {
+  router.post("/bank-statements/upload", requireNotViewer, requireCap("canManageConnections"), requireActiveClientOrg, upload.single("file") as unknown as import("express").RequestHandler, async (req, res, next) => {
     try {
       const tenantId = req.authContext!.tenantId;
       const file = req.file;
@@ -376,7 +377,7 @@ export function createBankStatementsRouter(
     }
   });
 
-  router.post("/bank-statements/:id/reconcile", requireNotViewer, requireCap("canManageConnections"), async (req, res, next) => {
+  router.post("/bank-statements/:id/reconcile", requireNotViewer, requireCap("canManageConnections"), requireActiveClientOrg, async (req, res, next) => {
     try {
       const tenantId = req.authContext!.tenantId;
       const result = await reconciler.reconcileStatement(tenantId, req.params.id);
@@ -384,7 +385,7 @@ export function createBankStatementsRouter(
     } catch (error) { next(error); }
   });
 
-  router.post("/bank-statements/transactions/:txnId/match", requireNotViewer, requireCap("canApproveInvoices"), async (req, res, next) => {
+  router.post("/bank-statements/transactions/:txnId/match", requireNotViewer, requireCap("canApproveInvoices"), requireActiveClientOrg, async (req, res, next) => {
     try {
       const tenantId = req.authContext!.tenantId;
       const invoiceId = req.body.invoiceId;
@@ -395,7 +396,7 @@ export function createBankStatementsRouter(
     } catch (error) { next(error); }
   });
 
-  router.delete("/bank-statements/transactions/:txnId/match", requireNotViewer, requireCap("canApproveInvoices"), async (req, res, next) => {
+  router.delete("/bank-statements/transactions/:txnId/match", requireNotViewer, requireCap("canApproveInvoices"), requireActiveClientOrg, async (req, res, next) => {
     try {
       const tenantId = req.authContext!.tenantId;
       await reconciler.unmatch(tenantId, req.params.txnId);
