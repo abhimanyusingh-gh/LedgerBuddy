@@ -221,5 +221,65 @@ describeHarness("MailboxAssignmentsAdminService (#174)", ({ getHarness }) => {
         service.recentIngestions({ tenantId: TENANT_B, assignmentId: assignment._id.toString(), days: 30 })
       ).rejects.toMatchObject({ statusCode: 404, code: "mailbox_assignment_not_found" });
     });
+
+    it("respects ?limit= and surfaces truncatedAt; default 50, max 100", async () => {
+      const integration = await seedTenantWithIntegration(TENANT_A, "a@firm.com");
+      const a = await ClientOrganizationModel.create({ tenantId: TENANT_A, gstin: GSTIN_A, companyName: "A" });
+      const assignment = await TenantMailboxAssignmentModel.create({
+        tenantId: TENANT_A, integrationId: integration._id, assignedTo: "all", clientOrgIds: [a._id]
+      });
+      await Promise.all(
+        Array.from({ length: 5 }).map((_, i) =>
+          InvoiceModel.create({
+            tenantId: TENANT_A, clientOrgId: a._id, sourceType: "email",
+            sourceKey: `k${i}`, sourceDocumentId: `d${i}`,
+            attachmentName: `f${i}.pdf`, mimeType: "application/pdf",
+            receivedAt: new Date(), status: INVOICE_STATUS.NEEDS_REVIEW
+          })
+        )
+      );
+
+      const explicit = await service.recentIngestions({
+        tenantId: TENANT_A, assignmentId: assignment._id.toString(), days: 30, limit: 2
+      });
+      expect(explicit.items).toHaveLength(2);
+      expect(explicit.total).toBe(5);
+      expect(explicit.truncatedAt).toBe(2);
+
+      const defaulted = await service.recentIngestions({
+        tenantId: TENANT_A, assignmentId: assignment._id.toString(), days: 30
+      });
+      expect(defaulted.truncatedAt).toBe(50);
+
+      const capped = await service.recentIngestions({
+        tenantId: TENANT_A, assignmentId: assignment._id.toString(), days: 30, limit: 9999
+      });
+      expect(capped.truncatedAt).toBe(100);
+    });
+  });
+
+  describe("validateClientOrgIds (single batched lookup, defence-in-depth)", () => {
+    it("rejects with all missing ids in one error message", async () => {
+      const integration = await seedTenantWithIntegration(TENANT_A, "a@firm.com");
+      const aOwn = await ClientOrganizationModel.create({
+        tenantId: TENANT_A, gstin: GSTIN_A, companyName: "A"
+      });
+      const otherTenantOrg = await ClientOrganizationModel.create({
+        tenantId: TENANT_B, gstin: GSTIN_OTHER, companyName: "Other"
+      });
+      const fabricated = new Types.ObjectId().toString();
+
+      await expect(
+        service.create({
+          tenantId: TENANT_A,
+          integrationId: integration._id.toString(),
+          clientOrgIds: [aOwn._id.toString(), otherTenantOrg._id.toString(), fabricated]
+        })
+      ).rejects.toMatchObject({
+        statusCode: 400,
+        code: "mailbox_assignment_cross_tenant_client_org",
+        message: expect.stringContaining(otherTenantOrg._id.toString())
+      });
+    });
   });
 });

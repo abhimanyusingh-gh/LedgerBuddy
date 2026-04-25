@@ -1,9 +1,15 @@
 import { Types } from "mongoose";
-import { TenantMailboxAssignmentModel } from "@/models/integration/TenantMailboxAssignment.js";
+import {
+  TenantMailboxAssignmentModel,
+  MAILBOX_ASSIGNED_TO
+} from "@/models/integration/TenantMailboxAssignment.js";
 import { TenantIntegrationModel } from "@/models/integration/TenantIntegration.js";
+import { ClientOrganizationModel } from "@/models/integration/ClientOrganization.js";
 import { InvoiceModel } from "@/models/invoice/Invoice.js";
-import { findClientOrgIdByIdForTenant } from "@/services/auth/tenantScope.js";
 import { HttpError } from "@/errors/HttpError.js";
+
+const RECENT_INGESTIONS_DEFAULT_LIMIT = 50;
+const RECENT_INGESTIONS_MAX_LIMIT = 100;
 
 /**
  * Admin CRUD service for `TenantMailboxAssignment` (#174). Manages the
@@ -11,9 +17,9 @@ import { HttpError } from "@/errors/HttpError.js";
  * `assignedTo` user-mapping field on the same document is owned by
  * `tenantAdminService` and must NOT be touched here. Per #167, every
  * `clientOrgIds` element must belong to the assignment's `tenantId`;
- * we re-check at every write via `findClientOrgIdByIdForTenant` even
- * though the FE picker sources from a tenant-scoped endpoint
- * (defence-in-depth — schema only enforces `length >= 1`).
+ * we re-check at every write via a single batched `ClientOrganization`
+ * lookup even though the FE picker sources from a tenant-scoped
+ * endpoint (defence-in-depth — schema only enforces `length >= 1`).
  */
 export class MailboxAssignmentsAdminService {
   /**
@@ -88,10 +94,10 @@ export class MailboxAssignmentsAdminService {
         integrationId: integrationOid,
         clientOrgIds: validatedIds,
         // Legacy `assignedTo` field is required by the schema (predates
-        // the #159 pivot). Default to "all" — the new admin surface does
-        // not steer the user-mapping concern; that lives in the legacy
-        // routes at tenantAdmin.ts.
-        assignedTo: input.assignedTo?.trim() || "all"
+        // the #159 pivot). Default to the `ALL` sentinel — the new admin
+        // surface does not steer the user-mapping concern; that lives in
+        // the legacy routes at tenantAdmin.ts.
+        assignedTo: input.assignedTo?.trim() || MAILBOX_ASSIGNED_TO.ALL
       });
       return this.serialize(created.toObject(), integration);
     } catch (error) {
@@ -163,10 +169,25 @@ export class MailboxAssignmentsAdminService {
    * (`clientOrgId: null`) are not currently linked back to a specific
    * mailbox assignment in the schema and are therefore excluded — the
    * triage queue has its own UI surface.
+   *
+   * NOTE: the `clientOrgId ∈ assignment.clientOrgIds` proxy
+   * over-/under-counts when the same client-org is shared across
+   * multiple mailbox assignments. Tracked for follow-up in a separate
+   * issue (sourceMailboxAssignmentId on Invoice).
+   *
+   * `limit` is caller-controlled (default 50, capped at 100) and the
+   * applied limit is echoed back as `truncatedAt` so FE can render
+   * "showing first N of total".
    */
-  async recentIngestions(input: { tenantId: string; assignmentId: string; days: number }) {
+  async recentIngestions(input: {
+    tenantId: string;
+    assignmentId: string;
+    days: number;
+    limit?: number;
+  }) {
     const oid = this.toOid(input.assignmentId, "assignmentId");
     const days = Number.isFinite(input.days) && input.days > 0 ? Math.min(input.days, 365) : 30;
+    const limit = this.clampLimit(input.limit);
     const assignment = await TenantMailboxAssignmentModel.findOne({
       _id: oid,
       tenantId: input.tenantId
@@ -184,7 +205,7 @@ export class MailboxAssignmentsAdminService {
     const [items, total] = await Promise.all([
       InvoiceModel.find(filter)
         .sort({ createdAt: -1 })
-        .limit(50)
+        .limit(limit)
         .select({
           _id: 1,
           clientOrgId: 1,
@@ -215,11 +236,28 @@ export class MailboxAssignmentsAdminService {
         currency: doc.parsed?.currency ?? null
       })),
       total,
-      periodDays: days
+      periodDays: days,
+      truncatedAt: limit
     };
   }
 
-  private async validateClientOrgIds(tenantId: string, clientOrgIds: unknown): Promise<Types.ObjectId[]> {
+  private clampLimit(raw: number | undefined): number {
+    if (raw === undefined || !Number.isFinite(raw) || raw <= 0) {
+      return RECENT_INGESTIONS_DEFAULT_LIMIT;
+    }
+    return Math.min(Math.floor(raw), RECENT_INGESTIONS_MAX_LIMIT);
+  }
+
+  /**
+   * Validate that every supplied id is (a) a valid ObjectId, (b) unique
+   * within the array, and (c) owned by the calling tenant. Single
+   * batched `ClientOrganization` lookup — was per-id N+1 in the
+   * original cut.
+   */
+  private async validateClientOrgIds(
+    tenantId: string,
+    clientOrgIds: unknown
+  ): Promise<Types.ObjectId[]> {
     if (!Array.isArray(clientOrgIds) || clientOrgIds.length === 0) {
       throw new HttpError(
         "clientOrgIds must be a non-empty array.",
@@ -228,7 +266,7 @@ export class MailboxAssignmentsAdminService {
       );
     }
     const seen = new Set<string>();
-    const resolved: Types.ObjectId[] = [];
+    const ordered: string[] = [];
     for (const raw of clientOrgIds) {
       if (typeof raw !== "string" || !Types.ObjectId.isValid(raw)) {
         throw new HttpError(
@@ -239,17 +277,25 @@ export class MailboxAssignmentsAdminService {
       }
       if (seen.has(raw)) continue;
       seen.add(raw);
-      const owned = await findClientOrgIdByIdForTenant(raw, tenantId);
-      if (!owned) {
-        throw new HttpError(
-          `clientOrgId ${raw} does not belong to this tenant.`,
-          400,
-          "mailbox_assignment_cross_tenant_client_org"
-        );
-      }
-      resolved.push(owned);
+      ordered.push(raw);
     }
-    return resolved;
+
+    const owned = await ClientOrganizationModel.find({
+      tenantId,
+      _id: { $in: ordered.map((id) => new Types.ObjectId(id)) }
+    })
+      .select("_id")
+      .lean();
+    const ownedSet = new Set(owned.map((doc) => String(doc._id)));
+    const missing = ordered.filter((id) => !ownedSet.has(id));
+    if (missing.length > 0) {
+      throw new HttpError(
+        `clientOrgId(s) ${missing.join(", ")} do not belong to this tenant.`,
+        400,
+        "mailbox_assignment_cross_tenant_client_org"
+      );
+    }
+    return ordered.map((id) => new Types.ObjectId(id));
   }
 
   private serialize(

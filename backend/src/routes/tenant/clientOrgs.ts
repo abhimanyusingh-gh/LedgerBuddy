@@ -15,7 +15,8 @@ export function createClientOrgsRouter(service: ClientOrgsAdminService) {
 
   router.get("/admin/client-orgs", requireCap("canManageUsers"), async (req, res, next) => {
     try {
-      const items = await service.list(getAuth(req).tenantId);
+      const includeArchived = req.query.includeArchived === "true";
+      const items = await service.list(getAuth(req).tenantId, { includeArchived });
       res.json({ items });
     } catch (error) {
       next(error);
@@ -44,13 +45,13 @@ export function createClientOrgsRouter(service: ClientOrgsAdminService) {
   router.patch("/admin/client-orgs/:id", requireCap("canManageUsers"), async (req, res, next) => {
     try {
       const body = isRecord(req.body) ? req.body : {};
-      // GSTIN is the natural key with `tenantId` — immutable per #174.
-      if ("gstin" in body) {
-        throw new HttpError("gstin is immutable.", 400, "client_org_gstin_immutable");
-      }
       const updated = await service.update({
         tenantId: getAuth(req).tenantId,
         clientOrgId: req.params.id,
+        // GSTIN immutability is enforced inside the service so SDK / job
+        // callers also get the same error contract; we just pass through
+        // to let it raise `client_org_gstin_immutable` on attempted edit.
+        gstin: "gstin" in body ? body.gstin : undefined,
         companyName: isString(body.companyName) ? body.companyName : undefined,
         stateName: isString(body.stateName) ? body.stateName : undefined,
         companyGuid: isString(body.companyGuid) ? body.companyGuid : undefined,
@@ -71,7 +72,6 @@ export function createClientOrgsRouter(service: ClientOrgsAdminService) {
         tenantId: getAuth(req).tenantId,
         clientOrgId: req.params.id
       });
-      // Soft-archive yields 200 + linked-counts; hard-delete returns 200 + status.
       res.status(200).json(result);
     } catch (error) {
       next(error);

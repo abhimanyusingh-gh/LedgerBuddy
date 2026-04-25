@@ -74,10 +74,12 @@ export function createMailboxAssignmentsRouter(service: MailboxAssignmentsAdminS
     async (req, res, next) => {
       try {
         const days = typeof req.query.days === "string" ? Number.parseInt(req.query.days, 10) : 30;
+        const limit = typeof req.query.limit === "string" ? Number.parseInt(req.query.limit, 10) : undefined;
         const result = await service.recentIngestions({
           tenantId: getAuth(req).tenantId,
           assignmentId: req.params.id,
-          days: Number.isFinite(days) ? days : 30
+          days: Number.isFinite(days) ? days : 30,
+          limit: limit !== undefined && Number.isFinite(limit) ? limit : undefined
         });
         res.json(result);
       } catch (error) {
