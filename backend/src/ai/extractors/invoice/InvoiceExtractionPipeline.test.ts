@@ -52,6 +52,7 @@ function buildDeps(overrides?: {
 
   const templateStore: VendorTemplateStore = overrides?.templateStore ?? {
     findByFingerprint: jest.fn(async () => ({
+      tenantId: "tenant-1",
       clientOrgId: "org-1",
       fingerprintKey: "f-1",
       layoutSignature: "layout-a",
@@ -67,7 +68,7 @@ function buildDeps(overrides?: {
 
 const defaultInput = {
   tenantId: "tenant-1" as import("@/types/uuid.js").UUID,
-  clientOrgId: null,
+  clientOrgId: "507f1f77bcf86cd799439011",
   sourceKey: "mailbox-a",
   attachmentName: "invoice.pdf",
   fileBuffer: Buffer.from("sample-content"),

@@ -1,6 +1,7 @@
 import { VendorTemplateModel } from "@/models/invoice/VendorTemplate.js";
 
 export interface VendorTemplateSnapshot {
+  tenantId: string;
   clientOrgId: string;
   fingerprintKey: string;
   layoutSignature: string;
@@ -11,19 +12,28 @@ export interface VendorTemplateSnapshot {
 }
 
 export interface VendorTemplateStore {
-  findByFingerprint(clientOrgId: string, fingerprintKey: string): Promise<VendorTemplateSnapshot | undefined>;
+  findByFingerprint(
+    tenantId: string,
+    clientOrgId: string,
+    fingerprintKey: string
+  ): Promise<VendorTemplateSnapshot | undefined>;
   saveOrUpdate(template: VendorTemplateSnapshot): Promise<void>;
 }
 
 export class MongoVendorTemplateStore implements VendorTemplateStore {
-  async findByFingerprint(clientOrgId: string, fingerprintKey: string): Promise<VendorTemplateSnapshot | undefined> {
+  async findByFingerprint(
+    tenantId: string,
+    clientOrgId: string,
+    fingerprintKey: string
+  ): Promise<VendorTemplateSnapshot | undefined> {
     try {
-      const template = await VendorTemplateModel.findOne({ clientOrgId, fingerprintKey }).lean();
+      const template = await VendorTemplateModel.findOne({ tenantId, clientOrgId, fingerprintKey }).lean();
       if (!template) {
         return undefined;
       }
 
       return {
+        tenantId: String(template.tenantId),
         clientOrgId: String(template.clientOrgId),
         fingerprintKey: template.fingerprintKey,
         layoutSignature: template.layoutSignature,
@@ -40,9 +50,14 @@ export class MongoVendorTemplateStore implements VendorTemplateStore {
   async saveOrUpdate(template: VendorTemplateSnapshot): Promise<void> {
     try {
       await VendorTemplateModel.findOneAndUpdate(
-        { clientOrgId: template.clientOrgId, fingerprintKey: template.fingerprintKey },
+        {
+          tenantId: template.tenantId,
+          clientOrgId: template.clientOrgId,
+          fingerprintKey: template.fingerprintKey
+        },
         {
           $set: {
+            tenantId: template.tenantId,
             clientOrgId: template.clientOrgId,
             fingerprintKey: template.fingerprintKey,
             layoutSignature: template.layoutSignature,
@@ -64,11 +79,18 @@ export class MongoVendorTemplateStore implements VendorTemplateStore {
 export class InMemoryVendorTemplateStore implements VendorTemplateStore {
   private readonly templates = new Map<string, VendorTemplateSnapshot>();
 
-  async findByFingerprint(clientOrgId: string, fingerprintKey: string): Promise<VendorTemplateSnapshot | undefined> {
-    return this.templates.get(`${clientOrgId}|${fingerprintKey}`);
+  async findByFingerprint(
+    tenantId: string,
+    clientOrgId: string,
+    fingerprintKey: string
+  ): Promise<VendorTemplateSnapshot | undefined> {
+    return this.templates.get(`${tenantId}|${clientOrgId}|${fingerprintKey}`);
   }
 
   async saveOrUpdate(template: VendorTemplateSnapshot): Promise<void> {
-    this.templates.set(`${template.clientOrgId}|${template.fingerprintKey}`, template);
+    this.templates.set(
+      `${template.tenantId}|${template.clientOrgId}|${template.fingerprintKey}`,
+      template
+    );
   }
 }

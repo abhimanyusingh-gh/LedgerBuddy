@@ -15,7 +15,11 @@ export function createBankAccountsRouter(bankService: IBankConnectionService) {
     requireActiveClientOrg,
     async (req, res, next) => {
       try {
-        const accounts = await BankAccountModel.find({ clientOrgId: req.activeClientOrgId })
+        const { tenantId } = getAuth(req);
+        const accounts = await BankAccountModel.find({
+          tenantId,
+          clientOrgId: req.activeClientOrgId
+        })
           .sort({ createdAt: -1 })
           .lean();
         res.json({
@@ -56,6 +60,7 @@ export function createBankAccountsRouter(bankService: IBankConnectionService) {
         }
 
         const account = await BankAccountModel.create({
+          tenantId,
           clientOrgId: req.activeClientOrgId,
           createdByUserId: userId,
           aaAddress,

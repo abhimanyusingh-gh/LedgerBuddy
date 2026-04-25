@@ -133,7 +133,15 @@ export class InvoiceExtractionPipeline {
     metadata.vendorContentHash = fingerprint.hash;
 
     const [template, clientComplianceConfig] = await Promise.all([
-      this.templateStore.findByFingerprint(input.tenantId, fingerprint.key),
+      input.clientOrgId
+        ? this.templateStore.findByFingerprint(
+            input.tenantId,
+            input.clientOrgId instanceof Types.ObjectId
+              ? input.clientOrgId.toString()
+              : String(input.clientOrgId),
+            fingerprint.key
+          )
+        : Promise.resolve(undefined),
       input.clientOrgId
         ? resolveClientComplianceConfig(input.tenantId, input.clientOrgId instanceof Types.ObjectId ? input.clientOrgId : new Types.ObjectId(input.clientOrgId))
         : Promise.resolve(null)
