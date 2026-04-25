@@ -21,7 +21,8 @@ import { BankConnectionsTab } from "@/features/tenant-admin/BankConnectionsTab";
 import { BankStatementsTab } from "@/features/tenant-admin/BankStatementsTab";
 import { InvoiceDetailPage } from "@/components/invoice/InvoiceDetailPage";
 import { TriagePage } from "@/features/triage/TriagePage";
-import { readStandaloneHashRoute, type StandaloneHashRoute } from "@/features/workspace/tabHashConfig";
+import { readStandaloneHashRoute, STANDALONE_HASH_PATH, type StandaloneHashRoute } from "@/features/workspace/tabHashConfig";
+import { useTriageQueue } from "@/hooks/useTriageQueue";
 import { useToast } from "@/hooks/useToast";
 import { ToastContainer } from "@/components/common/ToastContainer";
 
@@ -297,6 +298,7 @@ export function App() {
     <div className="layout">
       <TenantAppShell
         activeTab={activeTab}
+        activeStandaloneRoute={standaloneRoute}
         onTabChange={setActiveTab}
         canViewTenantConfig={canViewConfig}
         canViewConnections={canViewConnections}
@@ -401,6 +403,7 @@ export function App() {
 
 interface TenantAppShellProps {
   activeTab: TenantViewTab;
+  activeStandaloneRoute: StandaloneHashRoute | null;
   onTabChange: (tab: TenantViewTab) => void;
   canViewTenantConfig: boolean;
   canViewConnections: boolean;
@@ -410,15 +413,25 @@ interface TenantAppShellProps {
   children: ReactNode;
 }
 
-function TenantAppShell({ activeTab, onTabChange, canViewTenantConfig, canViewConnections, invoiceActionRequiredCount, topNav, subNav, children }: TenantAppShellProps) {
+function TenantAppShell({ activeTab, activeStandaloneRoute, onTabChange, canViewTenantConfig, canViewConnections, invoiceActionRequiredCount, topNav, subNav, children }: TenantAppShellProps) {
   const { migration } = useTabHashRouting({ activeTab, onTabChange });
+  // Triage list is the documented composite-key exception (#156): tenant-scoped,
+  // NOT realm-scoped — we read it via plain `useQuery` so realm-switching does
+  // not refetch and the badge stays consistent across realms.
+  const { total: triageCount } = useTriageQueue();
+  const navigateToStandaloneRoute = (route: StandaloneHashRoute) => {
+    window.location.hash = STANDALONE_HASH_PATH[route];
+  };
   return (
     <AppShell
       activeTab={activeTab}
+      activeStandaloneRoute={activeStandaloneRoute}
       onTabChange={onTabChange}
+      onStandaloneRouteChange={navigateToStandaloneRoute}
       canViewTenantConfig={canViewTenantConfig}
       canViewConnections={canViewConnections}
       invoiceActionRequiredCount={invoiceActionRequiredCount}
+      triageCount={triageCount}
       topNav={topNav}
       subNav={subNav}
       migration={migration}

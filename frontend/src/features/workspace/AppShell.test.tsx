@@ -8,10 +8,13 @@ import { AppShell } from "@/features/workspace/AppShell";
 function renderShell(overrides: Partial<React.ComponentProps<typeof AppShell>> = {}) {
   const props: React.ComponentProps<typeof AppShell> = {
     activeTab: "overview",
+    activeStandaloneRoute: null,
     onTabChange: jest.fn(),
+    onStandaloneRouteChange: jest.fn(),
     canViewTenantConfig: true,
     canViewConnections: true,
     invoiceActionRequiredCount: 0,
+    triageCount: 0,
     topNav: <header data-testid="topnav">TopNav</header>,
     subNav: null,
     migration: null,

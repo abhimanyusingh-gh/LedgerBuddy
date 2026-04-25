@@ -9,6 +9,7 @@ import { TenantSidebar, SIDEBAR_ITEM_ID } from "@/features/workspace/TenantSideb
 const ORDERED_LABELS = [
   "Dashboard",
   "Inbox",
+  "Triage",
   "Invoices",
   "Vendors",
   "Payments",
@@ -20,10 +21,13 @@ const ORDERED_LABELS = [
 function renderSidebar(overrides: Partial<React.ComponentProps<typeof TenantSidebar>> = {}) {
   const props: React.ComponentProps<typeof TenantSidebar> = {
     activeTab: "overview",
+    activeStandaloneRoute: null,
     onTabChange: jest.fn(),
+    onStandaloneRouteChange: jest.fn(),
     canViewTenantConfig: true,
     canViewConnections: true,
     invoiceActionRequiredCount: 0,
+    triageCount: 0,
     ...overrides
   };
   const utils = render(<TenantSidebar {...props} />);
@@ -31,7 +35,7 @@ function renderSidebar(overrides: Partial<React.ComponentProps<typeof TenantSide
 }
 
 describe("TenantSidebar", () => {
-  it("renders all 8 items in the PRD-defined order", () => {
+  it("renders all items in the PRD-defined order (Triage between Inbox and Invoices)", () => {
     renderSidebar();
     const nav = screen.getByRole("navigation", { name: "Primary" });
     const labels = within(nav).getAllByRole("button").map((btn) => btn.querySelector(".tenant-sidebar-label")?.textContent);
@@ -64,7 +68,7 @@ describe("TenantSidebar", () => {
     const { props } = renderSidebar();
     fireEvent.click(screen.getByRole("button", { name: /Vendors/ }));
     fireEvent.click(screen.getByRole("button", { name: /Payments/ }));
-    fireEvent.click(screen.getByRole("button", { name: /Inbox/ }));
+    fireEvent.click(screen.getByRole("button", { name: /^Inbox/ }));
     expect(props.onTabChange).not.toHaveBeenCalled();
   });
 
@@ -93,6 +97,40 @@ describe("TenantSidebar", () => {
     expect(within(invoicesBtn).queryByText("0")).toBeNull();
   });
 
+  it("renders the triage count badge on Triage when > 0", () => {
+    renderSidebar({ triageCount: 5 });
+    const triageBtn = screen.getByRole("button", { name: /Triage/ });
+    expect(within(triageBtn).getByText("5")).toBeInTheDocument();
+    expect(within(triageBtn).getByTitle("5 awaiting triage")).toBeInTheDocument();
+  });
+
+  it("hides the triage badge when triageCount is 0 (consistent with Invoices)", () => {
+    renderSidebar({ triageCount: 0 });
+    const triageBtn = screen.getByRole("button", { name: /Triage/ });
+    expect(within(triageBtn).queryByText("0")).toBeNull();
+  });
+
+  it("calls onStandaloneRouteChange('triage') when Triage is clicked", () => {
+    const { props } = renderSidebar({ triageCount: 3 });
+    fireEvent.click(screen.getByRole("button", { name: /Triage/ }));
+    expect(props.onStandaloneRouteChange).toHaveBeenCalledWith("triage");
+    expect(props.onTabChange).not.toHaveBeenCalled();
+  });
+
+  it("marks Triage as aria-current=page when activeStandaloneRoute is 'triage'", () => {
+    renderSidebar({ activeStandaloneRoute: "triage", activeTab: "dashboard" });
+    const triageBtn = screen.getByRole("button", { name: /Triage/ });
+    expect(triageBtn).toHaveAttribute("aria-current", "page");
+    const invoicesBtn = screen.getByRole("button", { name: /Invoices/ });
+    expect(invoicesBtn).not.toHaveAttribute("aria-current");
+  });
+
+  it("does not mark any tab item as active while a standalone route is open", () => {
+    renderSidebar({ activeStandaloneRoute: "triage", activeTab: "overview" });
+    const dashBtn = screen.getByRole("button", { name: /^Dashboard/ });
+    expect(dashBtn).not.toHaveAttribute("aria-current");
+  });
+
   it("supports keyboard activation (Enter) on a focused backed item", async () => {
     const user = userEvent.setup();
     const { props } = renderSidebar();
@@ -107,6 +145,7 @@ describe("TenantSidebar", () => {
     expect(Object.values(SIDEBAR_ITEM_ID)).toEqual([
       "dashboard",
       "inbox",
+      "triage",
       "invoices",
       "vendors",
       "payments",
