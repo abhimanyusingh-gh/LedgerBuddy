@@ -35,6 +35,8 @@ import {
   requireNonPlatformAdmin,
   requireTenantSetupCompleted
 } from "@/auth/middleware.js";
+import { requireMatchingTenantIdParam, requirePathClientOrgOwnership } from "@/auth/pathScope.js";
+import { requireActiveClientOrg } from "@/auth/activeClientOrg.js";
 import { logger, runWithLogContext } from "@/utils/logger.js";
 import { isHttpError } from "@/errors/HttpError.js";
 import { env } from "@/config/env.js";
@@ -131,18 +133,65 @@ export async function createApp(prebuiltDependencies?: Awaited<ReturnType<typeof
     requireTenantSetupCompleted,
     createUploadsRouter(dependencies.fileStore)
   );
-  app.use("/api", requireNonPlatformAdmin, requireTenantSetupCompleted, createExportRouter(dependencies.exportService));
   app.use("/api", requireNonPlatformAdmin, requireTenantSetupCompleted, createAnalyticsRouter());
   app.use("/api", requireNonPlatformAdmin, createBankAccountsRouter(dependencies.bankService));
   app.use("/api", requireNonPlatformAdmin, requireTenantSetupCompleted, createGlCodesRouter());
   app.use("/api", requireNonPlatformAdmin, requireTenantSetupCompleted, createVendorsRouter());
   app.use("/api", requireNonPlatformAdmin, requireTenantSetupCompleted, createClientComplianceConfigRouter());
   app.use("/api", createTdsRatesRouter());
-  app.use("/api", requireNonPlatformAdmin, requireTenantSetupCompleted, createCsvExportRouter());
-  app.use("/api", requireNonPlatformAdmin, requireTenantSetupCompleted, createClientExportConfigRouter());
   app.use("/api", requireNonPlatformAdmin, requireTenantSetupCompleted, createBankStatementsRouter(dependencies.fileStore, dependencies.ocrProvider, dependencies.fieldVerifier));
   app.use("/api", requireNonPlatformAdmin, requireTenantSetupCompleted, createTcsConfigRouter());
   app.use("/api", requireNonPlatformAdmin, requireTenantSetupCompleted, createNotificationConfigRouter());
+
+  // Nested-router scaffold for #171 — REST URL refactor.
+  // Routes under `/api/tenants/:tenantId/...` get tenant-id-from-path validation;
+  // routes under `/api/tenants/:tenantId/clientOrgs/:clientOrgId/...` additionally
+  // get composite-key ownership validation that stamps `req.activeClientOrgId`.
+  // Domains migrate one vertical slice at a time (per-domain sub-PRs); the OLD
+  // `/api/...` mount stays alive in parallel (additive) so existing FE callers
+  // keep working until the FE has fully cut over for that domain.
+  // `mergeParams: true` propagates the path params down to mounted routers.
+  const tenantRouter = express.Router({ mergeParams: true });
+  app.use(
+    "/api/tenants/:tenantId",
+    requireNonPlatformAdmin,
+    requireTenantSetupCompleted,
+    requireMatchingTenantIdParam,
+    tenantRouter
+  );
+  const clientOrgRouter = express.Router({ mergeParams: true });
+  tenantRouter.use("/clientOrgs/:clientOrgId", requirePathClientOrgOwnership, clientOrgRouter);
+
+  // Export domain (sub-PR 1) — first domain migrated to the new path shape.
+  // Mount BOTH new (path-scoped) and old (query-scoped) — backward compat.
+  // The router handlers read `req.activeClientOrgId`, which is stamped by
+  // either `requirePathClientOrgOwnership` (new) or `requireActiveClientOrg`
+  // (old query/header/session source chain).
+  clientOrgRouter.use(createExportRouter(dependencies.exportService));
+  clientOrgRouter.use(createCsvExportRouter());
+  clientOrgRouter.use(createClientExportConfigRouter());
+
+  app.use(
+    "/api",
+    requireNonPlatformAdmin,
+    requireTenantSetupCompleted,
+    requireActiveClientOrg,
+    createExportRouter(dependencies.exportService)
+  );
+  app.use(
+    "/api",
+    requireNonPlatformAdmin,
+    requireTenantSetupCompleted,
+    requireActiveClientOrg,
+    createCsvExportRouter()
+  );
+  app.use(
+    "/api",
+    requireNonPlatformAdmin,
+    requireTenantSetupCompleted,
+    requireActiveClientOrg,
+    createClientExportConfigRouter()
+  );
 
   app.use((error: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
     const message = error instanceof Error ? error.message : "Unknown server error";
