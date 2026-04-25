@@ -1,7 +1,7 @@
 /**
  * @jest-environment jsdom
  */
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
@@ -122,5 +122,35 @@ describe("OverviewDashboard — admin clientOrgId integration (#162)", () => {
     await waitFor(() => expect(mockedApi.fetchAnalyticsOverview).toHaveBeenCalled());
     const lastArgs = mockedApi.fetchAnalyticsOverview.mock.calls[0];
     expect(lastArgs[3]).toBeNull();
+  });
+});
+
+describe("OverviewDashboard — Approval scope toggle a11y", () => {
+  it("groups the two scope segments under role=group with aria-label='Approval scope'", async () => {
+    renderDashboard();
+    const group = await screen.findByRole("group", { name: "Approval scope" });
+    expect(group).toBeInTheDocument();
+  });
+
+  it("each scope pill exposes aria-pressed reflecting the active state (default 'all')", async () => {
+    renderDashboard();
+    const group = await screen.findByRole("group", { name: "Approval scope" });
+    const mineBtn = within(group).getByRole("button", { name: "My Approvals" });
+    const allBtn = within(group).getByRole("button", { name: "All Users" });
+    expect(mineBtn).toHaveAttribute("aria-pressed", "false");
+    expect(allBtn).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("clicking a scope pill toggles aria-pressed between the two options", async () => {
+    renderDashboard();
+    const group = await screen.findByRole("group", { name: "Approval scope" });
+    const mineBtn = within(group).getByRole("button", { name: "My Approvals" });
+    const allBtn = within(group).getByRole("button", { name: "All Users" });
+    fireEvent.click(mineBtn);
+    expect(mineBtn).toHaveAttribute("aria-pressed", "true");
+    expect(allBtn).toHaveAttribute("aria-pressed", "false");
+    fireEvent.click(allBtn);
+    expect(mineBtn).toHaveAttribute("aria-pressed", "false");
+    expect(allBtn).toHaveAttribute("aria-pressed", "true");
   });
 });

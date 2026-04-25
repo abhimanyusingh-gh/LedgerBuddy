@@ -111,7 +111,10 @@ export function OverviewDashboard() {
         {PRESETS.map((preset) => (
           <button
             key={preset.key}
-            className={`overview-preset-btn${activePreset === preset.key ? " overview-preset-btn-active" : ""}`}
+            type="button"
+            className="ds-pill"
+            data-active={activePreset === preset.key ? "true" : undefined}
+            aria-pressed={activePreset === preset.key}
             onClick={() => {
               const range = preset.range();
               applyPreset(range.from, range.to, preset.key);
@@ -121,11 +124,14 @@ export function OverviewDashboard() {
           </button>
         ))}
         {loading ? <span style={{ fontSize: "0.8rem", color: "var(--ink-soft)" }}>Refreshing…</span> : null}
-        <div style={{ marginLeft: "auto", display: "flex", gap: 0, borderRadius: 6, overflow: "hidden", border: "1px solid var(--line)" }}>
+        <div className="ds-segmented-group overview-scope-toggle" role="group" aria-label="Approval scope">
           {(["mine", "all"] as const).map((item) => (
             <button
               key={item}
-              style={{ padding: "0.3rem 0.8rem", fontSize: "0.8rem", fontWeight: scope === item ? 700 : 400, background: scope === item ? "var(--accent)" : "var(--bg)", color: scope === item ? "#fff" : "var(--ink)", border: "none", cursor: "pointer" }}
+              type="button"
+              className="ds-pill"
+              data-active={scope === item ? "true" : undefined}
+              aria-pressed={scope === item}
               onClick={() => setScope(item)}
             >
               {item === "mine" ? "My Approvals" : "All Users"}
