@@ -42,7 +42,6 @@ export interface UseRecentIngestionCountsArgs {
 
 export interface RecentIngestionCountsResult {
   countsById: Record<string, number | undefined>;
-  isLoading: boolean;
 }
 
 export function useRecentIngestionCounts({
@@ -59,15 +58,12 @@ export function useRecentIngestionCounts({
   });
 
   const countsById: Record<string, number | undefined> = {};
-  let isLoading = false;
   assignmentIds.forEach((id, index) => {
     const q = queries[index];
     if (q?.data) {
       countsById[id] = q.data.total;
-    } else if (q?.isPending) {
-      isLoading = true;
     }
   });
 
-  return { countsById, isLoading };
+  return { countsById };
 }

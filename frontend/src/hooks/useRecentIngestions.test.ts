@@ -101,6 +101,5 @@ describe("hooks/useRecentIngestions", () => {
     );
     expect(fetchMailboxRecentIngestions).not.toHaveBeenCalled();
     expect(result.current.countsById).toEqual({});
-    expect(result.current.isLoading).toBe(false);
   });
 });
