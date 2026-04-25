@@ -31,12 +31,8 @@ function validateCsvColumns(columns: unknown): string | null {
   return null;
 }
 
-// `mergeParams: true` lets this router read `:tenantId` and `:clientOrgId`
-// from the parent nested mount in app.ts. Tenant-vs-auth match and
-// clientOrg ownership are enforced by `requireMatchingTenantIdParam` and
-// `requirePathClientOrgOwnership` mounted on the parent router.
 export function createClientExportConfigRouter() {
-  const router = Router({ mergeParams: true });
+  const router = Router();
   router.use(requireAuth);
 
   router.get("/export-config", requireCap("canExportToTally"), async (req, res, next) => {

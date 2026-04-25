@@ -5,10 +5,8 @@ import { requireAuth } from "@/auth/requireAuth.js";
 import { requireCap } from "@/auth/requireCapability.js";
 import { isString } from "@/utils/validation.js";
 
-// `mergeParams: true` lets this router read `:tenantId` and `:clientOrgId`
-// path params from the parent nested mount in app.ts.
 export function createExportRouter(exportService: ExportService | null) {
-  const router = Router({ mergeParams: true });
+  const router = Router();
   router.use(requireAuth);
 
   router.post("/exports/tally", requireCap("canExportToTally"), async (req, res, next) => {

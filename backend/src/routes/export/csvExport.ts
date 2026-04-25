@@ -7,10 +7,8 @@ import { requireAuth } from "@/auth/requireAuth.js";
 import { requireCap } from "@/auth/requireCapability.js";
 import { INVOICE_STATUS } from "@/types/invoice.js";
 
-// `mergeParams: true` lets this router read `:tenantId` and `:clientOrgId`
-// from the parent nested mount in app.ts.
 export function createCsvExportRouter() {
-  const router = Router({ mergeParams: true });
+  const router = Router();
   router.use(requireAuth);
 
   router.post("/exports/csv", requireCap("canExportToCsv"), async (req, res, next) => {
