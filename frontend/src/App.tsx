@@ -21,6 +21,7 @@ import { BankConnectionsTab } from "@/features/tenant-admin/BankConnectionsTab";
 import { BankStatementsTab } from "@/features/tenant-admin/BankStatementsTab";
 import { InvoiceDetailPage } from "@/components/invoice/InvoiceDetailPage";
 import { TriagePage } from "@/features/triage/TriagePage";
+import { MailboxesPage } from "@/features/admin/mailboxes/MailboxesPage";
 import { readStandaloneHashRoute, STANDALONE_HASH_PATH, type StandaloneHashRoute } from "@/features/workspace/tabHashConfig";
 import { useTriageQueue } from "@/hooks/useTriageQueue";
 import { useActionRequiredQueue } from "@/hooks/useActionRequiredQueue";
@@ -330,6 +331,8 @@ export function App() {
         )}
 
         {standaloneRoute === "triage" && <TriagePage />}
+
+        {standaloneRoute === "mailboxes" && canManageUsers && <MailboxesPage />}
 
         {!standaloneRoute && activeTab === "overview" && <OverviewDashboard />}
 
