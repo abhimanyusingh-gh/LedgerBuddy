@@ -21,8 +21,6 @@ describe("api/client classifier", () => {
       "/vendors",
       "/vendors/v-1",
       "/payments",
-      "/exports",
-      "/exports/tally/download/batch-1",
       "/bank-statements",
       "/bank-statements/upload",
       "/bank-accounts",

@@ -6,6 +6,26 @@ export type FeatureFlagName = "example.healthCheckVerbose";
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:4100/api";
 
+// Mirror the active tenantId into sessionStorage so the axios interceptor in
+// `client.ts` can rewrite migrated `/api/...` paths into the new nested
+// `/api/tenants/:tenantId/...` shape without depending on React state.
+// Mirrors the `useActiveClientOrg` sessionStorage pattern (per-tab; cleared
+// on logout).
+export const ACTIVE_TENANT_ID_STORAGE_KEY = "activeTenantId";
+
+export function readActiveTenantId(): string | null {
+  const value = window.sessionStorage.getItem(ACTIVE_TENANT_ID_STORAGE_KEY);
+  return value && value.length > 0 ? value : null;
+}
+
+function writeActiveTenantId(tenantId: string | null): void {
+  if (!tenantId) {
+    window.sessionStorage.removeItem(ACTIVE_TENANT_ID_STORAGE_KEY);
+    return;
+  }
+  window.sessionStorage.setItem(ACTIVE_TENANT_ID_STORAGE_KEY, tenantId);
+}
+
 export async function refreshSessionToken(currentToken: string): Promise<string> {
   const response = await axios.post<{ token: string }>(
     `${apiBaseUrl}/auth/refresh`,
@@ -42,7 +62,9 @@ export async function loginWithCredentials(email: string, password: string): Pro
 }
 
 export async function fetchSessionContext(): Promise<SessionContextResponse> {
-  return (await apiClient.get<SessionContextResponse>("/session")).data;
+  const response = (await apiClient.get<SessionContextResponse>("/session")).data;
+  writeActiveTenantId(response.tenant?.id ?? null);
+  return response;
 }
 
 export async function completeTenantOnboarding(payload: { tenantName: string; adminEmail: string }): Promise<void> {

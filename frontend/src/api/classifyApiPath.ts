@@ -22,7 +22,9 @@ export const REALM_SCOPED_PATH_PREFIXES = [
   "/invoices",
   "/vendors",
   "/payments",
-  "/exports",
+  // `/exports` migrated to nested-router shape (#171 sub-PR 1) — handled by
+  // `MIGRATED_REALM_SCOPED_PREFIXES` in `client.ts`. Remaining domains stay
+  // here until their respective sub-PRs ship.
   "/bank-statements",
   "/bank-accounts",
   "/bank/accounts",

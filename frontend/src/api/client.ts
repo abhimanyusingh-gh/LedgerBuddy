@@ -2,10 +2,17 @@ import axios from "axios";
 import { normalizeApiError } from "@/lib/common/apiError";
 import { readActiveClientOrgId, ACTIVE_CLIENT_ORG_QUERY_PARAM } from "@/hooks/useActiveClientOrg";
 import { isRealmScopedPath } from "@/api/classifyApiPath";
+import { isMigratedRealmScopedPath, rewriteToNestedShape } from "@/api/migratedPaths";
 import { MissingActiveClientOrgError } from "@/api/errors";
+import { ACTIVE_TENANT_ID_STORAGE_KEY } from "@/api/auth";
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:4100/api";
 const SESSION_TOKEN_KEY = "ledgerbuddy_session_token";
+
+function readActiveTenantIdFromStorage(): string | null {
+  const value = window.sessionStorage.getItem(ACTIVE_TENANT_ID_STORAGE_KEY);
+  return value && value.length > 0 ? value : null;
+}
 
 export const apiClient = axios.create({ baseURL: apiBaseUrl });
 
@@ -18,6 +25,20 @@ apiClient.interceptors.request.use((config) => {
   config.headers["X-Requested-With"] = "LedgerBuddy";
 
   const requestPath = config.url ?? "";
+
+  // Migrated paths take precedence over the classifier-based query injection.
+  // Rewrite the URL to the new nested shape and skip the `?clientOrgId=` query
+  // injection (the BE reads it from the path).
+  if (isMigratedRealmScopedPath(requestPath)) {
+    const tenantId = readActiveTenantIdFromStorage();
+    const clientOrgId = readActiveClientOrgId();
+    if (!tenantId || !clientOrgId) {
+      return Promise.reject(new MissingActiveClientOrgError(requestPath));
+    }
+    config.url = rewriteToNestedShape(requestPath, tenantId, clientOrgId);
+    return config;
+  }
+
   if (isRealmScopedPath(requestPath)) {
     const activeClientOrgId = readActiveClientOrgId();
     if (!activeClientOrgId) {
@@ -167,6 +188,7 @@ export function setStoredSessionToken(token: string): void {
 
 export function clearStoredSessionToken(): void {
   window.localStorage.removeItem(SESSION_TOKEN_KEY);
+  window.sessionStorage.removeItem(ACTIVE_TENANT_ID_STORAGE_KEY);
 }
 
 export function safeNum(v: unknown, fallback: number): number {
