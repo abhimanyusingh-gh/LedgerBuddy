@@ -180,9 +180,11 @@ jest.mock("node:fs", () => {
 
 /* ----------------------------------------------------------- import under test */
 
+import { Types } from "mongoose";
 import { seedDemoInvoices } from "./seedDemoInvoices.js";
 
 const TENANT_ID = "65f0000000000000000000c3";
+const CLIENT_ORG_ID = new Types.ObjectId("65f0000000000000000000d4");
 
 beforeEach(() => {
   invoiceStore = [];
@@ -197,8 +199,8 @@ function byAttachment(name: string): Row | undefined {
 
 describe("seedDemoInvoices", () => {
   it("is idempotent: re-running produces 6 invoices, 1 export batch, 3 notification events with no duplicates", async () => {
-    await seedDemoInvoices(TENANT_ID);
-    await seedDemoInvoices(TENANT_ID);
+    await seedDemoInvoices(TENANT_ID, CLIENT_ORG_ID);
+    await seedDemoInvoices(TENANT_ID, CLIENT_ORG_ID);
 
     expect(invoiceStore).toHaveLength(6);
     expect(exportBatchStore).toHaveLength(1);
@@ -206,7 +208,7 @@ describe("seedDemoInvoices", () => {
   });
 
   it("invoice #1 (INV-FY2526-939.pdf) is EXPORTED with export.batchId resolving to the seeded batch", async () => {
-    await seedDemoInvoices(TENANT_ID);
+    await seedDemoInvoices(TENANT_ID, CLIENT_ORG_ID);
 
     const inv = byAttachment("INV-FY2526-939.pdf");
     expect(inv).toBeDefined();
@@ -217,7 +219,7 @@ describe("seedDemoInvoices", () => {
   });
 
   it("invoice #3 (FC-Vector_.pdf) is AWAITING_APPROVAL with workflowState.currentStep === 2", async () => {
-    await seedDemoInvoices(TENANT_ID);
+    await seedDemoInvoices(TENANT_ID, CLIENT_ORG_ID);
 
     const inv = byAttachment("FC-Vector_.pdf");
     expect(inv).toBeDefined();
@@ -228,7 +230,7 @@ describe("seedDemoInvoices", () => {
   });
 
   it("invoice #4 (FC-Focus_Bills.pdf) is NEEDS_REVIEW with 2 open risk signals (MSME + above-expected)", async () => {
-    await seedDemoInvoices(TENANT_ID);
+    await seedDemoInvoices(TENANT_ID, CLIENT_ORG_ID);
 
     const inv = byAttachment("FC-Focus_Bills.pdf");
     expect(inv).toBeDefined();
@@ -251,7 +253,7 @@ describe("seedDemoInvoices", () => {
   });
 
   it("invoice #6 (FC-G4S Facility_.pdf) is AWAITING_APPROVAL with workflowState.status === 'rejected'", async () => {
-    await seedDemoInvoices(TENANT_ID);
+    await seedDemoInvoices(TENANT_ID, CLIENT_ORG_ID);
 
     const inv = byAttachment("FC-G4S Facility_.pdf");
     expect(inv).toBeDefined();
@@ -263,8 +265,20 @@ describe("seedDemoInvoices", () => {
     expect(stepResults[0].action).toBe("rejected");
   });
 
+  it("every invoice + the export batch carry the supplied clientOrgId", async () => {
+    await seedDemoInvoices(TENANT_ID, CLIENT_ORG_ID);
+
+    expect(invoiceStore.length).toBeGreaterThan(0);
+    for (const inv of invoiceStore) {
+      expect(String(inv.clientOrgId)).toBe(String(CLIENT_ORG_ID));
+      expect(inv.tenantId).toBe(TENANT_ID);
+    }
+    expect(exportBatchStore).toHaveLength(1);
+    expect(String(exportBatchStore[0].clientOrgId)).toBe(String(CLIENT_ORG_ID));
+  });
+
   it("parsed values come from the baked fixture (not hardcoded in the seed)", async () => {
-    await seedDemoInvoices(TENANT_ID);
+    await seedDemoInvoices(TENANT_ID, CLIENT_ORG_ID);
     const inv = byAttachment("INV-FY2526-939.pdf");
     const parsed = inv!.parsed as Row;
     expect(parsed.invoiceNumber).toBe("INV-FY2526-939-number");

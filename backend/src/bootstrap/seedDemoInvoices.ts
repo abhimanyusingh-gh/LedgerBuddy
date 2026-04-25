@@ -2,6 +2,8 @@ import { createHash } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 
+import type { Types } from "mongoose";
+
 import { UserModel } from "@/models/core/User.js";
 import {
   InvoiceModel,
@@ -377,6 +379,7 @@ async function uploadPreviewsForInvoice(
 
 interface SeedRecord {
   tenantId: string;
+  clientOrgId: Types.ObjectId;
   workloadTier: "standard";
   sourceType: "folder";
   sourceKey: typeof DEMO_SOURCE_KEY;
@@ -403,6 +406,7 @@ function toInvoiceDoc(
   row: ScenarioRow,
   fixture: BakedFixture,
   tenantId: string,
+  clientOrgId: Types.ObjectId,
   batchId: string,
   previewKeyMap: Record<string, string>
 ): SeedRecord {
@@ -440,6 +444,7 @@ function toInvoiceDoc(
 
   const doc: SeedRecord = {
     tenantId,
+    clientOrgId,
     workloadTier: "standard",
     sourceType: "folder",
     sourceKey: DEMO_SOURCE_KEY,
@@ -478,6 +483,13 @@ interface SeedDemoInvoicesOptions {
  * Seed a deterministic set of demo invoices + 1 export batch + 3 mailbox
  * notification events for the Neelam and Associates demo tenant.
  *
+ * Every seeded invoice + the seeded export batch belong to the same
+ * `clientOrgId` (Global Innovation Hub Private Limited) — the realm that
+ * matches the customer entity on the baked Sprinto invoice. Per the Part-2
+ * locked decisions, accounting-leaf docs require both `{tenantId, clientOrgId}`
+ * — the demo seed is the only path that auto-creates a ClientOrg, and the
+ * caller passes its `_id` here.
+ *
  * Parsed invoice content, OCR blocks, field provenance, and preview-page PNGs
  * come from pre-baked fixtures in `dev/sample-invoices/baked/<dir>/`, captured
  * once via `yarn bake:demo-fixtures`. The scenario overlay (status, workflow,
@@ -497,9 +509,10 @@ interface SeedDemoInvoicesOptions {
  */
 export async function seedDemoInvoices(
   tenantId: string,
+  clientOrgId: Types.ObjectId,
   options: SeedDemoInvoicesOptions = {}
 ): Promise<void> {
-  logger.info("demo.seed.invoices.start", { tenantId });
+  logger.info("demo.seed.invoices.start", { tenantId, clientOrgId: String(clientOrgId) });
 
   // Precondition: all 6 baked fixtures must exist on disk. If any are missing
   // we skip silently (with a warning) rather than throw, so the backend can
@@ -531,6 +544,7 @@ export async function seedDemoInvoices(
   await ExportBatchModel.deleteMany({ tenantId, system: DEMO_EXPORT_SYSTEM });
   const batch = await ExportBatchModel.create({
     tenantId,
+    clientOrgId,
     system: DEMO_EXPORT_SYSTEM,
     total: 1,
     successCount: 1,
@@ -557,7 +571,7 @@ export async function seedDemoInvoices(
       fixture,
       options
     );
-    docs.push(toInvoiceDoc(row, fixture, tenantId, exportBatchId, previewKeyMap));
+    docs.push(toInvoiceDoc(row, fixture, tenantId, clientOrgId, exportBatchId, previewKeyMap));
   }
 
   if (docs.length > 0) {
@@ -622,6 +636,7 @@ export async function seedDemoInvoices(
 
   logger.info("demo.seed.invoices.complete", {
     tenantId,
+    clientOrgId: String(clientOrgId),
     invoices: docs.length,
     exportBatches: 1,
     notifications: notificationDocs.length,

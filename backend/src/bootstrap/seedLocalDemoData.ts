@@ -18,6 +18,51 @@ interface SeedLocalDemoDataOptions {
   fileStore?: FileStore;
 }
 
+/**
+ * Demo `ClientOrganization` for the Mahir / Neelam and Associates CA-firm
+ * tenant. Mirrors the customer entity on the baked Sprinto invoice
+ * (`INV-FY2526-939`) — Global Innovation Hub Private Limited, Telangana
+ * (state-code prefix `36`).
+ *
+ * Locked decision (#156, 2026-04-24): production tenants do NOT get an
+ * auto-created placeholder ClientOrg; they must onboard via the #150 wizard.
+ * The demo tenant is the explicit exception so the local stack boots with a
+ * fully-wired realm out of the box.
+ */
+export const DEMO_CLIENT_ORG_GSTIN = "36AAKCG4810D1ZV";
+const DEMO_CLIENT_ORG_NAME = "Global Innovation Hub Private Limited";
+const DEMO_CLIENT_ORG_STATE = "Telangana";
+
+/**
+ * Idempotently seeds the demo tenant's `ClientOrganization`. Reuses the
+ * existing doc when a `{ tenantId, gstin }` row already exists. `companyGuid`
+ * + `detectedVersion` are deliberately left null at seed time — both are
+ * populated post-Tally probe in the live flow.
+ */
+export async function seedDemoClientOrganization(
+  tenantId: string
+): Promise<Types.ObjectId> {
+  const doc = await ClientOrganizationModel.findOneAndUpdate(
+    { tenantId, gstin: DEMO_CLIENT_ORG_GSTIN },
+    {
+      $setOnInsert: {
+        tenantId,
+        gstin: DEMO_CLIENT_ORG_GSTIN,
+        companyName: DEMO_CLIENT_ORG_NAME,
+        stateName: DEMO_CLIENT_ORG_STATE,
+        companyGuid: null,
+        f12OverwriteByGuidVerified: false,
+        detectedVersion: null
+      }
+    },
+    { upsert: true, new: true, setDefaultsOnInsert: true }
+  );
+  if (!doc) {
+    throw new Error("seedDemoClientOrganization: upsert returned no document");
+  }
+  return doc._id as Types.ObjectId;
+}
+
 export async function seedLocalDemoData(
   keycloakAdmin: KeycloakAdminClient,
   options: SeedLocalDemoDataOptions = {}
@@ -111,18 +156,15 @@ export async function seedLocalDemoData(
   if (demoTenant) {
     const mahirUser = await UserModel.findOne({ email: "mahir.n@globalhealthx.co" }).lean();
     if (mahirUser) {
-      const demoClientOrg = await ClientOrganizationModel.findOne({ tenantId: DEMO_TENANT_ID })
-        .select("_id")
-        .lean();
-      if (!demoClientOrg) {
-        throw new Error(
-          "Demo tenant seed: no ClientOrganization exists for the demo tenant. " +
-            "Per locked decision, the seed does not auto-create one — onboard a ClientOrg first."
-        );
-      }
-      await seedDemoTenantConfig(DEMO_TENANT_ID, demoClientOrg._id, String(mahirUser._id));
+      // Demo-tenant exception to the "no auto-create ClientOrg" locked
+      // decision — the local stack ships with one realm fully wired so the
+      // baked Sprinto invoice (INV-FY2526-939, customer = Global Innovation
+      // Hub) lands in a coherent {tenantId, clientOrgId} pair.
+      const demoClientOrgId = await seedDemoClientOrganization(DEMO_TENANT_ID);
+      await seedDefaultGlCodes(DEMO_TENANT_ID, demoClientOrgId);
+      await seedDemoTenantConfig(DEMO_TENANT_ID, demoClientOrgId, String(mahirUser._id));
       if (env.LOCAL_DEMO_INVOICES) {
-        await seedDemoInvoices(DEMO_TENANT_ID, { fileStore: options.fileStore });
+        await seedDemoInvoices(DEMO_TENANT_ID, demoClientOrgId, { fileStore: options.fileStore });
       }
     }
   }
