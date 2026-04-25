@@ -33,6 +33,26 @@ export class F12OverwriteNotVerifiedError extends Error {
   }
 }
 
+/**
+ * Thrown when `ClientOrganizationModel.findById(clientOrgId)` returns `null` during
+ * re-export resolution. This is a data-integrity violation: the Invoice pre-save
+ * invariant hook prevents creation of an Invoice with an unresolvable `clientOrgId`,
+ * so hitting this path means a `ClientOrganization` was deleted out from under a
+ * surviving Invoice (i.e. a delete that escaped FK checks). We surface it loudly
+ * rather than silently no-op'ing PLACEOFSUPPLY emission so the orphan reference
+ * gets repaired upstream.
+ */
+export class ClientOrganizationNotFoundError extends Error {
+  readonly code = "TALLY_CLIENT_ORG_NOT_FOUND";
+  constructor(readonly clientOrgId: string) {
+    super(
+      `ClientOrganization ${clientOrgId} not found during Tally re-export resolution. ` +
+      "This indicates an orphaned invoice.clientOrgId reference (data-integrity violation); " +
+      "verify the ClientOrganization row was not deleted out from under surviving invoices."
+    );
+  }
+}
+
 export const EXPORT_VERSION_CONFLICT_REASON = {
   VERSION_MISMATCH: "version-mismatch",
   IN_FLIGHT_MISMATCH: "in-flight-mismatch"
@@ -82,15 +102,25 @@ export async function resolveReExportDecision(params: {
 
   const company = await ClientOrganizationModel.findById(clientOrgId).lean();
 
-  if (action === TALLY_ACTION.ALTER && !company?.f12OverwriteByGuidVerified) {
+  if (!company) {
+    // Data-integrity violation: the Invoice pre-save invariant hook prevents
+    // creation of an Invoice whose clientOrgId does not resolve, so a null here
+    // means the ClientOrganization was deleted out from under a surviving
+    // Invoice (a delete that escaped FK checks). Throw rather than silently
+    // no-op'ing PLACEOFSUPPLY so the orphan reference is surfaced upstream.
+    throw new ClientOrganizationNotFoundError(clientOrgId);
+  }
+
+  if (action === TALLY_ACTION.ALTER && !company.f12OverwriteByGuidVerified) {
     throw new F12OverwriteNotVerifiedError(clientOrgId);
   }
 
   // Buyer state precedence: explicit ClientOrganization.stateName wins;
   // otherwise derive from ClientOrganization.gstin (always present + format-validated
-  // post-pivot, so derivation almost always succeeds). Returns null only when the
-  // org row is missing entirely — keeping the PLACEOFSUPPLY tag absent (safe default).
-  const buyerStateName = company?.stateName ?? deriveVendorState(company?.gstin ?? null, null);
+  // post-pivot, so derivation almost always succeeds). The org row is guaranteed
+  // present here (null was rejected above), so this either resolves a state name
+  // or returns null only on the rare unassigned-prefix path.
+  const buyerStateName = company.stateName ?? deriveVendorState(company.gstin ?? null, null);
 
   return {
     guid: computeVoucherGuid({ clientOrgId, invoiceId, exportVersion: nextExportVersion }),

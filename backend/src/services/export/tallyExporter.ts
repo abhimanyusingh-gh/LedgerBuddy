@@ -317,7 +317,7 @@ function buildVoucherInput(
   resolvedAmountMinor: number
 ): VoucherPayloadInput {
   const vendorGstin = invoice.parsed?.vendorGstin ?? invoice.parsed?.gst?.gstin ?? null;
-  const partyStateName = deriveVendorState(vendorGstin, invoice.parsed?.vendorAddress ?? null) ?? undefined;
+  const partyStateName = deriveVendorState(vendorGstin, invoice.parsed?.vendorAddress ?? null) ?? null;
 
   const input: VoucherPayloadInput = {
     companyName: config.companyName,

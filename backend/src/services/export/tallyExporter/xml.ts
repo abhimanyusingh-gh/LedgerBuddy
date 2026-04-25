@@ -75,7 +75,7 @@ export interface VoucherPayloadInput {
   narration?: string;
   gstin?: string;
   partyPan?: string;
-  partyStateName?: string;
+  partyStateName?: string | null;
   placeOfSupplyStateName?: string;
   guid?: string;
   action?: TallyAction;

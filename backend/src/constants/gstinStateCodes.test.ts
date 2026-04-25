@@ -88,7 +88,7 @@ describe("deriveVendorState — address-state fallback", () => {
 
   it("breaks ties between equal-length matches alphabetically on the canonical name", () => {
     expect(
-      deriveVendorState(null, "Shared facility between Bihar and Delhi - both 6 chars")
+      deriveVendorState(null, "Shared facility between Bihar and Delhi - both 5 chars")
     ).toBe("Bihar");
   });
 });
