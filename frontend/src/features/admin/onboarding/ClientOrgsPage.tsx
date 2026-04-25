@@ -9,9 +9,11 @@ import {
 } from "@/hooks/useTenantClientOrgs";
 import { getUserFacingErrorMessage } from "@/lib/common/apiError";
 import {
+  ARCHIVE_RESULT_STATUS,
   createClientOrganization,
   deleteClientOrganization,
   updateClientOrganization,
+  type ArchiveClientOrganizationResult,
   type ClientOrganization
 } from "@/api/clientOrgs";
 import {
@@ -21,6 +23,7 @@ import {
   type ClientOrgFormValues
 } from "@/features/admin/onboarding/ClientOrgFormPanel";
 import { ClientOrgsTable } from "@/features/admin/onboarding/ClientOrgsTable";
+import { summarizeLinkedCounts } from "@/features/admin/onboarding/clientOrgArchiveSummary";
 
 export const CLIENT_ORGS_PAGE_VIEW = {
   Loading: "loading",
@@ -45,6 +48,11 @@ const INITIAL_FORM_STATE: FormState = {
   errorMessage: null
 };
 
+interface ArchiveSuccessNotice {
+  companyName: string;
+  result: ArchiveClientOrganizationResult;
+}
+
 export function ClientOrgsPage() {
   const query = useClientOrgsAdminList();
   const queryClient = useQueryClient();
@@ -54,6 +62,7 @@ export function ClientOrgsPage() {
   const [formState, setFormState] = useState<FormState>(INITIAL_FORM_STATE);
   const [archiveTarget, setArchiveTarget] = useState<ClientOrganization | null>(null);
   const [archiveError, setArchiveError] = useState<string | null>(null);
+  const [archiveNotice, setArchiveNotice] = useState<ArchiveSuccessNotice | null>(null);
 
   const invalidateList = useCallback(() => {
     void queryClient.invalidateQueries({ queryKey: TENANT_CLIENT_ORGS_QUERY_KEY });
@@ -95,13 +104,15 @@ export function ClientOrgsPage() {
 
   const archiveMutation = useMutation({
     mutationFn: deleteClientOrganization,
-    onSuccess: (_, archivedId) => {
+    onSuccess: (result, archivedId) => {
       invalidateList();
       if (activeClientOrgId === archivedId) {
         setActiveClientOrg(null);
       }
+      const archivedCompanyName = archiveTarget?.companyName ?? "";
       setArchiveTarget(null);
       setArchiveError(null);
+      setArchiveNotice({ companyName: archivedCompanyName, result });
     },
     onError: (error: unknown) => {
       setArchiveError(
@@ -206,6 +217,13 @@ export function ClientOrgsPage() {
         </div>
       ) : null}
 
+      {archiveNotice ? (
+        <ArchiveNoticeBanner
+          notice={archiveNotice}
+          onDismiss={() => setArchiveNotice(null)}
+        />
+      ) : null}
+
       {view === CLIENT_ORGS_PAGE_VIEW.Data ? (
         <>
           <div className="client-orgs-toolbar">
@@ -248,7 +266,7 @@ export function ClientOrgsPage() {
         title="Archive client organization?"
         message={
           archiveError ??
-          `Archiving "${archiveTarget?.companyName ?? ""}" hides it from the realm switcher. Existing accounting data stays read-accessible.`
+          `Archiving "${archiveTarget?.companyName ?? ""}" hides it from the realm switcher. All linked accounting records (invoices, vendors, bank statements, etc.) remain read-accessible. An exact per-record-type breakdown is shown after confirmation.`
         }
         confirmLabel={archiveMutation.isPending ? "Archiving…" : "Archive"}
         destructive
@@ -263,5 +281,58 @@ export function ClientOrgsPage() {
         }}
       />
     </section>
+  );
+}
+
+interface ArchiveNoticeBannerProps {
+  notice: ArchiveSuccessNotice;
+  onDismiss: () => void;
+}
+
+function ArchiveNoticeBanner({ notice, onDismiss }: ArchiveNoticeBannerProps) {
+  const breakdown = summarizeLinkedCounts(notice.result.linkedCounts);
+  const wasDeleted = notice.result.status === ARCHIVE_RESULT_STATUS.Deleted;
+
+  const summaryText = (() => {
+    if (wasDeleted) {
+      return `Removed "${notice.companyName}" — no linked accounting records existed, so the org was deleted outright.`;
+    }
+    if (breakdown.length === 0) {
+      return `Archived "${notice.companyName}". No linked accounting records were detected.`;
+    }
+    const items = breakdown.map((entry) => entry.text).join(", ");
+    return `Archived "${notice.companyName}". ${items} remain read-only and accessible from history.`;
+  })();
+
+  return (
+    <div
+      className="client-orgs-archive-notice"
+      role="status"
+      aria-live="polite"
+      data-testid="client-orgs-archive-notice"
+      data-status={notice.result.status}
+    >
+      <div className="client-orgs-archive-notice-body">
+        <strong>{wasDeleted ? "Deleted" : "Archived"}.</strong>
+        <p>{summaryText}</p>
+        {breakdown.length > 0 && !wasDeleted ? (
+          <ul className="client-orgs-archive-notice-list" data-testid="client-orgs-archive-notice-list">
+            {breakdown.map((entry) => (
+              <li key={entry.label} data-testid={`client-orgs-archive-notice-item-${entry.label}`}>
+                {entry.text}
+              </li>
+            ))}
+          </ul>
+        ) : null}
+      </div>
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={onDismiss}
+        data-testid="client-orgs-archive-notice-dismiss"
+      >
+        Dismiss
+      </Button>
+    </div>
   );
 }

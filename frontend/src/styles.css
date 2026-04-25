@@ -4492,6 +4492,42 @@ pre {
   margin-top: 0.2rem;
 }
 
+.client-orgs-archive-notice {
+  display: flex;
+  gap: var(--sp-3);
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: var(--sp-3) var(--sp-4);
+  border: 1px solid var(--chart-emerald);
+  border-radius: var(--radius-md);
+  background: var(--badge-accent-soft-bg);
+  color: var(--ink);
+}
+
+.client-orgs-archive-notice-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  flex: 1;
+  min-width: 0;
+}
+
+.client-orgs-archive-notice-body p {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--ink);
+}
+
+.client-orgs-archive-notice-list {
+  margin: 0;
+  padding-left: var(--sp-4);
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  font-size: 0.8125rem;
+  color: var(--ink-soft);
+}
+
 .client-orgs-form-checkbox-label {
   font-size: 0.8125rem;
   color: var(--ink);

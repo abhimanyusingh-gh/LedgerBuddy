@@ -9,12 +9,20 @@ import { ClientOrgsPage, CLIENT_ORGS_PAGE_VIEW } from "@/features/admin/onboardi
 import type { ClientOrganization } from "@/api/clientOrgs";
 import { setActiveClientOrgId } from "@/hooks/useActiveClientOrg";
 
-jest.mock("@/api/clientOrgs", () => ({
-  fetchClientOrganizations: jest.fn(),
-  createClientOrganization: jest.fn(),
-  updateClientOrganization: jest.fn(),
-  deleteClientOrganization: jest.fn()
+jest.mock("@/api/client", () => ({
+  apiClient: { get: jest.fn(), post: jest.fn(), patch: jest.fn(), delete: jest.fn() }
 }));
+
+jest.mock("@/api/clientOrgs", () => {
+  const actual = jest.requireActual("@/api/clientOrgs");
+  return {
+    ...actual,
+    fetchClientOrganizations: jest.fn(),
+    createClientOrganization: jest.fn(),
+    updateClientOrganization: jest.fn(),
+    deleteClientOrganization: jest.fn()
+  };
+});
 
 const mocked = jest.requireMock("@/api/clientOrgs") as {
   fetchClientOrganizations: jest.Mock;
@@ -234,9 +242,11 @@ describe("features/admin/onboarding/ClientOrgsPage — archive flow", () => {
     mocked.fetchClientOrganizations.mockResolvedValue([
       buildOrg({ _id: "org-1", gstin: "29ABCPK1234F1Z5", companyName: "Sharma Textiles" })
     ]);
-    mocked.deleteClientOrganization.mockResolvedValue(
-      buildOrg({ _id: "org-1", gstin: "29ABCPK1234F1Z5", companyName: "Sharma Textiles" })
-    );
+    mocked.deleteClientOrganization.mockResolvedValue({
+      status: "archived",
+      linkedCounts: { invoices: 12, vendors: 3 },
+      archivedAt: "2026-04-25T00:00:00Z"
+    });
 
     renderPage();
     await screen.findByTestId("client-orgs-table");
@@ -253,5 +263,102 @@ describe("features/admin/onboarding/ClientOrgsPage — archive flow", () => {
     await waitFor(() => {
       expect(window.sessionStorage.getItem("activeClientOrgId")).toBeNull();
     });
+  });
+
+  it("warns in the dialog that linked accounting records remain read-only", async () => {
+    mocked.fetchClientOrganizations.mockResolvedValue([
+      buildOrg({ _id: "org-1", gstin: "29ABCPK1234F1Z5", companyName: "Sharma Textiles" })
+    ]);
+
+    renderPage();
+    await screen.findByTestId("client-orgs-table");
+    fireEvent.click(screen.getByTestId("client-orgs-table-archive"));
+
+    const dialog = await screen.findByRole("alertdialog");
+    expect(dialog).toHaveTextContent(/linked accounting records/i);
+    expect(dialog).toHaveTextContent(/read-accessible|read-only/i);
+    expect(dialog).toHaveTextContent(/breakdown is shown/i);
+  });
+
+  it("renders the linked-records breakdown banner after a soft-archive succeeds", async () => {
+    mocked.fetchClientOrganizations.mockResolvedValue([
+      buildOrg({ _id: "org-1", gstin: "29ABCPK1234F1Z5", companyName: "Sharma Textiles" })
+    ]);
+    mocked.deleteClientOrganization.mockResolvedValue({
+      status: "archived",
+      linkedCounts: { invoices: 12, vendors: 3, bankStatements: 2 },
+      archivedAt: "2026-04-25T00:00:00Z"
+    });
+
+    renderPage();
+    await screen.findByTestId("client-orgs-table");
+    fireEvent.click(screen.getByTestId("client-orgs-table-archive"));
+    const dialog = await screen.findByRole("alertdialog");
+    await act(async () => {
+      fireEvent.click(within(dialog).getByRole("button", { name: /archive/i }));
+    });
+
+    const notice = await screen.findByTestId("client-orgs-archive-notice");
+    expect(notice.dataset.status).toBe("archived");
+    expect(notice).toHaveTextContent(/Sharma Textiles/);
+    expect(notice).toHaveTextContent(/12 invoices/);
+    expect(notice).toHaveTextContent(/3 vendors/);
+    expect(notice).toHaveTextContent(/2 bank statements/);
+    // List items present per dependent label.
+    expect(screen.getByTestId("client-orgs-archive-notice-item-invoices")).toHaveTextContent(/12 invoices/);
+    expect(screen.getByTestId("client-orgs-archive-notice-item-vendors")).toHaveTextContent(/3 vendors/);
+    expect(screen.getByTestId("client-orgs-archive-notice-item-bankStatements")).toHaveTextContent(/2 bank statements/);
+
+    fireEvent.click(screen.getByTestId("client-orgs-archive-notice-dismiss"));
+    await waitFor(() => {
+      expect(screen.queryByTestId("client-orgs-archive-notice")).not.toBeInTheDocument();
+    });
+  });
+
+  it("singularizes the count label when only one record is linked", async () => {
+    mocked.fetchClientOrganizations.mockResolvedValue([
+      buildOrg({ _id: "org-1", gstin: "29ABCPK1234F1Z5", companyName: "Sharma Textiles" })
+    ]);
+    mocked.deleteClientOrganization.mockResolvedValue({
+      status: "archived",
+      linkedCounts: { invoices: 1 },
+      archivedAt: "2026-04-25T00:00:00Z"
+    });
+
+    renderPage();
+    await screen.findByTestId("client-orgs-table");
+    fireEvent.click(screen.getByTestId("client-orgs-table-archive"));
+    const dialog = await screen.findByRole("alertdialog");
+    await act(async () => {
+      fireEvent.click(within(dialog).getByRole("button", { name: /archive/i }));
+    });
+
+    const notice = await screen.findByTestId("client-orgs-archive-notice");
+    expect(notice).toHaveTextContent(/1 invoice\b/);
+    expect(notice).not.toHaveTextContent(/1 invoices/);
+  });
+
+  it("renders a deleted-outright banner when no dependents existed", async () => {
+    mocked.fetchClientOrganizations.mockResolvedValue([
+      buildOrg({ _id: "org-1", gstin: "29ABCPK1234F1Z5", companyName: "Sharma Textiles" })
+    ]);
+    mocked.deleteClientOrganization.mockResolvedValue({
+      status: "deleted",
+      linkedCounts: {}
+    });
+
+    renderPage();
+    await screen.findByTestId("client-orgs-table");
+    fireEvent.click(screen.getByTestId("client-orgs-table-archive"));
+    const dialog = await screen.findByRole("alertdialog");
+    await act(async () => {
+      fireEvent.click(within(dialog).getByRole("button", { name: /archive/i }));
+    });
+
+    const notice = await screen.findByTestId("client-orgs-archive-notice");
+    expect(notice.dataset.status).toBe("deleted");
+    expect(notice).toHaveTextContent(/no linked accounting records/i);
+    expect(notice).toHaveTextContent(/deleted outright/i);
+    expect(screen.queryByTestId("client-orgs-archive-notice-list")).not.toBeInTheDocument();
   });
 });

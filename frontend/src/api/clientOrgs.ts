@@ -35,6 +35,48 @@ interface UpdateClientOrganizationPayload {
   f12OverwriteByGuidVerified?: boolean;
 }
 
+export const CLIENT_ORG_DEPENDENT_LABEL = {
+  Invoices: "invoices",
+  ExportBatches: "exportBatches",
+  ApprovalWorkflows: "approvalWorkflows",
+  ExtractionLearnings: "extractionLearnings",
+  ExtractionMappings: "extractionMappings",
+  VendorTemplates: "vendorTemplates",
+  Vendors: "vendors",
+  VendorGlMappings: "vendorGlMappings",
+  GlCodes: "glCodes",
+  CostCenters: "costCenters",
+  VendorCostCenterMappings: "vendorCostCenterMappings",
+  BankAccounts: "bankAccounts",
+  BankStatements: "bankStatements",
+  BankTransactions: "bankTransactions",
+  ComplianceConfigs: "complianceConfigs",
+  NotificationConfigs: "notificationConfigs",
+  TcsConfigs: "tcsConfigs",
+  ExportConfigs: "exportConfigs",
+  MailboxAssignments: "mailboxAssignments",
+  TdsSectionMappings: "tdsSectionMappings"
+} as const;
+
+export type ClientOrgDependentLabel =
+  typeof CLIENT_ORG_DEPENDENT_LABEL[keyof typeof CLIENT_ORG_DEPENDENT_LABEL];
+
+export type ClientOrgLinkedCounts = Partial<Record<ClientOrgDependentLabel, number>>;
+
+export const ARCHIVE_RESULT_STATUS = {
+  Archived: "archived",
+  Deleted: "deleted"
+} as const;
+
+type ArchiveResultStatus =
+  typeof ARCHIVE_RESULT_STATUS[keyof typeof ARCHIVE_RESULT_STATUS];
+
+export interface ArchiveClientOrganizationResult {
+  status: ArchiveResultStatus;
+  linkedCounts: ClientOrgLinkedCounts;
+  archivedAt?: string;
+}
+
 const CLIENT_ORGS_PATH = "/admin/client-orgs";
 
 export async function fetchClientOrganizations(): Promise<ClientOrganization[]> {
@@ -55,6 +97,12 @@ export async function updateClientOrganization(
   return (await apiClient.patch<ClientOrganization>(`${CLIENT_ORGS_PATH}/${encodeURIComponent(id)}`, payload)).data;
 }
 
-export async function deleteClientOrganization(id: string): Promise<ClientOrganization> {
-  return (await apiClient.delete<ClientOrganization>(`${CLIENT_ORGS_PATH}/${encodeURIComponent(id)}`)).data;
+export async function deleteClientOrganization(
+  id: string
+): Promise<ArchiveClientOrganizationResult> {
+  return (
+    await apiClient.delete<ArchiveClientOrganizationResult>(
+      `${CLIENT_ORGS_PATH}/${encodeURIComponent(id)}`
+    )
+  ).data;
 }
