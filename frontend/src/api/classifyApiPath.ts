@@ -44,6 +44,13 @@ export const REALM_SCOPED_PATH_BYPASS_PREFIXES = [
 // `?clientOrgId=` injected by the interceptor (operator may have no active
 // realm picked while triaging). Suffix-based bypass keeps the existing
 // prefix matcher untouched for everything else.
+//
+// WARNING: any new sub-path ending with one of these suffixes UNDER a
+// realm-scoped prefix (e.g. `/invoices/:id/some-feature/reject`) will
+// silently inherit the bypass and skip clientOrgId injection. Do NOT reuse
+// these suffixes for non-bypass routes. If a new route legitimately needs
+// to end with `/reject` or `/assign-client-org` AND must remain realm-scoped,
+// add a counter-rule here before adding the route.
 export const REALM_SCOPED_PATH_BYPASS_SUFFIXES = [
   "/assign-client-org",
   "/reject"
