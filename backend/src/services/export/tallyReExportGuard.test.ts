@@ -4,6 +4,7 @@ import { InvoiceModel } from "@/models/invoice/Invoice.js";
 import { ClientOrganizationModel } from "@/models/integration/ClientOrganization.js";
 import {
   clearInFlightExportVersion,
+  ClientOrganizationNotFoundError,
   computeVoucherGuid,
   EXPORT_VERSION_CONFLICT_REASON,
   ExportVersionConflictError,
@@ -114,14 +115,31 @@ describeHarness("resolveReExportDecision + 2-phase staging (BE-2)", ({ getHarnes
     ).rejects.toBeInstanceOf(F12OverwriteNotVerifiedError);
   });
 
-  it("re-export also throws when no ClientOrganization row exists", async () => {
+  it("throws ClientOrganizationNotFoundError when the org row is missing on re-export", async () => {
+    // Data-integrity violation: surfaces orphan invoice.clientOrgId references
+    // (e.g. a delete that escaped FK checks) rather than silently no-op'ing
+    // PLACEOFSUPPLY emission. Pre-supersedes the F12 check so the upstream
+    // root cause is visible.
     await expect(
       resolveReExportDecision({
         clientOrgId: new Types.ObjectId().toString(),
         invoiceId: "inv-1",
         currentExportVersion: 1
       })
-    ).rejects.toBeInstanceOf(F12OverwriteNotVerifiedError);
+    ).rejects.toBeInstanceOf(ClientOrganizationNotFoundError);
+  });
+
+  it("throws ClientOrganizationNotFoundError on first export too (action=Create) when org row is missing", async () => {
+    // Same data-integrity guard fires on the Create path — the F12 check is
+    // skipped for Create, so without this throw a missing org would silently
+    // produce a buyerStateName=null PLACEOFSUPPLY no-op.
+    await expect(
+      resolveReExportDecision({
+        clientOrgId: new Types.ObjectId().toString(),
+        invoiceId: "inv-create",
+        currentExportVersion: 0
+      })
+    ).rejects.toBeInstanceOf(ClientOrganizationNotFoundError);
   });
 
   it("re-export issues ACTION=Alter with bumped version when F12 verified", async () => {
@@ -137,6 +155,37 @@ describeHarness("resolveReExportDecision + 2-phase staging (BE-2)", ({ getHarnes
     expect(decision.action).toBe(TALLY_ACTION.ALTER);
     expect(decision.nextExportVersion).toBe(2);
     expect(decision.buyerStateName).toBe("Karnataka");
+  });
+
+  it("buyerStateName falls back to GSTIN-derived state when ClientOrganization.stateName is null", async () => {
+    // Post-pivot: ClientOrganization.gstin is required + format-validated, so the
+    // GSTIN-derived buyer state almost always succeeds when stateName is unset.
+    // persistClientOrg uses GSTIN prefix "29" → Karnataka.
+    const clientOrgId = await persistClientOrg({
+      f12OverwriteByGuidVerified: true,
+      stateName: null
+    });
+    const decision = await resolveReExportDecision({
+      clientOrgId: clientOrgId.toString(),
+      invoiceId: "inv-fallback",
+      currentExportVersion: 1
+    });
+    expect(decision.buyerStateName).toBe("Karnataka");
+  });
+
+  it("buyerStateName prefers explicit ClientOrganization.stateName over GSTIN-derived", async () => {
+    // GSTIN prefix 29 (Karnataka) but stateName explicitly set to Tamil Nadu —
+    // explicit value wins.
+    const clientOrgId = await persistClientOrg({
+      f12OverwriteByGuidVerified: true,
+      stateName: "Tamil Nadu"
+    });
+    const decision = await resolveReExportDecision({
+      clientOrgId: clientOrgId.toString(),
+      invoiceId: "inv-prec",
+      currentExportVersion: 1
+    });
+    expect(decision.buyerStateName).toBe("Tamil Nadu");
   });
 
   async function createInvoice(overrides: Record<string, unknown>) {

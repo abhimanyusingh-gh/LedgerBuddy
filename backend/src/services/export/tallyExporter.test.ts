@@ -27,7 +27,8 @@ jest.mock("@/services/export/tallyReExportGuard.ts", () => ({
   computeVoucherGuid: jest.requireActual("@/services/export/tallyReExportGuard.ts").computeVoucherGuid,
   F12OverwriteNotVerifiedError: jest.requireActual("@/services/export/tallyReExportGuard.ts").F12OverwriteNotVerifiedError,
   ExportVersionConflictError: jest.requireActual("@/services/export/tallyReExportGuard.ts").ExportVersionConflictError,
-  EXPORT_VERSION_CONFLICT_REASON: jest.requireActual("@/services/export/tallyReExportGuard.ts").EXPORT_VERSION_CONFLICT_REASON
+  EXPORT_VERSION_CONFLICT_REASON: jest.requireActual("@/services/export/tallyReExportGuard.ts").EXPORT_VERSION_CONFLICT_REASON,
+  MissingVendorStateError: jest.requireActual("@/services/export/tallyReExportGuard.ts").MissingVendorStateError
 }));
 
 jest.mock("@/services/export/clientExportConfigResolver.ts", () => ({
@@ -413,7 +414,8 @@ describe("TallyExporter.exportInvoices", () => {
       parsed: {
         vendorName: "Fallback Corp",
         invoiceNumber: "FB-001",
-        totalAmountMinor: 1000
+        totalAmountMinor: 1000,
+        vendorGstin: "27AABCA1234C1Z5"
       },
       ocrText: "Grand Total: 10.00",
       set: jest.fn(),
@@ -1230,9 +1232,28 @@ interface InvoiceStubInput {
   clientOrgId?: string | null;
 }
 
+// Default GSTIN injected into stub invoices so `buildVoucherInput` always has
+// a derivable party state. Tests that explicitly cover the no-GSTIN /
+// no-address path opt out by passing `vendorGstin: null` (or by overriding
+// `parsed` such that derivation still fails) so they exercise the
+// `MissingVendorStateError` branch deliberately.
+const DEFAULT_STUB_VENDOR_GSTIN = "27AABCA1234C1Z5";
+
 function createInvoiceStub(input: InvoiceStubInput) {
+  const parsedInput = (input.parsed ?? {}) as Record<string, unknown>;
+  const parsedHasVendorGstin = "vendorGstin" in parsedInput;
+  const parsedHasVendorAddress = "vendorAddress" in parsedInput;
+  const parsedGst = (typeof parsedInput.gst === "object" && parsedInput.gst !== null)
+    ? (parsedInput.gst as Record<string, unknown>)
+    : undefined;
+  const gstHasGstin = parsedGst ? "gstin" in parsedGst : false;
+  const hasAnyVendorStateInput = parsedHasVendorGstin || parsedHasVendorAddress || gstHasGstin;
+  const parsedWithDefaults: Record<string, unknown> = hasAnyVendorStateInput
+    ? parsedInput
+    : { ...parsedInput, vendorGstin: DEFAULT_STUB_VENDOR_GSTIN };
+
   const state = {
-    parsed: input.parsed ?? {},
+    parsed: parsedWithDefaults,
     processingIssues: input.processingIssues ?? []
   };
 
@@ -1561,7 +1582,11 @@ describe("TallyExporter re-export guard (BE-2) — 2-phase staging", () => {
     expect(stageInFlightExportVersionMock).not.toHaveBeenCalled();
   });
 
-  it("omits PLACEOFSUPPLY when party state cannot be determined (safe default)", async () => {
+  it("fails the invoice with MissingVendorStateError when party state cannot be determined", async () => {
+    // Re-export path: when neither the vendor GSTIN nor address yields a
+    // party state, `buildVoucherInput` throws so the invalid invoice never
+    // reaches XML serialization (avoids silently shipping a Tally import
+    // missing PLACEOFSUPPLY).
     resolveReExportDecisionMock.mockResolvedValue({
       guid: "sha-pos",
       action: "Create",
@@ -1576,13 +1601,22 @@ describe("TallyExporter re-export guard (BE-2) — 2-phase staging", () => {
     const exporter = createExporter();
     const invoice = createInvoiceStub({
       _id: "re-5",
-      parsed: { invoiceNumber: "RE-5", vendorName: "Vendor", currency: "INR", totalAmountMinor: 50000 }
+      parsed: {
+        invoiceNumber: "RE-5",
+        vendorName: "Vendor",
+        currency: "INR",
+        totalAmountMinor: 50000,
+        // explicit null overrides the stub's default GSTIN to exercise the
+        // no-GSTIN-no-address path
+        vendorGstin: null,
+        vendorAddress: null
+      }
     });
 
-    await exporter.exportInvoices([invoice], TENANT_ID);
-    const payload = String(axiosPostMock.mock.calls[0]?.[1] ?? "");
-    expect(payload).toContain("<GUID>sha-pos</GUID>");
-    expect(payload).not.toContain("<PLACEOFSUPPLY>");
+    const results = await exporter.exportInvoices([invoice], TENANT_ID);
+    expect(results[0].success).toBe(false);
+    expect(results[0].error).toMatch(/Cannot derive party state/);
+    expect(axiosPostMock).not.toHaveBeenCalled();
   });
 
   it("reads detectedVersion from ClientOrganization when tenantId is provided", async () => {
@@ -1633,5 +1667,425 @@ describe("TallyExporter re-export guard (BE-2) — 2-phase staging", () => {
     const payload = String(axiosPostMock.mock.calls[0]?.[1] ?? "");
     expect(payload).toContain("ACTION=\"Create\"");
     expect(payload).not.toContain("<GUID>");
+  });
+});
+
+describe("TallyExporter PLACEOFSUPPLY emission matrix (post-pivot, ClientOrganization-rooted)", () => {
+  const TENANT_ID = "tenant-pos";
+
+  beforeEach(() => {
+    axiosPostMock.mockReset();
+    resolveReExportDecisionMock.mockReset();
+    stageInFlightExportVersionMock.mockReset();
+    promoteExportVersionMock.mockReset();
+    clearInFlightExportVersionMock.mockReset();
+    buildTallyExportConfigMock.mockReset();
+    clientOrganizationFindOneMock.mockReset();
+    clientOrganizationFindOneMock.mockResolvedValue(null);
+    stageInFlightExportVersionMock.mockResolvedValue(undefined);
+    promoteExportVersionMock.mockResolvedValue(undefined);
+    clearInFlightExportVersionMock.mockResolvedValue(undefined);
+    buildTallyExportConfigMock.mockResolvedValue({
+      companyName: "Demo Co",
+      purchaseLedgerName: "Purchase",
+      gstLedgers: { cgstLedger: "CGST", sgstLedger: "SGST", igstLedger: "IGST", cessLedger: "Cess" },
+      tdsLedgerPrefix: "TDS",
+      tcsLedgerName: "TCS"
+    });
+    axiosPostMock.mockResolvedValue({
+      data: makeImportResponse({ status: 1, created: 1, lastVchId: "9000" })
+    });
+  });
+
+  function mockBuyerState(buyerStateName: string | null) {
+    resolveReExportDecisionMock.mockResolvedValue({
+      guid: "sha-pos-matrix",
+      action: "Create",
+      priorExportVersion: 0,
+      nextExportVersion: 1,
+      buyerStateName
+    });
+  }
+
+  it("same-state (vendor 27xxxx + buyer Maharashtra): PLACEOFSUPPLY absent, STATENAME present", async () => {
+    mockBuyerState("Maharashtra");
+    const exporter = createExporter();
+    const invoice = createInvoiceStub({
+      _id: "pos-same",
+      parsed: {
+        invoiceNumber: "POS-SAME",
+        vendorName: "Vendor",
+        currency: "INR",
+        totalAmountMinor: 50000,
+        vendorGstin: "27AABCA1234C1Z5"
+      }
+    });
+
+    await exporter.exportInvoices([invoice], TENANT_ID);
+    const payload = String(axiosPostMock.mock.calls[0]?.[1] ?? "");
+    expect(payload).not.toContain("<PLACEOFSUPPLY>");
+    expect(payload).toContain("<STATENAME>Maharashtra</STATENAME>");
+  });
+
+  it("cross-state (vendor 27xxxx + buyer Karnataka): PLACEOFSUPPLY=Karnataka, STATENAME=Maharashtra", async () => {
+    mockBuyerState("Karnataka");
+    const exporter = createExporter();
+    const invoice = createInvoiceStub({
+      _id: "pos-cross",
+      parsed: {
+        invoiceNumber: "POS-CROSS",
+        vendorName: "Vendor",
+        currency: "INR",
+        totalAmountMinor: 50000,
+        vendorGstin: "27AABCA1234C1Z5"
+      }
+    });
+
+    await exporter.exportInvoices([invoice], TENANT_ID);
+    const payload = String(axiosPostMock.mock.calls[0]?.[1] ?? "");
+    expect(payload).toContain("<PLACEOFSUPPLY>Karnataka</PLACEOFSUPPLY>");
+    expect(payload).toContain("<STATENAME>Maharashtra</STATENAME>");
+  });
+
+  it("invalid vendor GSTIN with valid address: derives party state from address (cross-state emits PLACEOFSUPPLY)", async () => {
+    mockBuyerState("Karnataka");
+    const exporter = createExporter();
+    const invoice = createInvoiceStub({
+      _id: "pos-addr",
+      parsed: {
+        invoiceNumber: "POS-ADDR",
+        vendorName: "Vendor",
+        currency: "INR",
+        totalAmountMinor: 50000,
+        vendorGstin: "INVALID-GSTIN-HERE",
+        vendorAddress: "12 Anna Salai, Chennai, Tamil Nadu - 600002"
+      }
+    });
+
+    await exporter.exportInvoices([invoice], TENANT_ID);
+    const payload = String(axiosPostMock.mock.calls[0]?.[1] ?? "");
+    expect(payload).toContain("<STATENAME>Tamil Nadu</STATENAME>");
+    expect(payload).toContain("<PLACEOFSUPPLY>Karnataka</PLACEOFSUPPLY>");
+  });
+
+  it("both vendor identifiers absent: invoice fails with MissingVendorStateError, no XML posted", async () => {
+    mockBuyerState("Karnataka");
+    const exporter = createExporter();
+    const invoice = createInvoiceStub({
+      _id: "pos-none",
+      parsed: {
+        invoiceNumber: "POS-NONE",
+        vendorName: "Vendor",
+        currency: "INR",
+        totalAmountMinor: 50000,
+        // explicit null overrides the stub's default GSTIN to exercise the
+        // no-GSTIN-no-address path
+        vendorGstin: null,
+        vendorAddress: null
+      }
+    });
+
+    const results = await exporter.exportInvoices([invoice], TENANT_ID);
+    expect(results[0].success).toBe(false);
+    expect(results[0].error).toMatch(/Cannot derive party state/);
+    expect(axiosPostMock).not.toHaveBeenCalled();
+  });
+
+  it("unknown vendor GSTIN prefix (99xxxx) without address: invoice fails with MissingVendorStateError, no XML posted", async () => {
+    mockBuyerState("Karnataka");
+    const exporter = createExporter();
+    const invoice = createInvoiceStub({
+      _id: "pos-unknown",
+      parsed: {
+        invoiceNumber: "POS-UNK",
+        vendorName: "Vendor",
+        currency: "INR",
+        totalAmountMinor: 50000,
+        vendorGstin: "99AABCA1234C1Z5"
+      }
+    });
+
+    const results = await exporter.exportInvoices([invoice], TENANT_ID);
+    expect(results[0].success).toBe(false);
+    expect(results[0].error).toMatch(/Cannot derive party state/);
+    expect(axiosPostMock).not.toHaveBeenCalled();
+  });
+
+  it("vendor GSTIN beats mismatched address: GSTIN-derived Maharashtra wins over address Karnataka", async () => {
+    mockBuyerState("Karnataka");
+    const exporter = createExporter();
+    const invoice = createInvoiceStub({
+      _id: "pos-precedence",
+      parsed: {
+        invoiceNumber: "POS-PREC",
+        vendorName: "Vendor",
+        currency: "INR",
+        totalAmountMinor: 50000,
+        vendorGstin: "27AABCA1234C1Z5",
+        vendorAddress: "Whitefield, Bengaluru, Karnataka - 560066"
+      }
+    });
+
+    await exporter.exportInvoices([invoice], TENANT_ID);
+    const payload = String(axiosPostMock.mock.calls[0]?.[1] ?? "");
+    expect(payload).toContain("<STATENAME>Maharashtra</STATENAME>");
+    expect(payload).toContain("<PLACEOFSUPPLY>Karnataka</PLACEOFSUPPLY>");
+  });
+
+  it("buyer state derived purely from clientOrg.gstin when stateName is null (verified end-to-end via guard)", async () => {
+    // Guard returns the GSTIN-derived buyer state when ClientOrganization.stateName
+    // is null; tested at the guard layer in tallyReExportGuard.test.ts. Here we
+    // exercise the wiring: mock the guard to return what it would return in that
+    // case (Karnataka derived from a 29-prefix gstin) and assert the exporter
+    // emits PLACEOFSUPPLY when party (Maharashtra) differs.
+    mockBuyerState("Karnataka");
+    const exporter = createExporter();
+    const invoice = createInvoiceStub({
+      _id: "pos-buyer-from-gstin",
+      parsed: {
+        invoiceNumber: "POS-BFG",
+        vendorName: "Vendor",
+        currency: "INR",
+        totalAmountMinor: 50000,
+        vendorGstin: "27AABCA1234C1Z5"
+      }
+    });
+
+    await exporter.exportInvoices([invoice], TENANT_ID);
+    const payload = String(axiosPostMock.mock.calls[0]?.[1] ?? "");
+    expect(payload).toContain("<PLACEOFSUPPLY>Karnataka</PLACEOFSUPPLY>");
+  });
+
+  it("buyer state from explicit ClientOrganization.stateName overrides GSTIN-derived (verified via guard, cross-state emits)", async () => {
+    // Guard prefers explicit stateName; here we simulate the resolved decision
+    // and assert exporter emission semantics.
+    mockBuyerState("Tamil Nadu");
+    const exporter = createExporter();
+    const invoice = createInvoiceStub({
+      _id: "pos-buyer-explicit",
+      parsed: {
+        invoiceNumber: "POS-BEX",
+        vendorName: "Vendor",
+        currency: "INR",
+        totalAmountMinor: 50000,
+        vendorGstin: "27AABCA1234C1Z5"
+      }
+    });
+
+    await exporter.exportInvoices([invoice], TENANT_ID);
+    const payload = String(axiosPostMock.mock.calls[0]?.[1] ?? "");
+    expect(payload).toContain("<PLACEOFSUPPLY>Tamil Nadu</PLACEOFSUPPLY>");
+    expect(payload).toContain("<STATENAME>Maharashtra</STATENAME>");
+  });
+});
+
+describe("TallyExporter.generateImportFile MissingVendorStateError coverage (#164)", () => {
+  // Coverage gap from patch 5dc407c: the `MissingVendorStateError` catch in
+  // `buildImportFile` (which converts the throw into a per-invoice
+  // skippedItems entry) and the tenant-config branch of `generateImportFile`
+  // were unexercised. These tests target the uncovered lines/branches
+  // surfaced by the BE UT coverage job; they do not change production
+  // semantics.
+  beforeEach(() => {
+    axiosPostMock.mockReset();
+    buildTallyExportConfigMock.mockReset();
+    clientOrganizationFindOneMock.mockReset();
+    clientOrganizationFindOneMock.mockResolvedValue(null);
+  });
+
+  it("skips an invoice and records skippedItems when buildVoucherInput throws MissingVendorStateError", async () => {
+    // Drives the `error instanceof MissingVendorStateError` catch branch in
+    // `buildImportFile` by giving the invoice neither a derivable GSTIN nor a
+    // resolvable vendor address, while keeping the amount/vendor-name/
+    // invoice-number valid so it reaches `buildVoucherInput`.
+    const exporter = createExporter();
+
+    const invoices = [
+      createInvoiceStub({
+        _id: "file-ok-state",
+        parsed: {
+          invoiceNumber: "INV-OKS",
+          vendorName: "Vendor With State",
+          currency: "INR",
+          totalAmountMinor: 100000,
+          vendorGstin: "27AABCA1234C1Z5"
+        }
+      }),
+      createInvoiceStub({
+        _id: "file-missing-state",
+        parsed: {
+          invoiceNumber: "INV-MS",
+          vendorName: "Vendor Sans State",
+          currency: "INR",
+          totalAmountMinor: 50000,
+          vendorGstin: null,
+          vendorAddress: null
+        }
+      })
+    ];
+
+    const result = await exporter.generateImportFile(invoices);
+    expect(result.includedCount).toBe(1);
+    expect(result.skippedItems).toHaveLength(1);
+    expect(result.skippedItems[0]).toMatchObject({
+      invoiceId: "file-missing-state",
+      success: false
+    });
+    expect(result.skippedItems[0].error).toMatch(/Cannot derive party state/);
+
+    // The other invoice still produced XML — partial export, not abort.
+    const xml = result.content.toString("utf-8");
+    expect(xml).toContain("<VOUCHERNUMBER>INV-OKS</VOUCHERNUMBER>");
+    expect(xml).not.toContain("<VOUCHERNUMBER>INV-MS</VOUCHERNUMBER>");
+  });
+
+  it("re-throws non-MissingVendorStateError construction failures (defensive throw branch)", () => {
+    // Covers the `throw error;` re-raise at the bottom of the try/catch in
+    // `buildImportFile`. Synthesize a non-typed throw inside
+    // `buildVoucherInput` by attaching a `.gst` getter that throws — only
+    // `MissingVendorStateError` is swallowed; everything else must surface.
+    const exporter = createExporter();
+
+    const badInvoice = createInvoiceStub({
+      _id: "file-throw",
+      parsed: {
+        invoiceNumber: "INV-THROW",
+        vendorName: "Vendor Throw",
+        currency: "INR",
+        totalAmountMinor: 100000,
+        vendorGstin: "27AABCA1234C1Z5"
+      }
+    });
+    Object.defineProperty(badInvoice.parsed, "gst", {
+      get() { throw new Error("synthetic non-typed failure"); },
+      configurable: true
+    });
+
+    // No tenantId path => `generateImportFile` returns synchronously.
+    expect(() => exporter.generateImportFile([badInvoice])).toThrow(/synthetic non-typed failure/);
+  });
+
+  it("routes through generateImportFileWithTenantConfig when tenantId is provided", async () => {
+    // Covers lines 216 + 222-223: the `tenantId` branch of
+    // `generateImportFile` and the body of
+    // `generateImportFileWithTenantConfig`.
+    buildTallyExportConfigMock.mockResolvedValue({
+      companyName: "Resolved Co",
+      purchaseLedgerName: "Resolved Purchase",
+      gstLedgers: undefined,
+      tdsLedgerPrefix: undefined,
+      tcsLedgerName: undefined
+    });
+
+    const exporter = createExporter();
+    const invoices = [
+      createInvoiceStub({
+        _id: "file-tenant",
+        parsed: {
+          invoiceNumber: "INV-TENANT",
+          vendorName: "Vendor T",
+          currency: "INR",
+          totalAmountMinor: 100000,
+          vendorGstin: "27AABCA1234C1Z5"
+        }
+      })
+    ];
+
+    const result = await exporter.generateImportFile(invoices, "tenant-gen-1");
+    expect(buildTallyExportConfigMock).toHaveBeenCalledWith(
+      "tenant-gen-1",
+      undefined,
+      expect.objectContaining({ companyName: DEFAULT_TALLY_CONFIG.companyName })
+    );
+    expect(result.includedCount).toBe(1);
+    const xml = result.content.toString("utf-8");
+    // Resolved companyName from the tenant-aware config flows into the XML.
+    expect(xml).toContain("Resolved Co");
+  });
+});
+
+describe("TallyExporter.exportInvoices clearInFlight error logging (#164)", () => {
+  // Coverage gap: the `.catch((clearErr) => logger.error(...))` handlers
+  // wrapping `clearInFlightExportVersion` (lines 150 and 166) were never
+  // exercised. Force the clear to reject so the catch handler runs and the
+  // surrounding throw / failure flow is preserved.
+  const TENANT_ID = "tenant-clear";
+
+  beforeEach(() => {
+    axiosPostMock.mockReset();
+    resolveReExportDecisionMock.mockReset();
+    stageInFlightExportVersionMock.mockReset();
+    promoteExportVersionMock.mockReset();
+    clearInFlightExportVersionMock.mockReset();
+    buildTallyExportConfigMock.mockReset();
+    clientOrganizationFindOneMock.mockReset();
+    clientOrganizationFindOneMock.mockResolvedValue(null);
+    stageInFlightExportVersionMock.mockResolvedValue(undefined);
+    promoteExportVersionMock.mockResolvedValue(undefined);
+    buildTallyExportConfigMock.mockResolvedValue({
+      companyName: "Demo Co",
+      purchaseLedgerName: "Purchase",
+      gstLedgers: { cgstLedger: "CGST", sgstLedger: "SGST", igstLedger: "IGST", cessLedger: "Cess" },
+      tdsLedgerPrefix: "TDS",
+      tcsLedgerName: "TCS"
+    });
+  });
+
+  it("logs and continues when clearInFlightExportVersion rejects after axios POST throws", async () => {
+    resolveReExportDecisionMock.mockResolvedValue({
+      guid: "sha-clear-throw",
+      action: "Create",
+      priorExportVersion: 0,
+      nextExportVersion: 1,
+      buyerStateName: null
+    });
+    mockAxiosPostRejected(new Error("connect refused"));
+    clearInFlightExportVersionMock.mockRejectedValue(new Error("clear failed"));
+
+    const exporter = createExporter();
+    const invoice = createInvoiceStub({
+      _id: "clear-throw-1",
+      parsed: { invoiceNumber: "CT-1", vendorName: "Vendor", currency: "INR", totalAmountMinor: 50000 }
+    });
+
+    const results = await exporter.exportInvoices([invoice], TENANT_ID);
+    expect(results[0].success).toBe(false);
+    // The original POST error is what surfaces to the caller; the clear
+    // failure is swallowed by the .catch and logged out-of-band.
+    expect(results[0].error).toMatch(/connect refused/);
+    expect(clearInFlightExportVersionMock).toHaveBeenCalledWith({
+      invoiceId: "clear-throw-1",
+      stagedVersion: 1
+    });
+  });
+
+  it("logs and continues when clearInFlightExportVersion rejects after Tally reports ERRORS>0", async () => {
+    resolveReExportDecisionMock.mockResolvedValue({
+      guid: "sha-clear-errs",
+      action: "Create",
+      priorExportVersion: 0,
+      nextExportVersion: 1,
+      buyerStateName: null
+    });
+    axiosPostMock.mockResolvedValue({
+      data: makeImportResponse({ status: 1, errors: 1, lineError: "Ledger does not exist" })
+    });
+    clearInFlightExportVersionMock.mockRejectedValue(new Error("clear failed (errs path)"));
+
+    const exporter = createExporter();
+    const invoice = createInvoiceStub({
+      _id: "clear-errs-1",
+      parsed: { invoiceNumber: "CE-1", vendorName: "Vendor", currency: "INR", totalAmountMinor: 50000 }
+    });
+
+    const results = await exporter.exportInvoices([invoice], TENANT_ID);
+    expect(results[0].success).toBe(false);
+    // Per-invoice error is the parsed Tally line error, not the clear error.
+    expect(results[0].error).toMatch(/Ledger does not exist/);
+    expect(clearInFlightExportVersionMock).toHaveBeenCalledWith({
+      invoiceId: "clear-errs-1",
+      stagedVersion: 1
+    });
+    expect(promoteExportVersionMock).not.toHaveBeenCalled();
   });
 });

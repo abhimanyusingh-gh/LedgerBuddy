@@ -75,6 +75,13 @@ export interface VoucherPayloadInput {
   narration?: string;
   gstin?: string;
   partyPan?: string;
+  /**
+   * Canonical party (vendor) state name. Required for purchase vouchers because
+   * `mapInvoiceToVoucher` drives the same-state vs cross-state PLACEOFSUPPLY
+   * decision off this value; absent party state would silently produce an invalid
+   * Tally import. Construction sites must throw `MissingVendorStateError` rather
+   * than passing a falsy value here.
+   */
   partyStateName?: string;
   placeOfSupplyStateName?: string;
   guid?: string;

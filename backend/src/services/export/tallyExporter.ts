@@ -20,12 +20,14 @@ import { resolveInvoiceTotalAmountMinor } from "@/services/export/tallyExporter/
 import { buildTallyExportConfig } from "@/services/export/clientExportConfigResolver.js";
 import {
   clearInFlightExportVersion,
+  MissingVendorStateError,
   promoteExportVersion,
   resolveReExportDecision,
   stageInFlightExportVersion
 } from "@/services/export/tallyReExportGuard.js";
 import type { ReExportDecision } from "@/services/export/tallyReExportGuard.js";
 import { ClientOrganizationModel } from "@/models/integration/ClientOrganization.js";
+import { deriveVendorState } from "@/constants/gstinStateCodes.js";
 
 export {
   buildTallyBatchImportXml,
@@ -260,7 +262,19 @@ export class TallyExporter implements AccountingExporter {
         continue;
       }
 
-      inputs.push(buildVoucherInput(config, invoice, invoiceId, resolvedAmount));
+      try {
+        inputs.push(buildVoucherInput(config, invoice, invoiceId, resolvedAmount));
+      } catch (error) {
+        // Currently the only typed throw from buildVoucherInput is
+        // `MissingVendorStateError`; treat any construction failure as a
+        // skip rather than aborting the whole file so the operator gets a
+        // partial export plus a clear per-invoice diagnostic.
+        if (error instanceof MissingVendorStateError) {
+          skippedItems.push({ invoiceId, success: false, error: error.message });
+          continue;
+        }
+        throw error;
+      }
     }
 
     if (inputs.length === 0) {
@@ -315,6 +329,17 @@ function buildVoucherInput(
   invoiceId: string,
   resolvedAmountMinor: number
 ): VoucherPayloadInput {
+  const vendorGstin = invoice.parsed?.vendorGstin ?? invoice.parsed?.gst?.gstin ?? null;
+  const partyStateName = deriveVendorState(vendorGstin, invoice.parsed?.vendorAddress ?? null);
+  if (!partyStateName) {
+    // PLACEOFSUPPLY emission needs a non-null party state to resolve the
+    // same-state vs cross-state decision; emitting an XML voucher without
+    // it would silently ship an invalid Tally import. Fail the invoice at
+    // construction with a typed error so the caller surfaces a clear
+    // diagnostic and the operator can correct the vendor GSTIN/address.
+    throw new MissingVendorStateError(invoiceId, invoice.parsed?.vendorName ?? null);
+  }
+
   const input: VoucherPayloadInput = {
     companyName: config.companyName,
     purchaseLedgerName: config.purchaseLedgerName,
@@ -323,7 +348,8 @@ function buildVoucherInput(
     amountMinor: resolvedAmountMinor,
     currency: invoice.parsed?.currency ?? undefined,
     date: (invoice.parsed?.invoiceDate instanceof Date && !isNaN(invoice.parsed.invoiceDate.getTime())) ? invoice.parsed.invoiceDate : (invoice.receivedAt ?? new Date()),
-    narration: buildNarration(invoice)
+    narration: buildNarration(invoice),
+    partyStateName
   };
 
   const invoiceObj = invoice as unknown as Record<string, unknown>;
