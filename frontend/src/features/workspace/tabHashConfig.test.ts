@@ -9,6 +9,14 @@ describe("features/workspace/tabHashConfig — standalone hash routes", () => {
     expect(STANDALONE_HASH_PATH.triage).toBe("#/triage");
   });
 
+  it("registers mailboxes at the canonical hash", () => {
+    expect(STANDALONE_HASH_PATH.mailboxes).toBe("#/mailboxes");
+  });
+
+  it("matches the registered mailboxes hash exactly", () => {
+    expect(readStandaloneHashRoute("#/mailboxes")).toBe("mailboxes");
+  });
+
   it("does not collide with any tab hash", () => {
     const tabHashes = new Set<string>(Object.values(TAB_HASH_PATH));
     for (const path of Object.values(STANDALONE_HASH_PATH)) {
