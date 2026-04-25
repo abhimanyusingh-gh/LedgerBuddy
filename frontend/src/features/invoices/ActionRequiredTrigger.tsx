@@ -11,8 +11,11 @@ export function ActionRequiredTrigger({ onSelectInvoice }: ActionRequiredTrigger
   const [open, setOpen] = useState(false);
   const panelId = useId();
   const { totalCount, isLoading } = useActionRequiredQueue();
-  const badgeTone = totalCount > 0 ? BADGE_TONE.danger : BADGE_TONE.neutral;
-  const countLabel = isLoading && totalCount === 0 ? "—" : String(totalCount);
+  // null = no active realm; render the same neutral placeholder as loading
+  // so the contract from the hook (null = unknown) flows through unchanged.
+  const isUnknown = totalCount === null || (isLoading && totalCount === 0);
+  const badgeTone = totalCount !== null && totalCount > 0 ? BADGE_TONE.danger : BADGE_TONE.neutral;
+  const countLabel = isUnknown ? "—" : String(totalCount);
 
   return (
     <>

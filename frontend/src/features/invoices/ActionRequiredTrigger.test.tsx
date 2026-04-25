@@ -125,6 +125,14 @@ describe("features/invoices/ActionRequiredTrigger", () => {
     expect(trigger).toHaveTextContent("2");
   });
 
+  it("renders the unknown-sentinel '—' when no realm is active (totalCount=null)", async () => {
+    setActiveClientOrgId(null);
+    renderWithClient(<ActionRequiredTrigger onSelectInvoice={() => {}} />);
+    const trigger = await screen.findByTestId("action-required-trigger");
+    expect(trigger).toHaveTextContent("—");
+    expect(fetchInvoices).not.toHaveBeenCalled();
+  });
+
   it("forwards deep-link selection and closes the panel", async () => {
     fetchInvoices.mockResolvedValue({
       items: [

@@ -61,12 +61,11 @@ describe("hooks/useActionRequiredQueue — realm-scoped (#141)", () => {
   });
   afterEach(reset);
 
-  it("does NOT fetch when no realm is active (count surfaces as 0 + isRealmActive=false)", () => {
+  it("does NOT fetch when no realm is active (totalCount surfaces as null — the unknown sentinel)", () => {
     const { wrapper } = makeWrapper();
     const { result } = renderHook(() => useActionRequiredQueue(), { wrapper });
     expect(fetchInvoices).not.toHaveBeenCalled();
-    expect(result.current.totalCount).toBe(0);
-    expect(result.current.isRealmActive).toBe(false);
+    expect(result.current.totalCount).toBeNull();
     expect(result.current.isLoading).toBe(false);
   });
 
@@ -81,7 +80,6 @@ describe("hooks/useActionRequiredQueue — realm-scoped (#141)", () => {
     const { wrapper } = makeWrapper();
     const { result } = renderHook(() => useActionRequiredQueue(), { wrapper });
     await waitFor(() => expect(result.current.totalCount).toBe(2));
-    expect(result.current.isRealmActive).toBe(true);
     expect(fetchInvoices).toHaveBeenCalledTimes(1);
   });
 
@@ -117,7 +115,9 @@ describe("hooks/useActionRequiredQueue — realm-scoped (#141)", () => {
     await waitFor(() => expect(result.current.totalCount).toBe(2));
     expect(fetchInvoices).toHaveBeenCalledTimes(2);
 
-    const allRealmEntries = client.getQueryCache().findAll({ queryKey: ["clientOrg"] });
-    expect(allRealmEntries.length).toBeGreaterThanOrEqual(2);
+    const realmBEntries = client
+      .getQueryCache()
+      .findAll({ queryKey: ["clientOrg", "realm-B", ...ACTION_QUEUE_QUERY_KEY] });
+    expect(realmBEntries.length).toBe(1);
   });
 });

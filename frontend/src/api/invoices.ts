@@ -24,7 +24,19 @@ export async function uploadInvoiceFiles(files: File[]): Promise<{ uploaded: str
   })).data;
 }
 
-export async function fetchInvoices(status?: string, from?: string, to?: string, page = 1, limit = 20, approvedBy?: string, sortBy?: string, sortDir?: "asc" | "desc") {
+interface FetchInvoicesOptions {
+  status?: string;
+  from?: string;
+  to?: string;
+  page?: number;
+  limit?: number;
+  approvedBy?: string;
+  sortBy?: string;
+  sortDir?: "asc" | "desc";
+}
+
+export async function fetchInvoices(options: FetchInvoicesOptions = {}) {
+  const { status, from, to, page = 1, limit = 20, approvedBy, sortBy, sortDir } = options;
   const response = await apiClient.get<InvoiceListResponse>("/invoices", {
     params: {
       page, limit,
