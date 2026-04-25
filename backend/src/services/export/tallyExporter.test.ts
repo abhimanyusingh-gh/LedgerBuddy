@@ -1878,3 +1878,214 @@ describe("TallyExporter PLACEOFSUPPLY emission matrix (post-pivot, ClientOrganiz
     expect(payload).toContain("<STATENAME>Maharashtra</STATENAME>");
   });
 });
+
+describe("TallyExporter.generateImportFile MissingVendorStateError coverage (#164)", () => {
+  // Coverage gap from patch 5dc407c: the `MissingVendorStateError` catch in
+  // `buildImportFile` (which converts the throw into a per-invoice
+  // skippedItems entry) and the tenant-config branch of `generateImportFile`
+  // were unexercised. These tests target the uncovered lines/branches
+  // surfaced by the BE UT coverage job; they do not change production
+  // semantics.
+  beforeEach(() => {
+    axiosPostMock.mockReset();
+    buildTallyExportConfigMock.mockReset();
+    clientOrganizationFindOneMock.mockReset();
+    clientOrganizationFindOneMock.mockResolvedValue(null);
+  });
+
+  it("skips an invoice and records skippedItems when buildVoucherInput throws MissingVendorStateError", async () => {
+    // Drives the `error instanceof MissingVendorStateError` catch branch in
+    // `buildImportFile` by giving the invoice neither a derivable GSTIN nor a
+    // resolvable vendor address, while keeping the amount/vendor-name/
+    // invoice-number valid so it reaches `buildVoucherInput`.
+    const exporter = createExporter();
+
+    const invoices = [
+      createInvoiceStub({
+        _id: "file-ok-state",
+        parsed: {
+          invoiceNumber: "INV-OKS",
+          vendorName: "Vendor With State",
+          currency: "INR",
+          totalAmountMinor: 100000,
+          vendorGstin: "27AABCA1234C1Z5"
+        }
+      }),
+      createInvoiceStub({
+        _id: "file-missing-state",
+        parsed: {
+          invoiceNumber: "INV-MS",
+          vendorName: "Vendor Sans State",
+          currency: "INR",
+          totalAmountMinor: 50000,
+          vendorGstin: null,
+          vendorAddress: null
+        }
+      })
+    ];
+
+    const result = await exporter.generateImportFile(invoices);
+    expect(result.includedCount).toBe(1);
+    expect(result.skippedItems).toHaveLength(1);
+    expect(result.skippedItems[0]).toMatchObject({
+      invoiceId: "file-missing-state",
+      success: false
+    });
+    expect(result.skippedItems[0].error).toMatch(/Cannot derive party state/);
+
+    // The other invoice still produced XML — partial export, not abort.
+    const xml = result.content.toString("utf-8");
+    expect(xml).toContain("<VOUCHERNUMBER>INV-OKS</VOUCHERNUMBER>");
+    expect(xml).not.toContain("<VOUCHERNUMBER>INV-MS</VOUCHERNUMBER>");
+  });
+
+  it("re-throws non-MissingVendorStateError construction failures (defensive throw branch)", () => {
+    // Covers the `throw error;` re-raise at the bottom of the try/catch in
+    // `buildImportFile`. Synthesize a non-typed throw inside
+    // `buildVoucherInput` by attaching a `.gst` getter that throws — only
+    // `MissingVendorStateError` is swallowed; everything else must surface.
+    const exporter = createExporter();
+
+    const badInvoice = createInvoiceStub({
+      _id: "file-throw",
+      parsed: {
+        invoiceNumber: "INV-THROW",
+        vendorName: "Vendor Throw",
+        currency: "INR",
+        totalAmountMinor: 100000,
+        vendorGstin: "27AABCA1234C1Z5"
+      }
+    });
+    Object.defineProperty(badInvoice.parsed, "gst", {
+      get() { throw new Error("synthetic non-typed failure"); },
+      configurable: true
+    });
+
+    // No tenantId path => `generateImportFile` returns synchronously.
+    expect(() => exporter.generateImportFile([badInvoice])).toThrow(/synthetic non-typed failure/);
+  });
+
+  it("routes through generateImportFileWithTenantConfig when tenantId is provided", async () => {
+    // Covers lines 216 + 222-223: the `tenantId` branch of
+    // `generateImportFile` and the body of
+    // `generateImportFileWithTenantConfig`.
+    buildTallyExportConfigMock.mockResolvedValue({
+      companyName: "Resolved Co",
+      purchaseLedgerName: "Resolved Purchase",
+      gstLedgers: undefined,
+      tdsLedgerPrefix: undefined,
+      tcsLedgerName: undefined
+    });
+
+    const exporter = createExporter();
+    const invoices = [
+      createInvoiceStub({
+        _id: "file-tenant",
+        parsed: {
+          invoiceNumber: "INV-TENANT",
+          vendorName: "Vendor T",
+          currency: "INR",
+          totalAmountMinor: 100000,
+          vendorGstin: "27AABCA1234C1Z5"
+        }
+      })
+    ];
+
+    const result = await exporter.generateImportFile(invoices, "tenant-gen-1");
+    expect(buildTallyExportConfigMock).toHaveBeenCalledWith(
+      "tenant-gen-1",
+      undefined,
+      expect.objectContaining({ companyName: DEFAULT_TALLY_CONFIG.companyName })
+    );
+    expect(result.includedCount).toBe(1);
+    const xml = result.content.toString("utf-8");
+    // Resolved companyName from the tenant-aware config flows into the XML.
+    expect(xml).toContain("Resolved Co");
+  });
+});
+
+describe("TallyExporter.exportInvoices clearInFlight error logging (#164)", () => {
+  // Coverage gap: the `.catch((clearErr) => logger.error(...))` handlers
+  // wrapping `clearInFlightExportVersion` (lines 150 and 166) were never
+  // exercised. Force the clear to reject so the catch handler runs and the
+  // surrounding throw / failure flow is preserved.
+  const TENANT_ID = "tenant-clear";
+
+  beforeEach(() => {
+    axiosPostMock.mockReset();
+    resolveReExportDecisionMock.mockReset();
+    stageInFlightExportVersionMock.mockReset();
+    promoteExportVersionMock.mockReset();
+    clearInFlightExportVersionMock.mockReset();
+    buildTallyExportConfigMock.mockReset();
+    clientOrganizationFindOneMock.mockReset();
+    clientOrganizationFindOneMock.mockResolvedValue(null);
+    stageInFlightExportVersionMock.mockResolvedValue(undefined);
+    promoteExportVersionMock.mockResolvedValue(undefined);
+    buildTallyExportConfigMock.mockResolvedValue({
+      companyName: "Demo Co",
+      purchaseLedgerName: "Purchase",
+      gstLedgers: { cgstLedger: "CGST", sgstLedger: "SGST", igstLedger: "IGST", cessLedger: "Cess" },
+      tdsLedgerPrefix: "TDS",
+      tcsLedgerName: "TCS"
+    });
+  });
+
+  it("logs and continues when clearInFlightExportVersion rejects after axios POST throws", async () => {
+    resolveReExportDecisionMock.mockResolvedValue({
+      guid: "sha-clear-throw",
+      action: "Create",
+      priorExportVersion: 0,
+      nextExportVersion: 1,
+      buyerStateName: null
+    });
+    mockAxiosPostRejected(new Error("connect refused"));
+    clearInFlightExportVersionMock.mockRejectedValue(new Error("clear failed"));
+
+    const exporter = createExporter();
+    const invoice = createInvoiceStub({
+      _id: "clear-throw-1",
+      parsed: { invoiceNumber: "CT-1", vendorName: "Vendor", currency: "INR", totalAmountMinor: 50000 }
+    });
+
+    const results = await exporter.exportInvoices([invoice], TENANT_ID);
+    expect(results[0].success).toBe(false);
+    // The original POST error is what surfaces to the caller; the clear
+    // failure is swallowed by the .catch and logged out-of-band.
+    expect(results[0].error).toMatch(/connect refused/);
+    expect(clearInFlightExportVersionMock).toHaveBeenCalledWith({
+      invoiceId: "clear-throw-1",
+      stagedVersion: 1
+    });
+  });
+
+  it("logs and continues when clearInFlightExportVersion rejects after Tally reports ERRORS>0", async () => {
+    resolveReExportDecisionMock.mockResolvedValue({
+      guid: "sha-clear-errs",
+      action: "Create",
+      priorExportVersion: 0,
+      nextExportVersion: 1,
+      buyerStateName: null
+    });
+    axiosPostMock.mockResolvedValue({
+      data: makeImportResponse({ status: 1, errors: 1, lineError: "Ledger does not exist" })
+    });
+    clearInFlightExportVersionMock.mockRejectedValue(new Error("clear failed (errs path)"));
+
+    const exporter = createExporter();
+    const invoice = createInvoiceStub({
+      _id: "clear-errs-1",
+      parsed: { invoiceNumber: "CE-1", vendorName: "Vendor", currency: "INR", totalAmountMinor: 50000 }
+    });
+
+    const results = await exporter.exportInvoices([invoice], TENANT_ID);
+    expect(results[0].success).toBe(false);
+    // Per-invoice error is the parsed Tally line error, not the clear error.
+    expect(results[0].error).toMatch(/Ledger does not exist/);
+    expect(clearInFlightExportVersionMock).toHaveBeenCalledWith({
+      invoiceId: "clear-errs-1",
+      stagedVersion: 1
+    });
+    expect(promoteExportVersionMock).not.toHaveBeenCalled();
+  });
+});
