@@ -102,4 +102,20 @@ describe("hooks/useRecentIngestions", () => {
     expect(fetchMailboxRecentIngestions).not.toHaveBeenCalled();
     expect(result.current.countsById).toEqual({});
   });
+
+  it("useRecentIngestionCounts surfaces a null sentinel when a per-id query errors", async () => {
+    fetchMailboxRecentIngestions.mockImplementation((id: string) =>
+      id === "a-1"
+        ? Promise.resolve({ items: [], total: 9, periodDays: 30, truncatedAt: 1 })
+        : Promise.reject(new Error("boom"))
+    );
+    const { result } = renderHook(
+      () => useRecentIngestionCounts({ assignmentIds: ["a-1", "a-2"], days: 30 }),
+      { wrapper: makeWrapper() }
+    );
+    await waitFor(() => {
+      expect(result.current.countsById["a-1"]).toBe(9);
+      expect(result.current.countsById["a-2"]).toBeNull();
+    });
+  });
 });

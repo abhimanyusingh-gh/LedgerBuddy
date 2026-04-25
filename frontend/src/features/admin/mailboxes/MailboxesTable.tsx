@@ -8,7 +8,7 @@ const VISIBLE_CHIP_LIMIT = 3;
 interface MailboxesTableProps {
   items: MailboxAssignment[];
   clientOrgs: ClientOrgOption[] | undefined;
-  ingestionCounts: Record<string, number | undefined>;
+  ingestionCounts: Record<string, number | null | undefined>;
   onEdit: (assignment: MailboxAssignment) => void;
   onDelete: (assignment: MailboxAssignment) => void;
   onViewRecent?: (assignment: MailboxAssignment) => void;
@@ -113,6 +113,13 @@ export function MailboxesTable({
                   ) : (
                     <span data-testid={`mailboxes-table-count-${item._id}`}>{ingestionCount}</span>
                   )
+                ) : ingestionCount === null ? (
+                  <span
+                    title="Failed to load count — retry"
+                    data-testid={`mailboxes-table-count-error-${item._id}`}
+                  >
+                    ?
+                  </span>
                 ) : (
                   <span aria-hidden="true" data-testid={`mailboxes-table-count-pending-${item._id}`}>
                     —

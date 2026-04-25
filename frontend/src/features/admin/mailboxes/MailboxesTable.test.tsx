@@ -115,6 +115,21 @@ describe("features/admin/mailboxes/MailboxesTable", () => {
     expect(screen.getByTestId("mailboxes-table-count-pending-a-2")).toBeInTheDocument();
   });
 
+  it("renders a `?` with a retry tooltip when the per-row count errored (null sentinel)", () => {
+    render(
+      <MailboxesTable
+        items={[buildAssignment({ _id: "a-1" })]}
+        clientOrgs={ORGS}
+        ingestionCounts={{ "a-1": null }}
+        onEdit={jest.fn()}
+        onDelete={jest.fn()}
+      />
+    );
+    const cell = screen.getByTestId("mailboxes-table-count-error-a-1");
+    expect(cell).toHaveTextContent("?");
+    expect(cell).toHaveAttribute("title", "Failed to load count — retry");
+  });
+
   it("invokes the onEdit / onDelete callbacks with the row's assignment", () => {
     const onEdit = jest.fn();
     const onDelete = jest.fn();

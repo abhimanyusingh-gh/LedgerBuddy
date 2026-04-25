@@ -41,7 +41,7 @@ export interface UseRecentIngestionCountsArgs {
 }
 
 export interface RecentIngestionCountsResult {
-  countsById: Record<string, number | undefined>;
+  countsById: Record<string, number | null | undefined>;
 }
 
 export function useRecentIngestionCounts({
@@ -57,11 +57,13 @@ export function useRecentIngestionCounts({
     }))
   });
 
-  const countsById: Record<string, number | undefined> = {};
+  const countsById: Record<string, number | null | undefined> = {};
   assignmentIds.forEach((id, index) => {
     const q = queries[index];
     if (q?.data) {
       countsById[id] = q.data.total;
+    } else if (q?.isError) {
+      countsById[id] = null;
     }
   });
 
