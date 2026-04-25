@@ -55,6 +55,8 @@ afterEach(() => {
   jest.restoreAllMocks();
 });
 
+const VALID_INTEGRATION_ID = "507f1f77bcf86cd799439011";
+
 describe("features/admin/mailboxes/MailboxFormPanel — Add mode", () => {
   it("requires both an integrationId and at least one client org to enable submit", () => {
     const onSubmit = jest.fn();
@@ -74,7 +76,7 @@ describe("features/admin/mailboxes/MailboxFormPanel — Add mode", () => {
     expect(submit).toBeDisabled();
 
     fireEvent.change(screen.getByTestId("mailbox-form-integration-id-input"), {
-      target: { value: "int-abc" }
+      target: { value: VALID_INTEGRATION_ID }
     });
     expect(submit).toBeDisabled();
 
@@ -83,9 +85,34 @@ describe("features/admin/mailboxes/MailboxFormPanel — Add mode", () => {
 
     fireEvent.click(submit);
     expect(onSubmit).toHaveBeenCalledWith({
-      integrationId: "int-abc",
+      integrationId: VALID_INTEGRATION_ID,
       clientOrgIds: ["org-1"]
     });
+  });
+
+  it("blocks submit and surfaces a validation message when integrationId is not a 24-char ObjectId", () => {
+    const onSubmit = jest.fn();
+    render(
+      <MailboxFormPanel
+        open
+        mode={MAILBOX_FORM_MODE.Add}
+        clientOrgs={ORGS}
+        clientOrgsLoading={false}
+        clientOrgsError={false}
+        onClientOrgsRetry={jest.fn()}
+        onSubmit={onSubmit}
+        onClose={jest.fn()}
+      />
+    );
+    fireEvent.change(screen.getByTestId("mailbox-form-integration-id-input"), {
+      target: { value: "int-abc" }
+    });
+    fireEvent.click(screen.getByTestId("client-org-multi-picker-checkbox-org-1"));
+    expect(screen.getByTestId("mailbox-form-submit")).toBeDisabled();
+    expect(screen.getByTestId("mailbox-form-integration-id-error")).toHaveTextContent(
+      /24-character objectid/i
+    );
+    expect(onSubmit).not.toHaveBeenCalled();
   });
 
   it("renders the routing preview with the company name when exactly 1 org is selected", () => {
@@ -104,6 +131,25 @@ describe("features/admin/mailboxes/MailboxFormPanel — Add mode", () => {
     fireEvent.click(screen.getByTestId("client-org-multi-picker-checkbox-org-1"));
     expect(screen.getByTestId("mailbox-form-routing-preview")).toHaveTextContent(
       /auto-assign to Sharma Textiles/i
+    );
+  });
+
+  it("renders a 'no valid client orgs' affordance when every selected id is an orphan", () => {
+    render(
+      <MailboxFormPanel
+        open
+        mode={MAILBOX_FORM_MODE.Edit}
+        initial={buildAssignment({ _id: "a-1", clientOrgIds: ["org-99"] })}
+        clientOrgs={ORGS}
+        clientOrgsLoading={false}
+        clientOrgsError={false}
+        onClientOrgsRetry={jest.fn()}
+        onSubmit={jest.fn()}
+        onClose={jest.fn()}
+      />
+    );
+    expect(screen.getByTestId("mailbox-form-routing-preview")).toHaveTextContent(
+      /no valid client organizations/i
     );
   });
 

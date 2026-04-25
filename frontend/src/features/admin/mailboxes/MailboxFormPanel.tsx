@@ -31,6 +31,13 @@ interface MailboxFormPanelProps {
   onClose: () => void;
 }
 
+const OBJECT_ID_PATTERN = /^[0-9a-fA-F]{24}$/;
+const INTEGRATION_ID_INVALID_MESSAGE = "Integration ID must be a 24-character ObjectId.";
+
+function isValidObjectId(value: string): boolean {
+  return OBJECT_ID_PATTERN.test(value);
+}
+
 function buildInitial(initial: MailboxAssignment | null | undefined): MailboxFormValues {
   return {
     integrationId: initial?.integrationId ?? "",
@@ -42,12 +49,17 @@ function buildRoutingPreview(
   selectedIds: string[],
   clientOrgs: ClientOrgOption[] | undefined
 ): string {
-  const count = selectedIds.length;
-  if (count === 0) return "Select at least one client organization to enable polling.";
-  if (count === 1) {
-    const onlyId = selectedIds[0];
-    const label = clientOrgs?.find((org) => org.id === onlyId)?.companyName ?? onlyId;
-    return `All polled invoices auto-assign to ${label}.`;
+  if (selectedIds.length === 0) {
+    return "Select at least one client organization to enable polling.";
+  }
+  const resolved = selectedIds
+    .map((id) => clientOrgs?.find((org) => org.id === id))
+    .filter((org): org is ClientOrgOption => Boolean(org));
+  if (resolved.length === 0) {
+    return "No valid client organizations selected — please re-select.";
+  }
+  if (resolved.length === 1) {
+    return `All polled invoices auto-assign to ${resolved[0].companyName}.`;
   }
   return "Polled invoices match by customer GSTIN. Unmatched invoices land in Triage for manual assignment.";
 }
@@ -75,14 +87,16 @@ export function MailboxFormPanel({
   }, [open, initial]);
 
   const trimmedIntegrationId = values.integrationId.trim();
+  const integrationIdTouched = values.integrationId.length > 0;
+  const integrationIdValid = isValidObjectId(trimmedIntegrationId);
   const hasOneClientOrg = values.clientOrgIds.length >= 1;
 
   const canSubmit = useMemo(() => {
     if (submitting) return false;
     if (!hasOneClientOrg) return false;
-    if (!isEdit && trimmedIntegrationId.length === 0) return false;
+    if (!isEdit && !integrationIdValid) return false;
     return true;
-  }, [submitting, hasOneClientOrg, isEdit, trimmedIntegrationId]);
+  }, [submitting, hasOneClientOrg, isEdit, integrationIdValid]);
 
   const handleSubmit = () => {
     if (!canSubmit) return;
@@ -153,15 +167,29 @@ export function MailboxFormPanel({
               autoComplete="off"
               spellCheck={false}
               value={values.integrationId}
+              aria-invalid={integrationIdTouched && !integrationIdValid ? true : undefined}
+              aria-describedby="mailbox-form-integration-id-hint"
               onChange={(event) =>
                 setValues((current) => ({ ...current, integrationId: event.target.value }))
               }
             />
-            <span className="mailboxes-form-field-hint">
+            <span
+              id="mailbox-form-integration-id-hint"
+              className="mailboxes-form-field-hint"
+            >
               Identifier of the connected Gmail integration this mailbox maps
               to. A future iteration will offer a picker; for now copy the id
-              from the connected mailbox row in Settings.
+              from the connected mailbox row in Settings (24-character hex).
             </span>
+            {integrationIdTouched && !integrationIdValid ? (
+              <span
+                className="mailboxes-form-field-error"
+                role="alert"
+                data-testid="mailbox-form-integration-id-error"
+              >
+                {INTEGRATION_ID_INVALID_MESSAGE}
+              </span>
+            ) : null}
           </div>
         ) : null}
 
@@ -171,6 +199,7 @@ export function MailboxFormPanel({
             Pick every client whose invoices may arrive at this mailbox.
             Validation requires at least one.
           </span>
+          {/* composite-key write contract: array contents validated tenant-side, see #174 */}
           <ClientOrgMultiPicker
             clientOrgs={clientOrgs}
             isLoading={clientOrgsLoading}
