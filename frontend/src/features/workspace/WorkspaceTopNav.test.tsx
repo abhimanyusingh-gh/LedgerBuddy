@@ -18,10 +18,23 @@ const { apiClient } = jest.requireMock("@/api/client") as {
 };
 
 import { WorkspaceTopNav } from "@/features/workspace/WorkspaceTopNav";
+import type { ClientOrganization } from "@/api/clientOrgs";
 import {
   ACTIVE_CLIENT_ORG_STORAGE_KEY,
   setActiveClientOrgId
 } from "@/hooks/useActiveClientOrg";
+
+function buildOrg(overrides: Partial<ClientOrganization> & { _id: string; companyName: string }): ClientOrganization {
+  return {
+    tenantId: "tenant-1",
+    gstin: "29ABCPK1234F1Z5",
+    f12OverwriteByGuidVerified: false,
+    detectedVersion: null,
+    createdAt: "2026-04-20T00:00:00Z",
+    updatedAt: "2026-04-20T00:00:00Z",
+    ...overrides
+  };
+}
 
 function clearActiveRealm() {
   window.history.replaceState({}, "", "/");
@@ -55,7 +68,7 @@ afterEach(clearActiveRealm);
 describe("WorkspaceTopNav realm switcher integration", () => {
   it("opens the realm switcher when the active-realm badge is clicked", async () => {
     apiClient.get.mockResolvedValueOnce({
-      data: { items: [{ id: "org-1", companyName: "Sharma Textiles" }] }
+      data: { items: [buildOrg({ _id: "org-1", companyName: "Sharma Textiles" })] }
     });
     setActiveClientOrgId("org-1");
     renderTopNav();
@@ -78,7 +91,7 @@ describe("WorkspaceTopNav realm switcher integration", () => {
 
   it("toggles the switcher with the Cmd+K shortcut", async () => {
     apiClient.get.mockResolvedValueOnce({
-      data: { items: [{ id: "org-1", companyName: "Sharma Textiles" }] }
+      data: { items: [buildOrg({ _id: "org-1", companyName: "Sharma Textiles" })] }
     });
     renderTopNav();
 
@@ -102,8 +115,8 @@ describe("WorkspaceTopNav realm switcher integration", () => {
     apiClient.get.mockResolvedValueOnce({
       data: {
         items: [
-          { id: "org-1", companyName: "Sharma Textiles" },
-          { id: "org-2", companyName: "Bose Steel" }
+          buildOrg({ _id: "org-1", companyName: "Sharma Textiles" }),
+          buildOrg({ _id: "org-2", companyName: "Bose Steel" })
         ]
       }
     });
