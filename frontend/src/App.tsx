@@ -332,6 +332,7 @@ export function App() {
 
         {standaloneRoute === "triage" && <TriagePage />}
 
+        {/* gated on canManageUsers as a stand-in until canManageMailboxes ships, see #194 */}
         {standaloneRoute === "mailboxes" && canManageUsers && <MailboxesPage />}
 
         {!standaloneRoute && activeTab === "overview" && <OverviewDashboard />}
