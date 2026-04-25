@@ -20,13 +20,21 @@ export const TRIAGE_REJECT_REASON_OPTIONS: TriageRejectReasonOption[] = [
   { value: TRIAGE_REJECT_REASON.Other, label: "Other (describe below)", requiresFreeText: true }
 ];
 
-export function buildRejectPayloadReason(
+export interface TriageRejectPayload {
+  reasonCode: TriageRejectReason;
+  notes?: string;
+}
+
+export function buildRejectPayload(
   reason: TriageRejectReason,
   freeText: string
-): string {
-  const option = TRIAGE_REJECT_REASON_OPTIONS.find((opt) => opt.value === reason);
-  const label = option ? option.label : reason;
+): TriageRejectPayload {
   const trimmed = freeText.trim();
-  if (trimmed.length === 0) return label;
-  return `${label}: ${trimmed}`;
+  if (trimmed.length === 0) return { reasonCode: reason };
+  return { reasonCode: reason, notes: trimmed };
+}
+
+export function rejectReasonLabel(reason: TriageRejectReason): string {
+  const option = TRIAGE_REJECT_REASON_OPTIONS.find((opt) => opt.value === reason);
+  return option ? option.label : reason;
 }

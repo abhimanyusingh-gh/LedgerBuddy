@@ -3,7 +3,8 @@ import { useModalDismiss } from "@/hooks/useModalDismiss";
 import {
   TRIAGE_REJECT_REASON,
   TRIAGE_REJECT_REASON_OPTIONS,
-  buildRejectPayloadReason,
+  buildRejectPayload,
+  type TriageRejectPayload,
   type TriageRejectReason
 } from "@/features/triage/triageReasons";
 
@@ -12,7 +13,7 @@ interface RejectDialogProps {
   invoiceCount: number;
   isSubmitting: boolean;
   onCancel: () => void;
-  onConfirm: (reason: string) => void;
+  onConfirm: (payload: TriageRejectPayload) => void;
 }
 
 function isReasonValid(reason: TriageRejectReason, freeText: string): boolean {
@@ -44,7 +45,7 @@ export function RejectDialog({ open, invoiceCount, isSubmitting, onCancel, onCon
 
   function handleConfirm() {
     if (!valid || isSubmitting) return;
-    onConfirm(buildRejectPayloadReason(reason, freeText));
+    onConfirm(buildRejectPayload(reason, freeText));
   }
 
   return (

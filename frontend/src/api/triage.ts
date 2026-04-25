@@ -1,4 +1,5 @@
 import { apiClient } from "@/api/client";
+import type { TriageRejectPayload } from "@/features/triage/triageReasons";
 
 export const TRIAGE_QUEUE_QUERY_KEY = ["triageQueue"] as const;
 
@@ -49,12 +50,12 @@ export async function assignClientOrg(
 
 export async function rejectInvoice(
   invoiceId: string,
-  reason: string
+  payload: TriageRejectPayload
 ): Promise<{ ok: true }> {
   return (
     await apiClient.patch<{ ok: true }>(
       `/invoices/${encodeURIComponent(invoiceId)}/reject`,
-      { reason }
+      payload
     )
   ).data;
 }

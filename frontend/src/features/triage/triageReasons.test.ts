@@ -1,7 +1,8 @@
 import {
   TRIAGE_REJECT_REASON,
   TRIAGE_REJECT_REASON_OPTIONS,
-  buildRejectPayloadReason
+  buildRejectPayload,
+  rejectReasonLabel
 } from "@/features/triage/triageReasons";
 
 describe("features/triage/triageReasons", () => {
@@ -22,19 +23,28 @@ describe("features/triage/triageReasons", () => {
     }
   });
 
-  it("builds the payload reason as label-only when no notes are provided", () => {
-    expect(buildRejectPayloadReason(TRIAGE_REJECT_REASON.Spam, "")).toBe("Spam");
-    expect(buildRejectPayloadReason(TRIAGE_REJECT_REASON.NotForAnyClient, "   ")).toBe(
-      "Not for any of my clients"
-    );
+  it("builds a structured payload with reasonCode only when no notes are provided", () => {
+    expect(buildRejectPayload(TRIAGE_REJECT_REASON.Spam, "")).toEqual({
+      reasonCode: TRIAGE_REJECT_REASON.Spam
+    });
+    expect(buildRejectPayload(TRIAGE_REJECT_REASON.NotForAnyClient, "   ")).toEqual({
+      reasonCode: TRIAGE_REJECT_REASON.NotForAnyClient
+    });
   });
 
-  it("appends free-text notes after a colon when provided", () => {
-    expect(buildRejectPayloadReason(TRIAGE_REJECT_REASON.WrongVendor, "Sent to wrong AP")).toBe(
-      "Wrong vendor: Sent to wrong AP"
-    );
-    expect(buildRejectPayloadReason(TRIAGE_REJECT_REASON.Other, "Personal email")).toBe(
-      "Other (describe below): Personal email"
-    );
+  it("includes trimmed notes alongside reasonCode when provided", () => {
+    expect(buildRejectPayload(TRIAGE_REJECT_REASON.WrongVendor, "Sent to wrong AP")).toEqual({
+      reasonCode: TRIAGE_REJECT_REASON.WrongVendor,
+      notes: "Sent to wrong AP"
+    });
+    expect(buildRejectPayload(TRIAGE_REJECT_REASON.Other, "  Personal email  ")).toEqual({
+      reasonCode: TRIAGE_REJECT_REASON.Other,
+      notes: "Personal email"
+    });
+  });
+
+  it("exposes a label lookup for UI display", () => {
+    expect(rejectReasonLabel(TRIAGE_REJECT_REASON.Spam)).toBe("Spam");
+    expect(rejectReasonLabel(TRIAGE_REJECT_REASON.WrongVendor)).toBe("Wrong vendor");
   });
 });

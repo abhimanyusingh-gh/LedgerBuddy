@@ -7,6 +7,7 @@ import {
   fetchTriageInvoices,
   rejectInvoice
 } from "@/api/triage";
+import { TRIAGE_REJECT_REASON } from "@/features/triage/triageReasons";
 
 jest.mock("@/api/client", () => {
   const get = jest.fn();
@@ -95,11 +96,25 @@ describe("api/triage", () => {
   });
 
   describe("rejectInvoice", () => {
-    it("PATCHes /invoices/:id/reject with the reason string", async () => {
+    it("PATCHes /invoices/:id/reject with the structured payload (reasonCode only)", async () => {
       apiClient.patch.mockResolvedValueOnce({ data: { ok: true } });
-      const result = await rejectInvoice("inv-1", "Spam");
-      expect(apiClient.patch).toHaveBeenCalledWith("/invoices/inv-1/reject", { reason: "Spam" });
+      const result = await rejectInvoice("inv-1", { reasonCode: TRIAGE_REJECT_REASON.Spam });
+      expect(apiClient.patch).toHaveBeenCalledWith("/invoices/inv-1/reject", {
+        reasonCode: "spam"
+      });
       expect(result).toEqual({ ok: true });
+    });
+
+    it("PATCHes /invoices/:id/reject with the structured payload (reasonCode + notes)", async () => {
+      apiClient.patch.mockResolvedValueOnce({ data: { ok: true } });
+      await rejectInvoice("inv-1", {
+        reasonCode: TRIAGE_REJECT_REASON.WrongVendor,
+        notes: "Sent to wrong AP"
+      });
+      expect(apiClient.patch).toHaveBeenCalledWith("/invoices/inv-1/reject", {
+        reasonCode: "wrong_vendor",
+        notes: "Sent to wrong AP"
+      });
     });
   });
 });

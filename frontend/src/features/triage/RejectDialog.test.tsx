@@ -35,18 +35,18 @@ describe("features/triage/RejectDialog", () => {
     expect(screen.getByRole("alertdialog")).toHaveTextContent("Reject 3 invoices");
   });
 
-  it("defaults the reason to 'Not for any of my clients' and confirms with the label", () => {
+  it("defaults the reason to 'not_for_any_client' and confirms with the structured payload", () => {
     const { onConfirm } = renderDialog();
     fireEvent.click(screen.getByTestId("reject-dialog-confirm"));
-    expect(onConfirm).toHaveBeenCalledWith("Not for any of my clients");
+    expect(onConfirm).toHaveBeenCalledWith({ reasonCode: "not_for_any_client" });
   });
 
-  it("appends free-text notes after the canonical label", () => {
+  it("includes free-text notes alongside reasonCode in the payload", () => {
     const { onConfirm } = renderDialog();
     fireEvent.click(screen.getByTestId("reject-dialog-reason-wrong_vendor"));
     fireEvent.change(screen.getByTestId("reject-dialog-freetext"), { target: { value: "Wrong AP" } });
     fireEvent.click(screen.getByTestId("reject-dialog-confirm"));
-    expect(onConfirm).toHaveBeenCalledWith("Wrong vendor: Wrong AP");
+    expect(onConfirm).toHaveBeenCalledWith({ reasonCode: "wrong_vendor", notes: "Wrong AP" });
   });
 
   it("requires free text when reason is Other and disables confirm until provided", () => {
@@ -56,7 +56,7 @@ describe("features/triage/RejectDialog", () => {
     fireEvent.change(screen.getByTestId("reject-dialog-freetext"), { target: { value: "Personal" } });
     expect(screen.getByTestId("reject-dialog-confirm")).not.toBeDisabled();
     fireEvent.click(screen.getByTestId("reject-dialog-confirm"));
-    expect(onConfirm).toHaveBeenCalledWith("Other (describe below): Personal");
+    expect(onConfirm).toHaveBeenCalledWith({ reasonCode: "other", notes: "Personal" });
   });
 
   it("calls onCancel when the cancel button is clicked", () => {
