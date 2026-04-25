@@ -13,17 +13,25 @@ interface MailboxesTableProps {
   onDelete: (assignment: MailboxAssignment) => void;
 }
 
+interface ClientOrgChipsResult {
+  visible: { id: string; label: string }[];
+  overflow: number;
+  hiddenLabels: string[];
+}
+
 function clientOrgChips(
   ids: string[],
   orgsById: Map<string, ClientOrgOption>
-): { visible: { id: string; label: string }[]; overflow: number } {
+): ClientOrgChipsResult {
   const labelled = ids.map((id) => ({ id, label: orgsById.get(id)?.companyName ?? id }));
   if (labelled.length <= VISIBLE_CHIP_LIMIT) {
-    return { visible: labelled, overflow: 0 };
+    return { visible: labelled, overflow: 0, hiddenLabels: [] };
   }
+  const hidden = labelled.slice(VISIBLE_CHIP_LIMIT);
   return {
     visible: labelled.slice(0, VISIBLE_CHIP_LIMIT),
-    overflow: labelled.length - VISIBLE_CHIP_LIMIT
+    overflow: hidden.length,
+    hiddenLabels: hidden.map((chip) => chip.label)
   };
 }
 
@@ -60,7 +68,7 @@ export function MailboxesTable({
       </thead>
       <tbody>
         {sorted.map((item) => {
-          const { visible, overflow } = clientOrgChips(item.clientOrgIds, orgsById);
+          const { visible, overflow, hiddenLabels } = clientOrgChips(item.clientOrgIds, orgsById);
           const ingestionCount = ingestionCounts[item._id];
           return (
             <tr key={item._id} data-testid="mailboxes-table-row">
@@ -78,7 +86,10 @@ export function MailboxesTable({
                     </Badge>
                   ))}
                   {overflow > 0 ? (
-                    <span data-testid={`mailboxes-table-chips-overflow-${item._id}`}>
+                    <span
+                      data-testid={`mailboxes-table-chips-overflow-${item._id}`}
+                      title={hiddenLabels.join(", ")}
+                    >
                       <Badge tone="info" size="sm">
                         +{overflow} more
                       </Badge>

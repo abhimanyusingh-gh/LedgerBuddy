@@ -173,19 +173,27 @@ export function ClientOrgMultiPicker({
                   key={org.id}
                   role="option"
                   aria-selected={checked}
+                  tabIndex={-1}
                   className="mailbox-multi-picker-option"
                   data-testid={`${testIdPrefix}-option-${org.id}`}
                   data-checked={checked ? "true" : undefined}
+                  onClick={() => toggle(org.id)}
+                  onKeyDown={(event) => {
+                    if (event.key === " " || event.key === "Enter") {
+                      event.preventDefault();
+                      toggle(org.id);
+                    }
+                  }}
                 >
-                  <label className="mailbox-multi-picker-option-label">
-                    <input
-                      type="checkbox"
-                      checked={checked}
-                      onChange={() => toggle(org.id)}
-                      data-testid={`${testIdPrefix}-checkbox-${org.id}`}
-                    />
-                    <span>{org.companyName}</span>
-                  </label>
+                  <span
+                    className="mailbox-multi-picker-option-indicator"
+                    aria-hidden="true"
+                    data-checked={checked ? "true" : undefined}
+                    data-testid={`${testIdPrefix}-checkbox-${org.id}`}
+                  />
+                  <span className="mailbox-multi-picker-option-label">
+                    {org.companyName}
+                  </span>
                 </li>
               );
             })

@@ -67,7 +67,9 @@ describe("features/admin/mailboxes/MailboxesTable", () => {
     expect(chipsCell).toHaveTextContent("Sharma Textiles");
     expect(chipsCell).toHaveTextContent("Bose Steel");
     expect(chipsCell).toHaveTextContent("Acme Industries");
-    expect(screen.getByTestId("mailboxes-table-chips-overflow-a-1")).toHaveTextContent("+2 more");
+    const overflow = screen.getByTestId("mailboxes-table-chips-overflow-a-1");
+    expect(overflow).toHaveTextContent("+2 more");
+    expect(overflow).toHaveAttribute("title", "Crown Mills, Delta Logistics");
   });
 
   it("does not render the overflow badge when chip count is at or under the limit", () => {

@@ -108,6 +108,25 @@ describe("features/admin/mailboxes/ClientOrgMultiPicker", () => {
     expect(onChange).toHaveBeenCalledWith(["org-2"]);
   });
 
+  it("uses listbox-only a11y semantics — no nested native checkbox inputs in the option rows", () => {
+    render(
+      <ClientOrgMultiPicker
+        clientOrgs={ORGS}
+        isLoading={false}
+        isError={false}
+        onRetry={jest.fn()}
+        selectedIds={["org-1"]}
+        onChange={jest.fn()}
+      />
+    );
+    const list = screen.getByTestId("client-org-multi-picker-list");
+    expect(list).toHaveAttribute("role", "listbox");
+    expect(list).toHaveAttribute("aria-multiselectable", "true");
+    expect(list.querySelectorAll('input[type="checkbox"]')).toHaveLength(0);
+    const selectedOption = screen.getByTestId("client-org-multi-picker-option-org-1");
+    expect(selectedOption).toHaveAttribute("aria-selected", "true");
+  });
+
   it("flags chips for ids that are no longer in the tenant's clientOrgs as orphans", () => {
     render(
       <ClientOrgMultiPicker
