@@ -4666,3 +4666,42 @@ pre {
   color: var(--ink);
   resize: vertical;
 }
+
+.admin-realm-switcher {
+  display: inline-flex;
+  align-items: stretch;
+  gap: 0;
+  border: 1px solid var(--line);
+  border-radius: 0.4rem;
+  overflow: hidden;
+}
+
+.admin-realm-switcher-option-all,
+.admin-realm-switcher-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.7rem;
+  font-size: 0.82rem;
+  font-weight: 500;
+  background: var(--bg, #ffffff);
+  color: var(--ink, #111827);
+  border: none;
+  cursor: pointer;
+}
+
+.admin-realm-switcher-option-all + .admin-realm-switcher-trigger {
+  border-left: 1px solid var(--line);
+}
+
+.admin-realm-switcher-option-all[data-active="true"],
+.admin-realm-switcher-trigger[data-active="true"] {
+  background: var(--accent, #1e3a8a);
+  color: #ffffff;
+  font-weight: 700;
+}
+
+.admin-realm-switcher-trigger .material-symbols-outlined {
+  font-size: 1rem;
+}
+
