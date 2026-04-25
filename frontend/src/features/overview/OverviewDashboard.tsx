@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { AreaChart, Area, CartesianGrid, LineChart, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { fetchAnalyticsOverview } from "@/api";
 import { EmptyState } from "@/components/common/EmptyState";
+import { AdminRealmSwitcher } from "@/features/admin/AdminRealmSwitcher";
+import { useAdminClientOrgFilter } from "@/hooks/useAdminClientOrgFilter";
 import type { AnalyticsOverview } from "@/types";
 import { STATUS_LABELS } from "@/lib/invoice/invoiceView";
 import { computeBurndown } from "@/lib/common/burndown";
@@ -35,6 +37,8 @@ export function OverviewDashboard() {
   const [priorData, setPriorData] = useState<AnalyticsOverview | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // admin analytics: optional clientOrgId, see #162
+  const { clientOrgId } = useAdminClientOrgFilter();
 
   useEffect(() => {
     if (from && to && from > to) {
@@ -54,8 +58,8 @@ export function OverviewDashboard() {
     setError(null);
     const prior = priorPeriodRange(from, to);
     Promise.all([
-      fetchAnalyticsOverview(from, to, scope),
-      fetchAnalyticsOverview(prior.from, prior.to, scope).catch(() => null)
+      fetchAnalyticsOverview(from, to, scope, clientOrgId),
+      fetchAnalyticsOverview(prior.from, prior.to, scope, clientOrgId).catch(() => null)
     ])
       .then(([current, priorResult]) => {
         if (!cancelled) {
@@ -72,7 +76,7 @@ export function OverviewDashboard() {
     return () => {
       cancelled = true;
     };
-  }, [from, to, scope]);
+  }, [from, to, scope, clientOrgId]);
 
   function applyPreset(f: string, t: string, key: PresetKey) {
     setFrom(f);
@@ -99,6 +103,7 @@ export function OverviewDashboard() {
   return (
     <div className="overview-dashboard">
       <div className="overview-date-bar">
+        <AdminRealmSwitcher />
         <span style={{ fontWeight: 600, fontSize: "0.85rem", color: "var(--ink-soft)" }}>Date range:</span>
         <input type="date" value={from} max={to} onChange={(e) => { setFrom(e.target.value); setActivePreset(null); }} />
         <span style={{ color: "var(--ink-soft)" }}>{"\u2013"}</span>

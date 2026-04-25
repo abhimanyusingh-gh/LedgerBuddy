@@ -39,8 +39,16 @@ interface PlatformTenantOnboardResult {
   tempPassword?: string;
 }
 
-export async function fetchAnalyticsOverview(from: string, to: string, scope: "mine" | "all" = "mine"): Promise<AnalyticsOverview> {
-  return (await apiClient.get<AnalyticsOverview>("/analytics/overview", { params: { from, to, scope } })).data;
+export async function fetchAnalyticsOverview(
+  from: string,
+  to: string,
+  scope: "mine" | "all" = "mine",
+  clientOrgId?: string | null
+): Promise<AnalyticsOverview> {
+  // admin analytics: optional clientOrgId, see #162
+  const params: Record<string, string> = { from, to, scope };
+  if (clientOrgId) params.clientOrgId = clientOrgId;
+  return (await apiClient.get<AnalyticsOverview>("/analytics/overview", { params })).data;
 }
 
 export async function fetchPlatformTenantUsage(): Promise<PlatformTenantUsageSummary[]> {

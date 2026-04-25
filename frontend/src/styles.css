@@ -4666,3 +4666,43 @@ pre {
   color: var(--ink);
   resize: vertical;
 }
+
+/* TODO(#187): re-derive padding/border-radius/font-size from a shared .ds-pill / .ds-segmented-group primitive once extracted; today no shared primitive exists, so .admin-realm-switcher, .overview-preset-btn, and the inline OverviewDashboard scope-toggle each duplicate the same DS tokens. */
+.admin-realm-switcher {
+  display: inline-flex;
+  align-items: stretch;
+  gap: 0;
+  border: 1px solid var(--line);
+  border-radius: 0.4rem;
+  overflow: hidden;
+}
+
+.admin-realm-switcher-segment-all,
+.admin-realm-switcher-segment-picker {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.7rem;
+  font-size: 0.82rem;
+  font-weight: 500;
+  background: var(--bg, #ffffff);
+  color: var(--ink, #111827);
+  border: none;
+  cursor: pointer;
+}
+
+.admin-realm-switcher-segment-all + .admin-realm-switcher-segment-picker {
+  border-left: 1px solid var(--line);
+}
+
+.admin-realm-switcher-segment-all[data-active="true"],
+.admin-realm-switcher-segment-picker[data-active="true"] {
+  background: var(--accent, #1e3a8a);
+  color: #ffffff;
+  font-weight: 700;
+}
+
+.admin-realm-switcher-segment-picker .material-symbols-outlined {
+  font-size: 1rem;
+}
+
