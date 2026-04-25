@@ -14,6 +14,8 @@ import { createAuthRouter } from "@/routes/auth/auth.js";
 import { createSessionRouter } from "@/routes/auth/session.js";
 import { createTenantAdminRouter } from "@/routes/tenant/tenantAdmin.js";
 import { createTenantLifecycleRouter } from "@/routes/tenant/tenantLifecycle.js";
+import { createClientOrgsRouter } from "@/routes/tenant/clientOrgs.js";
+import { createMailboxAssignmentsRouter } from "@/routes/tenant/mailboxAssignments.js";
 import { createPlatformAdminRouter } from "@/routes/admin/platformAdmin.js";
 import { createBankAccountsRouter } from "@/routes/bank/bankAccounts.js";
 import { createBankWebhooksRouter } from "@/routes/bank/bankWebhooks.js";
@@ -100,6 +102,16 @@ export async function createApp(prebuiltDependencies?: Awaited<ReturnType<typeof
     "/api",
     requireNonPlatformAdmin,
     createTenantAdminRouter(dependencies.tenantAdminService, dependencies.tenantInviteService)
+  );
+  app.use(
+    "/api",
+    requireNonPlatformAdmin,
+    createClientOrgsRouter(dependencies.clientOrgsAdminService)
+  );
+  app.use(
+    "/api",
+    requireNonPlatformAdmin,
+    createMailboxAssignmentsRouter(dependencies.mailboxAssignmentsAdminService)
   );
   app.use("/api", requireNonPlatformAdmin, createApprovalWorkflowRouter(dependencies.approvalWorkflowService));
   app.use("/api", createGmailConnectionRouter(dependencies.gmailIntegrationService));

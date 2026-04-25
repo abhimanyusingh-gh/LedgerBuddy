@@ -31,6 +31,8 @@ import { HttpOidcProvider } from "@/sts/HttpOidcProvider.js";
 import { AuthService } from "@/auth/AuthService.js";
 import { TenantAdminService } from "@/services/tenant/tenantAdminService.js";
 import { TenantInviteService } from "@/services/tenant/tenantInviteService.js";
+import { ClientOrgsAdminService } from "@/services/tenant/clientOrgsAdminService.js";
+import { MailboxAssignmentsAdminService } from "@/services/tenant/mailboxAssignmentsAdminService.js";
 import { createInviteEmailSenderProvider } from "@/providers/email/createInviteEmailSenderProvider.js";
 import { PlatformAdminService } from "@/services/platform/platformAdminService.js";
 import { KeycloakAdminClient } from "@/keycloak/KeycloakAdminClient.js";
@@ -59,6 +61,8 @@ interface Dependencies {
   authService: AuthService;
   tenantAdminService: TenantAdminService;
   tenantInviteService: TenantInviteService;
+  clientOrgsAdminService: ClientOrgsAdminService;
+  mailboxAssignmentsAdminService: MailboxAssignmentsAdminService;
   platformAdminService: PlatformAdminService;
   gmailIntegrationService: TenantGmailIntegrationService;
   notificationService: MailboxNotificationService;
@@ -91,7 +95,18 @@ function buildAuthServices(manifest: RuntimeManifest) {
   const inviteEmailSender = createInviteEmailSenderProvider();
   const tenantInviteService = new TenantInviteService(inviteEmailSender, keycloakAdmin);
   const platformAdminService = new PlatformAdminService(inviteEmailSender, keycloakAdmin);
-  return { authService, keycloakAdmin, tenantAdminService, tenantInviteService, platformAdminService, inviteEmailSender };
+  const clientOrgsAdminService = new ClientOrgsAdminService();
+  const mailboxAssignmentsAdminService = new MailboxAssignmentsAdminService();
+  return {
+    authService,
+    keycloakAdmin,
+    tenantAdminService,
+    tenantInviteService,
+    platformAdminService,
+    inviteEmailSender,
+    clientOrgsAdminService,
+    mailboxAssignmentsAdminService
+  };
 }
 
 async function buildExtractionPipeline(manifest: RuntimeManifest, learningStore: MongoExtractionLearningStore, mappingService: ExtractionMappingService) {
