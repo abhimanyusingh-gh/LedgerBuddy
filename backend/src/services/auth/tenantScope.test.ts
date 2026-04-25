@@ -6,6 +6,7 @@ import { INVOICE_STATUS } from "@/types/invoice.js";
 import {
   findClientOrgIdsForTenant,
   findClientOrgIdByIdForTenant,
+  findTenantIdsByClientOrgIds,
   ClientOrgTenantInvariantError
 } from "@/services/auth/tenantScope.js";
 
@@ -62,6 +63,25 @@ describeHarness("tenantScope helpers", () => {
 
     const result = await findClientOrgIdByIdForTenant(orgA._id.toString(), tenantB);
     expect(result).toBeNull();
+  });
+
+  test("findTenantIdsByClientOrgIds returns clientOrgId -> tenantId map for a mixed-tenant set", async () => {
+    const tenantA = new Types.ObjectId().toString();
+    const tenantB = new Types.ObjectId().toString();
+    const [orgA, orgB] = await Promise.all([
+      ClientOrganizationModel.create({ tenantId: tenantA, gstin: GSTIN_A, companyName: "A" }),
+      ClientOrganizationModel.create({ tenantId: tenantB, gstin: GSTIN_B, companyName: "B" })
+    ]);
+
+    const map = await findTenantIdsByClientOrgIds([orgA._id, orgB._id]);
+    expect(map.size).toBe(2);
+    expect(map.get(orgA._id.toString())).toBe(tenantA);
+    expect(map.get(orgB._id.toString())).toBe(tenantB);
+  });
+
+  test("findTenantIdsByClientOrgIds returns empty map for empty input", async () => {
+    const map = await findTenantIdsByClientOrgIds([]);
+    expect(map.size).toBe(0);
   });
 });
 

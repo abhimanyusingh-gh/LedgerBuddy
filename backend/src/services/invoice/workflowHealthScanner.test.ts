@@ -10,21 +10,21 @@ jest.mock("@/models/core/Tenant.js", () => ({
   TenantModel: { find: jest.fn() }
 }));
 
-jest.mock("@/models/integration/ClientOrganization.js", () => ({
-  ClientOrganizationModel: { find: jest.fn() }
+jest.mock("@/services/auth/tenantScope.js", () => ({
+  findTenantIdsByClientOrgIds: jest.fn()
 }));
 
 import { ApprovalWorkflowModel } from "@/models/invoice/ApprovalWorkflow.js";
 import type { WorkflowStep, Workflow } from "@/types/approvalWorkflow.js";
 import { TenantUserRoleModel } from "@/models/core/TenantUserRole.js";
 import { TenantModel } from "@/models/core/Tenant.js";
-import { ClientOrganizationModel } from "@/models/integration/ClientOrganization.js";
+import { findTenantIdsByClientOrgIds } from "@/services/auth/tenantScope.js";
 import { scanWorkflowStep, scanWorkflowForTenant, scanAllWorkflows } from "./workflowHealthScanner.ts";
 
 const mockApprovalWorkflowFind = ApprovalWorkflowModel.find as jest.Mock;
 const mockCountDocuments = TenantUserRoleModel.countDocuments as jest.Mock;
 const mockTenantFind = TenantModel.find as jest.Mock;
-const mockClientOrgFind = ClientOrganizationModel.find as jest.Mock;
+const mockFindTenantIdsByClientOrgIds = findTenantIdsByClientOrgIds as jest.Mock;
 
 function buildStep(overrides: Partial<WorkflowStep> & Pick<WorkflowStep, "order" | "name" | "approverType" | "rule">): WorkflowStep {
   return {
@@ -187,12 +187,12 @@ describe("scanAllWorkflows", () => {
       ])
     });
 
-    mockClientOrgFind.mockReturnValueOnce({
-      lean: () => Promise.resolve([
-        { _id: "org-1", tenantId: "t1" },
-        { _id: "org-2", tenantId: "t2" }
+    mockFindTenantIdsByClientOrgIds.mockResolvedValueOnce(
+      new Map<string, string>([
+        ["org-1", "t1"],
+        ["org-2", "t2"]
       ])
-    });
+    );
 
     mockTenantFind.mockReturnValueOnce({
       lean: () => Promise.resolve([
@@ -222,9 +222,7 @@ describe("scanAllWorkflows", () => {
       lean: () => Promise.resolve([])
     });
 
-    mockClientOrgFind.mockReturnValueOnce({
-      lean: () => Promise.resolve([])
-    });
+    mockFindTenantIdsByClientOrgIds.mockResolvedValueOnce(new Map<string, string>());
 
     mockTenantFind.mockReturnValueOnce({
       lean: () => Promise.resolve([])
@@ -253,9 +251,7 @@ describe("scanAllWorkflows", () => {
       ])
     });
 
-    mockClientOrgFind.mockReturnValueOnce({
-      lean: () => Promise.resolve([])
-    });
+    mockFindTenantIdsByClientOrgIds.mockResolvedValueOnce(new Map<string, string>());
 
     mockTenantFind.mockReturnValueOnce({
       lean: () => Promise.resolve([])

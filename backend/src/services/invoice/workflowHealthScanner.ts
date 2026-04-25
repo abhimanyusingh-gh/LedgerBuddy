@@ -1,7 +1,7 @@
 import { ApprovalWorkflowModel } from "@/models/invoice/ApprovalWorkflow.js";
 import { TenantUserRoleModel } from "@/models/core/TenantUserRole.js";
 import { TenantModel } from "@/models/core/Tenant.js";
-import { ClientOrganizationModel } from "@/models/integration/ClientOrganization.js";
+import { findTenantIdsByClientOrgIds } from "@/services/auth/tenantScope.js";
 import { APPROVAL_STEP_TYPE, APPROVER_TYPE, type WorkflowStep, type Workflow } from "@/types/approvalWorkflow.js";
 
 interface StepFinding {
@@ -151,15 +151,8 @@ export async function scanAllWorkflows(): Promise<WorkflowHealthReport> {
   // Post hierarchy-pivot: workflows key by `clientOrgId`, tenant is
   // resolved via `ClientOrganization.tenantId`.
   const clientOrgIds = workflows.map((w) => w.clientOrgId);
-  const clientOrgs = await ClientOrganizationModel.find(
-    { _id: { $in: clientOrgIds } },
-    { tenantId: 1 }
-  ).lean();
-  const clientOrgToTenant = new Map<string, string>();
-  for (const co of clientOrgs) {
-    clientOrgToTenant.set(String(co._id), co.tenantId);
-  }
-  const uniqueTenantIds = Array.from(new Set(clientOrgs.map((c) => c.tenantId)));
+  const clientOrgToTenant = await findTenantIdsByClientOrgIds(clientOrgIds);
+  const uniqueTenantIds = Array.from(new Set(clientOrgToTenant.values()));
   const tenants = await TenantModel.find(
     { _id: { $in: uniqueTenantIds } },
     { name: 1 }

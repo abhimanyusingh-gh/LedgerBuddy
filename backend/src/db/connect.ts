@@ -4,7 +4,7 @@ import { logger } from "@/utils/logger.js";
 import { seedDefaultGlCodes } from "@/services/compliance/seedGlCodes.js";
 import { TenantModel } from "@/models/core/Tenant.js";
 import { GlCodeMasterModel } from "@/models/compliance/GlCodeMaster.js";
-import { ClientOrganizationModel } from "@/models/integration/ClientOrganization.js";
+import { findClientOrgIdsForTenant } from "@/services/auth/tenantScope.js";
 import { applyMinorFieldValidators } from "@/db/applyJsonSchemaValidators.js";
 import { ValidationAction, ValidationLevel } from "@/db/applyJsonSchemaValidators.js";
 import "@/models/invoice/Invoice.js";
@@ -81,14 +81,14 @@ async function doConnect(options: ConnectOptions) {
           const tenantId = String(tenant._id);
           // Post hierarchy-pivot: seedDefaultGlCodes is scoped per
           // client-org. A tenant may have 0..N client-orgs; loop over all.
-          const clientOrgs = await ClientOrganizationModel.find({ tenantId }, { _id: 1 }).lean();
-          for (const clientOrg of clientOrgs) {
+          const clientOrgIds = await findClientOrgIdsForTenant(tenantId);
+          for (const clientOrgId of clientOrgIds) {
             const existingCount = await GlCodeMasterModel.countDocuments({
               tenantId,
-              clientOrgId: clientOrg._id
+              clientOrgId
             });
             if (existingCount === 0) {
-              const result = await seedDefaultGlCodes(tenantId, clientOrg._id);
+              const result = await seedDefaultGlCodes(tenantId, clientOrgId);
               totalCreated += result.created;
               totalSkipped += result.skipped;
             }

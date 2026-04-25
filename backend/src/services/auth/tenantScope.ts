@@ -96,6 +96,28 @@ export async function findClientOrgIdsByGstinForTenant(
 }
 
 /**
+ * Reverse lookup: given a set of `clientOrgIds`, return the
+ * `(clientOrgId → tenantId)` mapping. Used by cross-tenant scanners
+ * (e.g. workflow-health) that start from accounting-leaf docs and need
+ * to resolve their owning tenant. Keeps the
+ * `find({ _id: { $in: ids } }, { tenantId: 1 })` pattern in one place.
+ */
+export async function findTenantIdsByClientOrgIds(
+  clientOrgIds: Array<Types.ObjectId | string>
+): Promise<Map<string, string>> {
+  const map = new Map<string, string>();
+  if (clientOrgIds.length === 0) return map;
+  const docs = await ClientOrganizationModel.find(
+    { _id: { $in: clientOrgIds } },
+    { tenantId: 1 }
+  ).lean();
+  for (const d of docs) {
+    map.set(String(d._id), d.tenantId);
+  }
+  return map;
+}
+
+/**
  * Pre-save invariant: every accounting-leaf document must carry a
  * `clientOrgId` whose referenced `ClientOrganization.tenantId` matches
  * the document's own `tenantId`. Triage invoices (`PENDING_TRIAGE` +

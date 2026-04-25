@@ -109,8 +109,10 @@ export function createBankAccountsRouter(bankService: IBankConnectionService) {
     requireActiveClientOrg,
     async (req, res, next) => {
       try {
+        const { tenantId } = getAuth(req);
         const account = await BankAccountModel.findOne({
           _id: req.params.id,
+          tenantId,
           clientOrgId: req.activeClientOrgId
         });
         if (!account) {
@@ -132,8 +134,10 @@ export function createBankAccountsRouter(bankService: IBankConnectionService) {
     requireActiveClientOrg,
     async (req, res, next) => {
       try {
+        const { tenantId } = getAuth(req);
         const account = await BankAccountModel.findOne({
           _id: req.params.id,
+          tenantId,
           clientOrgId: req.activeClientOrgId
         });
         if (!account) {
