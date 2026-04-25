@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { lazy, Suspense, useCallback, useEffect, useState, type ReactNode } from "react";
 import { useTheme } from "@/hooks/useTheme";
 import { useTenantWorkspace } from "@/hooks/useTenantWorkspace";
 import { OverviewDashboard } from "@/features/overview/OverviewDashboard";
@@ -21,7 +21,9 @@ import { BankConnectionsTab } from "@/features/tenant-admin/BankConnectionsTab";
 import { BankStatementsTab } from "@/features/tenant-admin/BankStatementsTab";
 import { InvoiceDetailPage } from "@/components/invoice/InvoiceDetailPage";
 import { TriagePage } from "@/features/triage/TriagePage";
-import { MailboxesPage } from "@/features/admin/mailboxes/MailboxesPage";
+const MailboxesPage = lazy(() =>
+  import("@/features/admin/mailboxes/MailboxesPage").then((m) => ({ default: m.MailboxesPage }))
+);
 import { readStandaloneHashRoute, STANDALONE_HASH_PATH, type StandaloneHashRoute } from "@/features/workspace/tabHashConfig";
 import { useTriageQueue } from "@/hooks/useTriageQueue";
 import { useActionRequiredQueue } from "@/hooks/useActionRequiredQueue";
@@ -333,7 +335,11 @@ export function App() {
         {standaloneRoute === "triage" && <TriagePage />}
 
         {/* gated on canManageUsers as a stand-in until canManageMailboxes ships, see #194 */}
-        {standaloneRoute === "mailboxes" && canManageUsers && <MailboxesPage />}
+        {standaloneRoute === "mailboxes" && canManageUsers && (
+          <Suspense fallback={<div role="status" aria-busy="true">Loading mailboxes…</div>}>
+            <MailboxesPage />
+          </Suspense>
+        )}
 
         {!standaloneRoute && activeTab === "overview" && <OverviewDashboard />}
 
