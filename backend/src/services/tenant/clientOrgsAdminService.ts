@@ -1,11 +1,11 @@
 import { Types } from "mongoose";
 import { ClientOrganizationModel } from "@/models/integration/ClientOrganization.js";
-import { TenantMailboxAssignmentModel } from "@/models/integration/TenantMailboxAssignment.js";
-import { InvoiceModel } from "@/models/invoice/Invoice.js";
-import { VendorMasterModel } from "@/models/compliance/VendorMaster.js";
-import { BankAccountModel } from "@/models/bank/BankAccount.js";
 import { HttpError } from "@/errors/HttpError.js";
 import { GSTIN_FORMAT } from "@/constants/indianCompliance.js";
+import {
+  countClientOrgDependents,
+  type ClientOrgLinkedCounts
+} from "@/services/tenant/clientOrgDependents.js";
 
 /**
  * Admin CRUD service for `ClientOrganization` (#174). Tenant-scoped:
@@ -17,9 +17,16 @@ export class ClientOrgsAdminService {
   /**
    * List the tenant's client-orgs in `companyName` ascending order.
    * Returns the picker shape consumed by FE issues #150 / #152 / #167.
+   * Archived rows are excluded by default to keep them out of the
+   * realm-switcher and onboarding picker; pass `includeArchived: true`
+   * for admin-only surfaces that surface the trash bin.
    */
-  async list(tenantId: string) {
-    const docs = await ClientOrganizationModel.find({ tenantId })
+  async list(tenantId: string, options: { includeArchived?: boolean } = {}) {
+    const filter: Record<string, unknown> = { tenantId };
+    if (!options.includeArchived) {
+      filter.archivedAt = null;
+    }
+    const docs = await ClientOrganizationModel.find(filter)
       .sort({ companyName: 1 })
       .lean();
     return docs.map((doc) => ({
@@ -76,11 +83,19 @@ export class ClientOrgsAdminService {
   async update(input: {
     tenantId: string;
     clientOrgId: string;
+    gstin?: unknown;
     companyName?: string;
     stateName?: string;
     companyGuid?: string;
     f12OverwriteByGuidVerified?: boolean;
   }) {
+    if (input.gstin !== undefined) {
+      throw new HttpError(
+        "gstin is immutable.",
+        400,
+        "client_org_gstin_immutable"
+      );
+    }
     const oid = this.toOid(input.clientOrgId);
     const update: Record<string, unknown> = {};
     if (input.companyName !== undefined) {
@@ -108,11 +123,16 @@ export class ClientOrgsAdminService {
   }
 
   /**
-   * Hard-delete when the org has no dependent accounting-leaf rows
-   * (Invoice, VendorMaster, BankAccount). When dependents exist we
-   * soft-archive (`archivedAt = now`) and return the linked-counts
-   * breakdown so the FE can show the "soft-archive only" UX promised
-   * in #174.
+   * Hard-delete when the org has no dependent accounting-leaf rows;
+   * otherwise soft-archive (`archivedAt = now`) and return the
+   * linked-counts breakdown so FE can render "X invoices, Y vendors are
+   * linked." The set of dependents is enumerated by
+   * `CLIENT_ORG_DEPENDENT_MODELS`; a drift-detection test asserts the
+   * registry covers every model file declaring `clientOrgId`/`clientOrgIds`
+   * as required.
+   *
+   * Re-archiving an already-archived org is idempotent: we recompute the
+   * counts but leave the original `archivedAt` timestamp intact.
    */
   async deleteOrArchive(input: { tenantId: string; clientOrgId: string }) {
     const oid = this.toOid(input.clientOrgId);
@@ -124,27 +144,30 @@ export class ClientOrgsAdminService {
       throw new HttpError("Client organization not found.", 404, "client_org_not_found");
     }
 
-    const [invoices, vendors, bankAccounts, mailboxAssignments] = await Promise.all([
-      InvoiceModel.countDocuments({ clientOrgId: oid }),
-      VendorMasterModel.countDocuments({ clientOrgId: oid }),
-      BankAccountModel.countDocuments({ clientOrgId: oid }),
-      TenantMailboxAssignmentModel.countDocuments({ tenantId: input.tenantId, clientOrgIds: oid })
-    ]);
-    const totalLinked = invoices + vendors + bankAccounts + mailboxAssignments;
+    const { counts, total } = await countClientOrgDependents({
+      tenantId: input.tenantId,
+      clientOrgId: oid
+    });
 
-    if (totalLinked > 0) {
-      await ClientOrganizationModel.updateOne(
-        { _id: oid, tenantId: input.tenantId },
-        { $set: { archivedAt: new Date() } }
-      );
+    if (existing.archivedAt) {
       return {
         status: "archived" as const,
-        linkedCounts: { invoices, vendors, bankAccounts, mailboxAssignments }
+        linkedCounts: counts,
+        archivedAt: existing.archivedAt
       };
     }
 
+    if (total > 0) {
+      const archivedAt = new Date();
+      await ClientOrganizationModel.updateOne(
+        { _id: oid, tenantId: input.tenantId },
+        { $set: { archivedAt } }
+      );
+      return { status: "archived" as const, linkedCounts: counts, archivedAt };
+    }
+
     await ClientOrganizationModel.deleteOne({ _id: oid, tenantId: input.tenantId });
-    return { status: "deleted" as const, linkedCounts: { invoices: 0, vendors: 0, bankAccounts: 0, mailboxAssignments: 0 } };
+    return { status: "deleted" as const, linkedCounts: counts };
   }
 
   private serialize(doc: {
@@ -183,3 +206,5 @@ export class ClientOrgsAdminService {
     );
   }
 }
+
+export type { ClientOrgLinkedCounts };
