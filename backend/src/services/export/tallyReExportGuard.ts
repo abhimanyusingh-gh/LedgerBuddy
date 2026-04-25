@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { InvoiceModel } from "@/models/invoice/Invoice.js";
 import { ClientOrganizationModel } from "@/models/integration/ClientOrganization.js";
 import { TALLY_ACTION, type TallyAction } from "@/services/export/tallyExporter/xml.js";
+import { deriveVendorState } from "@/constants/gstinStateCodes.js";
 
 interface VoucherGuidInputs {
   /**
@@ -85,12 +86,18 @@ export async function resolveReExportDecision(params: {
     throw new F12OverwriteNotVerifiedError(clientOrgId);
   }
 
+  // Buyer state precedence: explicit ClientOrganization.stateName wins;
+  // otherwise derive from ClientOrganization.gstin (always present + format-validated
+  // post-pivot, so derivation almost always succeeds). Returns null only when the
+  // org row is missing entirely — keeping the PLACEOFSUPPLY tag absent (safe default).
+  const buyerStateName = company?.stateName ?? deriveVendorState(company?.gstin ?? null, null);
+
   return {
     guid: computeVoucherGuid({ clientOrgId, invoiceId, exportVersion: nextExportVersion }),
     action,
     priorExportVersion: currentExportVersion,
     nextExportVersion,
-    buyerStateName: company?.stateName ?? null
+    buyerStateName
   };
 }
 

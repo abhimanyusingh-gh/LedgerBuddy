@@ -139,6 +139,37 @@ describeHarness("resolveReExportDecision + 2-phase staging (BE-2)", ({ getHarnes
     expect(decision.buyerStateName).toBe("Karnataka");
   });
 
+  it("buyerStateName falls back to GSTIN-derived state when ClientOrganization.stateName is null", async () => {
+    // Post-pivot: ClientOrganization.gstin is required + format-validated, so the
+    // GSTIN-derived buyer state almost always succeeds when stateName is unset.
+    // persistClientOrg uses GSTIN prefix "29" → Karnataka.
+    const clientOrgId = await persistClientOrg({
+      f12OverwriteByGuidVerified: true,
+      stateName: null
+    });
+    const decision = await resolveReExportDecision({
+      clientOrgId: clientOrgId.toString(),
+      invoiceId: "inv-fallback",
+      currentExportVersion: 1
+    });
+    expect(decision.buyerStateName).toBe("Karnataka");
+  });
+
+  it("buyerStateName prefers explicit ClientOrganization.stateName over GSTIN-derived", async () => {
+    // GSTIN prefix 29 (Karnataka) but stateName explicitly set to Tamil Nadu —
+    // explicit value wins.
+    const clientOrgId = await persistClientOrg({
+      f12OverwriteByGuidVerified: true,
+      stateName: "Tamil Nadu"
+    });
+    const decision = await resolveReExportDecision({
+      clientOrgId: clientOrgId.toString(),
+      invoiceId: "inv-prec",
+      currentExportVersion: 1
+    });
+    expect(decision.buyerStateName).toBe("Tamil Nadu");
+  });
+
   async function createInvoice(overrides: Record<string, unknown>) {
     const { clientOrgId: overrideClientOrgId, ...rest } = overrides;
     const clientOrgId = overrideClientOrgId

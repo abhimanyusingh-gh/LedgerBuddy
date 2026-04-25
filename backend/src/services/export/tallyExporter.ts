@@ -26,6 +26,7 @@ import {
 } from "@/services/export/tallyReExportGuard.js";
 import type { ReExportDecision } from "@/services/export/tallyReExportGuard.js";
 import { ClientOrganizationModel } from "@/models/integration/ClientOrganization.js";
+import { deriveVendorState } from "@/constants/gstinStateCodes.js";
 
 export {
   buildTallyBatchImportXml,
@@ -315,6 +316,9 @@ function buildVoucherInput(
   invoiceId: string,
   resolvedAmountMinor: number
 ): VoucherPayloadInput {
+  const vendorGstin = invoice.parsed?.vendorGstin ?? invoice.parsed?.gst?.gstin ?? null;
+  const partyStateName = deriveVendorState(vendorGstin, invoice.parsed?.vendorAddress ?? null) ?? undefined;
+
   const input: VoucherPayloadInput = {
     companyName: config.companyName,
     purchaseLedgerName: config.purchaseLedgerName,
@@ -323,7 +327,8 @@ function buildVoucherInput(
     amountMinor: resolvedAmountMinor,
     currency: invoice.parsed?.currency ?? undefined,
     date: (invoice.parsed?.invoiceDate instanceof Date && !isNaN(invoice.parsed.invoiceDate.getTime())) ? invoice.parsed.invoiceDate : (invoice.receivedAt ?? new Date()),
-    narration: buildNarration(invoice)
+    narration: buildNarration(invoice),
+    partyStateName
   };
 
   const invoiceObj = invoice as unknown as Record<string, unknown>;
