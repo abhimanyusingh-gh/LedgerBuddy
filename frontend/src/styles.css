@@ -4550,6 +4550,24 @@ pre {
   gap: 0.5rem;
 }
 
+.triage-bulk-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.6rem 0.85rem;
+  border-radius: 6px;
+  background: var(--accent-soft-bg, #fef3c7);
+  border: 1px solid var(--line-soft, #e5e7eb);
+  color: var(--ink-soft, #1f2937);
+  font-size: 0.85rem;
+}
+
+.triage-bulk-banner p {
+  margin: 0;
+  flex: 1;
+}
+
 .triage-table {
   width: 100%;
   border-collapse: collapse;

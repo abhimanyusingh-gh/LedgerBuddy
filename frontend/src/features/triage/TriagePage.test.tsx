@@ -195,6 +195,126 @@ describe("features/triage/TriagePage — assign flow", () => {
   });
 });
 
+describe("features/triage/TriagePage — bulk partial-failure UX", () => {
+  it("removes only the successful rows, keeps failed rows visible, and surfaces a status banner", async () => {
+    const initialItems = [
+      buildInvoice({ _id: "inv-1", invoiceNumber: "INV-1" }),
+      buildInvoice({ _id: "inv-2", invoiceNumber: "INV-2" }),
+      buildInvoice({ _id: "inv-3", invoiceNumber: "INV-3" }),
+      buildInvoice({ _id: "inv-4", invoiceNumber: "INV-4" }),
+      buildInvoice({ _id: "inv-5", invoiceNumber: "INV-5" })
+    ];
+    triage.fetchTriageInvoices
+      .mockResolvedValueOnce({ items: initialItems, total: 5 })
+      .mockResolvedValue({
+        items: initialItems.filter((i) => i._id === "inv-3" || i._id === "inv-5"),
+        total: 2
+      });
+    orgs.fetchClientOrganizations.mockResolvedValue([
+      buildOrg({ _id: "org-9", gstin: "29ABCDE1111F1Z5", companyName: "Sharma Textiles" })
+    ]);
+    triage.assignClientOrg.mockImplementation(async (invoiceId: string) => {
+      if (invoiceId === "inv-3") throw new Error("invariant");
+      if (invoiceId === "inv-5") throw new Error("network");
+      return { ok: true };
+    });
+
+    renderPage();
+    await screen.findByTestId("triage-row-inv-1");
+    fireEvent.click(screen.getByTestId("triage-select-all"));
+    fireEvent.click(screen.getByTestId("triage-bulk-assign"));
+    await screen.findByTestId("triage-picker-list");
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId("triage-picker-option-org-9"));
+    });
+
+    await waitFor(() => {
+      expect(triage.assignClientOrg).toHaveBeenCalledTimes(5);
+    });
+
+    await waitFor(() => {
+      expect(screen.queryByTestId("triage-row-inv-1")).not.toBeInTheDocument();
+      expect(screen.queryByTestId("triage-row-inv-2")).not.toBeInTheDocument();
+      expect(screen.queryByTestId("triage-row-inv-4")).not.toBeInTheDocument();
+    });
+    expect(screen.getByTestId("triage-row-inv-3")).toBeInTheDocument();
+    expect(screen.getByTestId("triage-row-inv-5")).toBeInTheDocument();
+
+    const banner = screen.getByTestId("triage-bulk-outcome");
+    expect(banner).toHaveAttribute("data-action", "assign");
+    expect(banner).toHaveTextContent(/3 of 5/i);
+    const failedList = screen.getByTestId("triage-bulk-outcome-failed");
+    expect(failedList).toHaveTextContent("INV-3");
+    expect(failedList).toHaveTextContent("INV-5");
+  });
+
+  it("surfaces a partial-failure banner for bulk-reject as well", async () => {
+    const items = [
+      buildInvoice({ _id: "inv-a", invoiceNumber: "INV-A" }),
+      buildInvoice({ _id: "inv-b", invoiceNumber: "INV-B" }),
+      buildInvoice({ _id: "inv-c", invoiceNumber: "INV-C" })
+    ];
+    triage.fetchTriageInvoices
+      .mockResolvedValueOnce({ items, total: 3 })
+      .mockResolvedValue({ items: items.filter((i) => i._id === "inv-b"), total: 1 });
+    orgs.fetchClientOrganizations.mockResolvedValue([]);
+    triage.rejectInvoice.mockImplementation(async (invoiceId: string) => {
+      if (invoiceId === "inv-b") throw new Error("server-error");
+      return { ok: true };
+    });
+
+    renderPage();
+    await screen.findByTestId("triage-row-inv-a");
+    fireEvent.click(screen.getByTestId("triage-select-all"));
+    fireEvent.click(screen.getByTestId("triage-bulk-reject"));
+
+    const dialog = await screen.findByRole("alertdialog");
+    fireEvent.click(within(dialog).getByTestId("reject-dialog-reason-spam"));
+    await act(async () => {
+      fireEvent.click(within(dialog).getByTestId("reject-dialog-confirm"));
+    });
+
+    await waitFor(() => {
+      expect(triage.rejectInvoice).toHaveBeenCalledTimes(3);
+    });
+
+    const banner = await screen.findByTestId("triage-bulk-outcome");
+    expect(banner).toHaveAttribute("data-action", "reject");
+    expect(banner).toHaveTextContent(/2 of 3/i);
+    expect(screen.getByTestId("triage-bulk-outcome-failed")).toHaveTextContent("INV-B");
+    expect(screen.getByTestId("triage-row-inv-b")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId("triage-bulk-outcome-dismiss"));
+    expect(screen.queryByTestId("triage-bulk-outcome")).not.toBeInTheDocument();
+  });
+
+  it("does NOT surface a banner when every invoice succeeds", async () => {
+    triage.fetchTriageInvoices.mockResolvedValue({
+      items: [buildInvoice({ _id: "inv-1" }), buildInvoice({ _id: "inv-2" })],
+      total: 2
+    });
+    orgs.fetchClientOrganizations.mockResolvedValue([
+      buildOrg({ _id: "org-9", gstin: "29ABCDE1111F1Z5", companyName: "Sharma Textiles" })
+    ]);
+    triage.assignClientOrg.mockResolvedValue({ ok: true });
+
+    renderPage();
+    await screen.findByTestId("triage-row-inv-1");
+    fireEvent.click(screen.getByTestId("triage-select-all"));
+    fireEvent.click(screen.getByTestId("triage-bulk-assign"));
+    await screen.findByTestId("triage-picker-list");
+    await act(async () => {
+      fireEvent.click(screen.getByTestId("triage-picker-option-org-9"));
+    });
+
+    await waitFor(() => {
+      expect(triage.assignClientOrg).toHaveBeenCalledTimes(2);
+    });
+    expect(screen.queryByTestId("triage-bulk-outcome")).not.toBeInTheDocument();
+  });
+});
+
 describe("features/triage/TriagePage — reject flow", () => {
   it("opens the reject dialog, posts the canonical reason, and removes the row optimistically", async () => {
     triage.fetchTriageInvoices
@@ -215,7 +335,7 @@ describe("features/triage/TriagePage — reject flow", () => {
     fireEvent.click(within(dialog).getByTestId("reject-dialog-confirm"));
 
     await waitFor(() => {
-      expect(triage.rejectInvoice).toHaveBeenCalledWith("inv-1", "Spam");
+      expect(triage.rejectInvoice).toHaveBeenCalledWith("inv-1", { reasonCode: "spam" });
     });
     await waitFor(() => {
       expect(screen.queryByTestId("triage-row-inv-1")).not.toBeInTheDocument();
