@@ -483,18 +483,8 @@ select:focus {
 
 .realm-switcher-input {
   width: 100%;
-  border: 1px solid var(--line);
-  border-radius: 0.5rem;
-  padding: 0.55rem 0.75rem;
-  font: inherit;
-  font-size: 0.9rem;
   background: var(--bg-main, #f4f5f7);
   color: var(--ink, #111827);
-}
-
-.realm-switcher-input:focus-visible {
-  outline: 2px solid var(--accent, #1e3a8a);
-  outline-offset: 1px;
 }
 
 .realm-switcher-status {

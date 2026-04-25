@@ -158,6 +158,30 @@ describe("RealmSwitcher", () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
+  it("resets highlight when filtered set changes to a different list of the same length", () => {
+    renderSwitcher({
+      clientOrgs: [
+        { id: "org-1", companyName: "Alpha Foods" },
+        { id: "org-2", companyName: "Alpine Tools" },
+        { id: "org-3", companyName: "Beacon Mills" },
+        { id: "org-4", companyName: "Beta Steel" }
+      ]
+    });
+    const input = screen.getByTestId("realm-switcher-input");
+    const list = screen.getByTestId("realm-switcher-list");
+    const listId = list.getAttribute("id");
+
+    // "al" matches Alpha + Alpine (length 2). Highlight the second row.
+    fireEvent.change(input, { target: { value: "al" } });
+    fireEvent.keyDown(input, { key: "ArrowDown" });
+    expect(input.getAttribute("aria-activedescendant")).toBe(`${listId}-option-org-2`);
+
+    // "be" matches Beacon + Beta (still length 2 but a different list).
+    // Highlight must reset to the first row, not stay on index 1.
+    fireEvent.change(input, { target: { value: "be" } });
+    expect(input.getAttribute("aria-activedescendant")).toBe(`${listId}-option-org-3`);
+  });
+
   it("wires aria-controls and aria-activedescendant on the input", () => {
     renderSwitcher();
     const input = screen.getByTestId("realm-switcher-input");

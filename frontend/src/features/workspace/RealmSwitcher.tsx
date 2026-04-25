@@ -50,12 +50,8 @@ export function RealmSwitcher({
   );
 
   useEffect(() => {
-    if (filtered.length === 0) {
-      setHighlightedIndex(0);
-      return;
-    }
-    setHighlightedIndex((prev) => Math.min(Math.max(prev, 0), filtered.length - 1));
-  }, [filtered.length]);
+    setHighlightedIndex(0);
+  }, [filtered]);
 
   if (!open) return null;
 
@@ -67,6 +63,8 @@ export function RealmSwitcher({
     onClose();
   }
 
+  // Escape is intentionally not handled here: dismissal is owned by useModalDismiss
+  // (window-bound listener) so overlay/Escape behavior cannot drift between handlers.
   function handleKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
     if (event.key === "ArrowDown") {
       event.preventDefault();
@@ -80,9 +78,6 @@ export function RealmSwitcher({
       event.preventDefault();
       const option = filtered[highlightedIndex];
       if (option) commit(option);
-    } else if (event.key === "Escape") {
-      event.preventDefault();
-      onClose();
     }
   }
 
@@ -114,7 +109,7 @@ export function RealmSwitcher({
         <input
           ref={inputRef}
           type="text"
-          className="realm-switcher-input"
+          className="search-input realm-switcher-input"
           placeholder="Search by company name..."
           value={query}
           onChange={(e) => setQuery(e.target.value)}
