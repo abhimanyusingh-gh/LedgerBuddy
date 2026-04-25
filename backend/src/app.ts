@@ -5,6 +5,7 @@ import { healthRouter } from "@/routes/auth/health.js";
 import { buildDependencies } from "@/core/dependencies.js";
 import { createInvoiceRouter } from "@/routes/invoice/invoices.js";
 import { createActionRequiredRouter } from "@/routes/invoice/actionRequired.js";
+import { createTriageRouter } from "@/routes/invoice/triage.js";
 import { createExportRouter } from "@/routes/export/export.js";
 import { createAnalyticsRouter } from "@/routes/invoice/analytics.js";
 import { createJobsRouter } from "@/routes/ingestion/jobs.js";
@@ -117,6 +118,7 @@ export async function createApp(prebuiltDependencies?: Awaited<ReturnType<typeof
   app.use("/api", createGmailConnectionRouter(dependencies.gmailIntegrationService));
   app.use("/api", requireNonPlatformAdmin, requireTenantSetupCompleted, createInvoiceRouter(dependencies.invoiceService, dependencies.approvalWorkflowService, dependencies.fileStore));
   app.use("/api", requireNonPlatformAdmin, requireTenantSetupCompleted, createActionRequiredRouter());
+  app.use("/api", requireNonPlatformAdmin, requireTenantSetupCompleted, createTriageRouter(dependencies.triageService));
   app.use(
     "/api",
     requireNonPlatformAdmin,

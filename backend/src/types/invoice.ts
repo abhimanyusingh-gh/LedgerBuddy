@@ -18,7 +18,31 @@ export const INVOICE_STATUS = {
    * assigns the client-org via triage UI, then transitions status.
    */
   PENDING_TRIAGE: "PENDING_TRIAGE",
+  /**
+   * Triage-rejected (#179): operator marked the invoice as not actionable
+   * (spam / wrong vendor / not for any client / other). Carries
+   * `clientOrgId: null` because rejection happens before client-org
+   * assignment, so the composite-key invariant treats REJECTED the same
+   * way as PENDING_TRIAGE — see `validateClientOrgTenantInvariant`.
+   */
+  REJECTED: "REJECTED",
 } as const;
+
+export const TRIAGE_REJECT_REASON = {
+  NOT_FOR_ANY_CLIENT: "not_for_any_client",
+  SPAM: "spam",
+  WRONG_VENDOR: "wrong_vendor",
+  OTHER: "other",
+} as const;
+
+export const TriageRejectReasons = Object.values(TRIAGE_REJECT_REASON);
+
+export type TriageRejectReason = (typeof TRIAGE_REJECT_REASON)[keyof typeof TRIAGE_REJECT_REASON];
+
+export interface InvoiceRejectReason {
+  code: TriageRejectReason;
+  notes?: string;
+}
 
 export const INVOICE_FIELD_KEY = {
   INVOICE_NUMBER: "invoiceNumber",

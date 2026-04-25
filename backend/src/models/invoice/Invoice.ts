@@ -1,5 +1,5 @@
 import { Schema, model, type InferSchemaType, type HydratedDocument } from "mongoose";
-import { InvoiceStatuses, INVOICE_STATUS, GL_CODE_SOURCE } from "@/types/invoice.js";
+import { InvoiceStatuses, INVOICE_STATUS, GL_CODE_SOURCE, TriageRejectReasons } from "@/types/invoice.js";
 import { ConfidenceTones } from "@/types/confidence.js";
 import { WorkloadTiers } from "@/types/tenant.js";
 import { validateClientOrgTenantInvariant } from "@/services/auth/tenantScope.js";
@@ -164,7 +164,10 @@ const invoiceSchema = new Schema(
       type: Schema.Types.ObjectId,
       ref: "ClientOrganization",
       required: function (this: { status?: string }) {
-        return this.status !== INVOICE_STATUS.PENDING_TRIAGE;
+        return (
+          this.status !== INVOICE_STATUS.PENDING_TRIAGE &&
+          this.status !== INVOICE_STATUS.REJECTED
+        );
       }
     },
     workloadTier: { type: String, enum: WorkloadTiers, required: true, default: "standard" },
@@ -392,6 +395,17 @@ const invoiceSchema = new Schema(
           default: []
         }
       }, { _id: false }),
+      default: undefined
+    },
+
+    rejectReason: {
+      type: new Schema(
+        {
+          code: { type: String, enum: TriageRejectReasons, required: true },
+          notes: { type: String }
+        },
+        { _id: false }
+      ),
       default: undefined
     },
 

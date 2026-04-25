@@ -37,6 +37,7 @@ import { createInviteEmailSenderProvider } from "@/providers/email/createInviteE
 import { PlatformAdminService } from "@/services/platform/platformAdminService.js";
 import { KeycloakAdminClient } from "@/keycloak/KeycloakAdminClient.js";
 import { ApprovalWorkflowService } from "@/services/invoice/approvalWorkflowService.js";
+import { TriageService } from "@/services/invoice/triageService.js";
 import { ComplianceEnrichmentService } from "@/services/compliance/ComplianceEnrichmentService.js";
 import { PanValidationService } from "@/services/compliance/PanValidationService.js";
 import { VendorMasterService } from "@/services/compliance/VendorMasterService.js";
@@ -70,6 +71,7 @@ interface Dependencies {
   fileStore: FileStore;
   keycloakAdmin: KeycloakAdminClient;
   approvalWorkflowService: ApprovalWorkflowService;
+  triageService: TriageService;
   ocrProvider: OcrProvider;
   fieldVerifier: FieldVerifier;
 }
@@ -177,6 +179,7 @@ export async function buildDependencies(): Promise<Dependencies> {
     bankService,
     fileStore: storage.fileStore,
     approvalWorkflowService,
+    triageService: new TriageService(),
     ocrProvider: extraction.ocrProvider,
     fieldVerifier: extraction.fieldVerifier
   };

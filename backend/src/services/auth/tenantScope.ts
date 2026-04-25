@@ -120,16 +120,22 @@ export async function findTenantIdsByClientOrgIds(
 /**
  * Pre-save invariant: every accounting-leaf document must carry a
  * `clientOrgId` whose referenced `ClientOrganization.tenantId` matches
- * the document's own `tenantId`. Triage invoices (`PENDING_TRIAGE` +
- * `clientOrgId: null`) are exempt — client-org assignment is deferred
- * until a human triages the doc.
+ * the document's own `tenantId`. Triage-stage invoices are exempt —
+ * `PENDING_TRIAGE` is awaiting assignment, and `REJECTED` (#179) was
+ * dismissed before assignment ever happened, so both legitimately carry
+ * `clientOrgId: null`.
  */
+const TRIAGE_NULL_CLIENT_ORG_STATUSES: readonly string[] = [
+  INVOICE_STATUS.PENDING_TRIAGE,
+  INVOICE_STATUS.REJECTED
+];
+
 export async function validateClientOrgTenantInvariant(
   tenantId: string | null | undefined,
   clientOrgId: Types.ObjectId | string | null | undefined,
   status?: string
 ): Promise<void> {
-  if (status === INVOICE_STATUS.PENDING_TRIAGE && clientOrgId == null) {
+  if (status != null && TRIAGE_NULL_CLIENT_ORG_STATUSES.includes(status) && clientOrgId == null) {
     return;
   }
   if (tenantId == null && clientOrgId == null) {
