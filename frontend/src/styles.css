@@ -4698,6 +4698,10 @@ pre {
   color: #fff;
 }
 
+.ds-pill .material-symbols-outlined {
+  font-size: 1rem;
+}
+
 .ds-segmented-group {
   display: inline-flex;
   align-items: stretch;
@@ -4726,10 +4730,6 @@ pre {
 .ds-segmented-group .ds-pill[data-active="true"]:hover {
   background: var(--accent);
   color: #fff;
-}
-
-.admin-realm-switcher-segment-picker .material-symbols-outlined {
-  font-size: 1rem;
 }
 
 .mailboxes-page {

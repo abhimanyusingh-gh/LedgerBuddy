@@ -50,7 +50,7 @@ export function AdminRealmSwitcher() {
       </button>
       <button
         type="button"
-        className="ds-pill admin-realm-switcher-segment-picker"
+        className="ds-pill"
         data-active={!isAllSelected ? "true" : undefined}
         aria-pressed={!isAllSelected}
         aria-haspopup="dialog"
