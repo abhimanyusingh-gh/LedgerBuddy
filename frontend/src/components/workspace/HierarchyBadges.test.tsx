@@ -128,6 +128,22 @@ describe("components/workspace/ActiveRealmBadge", () => {
     expect(screen.getByTestId("active-realm-badge")).toHaveTextContent("Storage-driven Co.");
   });
 
+  it("renders the active badge as a clickable button when onOpenSwitcher is provided", () => {
+    setActiveClientOrgId("org-1");
+    const onOpenSwitcher = jest.fn();
+    render(
+      <ActiveRealmBadge
+        clientOrgs={[{ id: "org-1", companyName: "Sharma Textiles" }]}
+        onOpenSwitcher={onOpenSwitcher}
+      />
+    );
+    const badge = screen.getByTestId("active-realm-badge");
+    expect(badge.tagName).toBe("BUTTON");
+    expect(badge).toHaveAttribute("aria-haspopup", "listbox");
+    fireEvent.click(badge);
+    expect(onOpenSwitcher).toHaveBeenCalledTimes(1);
+  });
+
   it("does not auto-clear while clientOrgs is still loading (undefined)", () => {
     // While the list is still being fetched, we have no signal whether the
     // active id is stale — leave it alone so the loading badge can render.

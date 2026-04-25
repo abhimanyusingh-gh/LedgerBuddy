@@ -1,37 +1,74 @@
-import { useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { ActionRequiredTrigger } from "@/features/invoices/ActionRequiredTrigger";
 import { TenantBadge, ActiveRealmBadge, type ClientOrgOption } from "@/components/workspace/HierarchyBadges";
+import { RealmSwitcher } from "@/features/workspace/RealmSwitcher";
+import { useTenantClientOrgs } from "@/hooks/useTenantClientOrgs";
+
+export const REALM_SWITCHER_SHORTCUT = {
+  key: "k",
+  withMeta: true
+} as const;
 
 interface WorkspaceTopNavProps {
   userEmail: string;
   tenantName: string;
-  clientOrgs?: ClientOrgOption[];
-  onOpenRealmSwitcher?: () => void;
   onLogout: () => void;
   onChangePassword: () => void;
   counts: { total: number; approved: number; pending: number; failed: number };
   themeToggle?: React.ReactNode;
   onSelectActionInvoice?: (invoiceId: string) => void;
+  onGoToOnboarding?: () => void;
+}
+
+function isEditableTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false;
+  const tag = target.tagName.toLowerCase();
+  if (tag === "input" || tag === "textarea" || tag === "select") return true;
+  return target.isContentEditable;
 }
 
 export function WorkspaceTopNav({
   userEmail,
   tenantName,
-  clientOrgs,
-  onOpenRealmSwitcher,
   onLogout,
   onChangePassword,
   counts,
   themeToggle,
-  onSelectActionInvoice
+  onSelectActionInvoice,
+  onGoToOnboarding
 }: WorkspaceTopNavProps) {
+  const [switcherOpen, setSwitcherOpen] = useState(false);
+  const { clientOrgs, isLoading, isError, refetch } = useTenantClientOrgs();
+
+  const openSwitcher = useCallback(() => setSwitcherOpen(true), []);
+  const closeSwitcher = useCallback(() => setSwitcherOpen(false), []);
+
+  useEffect(() => {
+    function handler(event: KeyboardEvent) {
+      const isShortcut =
+        (event.metaKey || event.ctrlKey) &&
+        !event.shiftKey &&
+        !event.altKey &&
+        event.key.toLowerCase() === REALM_SWITCHER_SHORTCUT.key;
+      if (!isShortcut) return;
+      if (isEditableTarget(event.target)) {
+        const tag = (event.target as HTMLElement).tagName.toLowerCase();
+        if (tag !== "input" && tag !== "textarea") return;
+      }
+      event.preventDefault();
+      setSwitcherOpen((prev) => !prev);
+    }
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, []);
+
   const avatarLabel = useMemo(() => {
     const trimmed = userEmail.trim();
-    if (!trimmed) {
-      return "U";
-    }
+    if (!trimmed) return "U";
     return trimmed[0].toUpperCase();
   }, [userEmail]);
+
+  const badgeOrgs: ClientOrgOption[] | undefined = isLoading || isError ? undefined : clientOrgs;
 
   return (
     <header className="tenant-top-nav">
@@ -46,7 +83,7 @@ export function WorkspaceTopNav({
         <span className="workspace-hierarchy-badges" data-testid="workspace-hierarchy-badges">
           <TenantBadge tenantName={tenantName} />
           <span className="workspace-hierarchy-badge-separator" aria-hidden="true">·</span>
-          <ActiveRealmBadge clientOrgs={clientOrgs} onOpenSwitcher={onOpenRealmSwitcher} />
+          <ActiveRealmBadge clientOrgs={badgeOrgs} onOpenSwitcher={openSwitcher} />
         </span>
         <div className="tenant-nav-divider" />
         <span className="toolbar-icon-wrap">
@@ -72,6 +109,16 @@ export function WorkspaceTopNav({
           Logout
         </button>
       </div>
+
+      <RealmSwitcher
+        open={switcherOpen}
+        onClose={closeSwitcher}
+        clientOrgs={clientOrgs}
+        isLoading={isLoading}
+        isError={isError}
+        onRetry={() => { void refetch(); }}
+        onGoToOnboarding={onGoToOnboarding}
+      />
     </header>
   );
 }

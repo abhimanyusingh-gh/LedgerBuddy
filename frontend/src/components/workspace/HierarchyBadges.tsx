@@ -100,6 +100,30 @@ export function ActiveRealmBadge({ clientOrgs, onOpenSwitcher }: ActiveRealmBadg
 
   const isLoading = clientOrgs === undefined;
   const label = isLoading ? "Loading…" : activeName ?? activeClientOrgId;
+  const switcherReady = typeof onOpenSwitcher === "function";
+
+  if (switcherReady) {
+    return (
+      <button
+        type="button"
+        className="workspace-hierarchy-badge workspace-hierarchy-badge-realm workspace-hierarchy-badge-realm-trigger"
+        data-testid="active-realm-badge"
+        data-loading={isLoading ? "true" : undefined}
+        title={`Active client: ${label} — click to switch`}
+        aria-label={`Active client ${label}, open switcher`}
+        aria-haspopup="listbox"
+        onClick={onOpenSwitcher}
+      >
+        <span className="material-symbols-outlined workspace-hierarchy-badge-icon" aria-hidden="true">
+          business_center
+        </span>
+        {label}
+        <span className="material-symbols-outlined workspace-hierarchy-badge-icon" aria-hidden="true">
+          expand_more
+        </span>
+      </button>
+    );
+  }
 
   return (
     <span
