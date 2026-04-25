@@ -4948,6 +4948,11 @@ pre {
   background: var(--bg-main);
 }
 
+.mailbox-multi-picker-list:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
 .mailbox-multi-picker-list-empty {
   padding: var(--sp-3);
   font-size: 0.8125rem;
@@ -4969,12 +4974,17 @@ pre {
   border-bottom: none;
 }
 
-.mailbox-multi-picker-option:focus-visible {
+.mailbox-multi-picker-option:focus-visible,
+.mailbox-multi-picker-list:focus-visible .mailbox-multi-picker-option[data-active="true"] {
   outline: 2px solid var(--accent);
   outline-offset: -2px;
 }
 
 .mailbox-multi-picker-option[data-checked="true"] {
+  background: var(--bg-panel);
+}
+
+.mailbox-multi-picker-option[data-active="true"] {
   background: var(--bg-panel);
 }
 

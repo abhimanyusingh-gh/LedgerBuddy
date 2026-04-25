@@ -127,6 +127,81 @@ describe("features/admin/mailboxes/ClientOrgMultiPicker", () => {
     expect(selectedOption).toHaveAttribute("aria-selected", "true");
   });
 
+  describe("keyboard a11y (aria-activedescendant listbox)", () => {
+    function renderPicker(onChange = jest.fn()) {
+      render(
+        <ClientOrgMultiPicker
+          clientOrgs={ORGS}
+          isLoading={false}
+          isError={false}
+          onRetry={jest.fn()}
+          selectedIds={[]}
+          onChange={onChange}
+        />
+      );
+      return onChange;
+    }
+
+    it("makes the listbox tab-reachable with tabIndex=0", () => {
+      renderPicker();
+      const list = screen.getByTestId("client-org-multi-picker-list");
+      expect(list).toHaveAttribute("tabindex", "0");
+    });
+
+    it("ArrowDown advances aria-activedescendant to the next option", () => {
+      renderPicker();
+      const list = screen.getByTestId("client-org-multi-picker-list");
+      const firstOptionId = screen.getByTestId("client-org-multi-picker-option-org-3").id;
+      const secondOptionId = screen.getByTestId("client-org-multi-picker-option-org-2").id;
+      expect(list).toHaveAttribute("aria-activedescendant", firstOptionId);
+      fireEvent.keyDown(list, { key: "ArrowDown" });
+      expect(list).toHaveAttribute("aria-activedescendant", secondOptionId);
+    });
+
+    it("ArrowUp moves aria-activedescendant to the previous option (wraps from first to last)", () => {
+      renderPicker();
+      const list = screen.getByTestId("client-org-multi-picker-list");
+      const lastOptionId = screen.getByTestId("client-org-multi-picker-option-org-1").id;
+      fireEvent.keyDown(list, { key: "ArrowUp" });
+      expect(list).toHaveAttribute("aria-activedescendant", lastOptionId);
+    });
+
+    it("Home/End jump to first/last option", () => {
+      renderPicker();
+      const list = screen.getByTestId("client-org-multi-picker-list");
+      const firstOptionId = screen.getByTestId("client-org-multi-picker-option-org-3").id;
+      const lastOptionId = screen.getByTestId("client-org-multi-picker-option-org-1").id;
+      fireEvent.keyDown(list, { key: "End" });
+      expect(list).toHaveAttribute("aria-activedescendant", lastOptionId);
+      fireEvent.keyDown(list, { key: "Home" });
+      expect(list).toHaveAttribute("aria-activedescendant", firstOptionId);
+    });
+
+    it("Space toggles the active option's selection", () => {
+      const onChange = renderPicker();
+      const list = screen.getByTestId("client-org-multi-picker-list");
+      fireEvent.keyDown(list, { key: " " });
+      expect(onChange).toHaveBeenLastCalledWith(["org-3"]);
+    });
+
+    it("Enter toggles the active option's selection", () => {
+      const onChange = renderPicker();
+      const list = screen.getByTestId("client-org-multi-picker-list");
+      fireEvent.keyDown(list, { key: "ArrowDown" });
+      fireEvent.keyDown(list, { key: "Enter" });
+      expect(onChange).toHaveBeenLastCalledWith(["org-2"]);
+    });
+
+    it("does not toggle a non-active option when Space is pressed at the listbox level", () => {
+      const onChange = renderPicker();
+      const list = screen.getByTestId("client-org-multi-picker-list");
+      fireEvent.keyDown(list, { key: " " });
+      // Active option is org-3 (Acme Industries, sorted first); org-1 must NOT be selected.
+      expect(onChange).toHaveBeenCalledTimes(1);
+      expect(onChange).not.toHaveBeenCalledWith(expect.arrayContaining(["org-1"]));
+    });
+  });
+
   it("flags chips for ids that are no longer in the tenant's clientOrgs as orphans", () => {
     render(
       <ClientOrgMultiPicker

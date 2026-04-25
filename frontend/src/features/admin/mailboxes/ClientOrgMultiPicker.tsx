@@ -1,4 +1,4 @@
-import { useId, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
 import { Badge, Button } from "@/components/ds";
 import type { ClientOrgOption } from "@/components/workspace/HierarchyBadges";
 
@@ -28,7 +28,9 @@ export function ClientOrgMultiPicker({
   testIdPrefix = "client-org-multi-picker"
 }: ClientOrgMultiPickerProps) {
   const [query, setQuery] = useState("");
+  const [activeIndex, setActiveIndex] = useState(0);
   const inputId = useId();
+  const listboxId = useId();
 
   const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
   const orgsById = useMemo(() => {
@@ -54,6 +56,14 @@ export function ClientOrgMultiPicker({
       .sort((a, b) => a.companyName.localeCompare(b.companyName));
   }, [clientOrgs, query]);
 
+  useEffect(() => {
+    setActiveIndex((prev) => {
+      if (visibleOptions.length === 0) return 0;
+      if (prev >= visibleOptions.length) return visibleOptions.length - 1;
+      return prev;
+    });
+  }, [visibleOptions]);
+
   const toggle = (id: string) => {
     if (selectedSet.has(id)) {
       onChange(selectedIds.filter((existing) => existing !== id));
@@ -64,6 +74,31 @@ export function ClientOrgMultiPicker({
 
   const removeChip = (id: string) => {
     onChange(selectedIds.filter((existing) => existing !== id));
+  };
+
+  const optionDomId = (id: string) => `${listboxId}-option-${id}`;
+  const activeOption = visibleOptions[activeIndex];
+  const activeDescendant = activeOption ? optionDomId(activeOption.id) : undefined;
+
+  const handleListboxKeyDown = (event: React.KeyboardEvent<HTMLUListElement>) => {
+    if (visibleOptions.length === 0) return;
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      setActiveIndex((prev) => (prev + 1) % visibleOptions.length);
+    } else if (event.key === "ArrowUp") {
+      event.preventDefault();
+      setActiveIndex((prev) => (prev - 1 + visibleOptions.length) % visibleOptions.length);
+    } else if (event.key === "Home") {
+      event.preventDefault();
+      setActiveIndex(0);
+    } else if (event.key === "End") {
+      event.preventDefault();
+      setActiveIndex(visibleOptions.length - 1);
+    } else if (event.key === " " || event.key === "Enter") {
+      event.preventDefault();
+      const option = visibleOptions[activeIndex];
+      if (option) toggle(option.id);
+    }
   };
 
   return (
@@ -150,11 +185,15 @@ export function ClientOrgMultiPicker({
 
       {!isLoading && !isError ? (
         <ul
+          id={listboxId}
           className="mailbox-multi-picker-list"
           role="listbox"
           aria-multiselectable="true"
           aria-label="Client organizations"
           data-testid={`${testIdPrefix}-list`}
+          tabIndex={visibleOptions.length > 0 ? 0 : -1}
+          aria-activedescendant={activeDescendant}
+          onKeyDown={handleListboxKeyDown}
         >
           {visibleOptions.length === 0 ? (
             <li
@@ -166,23 +205,23 @@ export function ClientOrgMultiPicker({
                 : "No client organizations exist for this tenant yet."}
             </li>
           ) : (
-            visibleOptions.map((org) => {
+            visibleOptions.map((org, idx) => {
               const checked = selectedSet.has(org.id);
+              const isActive = idx === activeIndex;
               return (
                 <li
                   key={org.id}
+                  id={optionDomId(org.id)}
                   role="option"
                   aria-selected={checked}
-                  tabIndex={-1}
                   className="mailbox-multi-picker-option"
                   data-testid={`${testIdPrefix}-option-${org.id}`}
                   data-checked={checked ? "true" : undefined}
-                  onClick={() => toggle(org.id)}
-                  onKeyDown={(event) => {
-                    if (event.key === " " || event.key === "Enter") {
-                      event.preventDefault();
-                      toggle(org.id);
-                    }
+                  data-active={isActive ? "true" : undefined}
+                  onMouseEnter={() => setActiveIndex(idx)}
+                  onClick={() => {
+                    setActiveIndex(idx);
+                    toggle(org.id);
                   }}
                 >
                   <span
