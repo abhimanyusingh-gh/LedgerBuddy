@@ -7,6 +7,7 @@ import {
   findClientOrgIdsForTenant,
   findClientOrgIdByIdForTenant,
   findTenantIdsByClientOrgIds,
+  validateClientOrgTenantInvariant,
   ClientOrgTenantInvariantError
 } from "@/services/auth/tenantScope.js";
 
@@ -150,5 +151,66 @@ describeHarness("validateClientOrgTenantInvariant pre-save hook (Invoice)", () =
     });
 
     await expect(invoice.save()).resolves.toBeDefined();
+  });
+
+  test("REJECTED + null clientOrgId saves end-to-end (exemption applied at pre-save) (#179)", async () => {
+    const tenantId = new Types.ObjectId().toString();
+    const rejected = new InvoiceModel({
+      ...baseInvoiceFields,
+      tenantId,
+      clientOrgId: null,
+      sourceDocumentId: "doc-rejected-null",
+      attachmentName: "rejected-null.pdf",
+      status: INVOICE_STATUS.REJECTED
+    });
+    await expect(rejected.save()).resolves.toBeDefined();
+  });
+
+  test("REJECTED + a valid owned clientOrgId also saves (exemption permits null, does not forbid populated) (#179)", async () => {
+    const tenantId = new Types.ObjectId().toString();
+    const ownedOrg = await ClientOrganizationModel.create({
+      tenantId,
+      gstin: GSTIN_A,
+      companyName: "Owned-Still-Rejectable"
+    });
+    const rejected = new InvoiceModel({
+      ...baseInvoiceFields,
+      tenantId,
+      clientOrgId: ownedOrg._id,
+      sourceDocumentId: "doc-rejected-owned",
+      attachmentName: "rejected-owned.pdf",
+      status: INVOICE_STATUS.REJECTED
+    });
+    await expect(rejected.save()).resolves.toBeDefined();
+  });
+});
+
+describeHarness("validateClientOrgTenantInvariant exemption is scoped to PENDING_TRIAGE + REJECTED only (#179)", () => {
+  test("permits null clientOrgId for PENDING_TRIAGE", async () => {
+    const tenantId = new Types.ObjectId().toString();
+    await expect(
+      validateClientOrgTenantInvariant(tenantId, null, INVOICE_STATUS.PENDING_TRIAGE)
+    ).resolves.toBeUndefined();
+  });
+
+  test("permits null clientOrgId for REJECTED", async () => {
+    const tenantId = new Types.ObjectId().toString();
+    await expect(
+      validateClientOrgTenantInvariant(tenantId, null, INVOICE_STATUS.REJECTED)
+    ).resolves.toBeUndefined();
+  });
+
+  test("rejects null clientOrgId for PARSED (exemption is correctly scoped to the set)", async () => {
+    const tenantId = new Types.ObjectId().toString();
+    await expect(
+      validateClientOrgTenantInvariant(tenantId, null, INVOICE_STATUS.PARSED)
+    ).rejects.toBeInstanceOf(ClientOrgTenantInvariantError);
+  });
+
+  test("rejects null clientOrgId for APPROVED (exemption is correctly scoped to the set)", async () => {
+    const tenantId = new Types.ObjectId().toString();
+    await expect(
+      validateClientOrgTenantInvariant(tenantId, null, INVOICE_STATUS.APPROVED)
+    ).rejects.toBeInstanceOf(ClientOrgTenantInvariantError);
   });
 });

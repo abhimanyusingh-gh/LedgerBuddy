@@ -4,6 +4,7 @@ import {
   INVOICE_STATUS,
   TRIAGE_REJECT_REASON,
   TriageRejectReasons,
+  type ParsedInvoiceData,
   type TriageRejectReason
 } from "@/types/invoice.js";
 import { findClientOrgIdByIdForTenant } from "@/services/auth/tenantScope.js";
@@ -30,6 +31,26 @@ export interface TriageListResult {
 }
 
 const SOURCE_TYPE_EMAIL = "email";
+
+/**
+ * Triage list projection: a nullable view of the fields we surface from
+ * `Invoice.parsed`. Aligned with `ParsedInvoiceData` but each field is
+ * widened to `T | null` because the persisted lean shape may carry
+ * explicit nulls for unset values.
+ */
+type Nullable<T> = { [K in keyof T]?: T[K] | null };
+type ParsedInvoiceProjection = Nullable<
+  Pick<
+    ParsedInvoiceData,
+    | "invoiceNumber"
+    | "vendorName"
+    | "vendorGstin"
+    | "customerName"
+    | "customerGstin"
+    | "totalAmountMinor"
+    | "currency"
+  >
+>;
 
 function nullableString(value: unknown): string | null {
   return typeof value === "string" && value.length > 0 ? value : null;
@@ -65,7 +86,7 @@ export class TriageService {
       InvoiceModel.countDocuments(filter)
     ]);
     const items: TriageInvoiceDto[] = docs.map((doc) => {
-      const parsed = (doc.parsed ?? {}) as Record<string, unknown>;
+      const parsed: ParsedInvoiceProjection = (doc.parsed ?? {}) as ParsedInvoiceProjection;
       const sourceMailbox =
         doc.sourceType === SOURCE_TYPE_EMAIL ? nullableString(doc.sourceKey) : null;
       return {
@@ -93,6 +114,17 @@ export class TriageService {
     invoiceId: string;
     clientOrgId: string;
   }): Promise<void> {
+    if (
+      typeof input.clientOrgId !== "string" ||
+      input.clientOrgId.length === 0 ||
+      !Types.ObjectId.isValid(input.clientOrgId)
+    ) {
+      throw new HttpError(
+        "clientOrgId is required and must be a valid ObjectId.",
+        400,
+        "assign_client_org_invalid"
+      );
+    }
     const invoiceOid = toObjectId(input.invoiceId, "triage_invoice_not_found");
     const invoice = await InvoiceModel.findOne({
       _id: invoiceOid,
@@ -108,18 +140,12 @@ export class TriageService {
         "triage_invoice_wrong_status"
       );
     }
-    if (typeof input.clientOrgId !== "string" || input.clientOrgId.length === 0) {
-      throw new HttpError("clientOrgId is required.", 400, "triage_client_org_required");
-    }
-    if (!Types.ObjectId.isValid(input.clientOrgId)) {
-      throw new HttpError("Invalid clientOrgId.", 400, "cross_tenant_assignment");
-    }
     const ownedOid = await findClientOrgIdByIdForTenant(input.clientOrgId, input.tenantId);
     if (!ownedOid) {
       throw new HttpError(
         "ClientOrganization does not belong to this tenant.",
         400,
-        "cross_tenant_assignment"
+        "assign_client_org_invalid"
       );
     }
     invoice.clientOrgId = ownedOid;

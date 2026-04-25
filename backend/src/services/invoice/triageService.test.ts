@@ -189,7 +189,7 @@ describeHarness("TriageService (#179)", ({ getHarness }) => {
       ).rejects.toMatchObject({ statusCode: 404, code: "triage_invoice_not_found" });
     });
 
-    it("400s with cross_tenant_assignment when clientOrg belongs to another tenant", async () => {
+    it("400s with assign_client_org_invalid when clientOrg belongs to another tenant", async () => {
       const otherOrg = await ClientOrganizationModel.create({
         tenantId: TENANT_B, gstin: GSTIN_A, companyName: "Other"
       });
@@ -200,7 +200,27 @@ describeHarness("TriageService (#179)", ({ getHarness }) => {
           invoiceId: invoice._id.toString(),
           clientOrgId: otherOrg._id.toString()
         })
-      ).rejects.toMatchObject({ statusCode: 400, code: "cross_tenant_assignment" });
+      ).rejects.toMatchObject({ statusCode: 400, code: "assign_client_org_invalid" });
+    });
+
+    it("400s with assign_client_org_invalid when clientOrgId is empty (validated before DB round-trip)", async () => {
+      await expect(
+        service.assignClientOrg({
+          tenantId: TENANT_A,
+          invoiceId: new Types.ObjectId().toString(),
+          clientOrgId: ""
+        })
+      ).rejects.toMatchObject({ statusCode: 400, code: "assign_client_org_invalid" });
+    });
+
+    it("400s with assign_client_org_invalid when clientOrgId is not a valid ObjectId (validated before DB round-trip)", async () => {
+      await expect(
+        service.assignClientOrg({
+          tenantId: TENANT_A,
+          invoiceId: new Types.ObjectId().toString(),
+          clientOrgId: "not-an-oid"
+        })
+      ).rejects.toMatchObject({ statusCode: 400, code: "assign_client_org_invalid" });
     });
 
     it("409s when invoice status is not PENDING_TRIAGE", async () => {
