@@ -1,7 +1,7 @@
-import type { BadgeTone } from "@/components/ds";
+import type { BadgeTone } from "@/components/ds/Badge";
 import { STATUS_LABELS } from "@/lib/invoice/invoiceView";
 
-export interface InvoiceStatusPresentation {
+interface InvoiceStatusPresentation {
   label: string;
   tone: BadgeTone;
 }
