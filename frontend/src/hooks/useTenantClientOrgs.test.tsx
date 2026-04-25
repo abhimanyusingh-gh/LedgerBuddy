@@ -4,16 +4,21 @@
 import { renderHook, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
+import type { ClientOrganization } from "@/api/clientOrgs";
 
-jest.mock("@/api/client", () => ({
-  apiClient: { get: jest.fn() }
+jest.mock("@/api/clientOrgs", () => ({
+  fetchClientOrganizations: jest.fn()
 }));
 
-const { apiClient } = jest.requireMock("@/api/client") as {
-  apiClient: { get: jest.Mock };
+const { fetchClientOrganizations } = jest.requireMock("@/api/clientOrgs") as {
+  fetchClientOrganizations: jest.Mock;
 };
 
-import { useTenantClientOrgs, TENANT_CLIENT_ORGS_QUERY_KEY } from "@/hooks/useTenantClientOrgs";
+import {
+  TENANT_CLIENT_ORGS_QUERY_KEY,
+  useClientOrgsAdminList,
+  useTenantClientOrgs
+} from "@/hooks/useTenantClientOrgs";
 
 function makeWrapper() {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -21,6 +26,18 @@ function makeWrapper() {
     return <QueryClientProvider client={qc}>{children}</QueryClientProvider>;
   }
   return { qc, Wrapper };
+}
+
+function buildOrg(overrides: Partial<ClientOrganization> & { _id: string; companyName: string }): ClientOrganization {
+  return {
+    tenantId: "tenant-1",
+    gstin: "29ABCPK1234F1Z5",
+    f12OverwriteByGuidVerified: false,
+    detectedVersion: null,
+    createdAt: "2026-04-20T00:00:00Z",
+    updatedAt: "2026-04-20T00:00:00Z",
+    ...overrides
+  };
 }
 
 beforeEach(() => {
@@ -32,21 +49,21 @@ describe("useTenantClientOrgs", () => {
     expect(TENANT_CLIENT_ORGS_QUERY_KEY).toEqual(["tenantClientOrgs"]);
   });
 
-  it("fetches /admin/client-orgs and maps the response to ClientOrgOption[]", async () => {
-    apiClient.get.mockResolvedValueOnce({
-      data: { items: [{ id: "org-1", companyName: "Sharma Textiles" }] }
-    });
+  it("projects the full ClientOrganization records to ClientOrgOption[] (id, companyName)", async () => {
+    fetchClientOrganizations.mockResolvedValueOnce([
+      buildOrg({ _id: "org-1", companyName: "Sharma Textiles" })
+    ]);
     const { Wrapper } = makeWrapper();
     const { result } = renderHook(() => useTenantClientOrgs(), { wrapper: Wrapper });
 
     await waitFor(() => expect(result.current.isLoading).toBe(false));
-    expect(apiClient.get).toHaveBeenCalledWith("/admin/client-orgs");
+    expect(fetchClientOrganizations).toHaveBeenCalledTimes(1);
     expect(result.current.clientOrgs).toEqual([{ id: "org-1", companyName: "Sharma Textiles" }]);
     expect(result.current.isError).toBe(false);
   });
 
-  it("returns an empty list when the response payload omits items", async () => {
-    apiClient.get.mockResolvedValueOnce({ data: {} });
+  it("returns an empty list when the BE returns no organizations", async () => {
+    fetchClientOrganizations.mockResolvedValueOnce([]);
     const { Wrapper } = makeWrapper();
     const { result } = renderHook(() => useTenantClientOrgs(), { wrapper: Wrapper });
 
@@ -55,7 +72,7 @@ describe("useTenantClientOrgs", () => {
   });
 
   it("flags isError when the request rejects", async () => {
-    apiClient.get.mockRejectedValueOnce(new Error("network down"));
+    fetchClientOrganizations.mockRejectedValueOnce(new Error("network down"));
     const { Wrapper } = makeWrapper();
     const { result } = renderHook(() => useTenantClientOrgs(), { wrapper: Wrapper });
 
@@ -67,7 +84,45 @@ describe("useTenantClientOrgs", () => {
     const { Wrapper } = makeWrapper();
     const { result } = renderHook(() => useTenantClientOrgs({ enabled: false }), { wrapper: Wrapper });
 
-    expect(apiClient.get).not.toHaveBeenCalled();
+    expect(fetchClientOrganizations).not.toHaveBeenCalled();
     expect(result.current.isLoading).toBe(false);
+  });
+});
+
+describe("useClientOrgsAdminList", () => {
+  it("returns the full ClientOrganization records (with _id and gstin) under the canonical key", async () => {
+    const records = [
+      buildOrg({ _id: "org-1", companyName: "Sharma Textiles", gstin: "29ABCPK1234F1Z5" }),
+      buildOrg({ _id: "org-2", companyName: "Bose Steel", gstin: "07AABCC1234D1ZA" })
+    ];
+    fetchClientOrganizations.mockResolvedValueOnce(records);
+    const { Wrapper } = makeWrapper();
+    const { result } = renderHook(() => useClientOrgsAdminList(), { wrapper: Wrapper });
+
+    await waitFor(() => expect(result.current.isPending).toBe(false));
+    expect(result.current.data).toEqual(records);
+  });
+
+  it("shares its cache with useTenantClientOrgs (single fetch serves both consumers)", async () => {
+    fetchClientOrganizations.mockResolvedValueOnce([
+      buildOrg({ _id: "org-1", companyName: "Sharma Textiles" })
+    ]);
+    const { Wrapper } = makeWrapper();
+    const { result } = renderHook(
+      () => ({
+        admin: useClientOrgsAdminList(),
+        thin: useTenantClientOrgs()
+      }),
+      { wrapper: Wrapper }
+    );
+
+    await waitFor(() => expect(result.current.thin.isLoading).toBe(false));
+    expect(fetchClientOrganizations).toHaveBeenCalledTimes(1);
+    expect(result.current.admin.data).toEqual([
+      buildOrg({ _id: "org-1", companyName: "Sharma Textiles" })
+    ]);
+    expect(result.current.thin.clientOrgs).toEqual([
+      { id: "org-1", companyName: "Sharma Textiles" }
+    ]);
   });
 });

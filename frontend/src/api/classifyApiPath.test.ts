@@ -60,6 +60,10 @@ describe("api/client classifier", () => {
       "/admin/users",
       "/admin/users/u-1/role",
       "/admin/mailboxes",
+      // Onboarding (#150) — tenant-scoped surface that lists ALL of the
+      // tenant's ClientOrganizations; no clientOrgId filter required.
+      "/admin/client-orgs",
+      "/admin/client-orgs/abc-123",
       "/auth/token",
       "/auth/change-password",
       "/integrations/gmail",
