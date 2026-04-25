@@ -1,8 +1,12 @@
 import { useMemo } from "react";
 import { ActionRequiredTrigger } from "@/features/invoices/ActionRequiredTrigger";
+import { TenantBadge, ActiveRealmBadge, type ClientOrgOption } from "@/components/workspace/HierarchyBadges";
 
 interface WorkspaceTopNavProps {
   userEmail: string;
+  tenantName: string;
+  clientOrgs?: ClientOrgOption[];
+  onOpenRealmSwitcher?: () => void;
   onLogout: () => void;
   onChangePassword: () => void;
   counts: { total: number; approved: number; pending: number; failed: number };
@@ -10,7 +14,17 @@ interface WorkspaceTopNavProps {
   onSelectActionInvoice?: (invoiceId: string) => void;
 }
 
-export function WorkspaceTopNav({ userEmail, onLogout, onChangePassword, counts, themeToggle, onSelectActionInvoice }: WorkspaceTopNavProps) {
+export function WorkspaceTopNav({
+  userEmail,
+  tenantName,
+  clientOrgs,
+  onOpenRealmSwitcher,
+  onLogout,
+  onChangePassword,
+  counts,
+  themeToggle,
+  onSelectActionInvoice
+}: WorkspaceTopNavProps) {
   const avatarLabel = useMemo(() => {
     const trimmed = userEmail.trim();
     if (!trimmed) {
@@ -28,6 +42,12 @@ export function WorkspaceTopNav({ userEmail, onLogout, onChangePassword, counts,
           </div>
           <h2>LedgerBuddy</h2>
         </div>
+        <div className="tenant-nav-divider" />
+        <span className="workspace-hierarchy-badges" data-testid="workspace-hierarchy-badges">
+          <TenantBadge tenantName={tenantName} />
+          <span className="workspace-hierarchy-badge-separator" aria-hidden="true">·</span>
+          <ActiveRealmBadge clientOrgs={clientOrgs} onOpenSwitcher={onOpenRealmSwitcher} />
+        </span>
         <div className="tenant-nav-divider" />
         <span className="toolbar-icon-wrap">
           <span className="tenant-nav-stat">{counts.total} invoices</span>

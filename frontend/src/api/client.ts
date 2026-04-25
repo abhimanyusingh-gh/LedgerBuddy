@@ -1,8 +1,21 @@
 import axios from "axios";
 import { normalizeApiError } from "@/lib/common/apiError";
+import { readActiveClientOrgId, ACTIVE_CLIENT_ORG_QUERY_PARAM } from "@/hooks/useActiveClientOrg";
+import { isRealmScopedPath } from "@/api/classifyApiPath";
+import { MissingActiveClientOrgError } from "@/api/errors";
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:4100/api";
 const SESSION_TOKEN_KEY = "ledgerbuddy_session_token";
+
+export {
+  REALM_SCOPED_PATH_PREFIXES,
+  REALM_SCOPED_PATH_BYPASS_PREFIXES,
+  TENANT_SCOPED_PATH_PREFIXES,
+  classifyApiPath,
+  isRealmScopedPath
+} from "@/api/classifyApiPath";
+export type { RealmScope } from "@/api/classifyApiPath";
+export { MissingActiveClientOrgError } from "@/api/errors";
 
 export const apiClient = axios.create({ baseURL: apiBaseUrl });
 
@@ -12,9 +25,20 @@ apiClient.interceptors.request.use((config) => {
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
-  // CSRF protection: custom header that proves the request came from our SPA,
-  // not a cross-origin form submission or similar browser-initiated attack.
   config.headers["X-Requested-With"] = "LedgerBuddy";
+
+  const requestPath = config.url ?? "";
+  if (isRealmScopedPath(requestPath)) {
+    const activeClientOrgId = readActiveClientOrgId();
+    if (!activeClientOrgId) {
+      // Use Promise.reject so the error propagates through axios's .catch
+      // chain (and react-query's queryFn) cleanly, rather than synchronously
+      // throwing — which can surface as an unhandled rejection on direct
+      // axios calls outside of react-query.
+      return Promise.reject(new MissingActiveClientOrgError(requestPath));
+    }
+    config.params = { ...(config.params ?? {}), [ACTIVE_CLIENT_ORG_QUERY_PARAM]: activeClientOrgId };
+  }
   return config;
 });
 

@@ -415,6 +415,52 @@ select:focus {
   font-weight: 700;
 }
 
+.workspace-hierarchy-badges {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.workspace-hierarchy-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+  border: 1px solid var(--line);
+}
+
+.workspace-hierarchy-badge-tenant {
+  background: var(--bg-main, #f4f5f7);
+  color: var(--ink-soft, #4b5563);
+}
+
+.workspace-hierarchy-badge-realm {
+  background: var(--accent-soft-bg, #eef2ff);
+  color: var(--accent, #1e3a8a);
+}
+
+.workspace-hierarchy-badge-realm-empty {
+  background: transparent;
+  color: var(--warn, #ad2f1f);
+  border-style: dashed;
+  cursor: pointer;
+}
+
+.workspace-hierarchy-badge-separator {
+  color: var(--ink-soft, #6b7280);
+  font-weight: 600;
+  font-size: 0.82rem;
+}
+
+.workspace-hierarchy-badge-icon {
+  font-size: 0.95rem;
+}
+
 .tenant-avatar {
   width: 1.875rem;
   height: 1.875rem;

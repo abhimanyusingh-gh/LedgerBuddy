@@ -257,6 +257,7 @@ export function App() {
   const topNav = (
     <WorkspaceTopNav
       userEmail={session.user.email}
+      tenantName={session.tenant.name}
       onLogout={handleLogout}
       onChangePassword={() => setShowChangePassword(true)}
       counts={navCounts}
