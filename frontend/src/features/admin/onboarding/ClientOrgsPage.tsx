@@ -3,10 +3,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button, Spinner } from "@/components/ds";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { useActiveClientOrg } from "@/hooks/useActiveClientOrg";
-import {
-  TENANT_CLIENT_ORGS_QUERY_KEY,
-  useTenantClientOrgs
-} from "@/hooks/useTenantClientOrgs";
+import { TENANT_CLIENT_ORGS_QUERY_KEY } from "@/hooks/useTenantClientOrgs";
 import { getUserFacingErrorMessage } from "@/lib/common/apiError";
 import {
   createClientOrganization,
@@ -21,6 +18,10 @@ import {
   type ClientOrgFormValues
 } from "@/features/admin/onboarding/ClientOrgFormPanel";
 import { ClientOrgsTable } from "@/features/admin/onboarding/ClientOrgsTable";
+import {
+  CLIENT_ORGS_ADMIN_QUERY_KEY,
+  useClientOrganizationsAdmin
+} from "@/features/admin/onboarding/useClientOrganizationsAdmin";
 
 export const CLIENT_ORGS_PAGE_VIEW = {
   Loading: "loading",
@@ -46,7 +47,7 @@ const INITIAL_FORM_STATE: FormState = {
 };
 
 export function ClientOrgsPage() {
-  const query = useTenantClientOrgs();
+  const query = useClientOrganizationsAdmin();
   const queryClient = useQueryClient();
   const { activeClientOrgId, setActiveClientOrg } = useActiveClientOrg();
 
@@ -56,6 +57,7 @@ export function ClientOrgsPage() {
   const [archiveError, setArchiveError] = useState<string | null>(null);
 
   const invalidateList = useCallback(() => {
+    void queryClient.invalidateQueries({ queryKey: CLIENT_ORGS_ADMIN_QUERY_KEY });
     void queryClient.invalidateQueries({ queryKey: TENANT_CLIENT_ORGS_QUERY_KEY });
   }, [queryClient]);
 
@@ -114,9 +116,9 @@ export function ClientOrgsPage() {
   });
 
   const view: ClientOrgsPageView = (() => {
-    if (query.isPending) return CLIENT_ORGS_PAGE_VIEW.Loading;
-    if (query.isError) return CLIENT_ORGS_PAGE_VIEW.Error;
-    if ((query.data?.length ?? 0) === 0) return CLIENT_ORGS_PAGE_VIEW.Empty;
+    if (query.status === "pending") return CLIENT_ORGS_PAGE_VIEW.Loading;
+    if (query.status === "error") return CLIENT_ORGS_PAGE_VIEW.Error;
+    if (query.data.length === 0) return CLIENT_ORGS_PAGE_VIEW.Empty;
     return CLIENT_ORGS_PAGE_VIEW.Data;
   })();
 
@@ -248,7 +250,7 @@ export function ClientOrgsPage() {
         title="Archive client organization?"
         message={
           archiveError ??
-          `Archiving "${archiveTarget?.companyName ?? archiveTarget?.gstin ?? ""}" hides it from the realm switcher. Existing accounting data stays read-accessible.`
+          `Archiving "${archiveTarget?.companyName ?? ""}" hides it from the realm switcher. Existing accounting data stays read-accessible.`
         }
         confirmLabel={archiveMutation.isPending ? "Archiving…" : "Archive"}
         destructive

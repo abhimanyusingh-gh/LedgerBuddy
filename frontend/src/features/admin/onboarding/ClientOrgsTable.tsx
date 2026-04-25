@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { Badge, Button } from "@/components/ds";
 import type { ClientOrganization } from "@/api/clientOrgs";
 
-export interface ClientOrgsTableProps {
+interface ClientOrgsTableProps {
   items: ClientOrganization[];
   searchTerm: string;
   activeClientOrgId: string | null;
@@ -13,7 +13,7 @@ export interface ClientOrgsTableProps {
 
 function matchesSearch(item: ClientOrganization, term: string): boolean {
   if (term.length === 0) return true;
-  const haystack = `${item.companyName ?? ""} ${item.gstin}`.toLowerCase();
+  const haystack = `${item.companyName} ${item.gstin}`.toLowerCase();
   return haystack.includes(term.toLowerCase());
 }
 
@@ -29,7 +29,7 @@ export function ClientOrgsTable({
     return items
       .filter((item) => matchesSearch(item, searchTerm))
       .slice()
-      .sort((a, b) => (a.companyName ?? a.gstin).localeCompare(b.companyName ?? b.gstin));
+      .sort((a, b) => a.companyName.localeCompare(b.companyName));
   }, [items, searchTerm]);
 
   if (visible.length === 0) {
@@ -65,7 +65,7 @@ export function ClientOrgsTable({
           return (
             <tr key={item._id} data-testid="client-orgs-table-row" data-active={isActive ? "true" : undefined}>
               <td>
-                <strong>{item.companyName ?? "(unnamed)"}</strong>
+                <strong>{item.companyName}</strong>
                 {isActive ? (
                   <>
                     {" "}

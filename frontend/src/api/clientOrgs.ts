@@ -12,7 +12,7 @@ export interface ClientOrganization {
   _id: string;
   tenantId: string;
   gstin: string;
-  companyName?: string;
+  companyName: string;
   companyGuid?: string;
   stateName?: string;
   f12OverwriteByGuidVerified: boolean;
@@ -22,14 +22,14 @@ export interface ClientOrganization {
   archivedAt?: string | null;
 }
 
-export interface CreateClientOrganizationPayload {
+interface CreateClientOrganizationPayload {
   gstin: string;
   companyName: string;
   stateName?: string;
   companyGuid?: string;
 }
 
-export interface UpdateClientOrganizationPayload {
+interface UpdateClientOrganizationPayload {
   companyName?: string;
   stateName?: string;
   f12OverwriteByGuidVerified?: boolean;

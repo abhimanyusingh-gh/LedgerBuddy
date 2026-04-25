@@ -18,7 +18,7 @@ export interface ClientOrgFormValues {
   f12OverwriteByGuidVerified: boolean;
 }
 
-export interface ClientOrgFormPanelProps {
+interface ClientOrgFormPanelProps {
   open: boolean;
   mode: ClientOrgFormMode;
   initial?: ClientOrganization | null;
