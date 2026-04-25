@@ -1,3 +1,4 @@
+import type { Types } from "mongoose";
 import { InvoiceModel } from "@/models/invoice/Invoice.js";
 import { INVOICE_STATUS } from "@/types/invoice.js";
 
@@ -37,14 +38,31 @@ interface AnalyticsOverview {
 
 const AGG_OPTIONS = { allowDiskUse: true };
 
-export async function getOverview(tenantId: string, from: Date, to: Date, approverId?: string): Promise<AnalyticsOverview> {
+export interface GetOverviewOptions {
+  approverId?: string;
+  // admin analytics: optional clientOrgId, see #162
+  clientOrgId?: Types.ObjectId | null;
+}
+
+export async function getOverview(
+  tenantId: string,
+  from: Date,
+  to: Date,
+  options: GetOverviewOptions = {}
+): Promise<AnalyticsOverview> {
+  const { approverId, clientOrgId } = options;
   const approverFilter = approverId ? { "approval.userId": approverId } : {};
+  // admin analytics: optional clientOrgId, see #162
+  // When clientOrgId is provided we scope to {tenantId, clientOrgId} (composite key);
+  // when absent we aggregate across all realms for the tenant — the documented exemption
+  // to the composite-key invariant for the admin analytics surface only.
+  const scopeFilter: Record<string, unknown> = clientOrgId ? { tenantId, clientOrgId } : { tenantId };
 
   const [kpiResult, dailyApprovalsResult, dailyIngestionResult, dailyExportsResult, statusResult, vendorsApprovedResult, vendorsPendingResult] =
     await Promise.all([
       InvoiceModel.aggregate(
         [
-          { $match: { tenantId, createdAt: { $gte: from, $lte: to } } },
+          { $match: { ...scopeFilter, createdAt: { $gte: from, $lte: to } } },
           { $project: { status: 1, "parsed.totalAmountMinor": 1, "approval.approvedBy": 1, "approval.userId": 1, "export.exportedAt": 1 } },
           {
             $facet: {
@@ -68,7 +86,7 @@ export async function getOverview(tenantId: string, from: Date, to: Date, approv
 
       InvoiceModel.aggregate(
         [
-          { $match: { tenantId, "approval.approvedAt": { $gte: from, $lte: to }, ...approverFilter } },
+          { $match: { ...scopeFilter, "approval.approvedAt": { $gte: from, $lte: to }, ...approverFilter } },
           { $project: { "approval.approvedAt": 1, "parsed.totalAmountMinor": 1 } },
           {
             $group: {
@@ -84,7 +102,7 @@ export async function getOverview(tenantId: string, from: Date, to: Date, approv
 
       InvoiceModel.aggregate(
         [
-          { $match: { tenantId, createdAt: { $gte: from, $lte: to } } },
+          { $match: { ...scopeFilter, createdAt: { $gte: from, $lte: to } } },
           { $project: { createdAt: 1 } },
           {
             $group: {
@@ -99,7 +117,7 @@ export async function getOverview(tenantId: string, from: Date, to: Date, approv
 
       InvoiceModel.aggregate(
         [
-          { $match: { tenantId, "export.exportedAt": { $gte: from, $lte: to } } },
+          { $match: { ...scopeFilter, "export.exportedAt": { $gte: from, $lte: to } } },
           { $project: { "export.exportedAt": 1 } },
           {
             $group: {
@@ -114,7 +132,7 @@ export async function getOverview(tenantId: string, from: Date, to: Date, approv
 
       InvoiceModel.aggregate(
         [
-          { $match: { tenantId, createdAt: { $gte: from, $lte: to } } },
+          { $match: { ...scopeFilter, createdAt: { $gte: from, $lte: to } } },
           { $project: { status: 1 } },
           { $group: { _id: "$status", count: { $sum: 1 } } },
           { $sort: { count: -1 } }
@@ -124,7 +142,7 @@ export async function getOverview(tenantId: string, from: Date, to: Date, approv
 
       InvoiceModel.aggregate(
         [
-          { $match: { tenantId, status: { $in: [INVOICE_STATUS.APPROVED, INVOICE_STATUS.EXPORTED] }, "approval.approvedAt": { $gte: from, $lte: to }, ...approverFilter } },
+          { $match: { ...scopeFilter, status: { $in: [INVOICE_STATUS.APPROVED, INVOICE_STATUS.EXPORTED] }, "approval.approvedAt": { $gte: from, $lte: to }, ...approverFilter } },
           { $project: { "parsed.vendorName": 1, "parsed.totalAmountMinor": 1 } },
           {
             $group: {
@@ -141,7 +159,7 @@ export async function getOverview(tenantId: string, from: Date, to: Date, approv
 
       InvoiceModel.aggregate(
         [
-          { $match: { tenantId, status: { $in: [INVOICE_STATUS.PARSED, INVOICE_STATUS.NEEDS_REVIEW] }, createdAt: { $gte: from, $lte: to } } },
+          { $match: { ...scopeFilter, status: { $in: [INVOICE_STATUS.PARSED, INVOICE_STATUS.NEEDS_REVIEW] }, createdAt: { $gte: from, $lte: to } } },
           { $project: { "parsed.vendorName": 1, "parsed.totalAmountMinor": 1 } },
           {
             $group: {

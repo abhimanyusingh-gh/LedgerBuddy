@@ -1,6 +1,7 @@
 import { getAuth } from "@/types/auth.js";
 import { Router } from "express";
 import { requireAuth } from "@/auth/requireAuth.js";
+import { resolveOptionalClientOrgId } from "@/auth/optionalClientOrg.js";
 import { getOverview } from "@/services/platform/analyticsService.js";
 
 export function createAnalyticsRouter() {
@@ -10,6 +11,13 @@ export function createAnalyticsRouter() {
   router.get("/analytics/overview", async (req, res, next) => {
     try {
       const authContext = getAuth(req);
+
+      // admin analytics: optional clientOrgId, see #162
+      const scope = await resolveOptionalClientOrgId(req);
+      if (!scope.valid) {
+        res.status(400).json({ error: scope.error, message: scope.message });
+        return;
+      }
 
       const now = new Date();
       const defaultFrom = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -30,7 +38,10 @@ export function createAnalyticsRouter() {
       const scopeParam = typeof req.query.scope === "string" ? req.query.scope : "mine";
       const approverId = scopeParam === "all" ? undefined : authContext.userId;
 
-      const overview = await getOverview(authContext.tenantId, from, to, approverId);
+      const overview = await getOverview(authContext.tenantId, from, to, {
+        ...(approverId ? { approverId } : {}),
+        clientOrgId: scope.clientOrgId
+      });
       res.json(overview);
     } catch (error) {
       next(error);
