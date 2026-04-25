@@ -132,4 +132,38 @@ describe("features/admin/mailboxes/MailboxesTable", () => {
     expect(onEdit).toHaveBeenCalledWith(expect.objectContaining({ _id: "a-1" }));
     expect(onDelete).toHaveBeenCalledWith(expect.objectContaining({ _id: "a-1" }));
   });
+
+  it("renders a View recent button + clickable count when onViewRecent is supplied", () => {
+    const onViewRecent = jest.fn();
+    render(
+      <MailboxesTable
+        items={[buildAssignment({ _id: "a-1" })]}
+        clientOrgs={ORGS}
+        ingestionCounts={{ "a-1": 7 }}
+        onEdit={jest.fn()}
+        onDelete={jest.fn()}
+        onViewRecent={onViewRecent}
+      />
+    );
+    fireEvent.click(screen.getByTestId("mailboxes-table-view-recent-a-1"));
+    expect(onViewRecent).toHaveBeenCalledWith(expect.objectContaining({ _id: "a-1" }));
+
+    onViewRecent.mockClear();
+    fireEvent.click(screen.getByTestId("mailboxes-table-count-a-1"));
+    expect(onViewRecent).toHaveBeenCalledWith(expect.objectContaining({ _id: "a-1" }));
+  });
+
+  it("omits the View recent button when onViewRecent is not supplied", () => {
+    render(
+      <MailboxesTable
+        items={[buildAssignment({ _id: "a-1" })]}
+        clientOrgs={ORGS}
+        ingestionCounts={{ "a-1": 3 }}
+        onEdit={jest.fn()}
+        onDelete={jest.fn()}
+      />
+    );
+    expect(screen.queryByTestId("mailboxes-table-view-recent-a-1")).not.toBeInTheDocument();
+    expect(screen.getByTestId("mailboxes-table-count-a-1").tagName.toLowerCase()).toBe("span");
+  });
 });

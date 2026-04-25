@@ -15,7 +15,10 @@ jest.mock("@/api/mailboxAssignments", () => ({
   fetchMailboxAssignments: jest.fn(),
   createMailboxAssignment: jest.fn(),
   updateMailboxAssignment: jest.fn(),
-  deleteMailboxAssignment: jest.fn()
+  deleteMailboxAssignment: jest.fn(),
+  fetchMailboxRecentIngestions: jest
+    .fn()
+    .mockResolvedValue({ items: [], total: 0, periodDays: 30, truncatedAt: 1 })
 }));
 
 jest.mock("@/api/clientOrgs", () => ({
@@ -48,6 +51,7 @@ const mocked = jest.requireMock("@/api/mailboxAssignments") as {
   createMailboxAssignment: jest.Mock;
   updateMailboxAssignment: jest.Mock;
   deleteMailboxAssignment: jest.Mock;
+  fetchMailboxRecentIngestions: jest.Mock;
 };
 
 function renderPage(): { unmount: () => void } {
@@ -77,6 +81,12 @@ function buildAssignment(overrides: Partial<MailboxAssignment> & { _id: string }
 
 beforeEach(() => {
   jest.clearAllMocks();
+  mocked.fetchMailboxRecentIngestions.mockResolvedValue({
+    items: [],
+    total: 0,
+    periodDays: 30,
+    truncatedAt: 1
+  });
   Object.defineProperty(window, "matchMedia", {
     writable: true,
     configurable: true,

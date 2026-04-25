@@ -33,6 +33,37 @@ interface UpdateMailboxAssignmentPayload {
 
 const MAILBOX_ASSIGNMENTS_PATH = "/admin/mailbox-assignments";
 
+export interface MailboxRecentIngestionItem {
+  _id: string;
+  clientOrgId: string | null;
+  status: string | null;
+  attachmentName: string | null;
+  receivedAt: string | null;
+  createdAt: string | null;
+  vendorName: string | null;
+  invoiceNumber: string | null;
+  totalAmountMinor: number | null;
+  currency: string | null;
+}
+
+export interface MailboxRecentIngestionsResponse {
+  items: MailboxRecentIngestionItem[];
+  total: number;
+  periodDays: number;
+  truncatedAt: number;
+}
+
+export async function fetchMailboxRecentIngestions(
+  id: string,
+  params: { days: number; limit?: number }
+): Promise<MailboxRecentIngestionsResponse> {
+  const response = await apiClient.get<MailboxRecentIngestionsResponse>(
+    `${MAILBOX_ASSIGNMENTS_PATH}/${encodeURIComponent(id)}/recent-ingestions`,
+    { params: { days: params.days, ...(params.limit !== undefined ? { limit: params.limit } : {}) } }
+  );
+  return response.data;
+}
+
 export async function fetchMailboxAssignments(): Promise<MailboxAssignment[]> {
   const response = await apiClient.get<{ items?: MailboxAssignment[] }>(MAILBOX_ASSIGNMENTS_PATH);
   return Array.isArray(response.data?.items) ? response.data.items : [];

@@ -11,6 +11,7 @@ interface MailboxesTableProps {
   ingestionCounts: Record<string, number | undefined>;
   onEdit: (assignment: MailboxAssignment) => void;
   onDelete: (assignment: MailboxAssignment) => void;
+  onViewRecent?: (assignment: MailboxAssignment) => void;
 }
 
 interface ClientOrgChipsResult {
@@ -40,7 +41,8 @@ export function MailboxesTable({
   clientOrgs,
   ingestionCounts,
   onEdit,
-  onDelete
+  onDelete,
+  onViewRecent
 }: MailboxesTableProps) {
   const orgsById = useMemo(() => {
     const map = new Map<string, ClientOrgOption>();
@@ -99,7 +101,18 @@ export function MailboxesTable({
               </td>
               <td>
                 {typeof ingestionCount === "number" ? (
-                  <span data-testid={`mailboxes-table-count-${item._id}`}>{ingestionCount}</span>
+                  onViewRecent ? (
+                    <button
+                      type="button"
+                      className="mailboxes-table-count-link"
+                      onClick={() => onViewRecent(item)}
+                      data-testid={`mailboxes-table-count-${item._id}`}
+                    >
+                      {ingestionCount}
+                    </button>
+                  ) : (
+                    <span data-testid={`mailboxes-table-count-${item._id}`}>{ingestionCount}</span>
+                  )
                 ) : (
                   <span aria-hidden="true" data-testid={`mailboxes-table-count-pending-${item._id}`}>
                     —
@@ -108,6 +121,16 @@ export function MailboxesTable({
               </td>
               <td>
                 <div className="mailboxes-table-actions">
+                  {onViewRecent ? (
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => onViewRecent(item)}
+                      data-testid={`mailboxes-table-view-recent-${item._id}`}
+                    >
+                      View recent
+                    </Button>
+                  ) : null}
                   <Button
                     variant="secondary"
                     size="sm"

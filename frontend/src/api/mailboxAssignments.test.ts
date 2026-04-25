@@ -5,6 +5,7 @@ import {
   createMailboxAssignment,
   deleteMailboxAssignment,
   fetchMailboxAssignments,
+  fetchMailboxRecentIngestions,
   updateMailboxAssignment
 } from "@/api/mailboxAssignments";
 
@@ -62,5 +63,27 @@ describe("api/mailboxAssignments", () => {
     apiClient.delete.mockResolvedValueOnce({ data: undefined });
     await deleteMailboxAssignment("a-1");
     expect(apiClient.delete).toHaveBeenCalledWith("/admin/mailbox-assignments/a-1");
+  });
+
+  it("fetchMailboxRecentIngestions GETs the recent-ingestions endpoint with days+limit query", async () => {
+    apiClient.get.mockResolvedValueOnce({
+      data: { items: [], total: 0, periodDays: 30, truncatedAt: 50 }
+    });
+    await fetchMailboxRecentIngestions("a-1", { days: 30, limit: 50 });
+    expect(apiClient.get).toHaveBeenCalledWith(
+      "/admin/mailbox-assignments/a-1/recent-ingestions",
+      { params: { days: 30, limit: 50 } }
+    );
+  });
+
+  it("fetchMailboxRecentIngestions omits limit when not provided and percent-encodes the id", async () => {
+    apiClient.get.mockResolvedValueOnce({
+      data: { items: [], total: 0, periodDays: 30, truncatedAt: 50 }
+    });
+    await fetchMailboxRecentIngestions("a 1", { days: 30 });
+    expect(apiClient.get).toHaveBeenCalledWith(
+      "/admin/mailbox-assignments/a%201/recent-ingestions",
+      { params: { days: 30 } }
+    );
   });
 });
