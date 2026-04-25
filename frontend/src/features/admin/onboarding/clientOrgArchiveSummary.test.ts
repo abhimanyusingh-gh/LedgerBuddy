@@ -25,6 +25,22 @@ describe("features/admin/onboarding/clientOrgArchiveSummary", () => {
     expect(summary.map((entry) => entry.label)).toEqual(["vendors", "invoices", "bankStatements"]);
   });
 
+  it("breaks ties on equal counts by alphabetical label order", () => {
+    const summary = summarizeLinkedCounts({
+      vendors: 3,
+      invoices: 3,
+      bankStatements: 3
+    });
+    expect(summary.map((entry) => entry.label)).toEqual(["bankStatements", "invoices", "vendors"]);
+
+    const reordered = summarizeLinkedCounts({
+      invoices: 3,
+      bankStatements: 3,
+      vendors: 3
+    });
+    expect(reordered.map((entry) => entry.label)).toEqual(["bankStatements", "invoices", "vendors"]);
+  });
+
   it("uses singular nouns when the count is 1", () => {
     const summary = summarizeLinkedCounts({
       invoices: 1,

@@ -62,5 +62,5 @@ export function summarizeLinkedCounts(
       const noun = safeCount === 1 ? copy.singular : copy.plural;
       return { label, count: safeCount, text: `${safeCount} ${noun}` };
     })
-    .sort((a, b) => b.count - a.count);
+    .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));
 }

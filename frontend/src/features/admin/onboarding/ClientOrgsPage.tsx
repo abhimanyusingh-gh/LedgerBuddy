@@ -266,7 +266,7 @@ export function ClientOrgsPage() {
         title="Archive client organization?"
         message={
           archiveError ??
-          `Archiving "${archiveTarget?.companyName ?? ""}" hides it from the realm switcher. All linked accounting records (invoices, vendors, bank statements, etc.) remain read-accessible. After archive, the exact breakdown is shown.`
+          `Archiving "${archiveTarget?.companyName ?? ""}" hides it from the realm switcher. All linked accounting records (invoices, vendors, bank statements, etc.) remain read-accessible. An exact per-record-type breakdown is shown after confirmation.`
         }
         confirmLabel={archiveMutation.isPending ? "Archiving…" : "Archive"}
         destructive
