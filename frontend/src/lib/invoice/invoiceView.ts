@@ -27,7 +27,9 @@ export const STATUS_LABELS: Record<string, string> = {
   FAILED_OCR: "Failed",
   FAILED_PARSE: "Failed",
   APPROVED: "Approved",
-  EXPORTED: "Exported"
+  EXPORTED: "Exported",
+  PENDING_TRIAGE: "Triage",
+  REJECTED: "Rejected"
 };
 
 export function buildFieldCropSourceMap(

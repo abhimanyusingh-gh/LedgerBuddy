@@ -1,27 +1,36 @@
-import {
-  INVOICE_STATUS,
-  INVOICE_STATUS_PRESENTATION,
-  getInvoiceStatusPresentation
-} from "@/features/admin/mailboxes/recentIngestionStatus";
+import { getInvoiceStatusPresentation } from "@/features/admin/mailboxes/recentIngestionStatus";
+
+const KNOWN_STATUSES = [
+  "PENDING",
+  "PARSED",
+  "NEEDS_REVIEW",
+  "AWAITING_APPROVAL",
+  "FAILED_OCR",
+  "FAILED_PARSE",
+  "APPROVED",
+  "EXPORTED",
+  "PENDING_TRIAGE",
+  "REJECTED"
+];
 
 describe("features/admin/mailboxes/recentIngestionStatus", () => {
-  it("maps every INVOICE_STATUS value to a humanized label and a Badge tone", () => {
-    for (const key of Object.keys(INVOICE_STATUS)) {
-      const presentation = INVOICE_STATUS_PRESENTATION[key as keyof typeof INVOICE_STATUS];
+  it("maps every known invoice status to a humanized label and a Badge tone", () => {
+    for (const status of KNOWN_STATUSES) {
+      const presentation = getInvoiceStatusPresentation(status);
       expect(presentation.label).not.toMatch(/^[A-Z_]+$/);
       expect(presentation.tone).toEqual(expect.any(String));
     }
   });
 
-  it("PARSED resolves to a success-toned `Processed` badge", () => {
-    expect(getInvoiceStatusPresentation(INVOICE_STATUS.PARSED)).toEqual({
+  it("PARSED resolves to a success-toned `Processed` badge (label sourced from STATUS_LABELS)", () => {
+    expect(getInvoiceStatusPresentation("PARSED")).toEqual({
       label: "Processed",
       tone: "success"
     });
   });
 
   it("PENDING_TRIAGE resolves to a warning-toned `Triage` badge", () => {
-    expect(getInvoiceStatusPresentation(INVOICE_STATUS.PENDING_TRIAGE)).toEqual({
+    expect(getInvoiceStatusPresentation("PENDING_TRIAGE")).toEqual({
       label: "Triage",
       tone: "warning"
     });
