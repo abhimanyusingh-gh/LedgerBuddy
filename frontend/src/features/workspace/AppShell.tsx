@@ -12,7 +12,7 @@ interface AppShellProps {
   onStandaloneRouteChange: (route: StandaloneHashRoute) => void;
   canViewTenantConfig: boolean;
   canViewConnections: boolean;
-  invoiceActionRequiredCount: number;
+  invoiceActionRequiredCount: number | null;
   triageCount: number;
   topNav: ReactNode;
   subNav?: ReactNode;

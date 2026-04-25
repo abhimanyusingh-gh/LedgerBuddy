@@ -6,6 +6,7 @@ import "@testing-library/jest-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import { ActionRequiredPanel, ACTION_PANEL_VIEW } from "@/features/invoices/ActionRequiredPanel";
+import { setActiveClientOrgId } from "@/hooks/useActiveClientOrg";
 import type { Invoice } from "@/types";
 
 jest.mock("@/api", () => ({
@@ -51,6 +52,11 @@ function renderWithClient(ui: ReactNode, client?: QueryClient) {
 
 beforeEach(() => {
   jest.clearAllMocks();
+  window.history.replaceState({}, "", "/");
+  window.sessionStorage.clear();
+  // The Action-Required queue is realm-scoped (#141): the hook uses
+  // useScopedQuery which is disabled until a realm is active.
+  setActiveClientOrgId("realm-test");
   Object.defineProperty(window, "matchMedia", {
     writable: true,
     configurable: true,
@@ -74,6 +80,9 @@ beforeEach(() => {
 
 afterEach(() => {
   jest.restoreAllMocks();
+  setActiveClientOrgId(null);
+  window.history.replaceState({}, "", "/");
+  window.sessionStorage.clear();
 });
 
 describe("features/invoices/ActionRequiredPanel — 4-state contract", () => {

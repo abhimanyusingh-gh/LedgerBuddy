@@ -1,6 +1,7 @@
 import { useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { fetchInvoices } from "@/api";
+import { useScopedQuery } from "@/lib/query/useScopedQuery";
+import { useActiveClientOrg } from "@/hooks/useActiveClientOrg";
 import {
   buildActionQueue,
   totalActionCount,
@@ -9,11 +10,14 @@ import {
 
 const ACTION_QUEUE_PAGE_SIZE = 500;
 const ACTION_QUEUE_STALE_MS = 15_000;
-const ACTION_QUEUE_QUERY_KEY = ["invoices", "action-required"] as const;
+export const ACTION_QUEUE_QUERY_KEY = ["invoices", "action-required"] as const;
 
 interface UseActionRequiredQueueResult {
   groups: ActionQueueGroup[];
-  totalCount: number;
+  // null when no realm is active (the hook is disabled and there is no
+  // queue to count); a number otherwise. Consumers must treat null as
+  // "unknown — no realm" rather than collapsing it to 0.
+  totalCount: number | null;
   scannedCount: number;
   totalAvailable: number;
   isLoading: boolean;
@@ -22,9 +26,11 @@ interface UseActionRequiredQueueResult {
 }
 
 export function useActionRequiredQueue(): UseActionRequiredQueueResult {
-  const query = useQuery({
+  const { activeClientOrgId } = useActiveClientOrg();
+  const isRealmActive = activeClientOrgId !== null;
+  const query = useScopedQuery({
     queryKey: ACTION_QUEUE_QUERY_KEY,
-    queryFn: () => fetchInvoices(undefined, undefined, undefined, 1, ACTION_QUEUE_PAGE_SIZE),
+    queryFn: () => fetchInvoices({ page: 1, limit: ACTION_QUEUE_PAGE_SIZE }),
     staleTime: ACTION_QUEUE_STALE_MS
   });
 
@@ -35,10 +41,10 @@ export function useActionRequiredQueue(): UseActionRequiredQueueResult {
 
   return {
     groups,
-    totalCount: totalActionCount(groups),
+    totalCount: isRealmActive ? totalActionCount(groups) : null,
     scannedCount: query.data?.items.length ?? 0,
     totalAvailable: query.data?.total ?? 0,
-    isLoading: query.isPending,
+    isLoading: query.isPending && isRealmActive,
     isError: query.isError,
     refetch: query.refetch
   };

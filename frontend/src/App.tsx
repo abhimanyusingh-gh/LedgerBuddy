@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { useTheme } from "@/hooks/useTheme";
 import { useTenantWorkspace } from "@/hooks/useTenantWorkspace";
 import { OverviewDashboard } from "@/features/overview/OverviewDashboard";
@@ -23,6 +23,7 @@ import { InvoiceDetailPage } from "@/components/invoice/InvoiceDetailPage";
 import { TriagePage } from "@/features/triage/TriagePage";
 import { readStandaloneHashRoute, STANDALONE_HASH_PATH, type StandaloneHashRoute } from "@/features/workspace/tabHashConfig";
 import { useTriageQueue } from "@/hooks/useTriageQueue";
+import { useActionRequiredQueue } from "@/hooks/useActionRequiredQueue";
 import { useToast } from "@/hooks/useToast";
 import { ToastContainer } from "@/components/common/ToastContainer";
 
@@ -302,7 +303,6 @@ export function App() {
         onTabChange={setActiveTab}
         canViewTenantConfig={canViewConfig}
         canViewConnections={canViewConnections}
-        invoiceActionRequiredCount={navCounts.failed}
         topNav={topNav}
         subNav={subNav}
       >
@@ -407,21 +407,27 @@ interface TenantAppShellProps {
   onTabChange: (tab: TenantViewTab) => void;
   canViewTenantConfig: boolean;
   canViewConnections: boolean;
-  invoiceActionRequiredCount: number;
   topNav: ReactNode;
   subNav: ReactNode;
   children: ReactNode;
 }
 
-function TenantAppShell({ activeTab, activeStandaloneRoute, onTabChange, canViewTenantConfig, canViewConnections, invoiceActionRequiredCount, topNav, subNav, children }: TenantAppShellProps) {
+function TenantAppShell({ activeTab, activeStandaloneRoute, onTabChange, canViewTenantConfig, canViewConnections, topNav, subNav, children }: TenantAppShellProps) {
   const { migration } = useTabHashRouting({ activeTab, onTabChange });
   // Triage list is the documented composite-key exception (#156): tenant-scoped,
   // NOT realm-scoped — we read it via plain `useQuery` so realm-switching does
   // not refetch and the badge stays consistent across realms.
   const { total: triageCount } = useTriageQueue();
-  const navigateToStandaloneRoute = (route: StandaloneHashRoute) => {
+  // Action-Required queue IS realm-scoped (#141): the count partitions by
+  // {tenantId, clientOrgId} and re-fetches on realm switch via `useScopedQuery`.
+  // Same hook drives `<ActionRequiredTrigger>` in the topnav — react-query
+  // dedupes by key so this is a single fetch with two consumers.
+  // The hook returns `null` when no realm is active; the sidebar treats
+  // null as "unknown" (badge hidden), so we forward it as-is.
+  const { totalCount: actionRequiredCount } = useActionRequiredQueue();
+  const navigateToStandaloneRoute = useCallback((route: StandaloneHashRoute) => {
     window.location.hash = STANDALONE_HASH_PATH[route];
-  };
+  }, []);
   return (
     <AppShell
       activeTab={activeTab}
@@ -430,7 +436,7 @@ function TenantAppShell({ activeTab, activeStandaloneRoute, onTabChange, canView
       onStandaloneRouteChange={navigateToStandaloneRoute}
       canViewTenantConfig={canViewTenantConfig}
       canViewConnections={canViewConnections}
-      invoiceActionRequiredCount={invoiceActionRequiredCount}
+      invoiceActionRequiredCount={actionRequiredCount}
       triageCount={triageCount}
       topNav={topNav}
       subNav={subNav}

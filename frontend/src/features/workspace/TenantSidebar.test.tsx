@@ -110,6 +110,31 @@ describe("TenantSidebar", () => {
     expect(within(triageBtn).queryByText("0")).toBeNull();
   });
 
+  it("hides the action-required badge when invoiceActionRequiredCount is null (no active realm)", () => {
+    renderSidebar({ invoiceActionRequiredCount: null });
+    const invoicesBtn = screen.getByRole("button", { name: /Invoices/ });
+    expect(within(invoicesBtn).queryByText("0")).toBeNull();
+    expect(within(invoicesBtn).queryByText("—")).toBeNull();
+  });
+
+  it("extends aria-label with the action-required count when > 0 (a11y for SR users)", () => {
+    renderSidebar({ invoiceActionRequiredCount: 7 });
+    const invoicesBtn = screen.getByRole("button", { name: "Invoices, 7 action required" });
+    expect(invoicesBtn).toBeInTheDocument();
+  });
+
+  it("extends aria-label with the triage count when > 0 (a11y for SR users)", () => {
+    renderSidebar({ triageCount: 4 });
+    const triageBtn = screen.getByRole("button", { name: "Triage, 4 awaiting" });
+    expect(triageBtn).toBeInTheDocument();
+  });
+
+  it("does not include a count in aria-label when counts are 0 (avoids '0 awaiting' chatter)", () => {
+    renderSidebar({ invoiceActionRequiredCount: 0, triageCount: 0 });
+    expect(screen.getByRole("button", { name: "Invoices" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Triage" })).toBeInTheDocument();
+  });
+
   it("calls onStandaloneRouteChange('triage') when Triage is clicked", () => {
     const { props } = renderSidebar({ triageCount: 3 });
     fireEvent.click(screen.getByRole("button", { name: /Triage/ }));

@@ -6,6 +6,7 @@ import "@testing-library/jest-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import { ActionRequiredTrigger } from "@/features/invoices/ActionRequiredTrigger";
+import { setActiveClientOrgId } from "@/hooks/useActiveClientOrg";
 import type { Invoice } from "@/types";
 
 jest.mock("@/api", () => ({
@@ -48,6 +49,11 @@ function renderWithClient(ui: ReactNode) {
 
 beforeEach(() => {
   jest.clearAllMocks();
+  window.history.replaceState({}, "", "/");
+  window.sessionStorage.clear();
+  // The Action-Required queue is realm-scoped (#141): the hook uses
+  // useScopedQuery which is disabled until a realm is active.
+  setActiveClientOrgId("realm-test");
   Object.defineProperty(window, "matchMedia", {
     writable: true,
     configurable: true,
@@ -71,6 +77,9 @@ beforeEach(() => {
 
 afterEach(() => {
   jest.restoreAllMocks();
+  setActiveClientOrgId(null);
+  window.history.replaceState({}, "", "/");
+  window.sessionStorage.clear();
 });
 
 describe("features/invoices/ActionRequiredTrigger", () => {
@@ -114,6 +123,14 @@ describe("features/invoices/ActionRequiredTrigger", () => {
     const trigger = await screen.findByTestId("action-required-trigger");
     await screen.findByText("2", { selector: "span" });
     expect(trigger).toHaveTextContent("2");
+  });
+
+  it("renders the unknown-sentinel '—' when no realm is active (totalCount=null)", async () => {
+    setActiveClientOrgId(null);
+    renderWithClient(<ActionRequiredTrigger onSelectInvoice={() => {}} />);
+    const trigger = await screen.findByTestId("action-required-trigger");
+    expect(trigger).toHaveTextContent("—");
+    expect(fetchInvoices).not.toHaveBeenCalled();
   });
 
   it("forwards deep-link selection and closes the panel", async () => {

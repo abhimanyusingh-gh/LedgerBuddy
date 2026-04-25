@@ -610,16 +610,16 @@ export function InvoiceView({
       const statusParam = statusFilter === "ALL" ? undefined
         : statusFilter === "FAILED" ? "FAILED_OCR,FAILED_PARSE"
         : statusFilter;
-      const data = await fetchInvoices(
-        statusParam,
-        invoiceDateFrom || undefined,
-        invoiceDateTo || undefined,
-        currentPage,
-        pageSize,
-        approvedByFilter || undefined,
-        sortColumn || undefined,
-        sortColumn ? sortDirection : undefined
-      );
+      const data = await fetchInvoices({
+        status: statusParam,
+        from: invoiceDateFrom || undefined,
+        to: invoiceDateTo || undefined,
+        page: currentPage,
+        limit: pageSize,
+        approvedBy: approvedByFilter || undefined,
+        sortBy: sortColumn || undefined,
+        sortDir: sortColumn ? sortDirection : undefined
+      });
       setInvoices(data.items);
       setTotalInvoices(data.total);
       onNavCountsChange({

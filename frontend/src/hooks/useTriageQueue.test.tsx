@@ -70,6 +70,10 @@ describe("hooks/useTriageQueue — tenant-scoped, NOT realm-scoped (composite-ke
     act(() => {
       setActiveClientOrgId("realm-B");
     });
+    // Force the hook to re-evaluate after the realm change so we can assert
+    // that NO new fetch was triggered — proves the tenant-scoped invariant
+    // (the query key does not include clientOrgId, so realm switches are
+    // cache-hits not refetches).
     rerender();
 
     expect(result.current.total).toBe(5);
