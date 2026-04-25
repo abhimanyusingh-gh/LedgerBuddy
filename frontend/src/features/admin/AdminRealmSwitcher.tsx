@@ -33,14 +33,14 @@ export function AdminRealmSwitcher() {
 
   return (
     <div
-      className="admin-realm-switcher"
+      className="ds-segmented-group"
       data-testid="admin-realm-switcher"
       role="group"
       aria-label="Analytics scope"
     >
       <button
         type="button"
-        className="admin-realm-switcher-segment-all"
+        className="ds-pill"
         data-active={isAllSelected ? "true" : undefined}
         aria-pressed={isAllSelected}
         data-testid="admin-realm-switcher-segment-all"
@@ -50,7 +50,7 @@ export function AdminRealmSwitcher() {
       </button>
       <button
         type="button"
-        className="admin-realm-switcher-segment-picker"
+        className="ds-pill admin-realm-switcher-segment-picker"
         data-active={!isAllSelected ? "true" : undefined}
         aria-pressed={!isAllSelected}
         aria-haspopup="dialog"
