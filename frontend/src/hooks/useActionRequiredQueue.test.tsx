@@ -11,6 +11,7 @@ jest.mock("@/api", () => ({
 
 import { useActionRequiredQueue, ACTION_QUEUE_QUERY_KEY } from "@/hooks/useActionRequiredQueue";
 import { setActiveClientOrgId } from "@/hooks/useActiveClientOrg";
+import { writeTenantSetupCompleted } from "@/hooks/useTenantSetupCompleted";
 
 const { fetchInvoices } = jest.requireMock("@/api") as {
   fetchInvoices: jest.Mock;
@@ -58,6 +59,7 @@ describe("hooks/useActionRequiredQueue — realm-scoped (#141)", () => {
   beforeEach(() => {
     reset();
     fetchInvoices.mockReset();
+    writeTenantSetupCompleted(true);
   });
   afterEach(reset);
 
@@ -119,5 +121,37 @@ describe("hooks/useActionRequiredQueue — realm-scoped (#141)", () => {
       .getQueryCache()
       .findAll({ queryKey: ["clientOrg", "realm-B", ...ACTION_QUEUE_QUERY_KEY] });
     expect(realmBEntries.length).toBe(1);
+  });
+
+  it("does NOT fetch when tenant setup is incomplete, even with an active realm (#193)", () => {
+    writeTenantSetupCompleted(false);
+    setActiveClientOrgId("realm-A");
+    const { wrapper } = makeWrapper();
+    const { result } = renderHook(() => useActionRequiredQueue(), { wrapper });
+    expect(fetchInvoices).not.toHaveBeenCalled();
+    expect(result.current.totalCount).toBeNull();
+    expect(result.current.isLoading).toBe(false);
+  });
+
+  it("starts fetching once tenant setup completes mid-session", async () => {
+    writeTenantSetupCompleted(false);
+    fetchInvoices.mockResolvedValue({
+      items: [makeInvoice("a", "AWAITING_APPROVAL")],
+      page: 1,
+      limit: 500,
+      total: 1
+    });
+    setActiveClientOrgId("realm-A");
+    const { wrapper } = makeWrapper();
+    const { result, rerender } = renderHook(() => useActionRequiredQueue(), { wrapper });
+    expect(fetchInvoices).not.toHaveBeenCalled();
+
+    act(() => {
+      writeTenantSetupCompleted(true);
+    });
+    rerender();
+
+    await waitFor(() => expect(result.current.totalCount).toBe(1));
+    expect(fetchInvoices).toHaveBeenCalledTimes(1);
   });
 });

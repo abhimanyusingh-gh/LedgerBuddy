@@ -9,6 +9,7 @@ import {
 } from "@/api/apiPaths";
 import { MissingActiveClientOrgError } from "@/api/errors";
 import { ACTIVE_TENANT_ID_STORAGE_KEY, readActiveTenantId } from "@/api/tenantStorage";
+import { TENANT_SETUP_COMPLETED_STORAGE_KEY } from "@/hooks/useTenantSetupCompleted";
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:4100/api";
 const SESSION_TOKEN_KEY = "ledgerbuddy_session_token";
@@ -192,6 +193,7 @@ export function setStoredSessionToken(token: string): void {
 export function clearStoredSessionToken(): void {
   window.localStorage.removeItem(SESSION_TOKEN_KEY);
   window.sessionStorage.removeItem(ACTIVE_TENANT_ID_STORAGE_KEY);
+  window.sessionStorage.removeItem(TENANT_SETUP_COMPLETED_STORAGE_KEY);
 }
 
 export function safeNum(v: unknown, fallback: number): number {

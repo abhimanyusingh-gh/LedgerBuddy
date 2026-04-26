@@ -12,6 +12,7 @@ jest.mock("@/api/client", () => {
 
 import { useTriageQueue } from "@/hooks/useTriageQueue";
 import { setActiveClientOrgId } from "@/hooks/useActiveClientOrg";
+import { writeTenantSetupCompleted } from "@/hooks/useTenantSetupCompleted";
 import { getMockedApiClient } from "@/test-utils/mockApiClient";
 
 const apiClient = getMockedApiClient();
@@ -37,6 +38,7 @@ describe("hooks/useTriageQueue — tenant-scoped, NOT realm-scoped (composite-ke
     reset();
     apiClient.get.mockReset();
     apiClient.patch.mockReset();
+    writeTenantSetupCompleted(true);
   });
   afterEach(reset);
 
@@ -75,5 +77,31 @@ describe("hooks/useTriageQueue — tenant-scoped, NOT realm-scoped (composite-ke
     expect(result.current.total).toBe(5);
     expect(apiClient.get).toHaveBeenCalledTimes(1);
     expect(result.current.isLoading).toBe(false);
+  });
+
+  it("does NOT fetch when tenant setup is incomplete (#193 — gates 403 noise)", () => {
+    writeTenantSetupCompleted(false);
+    const { wrapper } = makeWrapper();
+    const { result } = renderHook(() => useTriageQueue(), { wrapper });
+    expect(apiClient.get).not.toHaveBeenCalled();
+    expect(result.current.total).toBe(0);
+    expect(result.current.invoices).toEqual([]);
+    expect(result.current.isLoading).toBe(false);
+  });
+
+  it("starts fetching once tenant setup completes mid-session", async () => {
+    writeTenantSetupCompleted(false);
+    apiClient.get.mockResolvedValue({ data: { items: [{ _id: "i1" }], total: 1 } });
+    const { wrapper } = makeWrapper();
+    const { result, rerender } = renderHook(() => useTriageQueue(), { wrapper });
+    expect(apiClient.get).not.toHaveBeenCalled();
+
+    act(() => {
+      writeTenantSetupCompleted(true);
+    });
+    rerender();
+
+    await waitFor(() => expect(result.current.total).toBe(1));
+    expect(apiClient.get).toHaveBeenCalledTimes(1);
   });
 });

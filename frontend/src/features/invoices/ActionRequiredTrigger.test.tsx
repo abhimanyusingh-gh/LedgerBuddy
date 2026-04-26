@@ -7,6 +7,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import { ActionRequiredTrigger } from "@/features/invoices/ActionRequiredTrigger";
 import { setActiveClientOrgId } from "@/hooks/useActiveClientOrg";
+import { writeTenantSetupCompleted } from "@/hooks/useTenantSetupCompleted";
 import type { Invoice } from "@/types";
 
 jest.mock("@/api", () => ({
@@ -54,6 +55,8 @@ beforeEach(() => {
   // The Action-Required queue is realm-scoped (#141): the hook uses
   // useScopedQuery which is disabled until a realm is active.
   setActiveClientOrgId("realm-test");
+  // Also gate-bypass the tenant-setup check (#193).
+  writeTenantSetupCompleted(true);
   Object.defineProperty(window, "matchMedia", {
     writable: true,
     configurable: true,

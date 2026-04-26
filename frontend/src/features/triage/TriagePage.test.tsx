@@ -8,6 +8,7 @@ import type { ReactNode } from "react";
 import { TriagePage } from "@/features/triage/TriagePage";
 import type { TriageInvoice } from "@/api/triage";
 import type { ClientOrganization } from "@/api/clientOrgs";
+import { writeTenantSetupCompleted } from "@/hooks/useTenantSetupCompleted";
 
 jest.mock("@/api/triage", () => ({
   TRIAGE_QUEUE_QUERY_KEY: ["triageQueue"],
@@ -71,6 +72,7 @@ beforeEach(() => {
   jest.clearAllMocks();
   window.history.replaceState({}, "", "/");
   window.sessionStorage.clear();
+  writeTenantSetupCompleted(true);
 });
 
 describe("features/triage/TriagePage — 4-state UX", () => {

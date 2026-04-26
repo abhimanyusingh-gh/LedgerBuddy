@@ -1,6 +1,7 @@
 import axios from "axios";
 import { apiClient } from "@/api/client";
 import { writeActiveTenantId } from "@/api/tenantStorage";
+import { writeTenantSetupCompleted } from "@/hooks/useTenantSetupCompleted";
 import type { SessionUser, TenantRole, TenantUser } from "@/types";
 
 export type FeatureFlagName = "example.healthCheckVerbose";
@@ -45,6 +46,7 @@ export async function loginWithCredentials(email: string, password: string): Pro
 export async function fetchSessionContext(): Promise<SessionContextResponse> {
   const response = (await apiClient.get<SessionContextResponse>("/session")).data;
   writeActiveTenantId(response.tenant?.id ?? null);
+  writeTenantSetupCompleted(response.flags?.requires_tenant_setup === false);
   return response;
 }
 

@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { fetchInvoices } from "@/api";
 import { useScopedQuery } from "@/lib/query/useScopedQuery";
 import { useActiveClientOrg } from "@/hooks/useActiveClientOrg";
+import { useTenantSetupCompleted } from "@/hooks/useTenantSetupCompleted";
 import {
   buildActionQueue,
   totalActionCount,
@@ -25,13 +26,21 @@ interface UseActionRequiredQueueResult {
   refetch: () => Promise<unknown>;
 }
 
+// Gated on `tenantSetupCompleted` (#193): BE route is mounted behind
+// `requireTenantSetupCompleted` and 403s for mid-setup tenants. When setup
+// is incomplete the hook surfaces the same `null` totalCount sentinel as the
+// no-realm case so consumers (sidebar badge, action trigger) render their
+// existing "unknown" placeholder.
 export function useActionRequiredQueue(): UseActionRequiredQueueResult {
   const { activeClientOrgId } = useActiveClientOrg();
+  const tenantSetupCompleted = useTenantSetupCompleted();
   const isRealmActive = activeClientOrgId !== null;
+  const isEnabled = isRealmActive && tenantSetupCompleted;
   const query = useScopedQuery({
     queryKey: ACTION_QUEUE_QUERY_KEY,
     queryFn: () => fetchInvoices({ page: 1, limit: ACTION_QUEUE_PAGE_SIZE }),
-    staleTime: ACTION_QUEUE_STALE_MS
+    staleTime: ACTION_QUEUE_STALE_MS,
+    enabled: tenantSetupCompleted
   });
 
   const groups = useMemo(
@@ -41,10 +50,10 @@ export function useActionRequiredQueue(): UseActionRequiredQueueResult {
 
   return {
     groups,
-    totalCount: isRealmActive ? totalActionCount(groups) : null,
+    totalCount: isEnabled ? totalActionCount(groups) : null,
     scannedCount: query.data?.items.length ?? 0,
     totalAvailable: query.data?.total ?? 0,
-    isLoading: query.isPending && isRealmActive,
+    isLoading: query.isPending && isEnabled,
     isError: query.isError,
     refetch: query.refetch
   };
