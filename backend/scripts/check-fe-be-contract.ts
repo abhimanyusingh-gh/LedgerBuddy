@@ -124,7 +124,10 @@ const KNOWN_ORPHAN_BE_ROUTES: ReadonlySet<string> = new Set<string>([
   // viewer-scope GET/PUT — admin-only management of per-user invoice
   // visibility scoping; FE management surface tracked separately.
   "GET /api/tenants/:tenantId/admin/users/:id/viewer-scope",
-  "PUT /api/tenants/:tenantId/admin/users/:id/viewer-scope"
+  "PUT /api/tenants/:tenantId/admin/users/:id/viewer-scope",
+  // Mailbox-assignment Add picker source (#191) — FE consumer pending in
+  // the #191 FE PR (BE half ships first per the alternating BE/FE rule).
+  "GET /api/tenants/:tenantId/admin/integrations"
 ]);
 
 interface FeUrl {
