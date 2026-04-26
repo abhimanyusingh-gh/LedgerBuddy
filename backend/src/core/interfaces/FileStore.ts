@@ -21,6 +21,6 @@ export interface FileStore {
   putObject(input: FileStorePutInput): Promise<FileStoreObjectRef>;
   getObject(key: string): Promise<FileStoreGetResult>;
   deleteObject(key: string): Promise<void>;
-  listObjects?(prefix: string): Promise<{ key: string }[]>;
+  listObjects?(prefix: string): Promise<{ key: string; lastModified: Date }[]>;
   generatePresignedPutUrl?(key: string, contentType: string, expiresInSeconds: number): Promise<string>;
 }

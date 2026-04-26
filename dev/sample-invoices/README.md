@@ -1,11 +1,9 @@
-# Sample Invoices Folder
+# Sample Invoices
 
-Drop invoice files in `sample-invoices/inbox/` to test local folder-based ingestion.
+Fixture invoices used by local development, benchmarks, baked extraction fixtures, and end-to-end test workflows. Files are read by the email-simulation source and the benchmark/baking scripts under `backend/src/scripts/`.
 
 Supported file types:
 - `.pdf`
 - `.jpg`
 - `.jpeg`
 - `.png`
-
-This folder is used by local development and end-to-end test workflows.

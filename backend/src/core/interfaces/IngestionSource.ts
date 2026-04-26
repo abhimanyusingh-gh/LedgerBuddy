@@ -4,7 +4,6 @@ import type { UUID } from "@/types/uuid.js";
 
 export const INGESTION_SOURCE_TYPE = {
   EMAIL: "email",
-  FOLDER: "folder",
   S3_UPLOAD: "s3-upload",
 } as const;
 

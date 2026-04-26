@@ -112,17 +112,6 @@ export function resolveSource(
     };
   }
 
-  if (source.type === "folder") {
-    return {
-      type: "folder",
-      key: source.key ?? env.FOLDER_SOURCE_KEY,
-      tenantId: source.tenantId ? toUUID(source.tenantId) : defaultTenantId,
-      workloadTier: source.workloadTier ?? defaultWorkloadTier,
-      folderPath: source.folderPath ?? env.FOLDER_SOURCE_PATH ?? "",
-      recursive: source.recursive ?? env.FOLDER_RECURSIVE
-    };
-  }
-
   throw new Error(`Unsupported ingestion source '${(source as { type: string }).type}'.`);
 }
 

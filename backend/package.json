@@ -12,7 +12,7 @@
     "seed:demo-tenant": "ENV=${ENV:-local} tsx src/scripts/seedDemoTenant.ts",
     "test": "jest --config jest.config.cjs --runInBand --forceExit --testPathIgnorePatterns=/e2e/",
     "coverage": "jest --config jest.config.cjs --runInBand --forceExit --testPathIgnorePatterns=/e2e/ --coverage",
-    "test:e2e": "jest --config jest.config.cjs --runInBand ../dev/e2e/backend/folderIngestion.e2e.test.ts ../dev/e2e/backend/saasLifecycle.e2e.test.ts ../dev/e2e/backend/sendgridInviteFormatting.e2e.test.ts ../dev/e2e/backend/platformAdminUsage.e2e.test.ts ../dev/e2e/backend/tenantLifecycle.e2e.test.ts",
+    "test:e2e": "jest --config jest.config.cjs --runInBand ../dev/e2e/backend/saasLifecycle.e2e.test.ts ../dev/e2e/backend/sendgridInviteFormatting.e2e.test.ts ../dev/e2e/backend/platformAdminUsage.e2e.test.ts ../dev/e2e/backend/tenantLifecycle.e2e.test.ts",
     "test:e2e:saas": "jest --config jest.config.cjs --runInBand ../dev/e2e/backend/saasLifecycle.e2e.test.ts",
     "test:e2e:email-oauth": "jest --config jest.config.cjs --runInBand ../dev/e2e/backend/emailOAuthIngestion.e2e.test.ts",
     "test:integration": "LOCALSTACK_ENDPOINT=http://localhost:4566 jest --config jest.config.cjs --runInBand --testPathPattern=\\.integration\\.test\\.ts$",

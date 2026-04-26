@@ -63,10 +63,7 @@ services:
       LOCAL_DEMO_SEED: ${LOCAL_DEMO_SEED:-true}
       LOCAL_DEMO_CONFIG_PATH: ${LOCAL_DEMO_CONFIG_PATH:-dev/config/local-demo-users.json}
       LOCAL_DEMO_INVOICES: ${LOCAL_DEMO_INVOICES:-true}
-      INGESTION_SOURCES: ${INGESTION_SOURCES:-folder}
-      FOLDER_SOURCE_KEY: local-folder
-      FOLDER_SOURCE_PATH: /app/sample-invoices/inbox
-      FOLDER_RECURSIVE: "false"
+      INGESTION_SOURCES: ${INGESTION_SOURCES:-email}
       EMAIL_SOURCE_KEY: ${EMAIL_SOURCE_KEY:-email-inbox}
       EMAIL_TRANSPORT: ${EMAIL_TRANSPORT:-imap}
       EMAIL_MAILHOG_API_BASE_URL: ${EMAIL_MAILHOG_API_BASE_URL:-http://mailhog-oauth:8026}
@@ -144,7 +141,6 @@ services:
       OTEL_ENABLED: ${OTEL_ENABLED:-true}
       OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-http://jaeger:4318}
     volumes:
-      - ${INVOICE_INBOX_PATH:-./dev/sample-invoices/inbox}:/app/sample-invoices/inbox:ro
       - ./.local-run/artifacts:/app/.local-run/artifacts
 
   redis:

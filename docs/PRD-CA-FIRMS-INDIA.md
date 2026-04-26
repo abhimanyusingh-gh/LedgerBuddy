@@ -70,7 +70,7 @@ BillForge supports three methods for getting invoices into the system:
 
 - **Manual upload.** Drag and drop PDF, image (JPEG, PNG), or scanned invoice files directly into the web interface. Multiple files can be uploaded in a single batch.
 - **Email ingestion via Gmail.** Connect your client's accounts payable inbox (or a dedicated BillForge inbox) via Gmail OAuth. The system polls the inbox on a configurable schedule, extracts invoice attachments from emails, and feeds them into the processing pipeline. Mailbox assignments can be scoped to specific team members.
-- **Folder watch / S3 ingestion.** For firms with automated document management, BillForge monitors an S3-compatible storage folder and ingests new files automatically. This supports integration with document scanners, ERP systems, or other tools that deposit files into a shared location.
+- **S3 upload ingestion.** For firms with automated document management, BillForge monitors an S3-compatible bucket and ingests new files automatically. This supports integration with document scanners, ERP systems, or other tools that deposit files into a shared location.
 
 Each ingested invoice receives a unique identifier and tracks its source (email, upload, or folder), attachment filename, and receipt timestamp.
 

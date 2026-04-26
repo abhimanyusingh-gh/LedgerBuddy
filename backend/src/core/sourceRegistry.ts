@@ -55,12 +55,6 @@ export function buildIngestionSources(
       continue;
     }
 
-    if (sourceManifest.type === "folder") {
-      throw new Error(
-        "Folder ingestion source is no longer supported. Only upload (s3-upload) and email streams are wired in this build."
-      );
-    }
-
     throw new Error("Unsupported ingestion source. Add an IngestionSource implementation to support it.");
   }
 

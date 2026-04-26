@@ -83,46 +83,36 @@ export const runtimeManifestSchema = z.object({
     .optional(),
   sources: z
     .array(
-      z.discriminatedUnion("type", [
-        z.object({
-          type: z.literal("email"),
-          key: z.string().min(1).optional(),
-          tenantId: z.string().min(1).optional(),
-          workloadTier: z.enum(["standard", "heavy"]).optional(),
-          oauthUserId: z.string().min(1).optional(),
-          transport: z.enum(["imap", "mailhog_oauth"]).optional(),
-          mailhogApiBaseUrl: z.string().optional(),
-          host: z.string().optional(),
-          port: z.coerce.number().int().positive().optional(),
-          secure: z.coerce.boolean().optional(),
-          smtpHost: z.string().optional(),
-          smtpPort: z.coerce.number().int().positive().optional(),
-          smtpSecure: z.coerce.boolean().optional(),
-          smtpTimeoutMs: z.coerce.number().int().positive().optional(),
-          username: z.string().optional(),
-          authMode: z.enum(["password", "oauth2"]).optional(),
-          password: z.string().optional(),
-          oauth2: z
-            .object({
-              clientId: z.string().optional(),
-              clientSecret: z.string().optional(),
-              refreshToken: z.string().optional(),
-              accessToken: z.string().optional(),
-              tokenEndpoint: z.string().optional()
-            })
-            .optional(),
-          mailbox: z.string().optional(),
-          fromFilter: z.string().optional()
-        }),
-        z.object({
-          type: z.literal("folder"),
-          key: z.string().min(1).optional(),
-          tenantId: z.string().min(1).optional(),
-          workloadTier: z.enum(["standard", "heavy"]).optional(),
-          folderPath: z.string().optional(),
-          recursive: z.coerce.boolean().optional()
-        })
-      ])
+      z.object({
+        type: z.literal("email"),
+        key: z.string().min(1).optional(),
+        tenantId: z.string().min(1).optional(),
+        workloadTier: z.enum(["standard", "heavy"]).optional(),
+        oauthUserId: z.string().min(1).optional(),
+        transport: z.enum(["imap", "mailhog_oauth"]).optional(),
+        mailhogApiBaseUrl: z.string().optional(),
+        host: z.string().optional(),
+        port: z.coerce.number().int().positive().optional(),
+        secure: z.coerce.boolean().optional(),
+        smtpHost: z.string().optional(),
+        smtpPort: z.coerce.number().int().positive().optional(),
+        smtpSecure: z.coerce.boolean().optional(),
+        smtpTimeoutMs: z.coerce.number().int().positive().optional(),
+        username: z.string().optional(),
+        authMode: z.enum(["password", "oauth2"]).optional(),
+        password: z.string().optional(),
+        oauth2: z
+          .object({
+            clientId: z.string().optional(),
+            clientSecret: z.string().optional(),
+            refreshToken: z.string().optional(),
+            accessToken: z.string().optional(),
+            tokenEndpoint: z.string().optional()
+          })
+          .optional(),
+        mailbox: z.string().optional(),
+        fromFilter: z.string().optional()
+      })
     )
     .optional()
 });

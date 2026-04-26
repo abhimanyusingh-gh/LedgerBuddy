@@ -28,15 +28,29 @@ export class S3UploadIngestionSource implements IngestionSource {
     this.prefix = `uploads/${tenantId}`;
   }
 
-  async fetchNewFiles(_lastCheckpoint: string | null): Promise<IngestedFile[]> {
+  async fetchNewFiles(lastCheckpoint: string | null): Promise<IngestedFile[]> {
     if (!this.fileStore.listObjects) {
       return [];
     }
 
+    const checkpoint = parseCheckpoint(lastCheckpoint);
     const objects = await this.fileStore.listObjects(this.prefix);
+    const fresh = objects
+      .filter((object) => {
+        const ms = object.lastModified.getTime();
+        if (ms > checkpoint.lastModifiedMs) return true;
+        if (ms === checkpoint.lastModifiedMs) return object.key > checkpoint.lastKey;
+        return false;
+      })
+      .sort((a, b) => {
+        const delta = a.lastModified.getTime() - b.lastModified.getTime();
+        if (delta !== 0) return delta;
+        return a.key < b.key ? -1 : a.key > b.key ? 1 : 0;
+      });
+
     const files: IngestedFile[] = [];
 
-    for (const object of objects) {
+    for (const object of fresh) {
       const fileName = path.basename(object.key);
       const extension = path.extname(fileName).toLowerCase();
       const mimeType = MIME_BY_EXTENSION[extension];
@@ -44,7 +58,11 @@ export class S3UploadIngestionSource implements IngestionSource {
         continue;
       }
 
-      const result = await this.fileStore.getObject(object.key);
+      const result = await this.safeGetObject(object.key);
+      if (!result) {
+        continue;
+      }
+
       files.push({
         tenantId: this.tenantId,
         // Background-polled S3 uploads have no per-object client-org
@@ -60,9 +78,9 @@ export class S3UploadIngestionSource implements IngestionSource {
         sourceDocumentId: object.key,
         attachmentName: fileName,
         mimeType,
-        receivedAt: new Date(),
+        receivedAt: object.lastModified,
         buffer: result.body,
-        checkpointValue: object.key,
+        checkpointValue: encodeCheckpoint(object.lastModified, object.key),
         metadata: {
           uploadKey: object.key
         }
@@ -71,4 +89,38 @@ export class S3UploadIngestionSource implements IngestionSource {
 
     return files;
   }
+
+  private async safeGetObject(key: string): Promise<{ body: Buffer } | null> {
+    try {
+      return await this.fileStore.getObject(key);
+    } catch {
+      // Object may have been deleted between list + get; skip gracefully.
+      return null;
+    }
+  }
+}
+
+interface ParsedCheckpoint {
+  lastModifiedMs: number;
+  lastKey: string;
+}
+
+const CHECKPOINT_DELIMITER = "|";
+
+function encodeCheckpoint(lastModified: Date, key: string): string {
+  return `${lastModified.toISOString()}${CHECKPOINT_DELIMITER}${key}`;
+}
+
+function parseCheckpoint(value: string | null): ParsedCheckpoint {
+  if (!value) {
+    return { lastModifiedMs: Number.NEGATIVE_INFINITY, lastKey: "" };
+  }
+  const delimiterIndex = value.indexOf(CHECKPOINT_DELIMITER);
+  const isoPart = delimiterIndex === -1 ? value : value.slice(0, delimiterIndex);
+  const keyPart = delimiterIndex === -1 ? "" : value.slice(delimiterIndex + 1);
+  const parsed = Date.parse(isoPart);
+  if (!Number.isFinite(parsed)) {
+    return { lastModifiedMs: Number.NEGATIVE_INFINITY, lastKey: "" };
+  }
+  return { lastModifiedMs: parsed, lastKey: keyPart };
 }

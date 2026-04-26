@@ -17,7 +17,6 @@ import {
 import type { ApprovalWorkflowService } from "@/services/invoice/approvalWorkflowService.js";
 import { computeInvoiceActions, type InvoiceActionActor } from "@/services/invoice/invoiceActions.js";
 import { env } from "@/config/env.js";
-import { loadRuntimeManifest, type FolderSourceManifest } from "@/core/runtimeManifest.js";
 import { INVOICE_STATUS, GL_CODE_SOURCE, TDS_SOURCE, RISK_SIGNAL_STATUS } from "@/types/invoice.js";
 import { RISK_SIGNAL_CODE } from "@/types/riskSignals.js";
 import { INGESTION_SOURCE_TYPE } from "@/core/interfaces/IngestionSource.js";
@@ -70,21 +69,12 @@ export function createInvoiceRouter(
   const router = Router();
   router.use(requireAuth);
   router.use(requireActiveClientOrg);
-  const runtimeManifest = loadRuntimeManifest();
   const ALLOWED_SORT_COLUMNS = new Set(["file", "vendor", "invoiceNumber", "invoiceDate", "total", "confidence", "status", "received"]);
 
   async function buildActionActor(req: Request): Promise<InvoiceActionActor> {
     const authContext = getAuth(req);
     const capabilities = await resolveCapabilities(req);
     return { userId: authContext.userId, role: authContext.role, capabilities };
-  }
-
-  function findFolderSource(invoice: { sourceKey: string; workloadTier: string }, tenantId: string) {
-    return runtimeManifest.sources.find(
-      (s): s is FolderSourceManifest =>
-        s.type === INGESTION_SOURCE_TYPE.FOLDER && s.key === invoice.sourceKey &&
-        s.tenantId === tenantId && s.workloadTier === invoice.workloadTier
-    );
   }
 
   router.get("/invoices", wrap(async (req, res) => {
@@ -271,24 +261,6 @@ export function createInvoiceRouter(
     }
   }));
 
-  router.get("/invoices/:id/document", wrap(async (req, res, next) => {
-    const invoice = await invoiceService.getInvoiceById(req.params.id, getAuth(req).tenantId, req.activeClientOrgId!);
-    if (!invoice) { res.status(404).json({ message: "Invoice not found" }); return; }
-    if (invoice.sourceType !== INGESTION_SOURCE_TYPE.FOLDER) { res.status(404).json({ message: "Original document is unavailable for this ingestion source." }); return; }
-
-    const folderSource = findFolderSource(invoice, getAuth(req).tenantId);
-    if (!folderSource) { res.status(404).json({ message: "Folder source configuration not found for this invoice." }); return; }
-
-    const filePath = resolveSourceDocumentPath(folderSource.folderPath, invoice.sourceDocumentId);
-    if (!filePath) { res.status(400).json({ message: "Invoice source document path is invalid." }); return; }
-
-    try { await access(filePath, fsConstants.R_OK); } catch { res.status(404).json({ message: "Invoice source document was not found on disk." }); return; }
-
-    res.type(invoice.mimeType);
-    res.setHeader("Content-Disposition", `inline; filename="${invoice.attachmentName.replace(/["\\\r\n]/g, "_")}"`);
-    safeSendFile(res, filePath, next);
-  }));
-
   router.get("/invoices/:id/preview", wrap(async (req, res, next) => {
     const invoice = await invoiceService.getInvoiceById(req.params.id, getAuth(req).tenantId, req.activeClientOrgId!);
     if (!invoice) { res.status(404).json({ message: "Invoice not found" }); return; }
@@ -314,30 +286,10 @@ export function createInvoiceRouter(
       }
     }
 
-    if (invoice.sourceType === INGESTION_SOURCE_TYPE.FOLDER && invoice.mimeType.startsWith("image/")) {
-      const folderSource = findFolderSource(invoice, getAuth(req).tenantId);
-      if (folderSource) {
-        const imagePath = resolveSourceDocumentPath(folderSource.folderPath, invoice.sourceDocumentId);
-        if (imagePath) {
-          await access(imagePath, fsConstants.R_OK);
-          res.type(invoice.mimeType);
-          safeSendFile(res, imagePath, next);
-          return;
-        }
-      }
-    }
-
     res.status(404).json({ message: "Preview image not found for this invoice." });
   }));
 
   return router;
-}
-
-function resolveSourceDocumentPath(rootPath: string, relativePathValue: string): string | null {
-  const root = path.resolve(rootPath);
-  const resolved = path.resolve(root, relativePathValue);
-  const relative = path.relative(root, resolved);
-  return (relative.startsWith("..") || path.isAbsolute(relative)) ? null : resolved;
 }
 
 function inferImageMimeType(value: string): string {

@@ -122,7 +122,7 @@ The same Docker image serves local, staging, and production. Configuration varie
 
 | Boundary | Options |
 |----------|---------|
-| Ingestion | Gmail OAuth, S3 Upload, Folder watch |
+| Ingestion | Gmail OAuth, S3 Upload |
 | OCR | Apple Vision (local), DeepSeek MLX (local), LlamaParse (cloud) |
 | Extraction | Local MLX, Claude CLI, Anthropic API, LlamaExtract (cloud) |
 | Export | Tally XML (CGST/SGST/IGST/Cess) |

@@ -11,7 +11,6 @@ import type { WorkloadTier } from "@/types/tenant.js";
 import { INVOICE_STATUS } from "@/types/invoice.js";
 import { type UUID, toUUID } from "@/types/uuid.js";
 import { PIPELINE_ERROR_CODE } from "@/core/engine/types.js";
-import { TenantModel } from "@/models/core/Tenant.js";
 import { S3UploadIngestionSource } from "@/sources/S3UploadIngestionSource.js";
 import { InvoiceExtractionPipeline, ExtractionPipelineError } from "@/ai/extractors/invoice/InvoiceExtractionPipeline.js";
 import { NoopFieldVerifier } from "@/ai/verifiers/NoopFieldVerifier.js";
@@ -21,6 +20,7 @@ import { persistFieldArtifacts } from "@/services/ingestion/artifacts.js";
 import { resolveClientOrgForIngestion, type MailboxAssignmentLike } from "@/services/ingestion/resolveClientOrg.js";
 import { INGESTION_FILE_RESULT, type IngestionFileResult } from "@/types/ingestion.js";
 import type { ParsedInvoiceData } from "@/types/invoice.js";
+
 const MAX_FILE_PROCESSING_CONCURRENCY = env.INGESTION_CONCURRENCY;
 
 interface IngestionRunSummary {
@@ -49,7 +49,7 @@ interface IngestionServiceOptions {
   fileStore?: FileStore;
   /**
    * Per-file mailbox-assignment lookup used by the poller-path resolver
-   * (#159). Gmail poller + folder-watcher emit files with
+   * (#159). Gmail poller emits files with
    * `clientOrgId: null`; when this hook is provided the service threads
    * the matching assignment's `clientOrgIds` through
    * `resolveClientOrgForIngestion` after extraction (so parsed
@@ -127,13 +127,6 @@ export class IngestionService {
     let tenantScopedSources =
       runtimeTenantId !== null && tenantMatchedSources.length > 0 ? tenantMatchedSources : prioritizedSources;
 
-    if (runtimeTenantId !== null) {
-      const tenantDoc = await TenantModel.findById(runtimeTenantId).select({ mode: 1 }).lean();
-      if (tenantDoc?.mode === "live") {
-        tenantScopedSources = tenantScopedSources.filter((s) => s.type !== INGESTION_SOURCE_TYPE.FOLDER);
-      }
-    }
-
     if (runtimeTenantId !== null && this.fileStore?.listObjects) {
       const uploadSource = new S3UploadIngestionSource(runtimeTenantId, this.fileStore);
       tenantScopedSources = [...tenantScopedSources, uploadSource];
@@ -149,14 +142,13 @@ export class IngestionService {
     for (const source of tenantScopedSources) {
       const effectiveTenantId = runtimeTenantId ?? source.tenantId;
       const checkpoint = await CheckpointModel.findOne({ sourceKey: source.key, tenantId: effectiveTenantId }).lean();
-      const sourceFiles = await source.fetchNewFiles(checkpoint?.marker ?? null);
-      const files = await this.filterAlreadyProcessedFiles(source, sourceFiles, effectiveTenantId);
+      const files = await source.fetchNewFiles(checkpoint?.marker ?? null);
       logger.info("ingestion.source.scan", {
         tenantId: effectiveTenantId,
         workloadTier: source.workloadTier,
         sourceType: source.type,
         sourceKey: source.key,
-        fetchedFiles: sourceFiles.length,
+        fetchedFiles: files.length,
         queuedFiles: files.length,
         checkpoint: checkpoint?.marker ?? null
       });
@@ -201,6 +193,14 @@ export class IngestionService {
           if (newAlert) emittedAlerts.add(newAlert);
           await emitProgress(true, newAlert);
 
+          // Advance the checkpoint regardless of result (CREATED / DUPLICATE
+          // / FAILED). FAILED rows still land in InvoiceModel via
+          // persistFailure -> upsertFromPending, so a re-poll will resolve
+          // them as duplicates by (tenantId, sourceDocumentId) — they are
+          // not silently re-OCR'd. This matches the dedup contract the
+          // deleted filterAlreadyProcessedFiles previously enforced via
+          // a (tenantId, sourceKey, sourceDocumentId) lookup. Skipping the
+          // checkpoint on failure would replay the same file forever.
           if (scopedFile.checkpointValue !== nextMarker) {
             await CheckpointModel.findOneAndUpdate(
               { sourceKey: source.key, tenantId: effectiveTenantId },
@@ -233,41 +233,6 @@ export class IngestionService {
     logger.info("ingestion.run.complete", { ...summary, processedFiles });
     await emitProgress(false);
     return { ...summary, paused };
-  }
-
-  private async filterAlreadyProcessedFiles(
-    source: IngestionSource,
-    files: IngestedFile[],
-    effectiveTenantId: UUID
-  ): Promise<IngestedFile[]> {
-    if (files.length === 0 || (source.type !== INGESTION_SOURCE_TYPE.FOLDER && source.type !== INGESTION_SOURCE_TYPE.S3_UPLOAD)) {
-      return files;
-    }
-
-    // Per #156: accounting-leaf read filtered by (tenantId, sourceKey).
-    // sourceDocumentId is unique per (tenantId, sourceKey) by design
-    // (folder-relative path / S3 object key) so we do not need to pivot
-    // on clientOrgId here — a single tenant's folder/S3 sources cannot
-    // repeat sourceDocumentId across client-orgs. Triage-state rows
-    // (clientOrgId: null) are correctly included because this filter
-    // does not constrain clientOrgId.
-    const existingDocs = await InvoiceModel.find({
-      sourceType: source.type,
-      tenantId: effectiveTenantId,
-      sourceKey: source.key,
-      sourceDocumentId: { $in: files.map((file) => file.sourceDocumentId) },
-      status: { $ne: INVOICE_STATUS.PENDING }
-    })
-      .select({ sourceDocumentId: 1, _id: 0 })
-      .lean();
-
-    const existingDocumentIds = new Set(
-      existingDocs
-        .map((doc) => doc.sourceDocumentId)
-        .filter((value): value is string => typeof value === "string" && value.length > 0)
-    );
-
-    return files.filter((file) => !existingDocumentIds.has(file.sourceDocumentId));
   }
 
   private async processFile(file: IngestedFile): Promise<{ result: IngestionFileResult; systemAlert?: string }> {
@@ -323,8 +288,8 @@ export class IngestionService {
       });
 
       // Per #159: resolve PENDING_TRIAGE files now that we have parsed
-      // customerGstin. Gmail poller + folder-watcher emit
-      // clientOrgId: null; when a mailbox-assignment resolver is wired,
+      // customerGstin. Gmail poller emits clientOrgId: null;
+      // when a mailbox-assignment resolver is wired,
       // run the 3-tier resolver (gstin-match → single-candidate → keep
       // triage) and upgrade `file.clientOrgId` before persistence.
       if (file.clientOrgId === null && this.mailboxAssignmentResolver) {

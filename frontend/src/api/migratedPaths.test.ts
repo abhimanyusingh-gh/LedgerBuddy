@@ -60,7 +60,6 @@ describe("api/migratedPaths", () => {
       // Invoice domain (#204, final vertical slice).
       "/invoices",
       "/invoices/abc-123",
-      "/invoices/abc-123/document",
       "/invoices/abc-123/preview",
       "/invoices/abc-123/workflow-approve",
       "/invoices/abc-123/workflow-reject",

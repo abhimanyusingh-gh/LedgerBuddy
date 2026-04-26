@@ -381,7 +381,7 @@ interface SeedRecord {
   tenantId: string;
   clientOrgId: Types.ObjectId;
   workloadTier: "standard";
-  sourceType: "folder";
+  sourceType: "upload";
   sourceKey: typeof DEMO_SOURCE_KEY;
   sourceDocumentId: string;
   attachmentName: string;
@@ -446,7 +446,7 @@ function toInvoiceDoc(
     tenantId,
     clientOrgId,
     workloadTier: "standard",
-    sourceType: "folder",
+    sourceType: "upload",
     sourceKey: DEMO_SOURCE_KEY,
     sourceDocumentId,
     attachmentName: row.attachmentName,

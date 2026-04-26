@@ -12,7 +12,7 @@ import type { EmailTransportType, EmailAuthMode } from "@/types/email.js";
 type OcrProviderType = "auto" | "deepseek" | "mock" | "llamaparse";
 type VerifierProviderType = "none" | "http";
 type FileStoreProviderType = "s3";
-type SourceType = Extract<IngestionSourceType, "email" | "folder">;
+type SourceType = Extract<IngestionSourceType, "email">;
 
 export const LLAMA_PARSE_TIER = {
   FAST: "fast",
@@ -56,13 +56,7 @@ export interface EmailSourceManifest extends SourceBaseManifest {
   fromFilter: string;
 }
 
-export interface FolderSourceManifest extends SourceBaseManifest {
-  type: "folder";
-  folderPath: string;
-  recursive: boolean;
-}
-
-export type IngestionSourceManifest = EmailSourceManifest | FolderSourceManifest;
+export type IngestionSourceManifest = EmailSourceManifest;
 
 export interface RuntimeManifest {
   defaultTenantId: UUID;

@@ -19,9 +19,7 @@ BACKEND_HEALTH_URL="${BACKEND_HEALTH_URL:-http://127.0.0.1:4100/health}"
 FRONTEND_URL="${FRONTEND_URL:-http://127.0.0.1:5177}"
 OCR_HEALTH_URL="${OCR_HEALTH_URL:-http://127.0.0.1:8200/health}"
 SLM_HEALTH_URL="${SLM_HEALTH_URL:-http://127.0.0.1:8300/health}"
-DEFAULT_DEMO_INBOX_PATH="$ROOT_DIR/.local-run/demo-inbox"
-INVOICE_INBOX_PATH="${INVOICE_INBOX_PATH:-$DEFAULT_DEMO_INBOX_PATH}"
-DEFAULT_LOCAL_MANIFEST_PATH="backend/runtime-manifest.local.demo.json"
+LOCAL_DEMO_MODE="${LOCAL_DEMO_MODE:-true}"
 APP_MANIFEST_PATH_VALUE="${APP_MANIFEST_PATH:-}"
 LOCAL_DEMO_SEED_VALUE="${LOCAL_DEMO_SEED:-}"
 AUTH_AUTO_PROVISION_USERS_VALUE="${AUTH_AUTO_PROVISION_USERS:-}"
@@ -34,31 +32,6 @@ OCR_LOG_FILE="$RUN_DIR/ocr.log"
 SLM_LOG_FILE="$RUN_DIR/slm.log"
 
 mkdir -p "$RUN_DIR"
-
-prepare_local_demo_inbox() {
-  local source_dir="$1"
-  local destination_root="$2"
-  local tenant_a_dir="$destination_root/tenant-alpha"
-  local tenant_b_dir="$destination_root/tenant-beta"
-  local -a files=()
-
-  mkdir -p "$tenant_a_dir" "$tenant_b_dir"
-  rm -f "$tenant_a_dir"/* "$tenant_b_dir"/*
-
-  while IFS= read -r file; do
-    files+=("$file")
-  done < <(find "$source_dir" -maxdepth 1 -type f \( -name "*.pdf" -o -name "*.png" -o -name "*.jpg" -o -name "*.jpeg" \) | sort)
-
-  local index=0
-  for file_path in "${files[@]}"; do
-    if (( index % 2 == 0 )); then
-      cp "$file_path" "$tenant_a_dir/"
-    else
-      cp "$file_path" "$tenant_b_dir/"
-    fi
-    index=$((index + 1))
-  done
-}
 
 find_system_python310() {
   for candidate in python3.13 python3.12 python3.11 python3.10 python3; do
@@ -278,29 +251,11 @@ is_local_slm_engine() {
 
 if [[ "$ENV_MODE" == "local" || "$ENV_MODE" == "dev" ]]; then
   export SLM_MODEL_ID="$PINNED_SLM_MODEL_ID"
-  local_demo_mode="false"
-  if [[ "$INVOICE_INBOX_PATH" == "$DEFAULT_DEMO_INBOX_PATH" ]]; then
-    local_demo_mode="true"
-  fi
-  if [[ -z "$APP_MANIFEST_PATH_VALUE" && "$local_demo_mode" == "true" ]]; then
-    APP_MANIFEST_PATH_VALUE="$DEFAULT_LOCAL_MANIFEST_PATH"
-  fi
   if [[ -z "$LOCAL_DEMO_SEED_VALUE" ]]; then
-    if [[ "$local_demo_mode" == "true" ]]; then
-      LOCAL_DEMO_SEED_VALUE="true"
-    else
-      LOCAL_DEMO_SEED_VALUE="false"
-    fi
+    LOCAL_DEMO_SEED_VALUE="$LOCAL_DEMO_MODE"
   fi
   if [[ -z "$AUTH_AUTO_PROVISION_USERS_VALUE" ]]; then
-    if [[ "$local_demo_mode" == "true" ]]; then
-      AUTH_AUTO_PROVISION_USERS_VALUE="true"
-    else
-      AUTH_AUTO_PROVISION_USERS_VALUE="false"
-    fi
-  fi
-  if [[ "$INVOICE_INBOX_PATH" == "$DEFAULT_DEMO_INBOX_PATH" ]]; then
-    prepare_local_demo_inbox "$ROOT_DIR/dev/sample-invoices/inbox" "$INVOICE_INBOX_PATH"
+    AUTH_AUTO_PROVISION_USERS_VALUE="$LOCAL_DEMO_MODE"
   fi
 
   if is_local_ocr_engine || is_local_slm_engine; then
@@ -343,7 +298,6 @@ if [[ "$ENV_MODE" == "local" || "$ENV_MODE" == "dev" ]]; then
   fi
 fi
 
-INVOICE_INBOX_PATH="$INVOICE_INBOX_PATH" \
 APP_MANIFEST_PATH="$APP_MANIFEST_PATH_VALUE" \
 LOCAL_DEMO_SEED="$LOCAL_DEMO_SEED_VALUE" \
 AUTH_AUTO_PROVISION_USERS="$AUTH_AUTO_PROVISION_USERS_VALUE" \

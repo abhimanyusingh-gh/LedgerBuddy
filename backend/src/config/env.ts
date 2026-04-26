@@ -138,13 +138,6 @@ const envSchema = z.object({
   EMAIL_MAILBOX: z.string().default("INBOX"),
   EMAIL_FROM_FILTER: z.string().optional(),
 
-  FOLDER_SOURCE_KEY: z.string().default("folder-local"),
-  FOLDER_SOURCE_PATH: z.string().optional(),
-  FOLDER_RECURSIVE: z
-    .string()
-    .default("false")
-    .transform((value) => value === "true"),
-
   OCR_PROVIDER: z.enum(["auto", "deepseek", "mock", "llamaparse"]).default("auto"),
   OCR_PROVIDER_API_KEY: z.string().optional(),
   OCR_PROVIDER_BASE_URL: z.string().optional(),

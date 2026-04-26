@@ -106,7 +106,7 @@ export function createMockFileStore(overrides?: Partial<FileStore>): FileStore {
       contentType: "application/pdf"
     })),
     deleteObject: jest.fn(async () => {}),
-    listObjects: jest.fn(async () => []),
+    listObjects: jest.fn(async () => [] as { key: string; lastModified: Date }[]),
     ...overrides
   } as unknown as FileStore;
 }

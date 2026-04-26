@@ -222,7 +222,7 @@ start_local_service_if_needed \
   "$SLM_LOG_FILE" \
   "$PYTHON_BIN" -m uvicorn app.api:app --app-dir ai/slm --host 0.0.0.0 --port 8300
 
-INVOICE_INBOX_PATH="$E2E_INBOX_DIR" ENV=local \
+ENV=local \
   "${COMPOSE_CMD[@]}" up -d --build --remove-orphans \
   backend frontend mongo mongo-express mailhog mailhog-oauth minio-init ocr slm
 
