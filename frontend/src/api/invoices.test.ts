@@ -5,6 +5,7 @@ import { getInvoicePreviewUrl } from "@/api/invoices";
 import { MissingActiveClientOrgError } from "@/api/errors";
 import { setActiveClientOrgId } from "@/hooks/useActiveClientOrg";
 import { writeActiveTenantId } from "@/api/tenantStorage";
+import { getMockedApiClientModule } from "@/test-utils/mockApiClient";
 
 jest.mock("@/api/client", () => {
   const { buildApiClientMockModule } = require("@/test-utils/mockApiClient");
@@ -26,9 +27,9 @@ jest.mock("@/api/client", () => {
   });
 });
 
-const { authenticatedUrl } = jest.requireMock("@/api/client") as {
+const { authenticatedUrl: mockAuthenticatedUrl } = getMockedApiClientModule<{
   authenticatedUrl: jest.Mock;
-};
+}>();
 
 beforeEach(() => {
   jest.clearAllMocks();
@@ -44,7 +45,7 @@ afterEach(() => {
 describe("api/invoices — getInvoicePreviewUrl", () => {
   it("constructs the nested-shape preview URL after #220 BE migration", () => {
     const url = getInvoicePreviewUrl("inv-abc", 2);
-    expect(authenticatedUrl).toHaveBeenCalledWith(
+    expect(mockAuthenticatedUrl).toHaveBeenCalledWith(
       "/tenants/tenant-1/clientOrgs/org-9/invoices/inv-abc/preview",
       { page: 2 }
     );
@@ -55,12 +56,12 @@ describe("api/invoices — getInvoicePreviewUrl", () => {
 
   it("defaults page to 1 and clamps non-positive page values", () => {
     getInvoicePreviewUrl("inv-abc");
-    expect(authenticatedUrl).toHaveBeenLastCalledWith(
+    expect(mockAuthenticatedUrl).toHaveBeenLastCalledWith(
       "/tenants/tenant-1/clientOrgs/org-9/invoices/inv-abc/preview",
       { page: 1 }
     );
     getInvoicePreviewUrl("inv-abc", 0);
-    expect(authenticatedUrl).toHaveBeenLastCalledWith(
+    expect(mockAuthenticatedUrl).toHaveBeenLastCalledWith(
       "/tenants/tenant-1/clientOrgs/org-9/invoices/inv-abc/preview",
       { page: 1 }
     );
@@ -68,7 +69,7 @@ describe("api/invoices — getInvoicePreviewUrl", () => {
 
   it("rounds fractional page numbers to the nearest integer", () => {
     getInvoicePreviewUrl("inv-abc", 3.6);
-    expect(authenticatedUrl).toHaveBeenLastCalledWith(
+    expect(mockAuthenticatedUrl).toHaveBeenLastCalledWith(
       "/tenants/tenant-1/clientOrgs/org-9/invoices/inv-abc/preview",
       { page: 4 }
     );
@@ -79,7 +80,7 @@ describe("api/invoices — getInvoicePreviewUrl", () => {
     expect(() => getInvoicePreviewUrl("inv-abc")).toThrow(
       MissingActiveClientOrgError
     );
-    expect(authenticatedUrl).not.toHaveBeenCalled();
+    expect(mockAuthenticatedUrl).not.toHaveBeenCalled();
   });
 
   it("throws MissingActiveClientOrgError when clientOrgId is unset", () => {
@@ -87,6 +88,6 @@ describe("api/invoices — getInvoicePreviewUrl", () => {
     expect(() => getInvoicePreviewUrl("inv-abc")).toThrow(
       MissingActiveClientOrgError
     );
-    expect(authenticatedUrl).not.toHaveBeenCalled();
+    expect(mockAuthenticatedUrl).not.toHaveBeenCalled();
   });
 });
