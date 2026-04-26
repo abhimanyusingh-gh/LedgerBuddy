@@ -3,8 +3,8 @@ import { normalizeApiError } from "@/lib/common/apiError";
 import { readActiveClientOrgId, ACTIVE_CLIENT_ORG_QUERY_PARAM } from "@/hooks/useActiveClientOrg";
 import { isRealmScopedPath } from "@/api/classifyApiPath";
 import {
-  isMigratedRealmScopedPath,
-  isMigratedTenantScopedPath,
+  MIGRATED_PATH_KIND,
+  classifyMigratedPath,
   rewriteToNestedShape,
   rewriteToTenantShape
 } from "@/api/migratedPaths";
@@ -27,9 +27,15 @@ apiClient.interceptors.request.use((config) => {
   const requestPath = config.url ?? "";
 
   // Migrated paths take precedence over the classifier-based query injection.
-  // Rewrite the URL to the new nested shape and skip the `?clientOrgId=` query
-  // injection (the BE reads it from the path).
-  if (isMigratedRealmScopedPath(requestPath)) {
+  // Single enum dispatcher classifies the path as realm-scoped, tenant-scoped,
+  // or none — both data prefixes (`MIGRATED_REALM_SCOPED_PREFIXES`,
+  // `MIGRATED_TENANT_SCOPED_PREFIXES`) plus the invoice-domain triage bypass
+  // (#166: PENDING_TRIAGE invoices carry `clientOrgId: null` per #156, exposed
+  // under realm-scoped trees via `/invoices/triage` and the
+  // `/assign-client-org` / `/reject` suffixes). Realm-scoped → nested shape;
+  // tenant-scoped → tenant shape (no `/clientOrgs/:clientOrgId` segment).
+  const migratedKind = classifyMigratedPath(requestPath);
+  if (migratedKind === MIGRATED_PATH_KIND.REALM_SCOPED) {
     const tenantId = readActiveTenantId();
     const clientOrgId = readActiveClientOrgId();
     if (!tenantId || !clientOrgId) {
@@ -38,14 +44,7 @@ apiClient.interceptors.request.use((config) => {
     config.url = rewriteToNestedShape(requestPath, tenantId, clientOrgId);
     return config;
   }
-
-  // Tenant-scoped migrated paths: rewrite to `/tenants/:tenantId/...` without
-  // a clientOrgId segment. Used by the ingestion-domain orchestration routes
-  // (#198) which are tenant-wide, plus the tenant-domain admin/integration
-  // routes (#203) that are pre-setup-safe (BE mount omits
-  // `requireTenantSetupCompleted`) and remain reachable during tenant
-  // onboarding.
-  if (isMigratedTenantScopedPath(requestPath)) {
+  if (migratedKind === MIGRATED_PATH_KIND.TENANT_SCOPED) {
     const tenantId = readActiveTenantId();
     if (!tenantId) {
       return Promise.reject(new MissingActiveClientOrgError(requestPath));

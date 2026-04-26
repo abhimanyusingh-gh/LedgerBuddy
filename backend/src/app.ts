@@ -201,6 +201,22 @@ export async function createApp(prebuiltDependencies?: Awaited<ReturnType<typeof
   clientOrgRouter.use(createTcsConfigRouter());
   clientOrgRouter.use(createClientComplianceConfigRouter());
 
+  // Invoice domain (#204, final vertical slice — closes #171). Realm-scoped
+  // routers (`/invoices`, `/invoices/action-required`, `/admin/approval-*`,
+  // `/invoices/:id/workflow-*`) mount under `clientOrgRouter`. The triage
+  // router mounts under `tenantRouter` (no `/clientOrgs/:clientOrgId` segment)
+  // because PENDING_TRIAGE invoices carry `clientOrgId: null` per the
+  // documented composite-key exception (#156, #166).
+  //
+  // The same router instance backs BOTH old and new mounts: the legacy
+  // `router.use(requireActiveClientOrg)` inside each invoice router now
+  // short-circuits when `req.activeClientOrgId` is already stamped (by
+  // `requirePathClientOrgOwnership` upstream), so no per-router duplication.
+  clientOrgRouter.use(createInvoiceRouter(dependencies.invoiceService, dependencies.approvalWorkflowService, dependencies.fileStore));
+  clientOrgRouter.use(createActionRequiredRouter());
+  clientOrgRouter.use(createApprovalWorkflowRouter(dependencies.approvalWorkflowService));
+  tenantRouter.use(createTriageRouter(dependencies.triageService));
+
   // Tenant domain (sub-PR — #203) — administrative routes that operate on the
   // tenant itself (users, mailboxes, client-orgs, mailbox-assignments, gmail
   // connection). All purely tenant-scoped — no clientOrgId dependency.
