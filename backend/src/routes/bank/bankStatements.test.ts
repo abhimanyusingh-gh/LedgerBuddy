@@ -74,7 +74,8 @@ jest.mock("@/ai/extractors/bank/BankStatementParseProgress.ts", () => {
   return actual;
 });
 
-import { createBankStatementsRouter } from "@/routes/bank/bankStatements.ts";
+import { createBankStatementsRouter, createBankStatementsParseSseRouter } from "@/routes/bank/bankStatements.ts";
+import { BankStatementParseProgress } from "@/ai/extractors/bank/BankStatementParseProgress.ts";
 
 function findRouteHandler(router: ReturnType<typeof createBankStatementsRouter>, method: string, path: string): Function {
   for (const layer of (router as unknown as { stack: unknown[] }).stack) {
@@ -392,7 +393,7 @@ describe("GET /bank-statements/parse/sse", () => {
 
   it("sets SSE headers, sends initial keepalive, and emits heartbeat at interval", () => {
     jest.useFakeTimers();
-    const router = createBankStatementsRouter();
+    const router = createBankStatementsParseSseRouter(new BankStatementParseProgress());
     const handler = findRouteHandler(router, "get", "/bank-statements/parse/sse");
     const req = mockRequest({ authContext: defaultAuth });
     const res = mockResponse();
@@ -417,7 +418,7 @@ describe("GET /bank-statements/parse/sse", () => {
   it("cleans up on client disconnect", () => {
     jest.useFakeTimers();
 
-    const router = createBankStatementsRouter();
+    const router = createBankStatementsParseSseRouter(new BankStatementParseProgress());
     const handler = findRouteHandler(router, "get", "/bank-statements/parse/sse");
     const req = mockRequest({ authContext: defaultAuth });
     const res = mockResponse();

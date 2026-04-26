@@ -7,7 +7,6 @@ import { BankStatementParseProgress } from "@/ai/extractors/bank/BankStatementPa
 import { ReconciliationService } from "@/services/bank/ReconciliationService.js";
 import { InvoiceModel } from "@/models/invoice/Invoice.js";
 import { requireAuth } from "@/auth/requireAuth.js";
-import { requireActiveClientOrg } from "@/auth/activeClientOrg.js";
 import { requireCap } from "@/auth/requireCapability.js";
 import { requireNotViewer } from "@/auth/middleware.js";
 import type { FileStore } from "@/core/interfaces/FileStore.js";
@@ -38,13 +37,16 @@ function detectMimeFromExtension(fileName: string): string | null {
   return null;
 }
 
-export function createBankStatementsRouter(
-  fileStore?: FileStore,
-  ocrProvider?: OcrProvider,
-  fieldVerifier?: FieldVerifier
-) {
-  const parser = new BankStatementExtractionPipeline({ ocrProvider, fieldVerifier });
-  const parseProgress = new BankStatementParseProgress();
+/**
+ * SSE subscriber endpoint for bank-statement parse progress. Tenant-scoped
+ * (no clientOrgId filter — operators see broadcasts from any of their
+ * realms), so it's split out from `createBankStatementsRouter` and mounted
+ * separately on the legacy `/api` path. The realm-scoped router can then
+ * dual-mount (legacy + nested `/api/tenants/:tenantId/clientOrgs/...`)
+ * cleanly under the #171 vertical-slice migration without the SSE route
+ * tripping the realm-scope middleware.
+ */
+export function createBankStatementsParseSseRouter(parseProgress: BankStatementParseProgress) {
   const router = Router();
   router.use(requireAuth);
 
@@ -52,7 +54,20 @@ export function createBankStatementsRouter(
     parseProgress.addSubscriber(req.authContext!.tenantId, res, req);
   });
 
-  router.get("/bank-statements/vendor-gstins", requireActiveClientOrg, async (req, res, next) => {
+  return router;
+}
+
+export function createBankStatementsRouter(
+  fileStore?: FileStore,
+  ocrProvider?: OcrProvider,
+  fieldVerifier?: FieldVerifier,
+  parseProgress: BankStatementParseProgress = new BankStatementParseProgress()
+) {
+  const parser = new BankStatementExtractionPipeline({ ocrProvider, fieldVerifier });
+  const router = Router();
+  router.use(requireAuth);
+
+  router.get("/bank-statements/vendor-gstins", async (req, res, next) => {
     try {
       const tenantId = req.authContext!.tenantId;
       const invoices = await InvoiceModel.find(
@@ -81,7 +96,7 @@ export function createBankStatementsRouter(
     } catch (error) { next(error); }
   });
 
-  router.get("/bank-statements/account-names", requireActiveClientOrg, async (req, res, next) => {
+  router.get("/bank-statements/account-names", async (req, res, next) => {
     try {
       const tenantId = req.authContext!.tenantId;
       const statements = await BankStatementModel.find(
@@ -109,7 +124,7 @@ export function createBankStatementsRouter(
     } catch (error) { next(error); }
   });
 
-  router.get("/bank-statements", requireActiveClientOrg, async (req, res, next) => {
+  router.get("/bank-statements", async (req, res, next) => {
     try {
       const tenantId = req.authContext!.tenantId;
       const page = Math.max(Number(req.query.page ?? 1), 1);
@@ -144,7 +159,7 @@ export function createBankStatementsRouter(
     } catch (error) { next(error); }
   });
 
-  router.get("/bank-statements/:id/matches", requireActiveClientOrg, async (req, res, next) => {
+  router.get("/bank-statements/:id/matches", async (req, res, next) => {
     try {
       const tenantId = req.authContext!.tenantId;
 
@@ -219,7 +234,7 @@ export function createBankStatementsRouter(
     } catch (error) { next(error); }
   });
 
-  router.get("/bank-statements/:id/transactions", requireActiveClientOrg, async (req, res, next) => {
+  router.get("/bank-statements/:id/transactions", async (req, res, next) => {
     try {
       const tenantId = req.authContext!.tenantId;
       const page = Math.max(Number(req.query.page ?? 1), 1);
@@ -257,7 +272,7 @@ export function createBankStatementsRouter(
     } catch (error) { next(error); }
   });
 
-  router.post("/bank-statements/upload-csv", requireNotViewer, requireCap("canManageConnections"), requireActiveClientOrg, upload.single("file") as unknown as import("express").RequestHandler, async (req, res, next) => {
+  router.post("/bank-statements/upload-csv", requireNotViewer, requireCap("canManageConnections"), upload.single("file") as unknown as import("express").RequestHandler, async (req, res, next) => {
     try {
       const tenantId = req.authContext!.tenantId;
       const file = req.file;
@@ -291,7 +306,7 @@ export function createBankStatementsRouter(
     } catch (error) { next(error); }
   });
 
-  router.post("/bank-statements/upload", requireNotViewer, requireCap("canManageConnections"), requireActiveClientOrg, upload.single("file") as unknown as import("express").RequestHandler, async (req, res, next) => {
+  router.post("/bank-statements/upload", requireNotViewer, requireCap("canManageConnections"), upload.single("file") as unknown as import("express").RequestHandler, async (req, res, next) => {
     try {
       const tenantId = req.authContext!.tenantId;
       const file = req.file;
@@ -377,7 +392,7 @@ export function createBankStatementsRouter(
     }
   });
 
-  router.post("/bank-statements/:id/reconcile", requireNotViewer, requireCap("canManageConnections"), requireActiveClientOrg, async (req, res, next) => {
+  router.post("/bank-statements/:id/reconcile", requireNotViewer, requireCap("canManageConnections"), async (req, res, next) => {
     try {
       const tenantId = req.authContext!.tenantId;
       const result = await reconciler.reconcileStatement(tenantId, req.activeClientOrgId!, req.params.id);
@@ -385,7 +400,7 @@ export function createBankStatementsRouter(
     } catch (error) { next(error); }
   });
 
-  router.post("/bank-statements/transactions/:txnId/match", requireNotViewer, requireCap("canApproveInvoices"), requireActiveClientOrg, async (req, res, next) => {
+  router.post("/bank-statements/transactions/:txnId/match", requireNotViewer, requireCap("canApproveInvoices"), async (req, res, next) => {
     try {
       const tenantId = req.authContext!.tenantId;
       const invoiceId = req.body.invoiceId;
@@ -396,7 +411,7 @@ export function createBankStatementsRouter(
     } catch (error) { next(error); }
   });
 
-  router.delete("/bank-statements/transactions/:txnId/match", requireNotViewer, requireCap("canApproveInvoices"), requireActiveClientOrg, async (req, res, next) => {
+  router.delete("/bank-statements/transactions/:txnId/match", requireNotViewer, requireCap("canApproveInvoices"), async (req, res, next) => {
     try {
       const tenantId = req.authContext!.tenantId;
       await reconciler.unmatch(tenantId, req.activeClientOrgId!, req.params.txnId);

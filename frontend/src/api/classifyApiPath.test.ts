@@ -19,11 +19,6 @@ describe("api/client classifier", () => {
       "/invoices/abc-123",
       "/invoices/abc-123/workflow-approve",
       "/payments",
-      "/bank-statements",
-      "/bank-statements/upload",
-      "/bank-accounts",
-      "/bank/accounts",
-      "/bank/accounts/abc/refresh",
       // Composite-key endpoints under otherwise-tenant-scoped trees:
       "/admin/notification-config",
       "/admin/approval-limits",

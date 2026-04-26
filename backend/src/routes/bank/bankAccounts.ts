@@ -1,7 +1,6 @@
 import { getAuth } from "@/types/auth.js";
 import { Router } from "express";
 import { requireCap } from "@/auth/requireCapability.js";
-import { requireActiveClientOrg } from "@/auth/activeClientOrg.js";
 import { BankAccountModel } from "@/models/bank/BankAccount.js";
 import type { IBankConnectionService } from "@/services/bank/anumati/IBankConnectionService.js";
 import { BANK_ACCOUNT_STATUS } from "@/types/bankAccount.js";
@@ -12,7 +11,6 @@ export function createBankAccountsRouter(bankService: IBankConnectionService) {
   router.get(
     "/bank/accounts",
     requireCap("canManageConnections"),
-    requireActiveClientOrg,
     async (req, res, next) => {
       try {
         const { tenantId } = getAuth(req);
@@ -49,7 +47,6 @@ export function createBankAccountsRouter(bankService: IBankConnectionService) {
   router.post(
     "/bank/accounts",
     requireCap("canManageConnections"),
-    requireActiveClientOrg,
     async (req, res, next) => {
       try {
         const { tenantId, userId } = getAuth(req);
@@ -106,7 +103,6 @@ export function createBankAccountsRouter(bankService: IBankConnectionService) {
   router.delete(
     "/bank/accounts/:id",
     requireCap("canManageConnections"),
-    requireActiveClientOrg,
     async (req, res, next) => {
       try {
         const { tenantId } = getAuth(req);
@@ -131,7 +127,6 @@ export function createBankAccountsRouter(bankService: IBankConnectionService) {
   router.post(
     "/bank/accounts/:id/refresh",
     requireCap("canManageConnections"),
-    requireActiveClientOrg,
     async (req, res, next) => {
       try {
         const { tenantId } = getAuth(req);
