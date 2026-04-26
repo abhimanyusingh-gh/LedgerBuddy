@@ -1,6 +1,6 @@
 import { apiClient, getStoredSessionToken } from "@/api/client";
 import { readActiveTenantId } from "@/api/tenantStorage";
-import { rewriteToTenantNestedShape } from "@/api/migratedPaths";
+import { rewriteToTenantShape } from "@/api/migratedPaths";
 import type { IngestionJobStatus } from "@/types";
 
 function sanitizeIngestionStatus(value: unknown): IngestionJobStatus {
@@ -69,7 +69,7 @@ export function subscribeIngestionSSE(
     onError?.();
     return () => {};
   }
-  const url = `${apiClient.defaults.baseURL ?? ""}${rewriteToTenantNestedShape("/jobs/ingest/sse", tenantId)}`;
+  const url = `${apiClient.defaults.baseURL ?? ""}${rewriteToTenantShape("/jobs/ingest/sse", tenantId)}`;
   const resolved = new URL(url, window.location.origin);
   const token = getStoredSessionToken();
   if (token) resolved.searchParams.set("authToken", token);
