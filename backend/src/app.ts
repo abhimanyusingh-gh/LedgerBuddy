@@ -151,6 +151,9 @@ export async function createApp(prebuiltDependencies?: Awaited<ReturnType<typeof
   // ingest orchestration: status/sse/pause/email-simulate) AND the realm-scoped
   // tree (for `/jobs/upload{,/by-keys}` which needs `req.activeClientOrgId`).
   // `uploadsRouter` is tenant-scoped only.
+  // Dual-mount: the FE classifier picks one shape per route, so the OTHER mount
+  // is whitelisted in `KNOWN_ORPHAN_BE_ROUTES` (backend/scripts/check-fe-be-contract.ts).
+  // Update both sides if the classifier changes.
   tenantRouter.use(jobsRouter);
   clientOrgRouter.use(jobsRouter);
   tenantRouter.use(uploadsRouter);

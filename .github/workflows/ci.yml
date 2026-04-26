@@ -80,6 +80,19 @@ jobs:
       - uses: actions/checkout@v4
       - run: bash backend/scripts/check-minor-field-registry.sh
 
+  fe-be-contract:
+    name: FE↔BE Contract Diff (INFRA-3)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: yarn
+      - run: corepack enable
+      - run: yarn install --immutable
+      - run: yarn workspace ledgerbuddy-backend run check:contract
+
   frontend-typecheck:
     name: Frontend Typecheck
     runs-on: ubuntu-latest
