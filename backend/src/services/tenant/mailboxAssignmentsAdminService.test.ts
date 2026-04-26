@@ -183,23 +183,22 @@ describeHarness("MailboxAssignmentsAdminService (#174)", ({ getHarness }) => {
   });
 
   describe("recentIngestions", () => {
-    it("returns only invoices in window for the assignment's clientOrgs", async () => {
+    it("returns only invoices stamped with this assignment id in the window", async () => {
       const integration = await seedTenantWithIntegration(TENANT_A, "a@firm.com");
       const a = await ClientOrganizationModel.create({ tenantId: TENANT_A, gstin: GSTIN_A, companyName: "A" });
-      const otherOrg = await ClientOrganizationModel.create({ tenantId: TENANT_A, gstin: GSTIN_B, companyName: "B" });
       const assignment = await TenantMailboxAssignmentModel.create({
         tenantId: TENANT_A, integrationId: integration._id, assignedTo: "all", clientOrgIds: [a._id]
       });
 
-      // In-window invoice for the assignment's org.
       await InvoiceModel.create({
-        tenantId: TENANT_A, clientOrgId: a._id, sourceType: "email", sourceKey: "k1", sourceDocumentId: "d1",
+        tenantId: TENANT_A, clientOrgId: a._id, sourceMailboxAssignmentId: assignment._id,
+        sourceType: "email", sourceKey: "k1", sourceDocumentId: "d1",
         attachmentName: "in.pdf", mimeType: "application/pdf", receivedAt: new Date(), status: INVOICE_STATUS.NEEDS_REVIEW
       });
-      // Off-window: clientOrgId is otherOrg, not in assignment.
       await InvoiceModel.create({
-        tenantId: TENANT_A, clientOrgId: otherOrg._id, sourceType: "email", sourceKey: "k2", sourceDocumentId: "d2",
-        attachmentName: "out.pdf", mimeType: "application/pdf", receivedAt: new Date(), status: INVOICE_STATUS.NEEDS_REVIEW
+        tenantId: TENANT_A, clientOrgId: a._id,
+        sourceType: "email", sourceKey: "k2", sourceDocumentId: "d2",
+        attachmentName: "manual.pdf", mimeType: "application/pdf", receivedAt: new Date(), status: INVOICE_STATUS.NEEDS_REVIEW
       });
 
       const result = await service.recentIngestions({
@@ -209,6 +208,91 @@ describeHarness("MailboxAssignmentsAdminService (#174)", ({ getHarness }) => {
       expect(result.items).toHaveLength(1);
       expect(result.items[0].attachmentName).toBe("in.pdf");
       expect(result.periodDays).toBe(30);
+    });
+
+    it("does NOT over-count when the same clientOrg is mapped to multiple mailbox assignments (failure mode 1)", async () => {
+      const integrationPrimary = await seedTenantWithIntegration(TENANT_A, "primary@firm.com");
+      const integrationBackup = await seedTenantWithIntegration(TENANT_A, "backup@firm.com");
+      const sharedOrg = await ClientOrganizationModel.create({ tenantId: TENANT_A, gstin: GSTIN_A, companyName: "Shared" });
+      const primary = await TenantMailboxAssignmentModel.create({
+        tenantId: TENANT_A, integrationId: integrationPrimary._id, assignedTo: "all", clientOrgIds: [sharedOrg._id]
+      });
+      const backup = await TenantMailboxAssignmentModel.create({
+        tenantId: TENANT_A, integrationId: integrationBackup._id, assignedTo: "all", clientOrgIds: [sharedOrg._id]
+      });
+
+      await InvoiceModel.create({
+        tenantId: TENANT_A, clientOrgId: sharedOrg._id, sourceMailboxAssignmentId: primary._id,
+        sourceType: "email", sourceKey: "k-primary", sourceDocumentId: "d-primary",
+        attachmentName: "via-primary.pdf", mimeType: "application/pdf", receivedAt: new Date(),
+        status: INVOICE_STATUS.NEEDS_REVIEW
+      });
+
+      const primaryResult = await service.recentIngestions({
+        tenantId: TENANT_A, assignmentId: primary._id.toString(), days: 30
+      });
+      const backupResult = await service.recentIngestions({
+        tenantId: TENANT_A, assignmentId: backup._id.toString(), days: 30
+      });
+
+      expect(primaryResult.total).toBe(1);
+      expect(primaryResult.items[0].attachmentName).toBe("via-primary.pdf");
+      expect(backupResult.total).toBe(0);
+      expect(backupResult.items).toHaveLength(0);
+    });
+
+    it("DOES count triage invoices stamped with this assignment id (failure mode 2)", async () => {
+      const integration = await seedTenantWithIntegration(TENANT_A, "triage@firm.com");
+      const a = await ClientOrganizationModel.create({ tenantId: TENANT_A, gstin: GSTIN_A, companyName: "A" });
+      const b = await ClientOrganizationModel.create({ tenantId: TENANT_A, gstin: GSTIN_B, companyName: "B" });
+      const assignment = await TenantMailboxAssignmentModel.create({
+        tenantId: TENANT_A, integrationId: integration._id, assignedTo: "all", clientOrgIds: [a._id, b._id]
+      });
+
+      await InvoiceModel.create({
+        tenantId: TENANT_A, clientOrgId: null, sourceMailboxAssignmentId: assignment._id,
+        sourceType: "email", sourceKey: "k-triage", sourceDocumentId: "d-triage",
+        attachmentName: "triage.pdf", mimeType: "application/pdf", receivedAt: new Date(),
+        status: INVOICE_STATUS.PENDING_TRIAGE
+      });
+
+      const result = await service.recentIngestions({
+        tenantId: TENANT_A, assignmentId: assignment._id.toString(), days: 30
+      });
+
+      expect(result.total).toBe(1);
+      expect(result.items[0].attachmentName).toBe("triage.pdf");
+      expect(result.items[0].clientOrgId).toBeNull();
+    });
+
+    it("preserves historical attribution after the assignment is re-mapped (failure mode 3)", async () => {
+      const integration = await seedTenantWithIntegration(TENANT_A, "remap@firm.com");
+      const removed = await ClientOrganizationModel.create({ tenantId: TENANT_A, gstin: GSTIN_A, companyName: "Removed" });
+      const kept = await ClientOrganizationModel.create({ tenantId: TENANT_A, gstin: GSTIN_B, companyName: "Kept" });
+      const assignment = await TenantMailboxAssignmentModel.create({
+        tenantId: TENANT_A, integrationId: integration._id, assignedTo: "all",
+        clientOrgIds: [removed._id, kept._id]
+      });
+
+      await InvoiceModel.create({
+        tenantId: TENANT_A, clientOrgId: removed._id, sourceMailboxAssignmentId: assignment._id,
+        sourceType: "email", sourceKey: "k-historical", sourceDocumentId: "d-historical",
+        attachmentName: "historical.pdf", mimeType: "application/pdf", receivedAt: new Date(),
+        status: INVOICE_STATUS.NEEDS_REVIEW
+      });
+
+      await service.update({
+        tenantId: TENANT_A,
+        assignmentId: assignment._id.toString(),
+        clientOrgIds: [kept._id.toString()]
+      });
+
+      const result = await service.recentIngestions({
+        tenantId: TENANT_A, assignmentId: assignment._id.toString(), days: 30
+      });
+
+      expect(result.total).toBe(1);
+      expect(result.items[0].attachmentName).toBe("historical.pdf");
     });
 
     it("404s for cross-tenant assignment id", async () => {
@@ -231,7 +315,8 @@ describeHarness("MailboxAssignmentsAdminService (#174)", ({ getHarness }) => {
       await Promise.all(
         Array.from({ length: 5 }).map((_, i) =>
           InvoiceModel.create({
-            tenantId: TENANT_A, clientOrgId: a._id, sourceType: "email",
+            tenantId: TENANT_A, clientOrgId: a._id, sourceMailboxAssignmentId: assignment._id,
+            sourceType: "email",
             sourceKey: `k${i}`, sourceDocumentId: `d${i}`,
             attachmentName: `f${i}.pdf`, mimeType: "application/pdf",
             receivedAt: new Date(), status: INVOICE_STATUS.NEEDS_REVIEW

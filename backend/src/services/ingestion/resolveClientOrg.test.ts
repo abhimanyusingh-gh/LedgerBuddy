@@ -20,7 +20,7 @@ describeHarness("resolveClientOrgForIngestion (ISSUE-159)", ({ getHarness }) => 
 
     const result = await resolveClientOrgForIngestion(
       { customerGstin: GSTIN_B },
-      { tenantId: TENANT, clientOrgIds: [a._id, b._id, c._id] }
+      { _id: new Types.ObjectId(), tenantId: TENANT, clientOrgIds: [a._id, b._id, c._id] }
     );
 
     expect(result.triage).toBe(false);
@@ -33,7 +33,7 @@ describeHarness("resolveClientOrgForIngestion (ISSUE-159)", ({ getHarness }) => 
 
     const result = await resolveClientOrgForIngestion(
       { customerGstin: undefined },
-      { tenantId: TENANT, clientOrgIds: [a._id] }
+      { _id: new Types.ObjectId(), tenantId: TENANT, clientOrgIds: [a._id] }
     );
 
     expect(result.triage).toBe(false);
@@ -47,7 +47,7 @@ describeHarness("resolveClientOrgForIngestion (ISSUE-159)", ({ getHarness }) => 
 
     const result = await resolveClientOrgForIngestion(
       { customerGstin: "27AAAAA0000A1Z5" }, // not in candidates
-      { tenantId: TENANT, clientOrgIds: [a._id, b._id] }
+      { _id: new Types.ObjectId(), tenantId: TENANT, clientOrgIds: [a._id, b._id] }
     );
 
     expect(result.triage).toBe(true);
@@ -59,7 +59,7 @@ describeHarness("resolveClientOrgForIngestion (ISSUE-159)", ({ getHarness }) => 
     await expect(
       resolveClientOrgForIngestion(
         { customerGstin: GSTIN_A },
-        { tenantId: TENANT, clientOrgIds: [] as unknown as Types.ObjectId[] }
+        { _id: new Types.ObjectId(), tenantId: TENANT, clientOrgIds: [] as unknown as Types.ObjectId[] }
       )
     ).rejects.toThrow(/no clientOrgIds/i);
   });

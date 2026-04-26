@@ -13,6 +13,7 @@ import type { ParsedInvoiceData } from "@/types/invoice.js";
  * sneaks through.
  */
 export interface MailboxAssignmentLike {
+  _id: Types.ObjectId;
   tenantId: string;
   clientOrgIds: Types.ObjectId[];
 }

@@ -20,6 +20,13 @@ export interface IngestedFile {
    * gets `status: PENDING_TRIAGE` + `clientOrgId: null`.
    */
   clientOrgId: string | null;
+  /**
+   * Mailbox assignment this file was polled from (#181). `null` for
+   * manual S3 uploads. Persisted on the resulting Invoice so the
+   * recent-ingestions report attributes by actual source mailbox rather
+   * than the stale `clientOrgId ∈ assignment.clientOrgIds[]` proxy.
+   */
+  sourceMailboxAssignmentId?: string | null;
   workloadTier: WorkloadTier;
   sourceKey: string;
   sourceType: IngestionSourceType;
