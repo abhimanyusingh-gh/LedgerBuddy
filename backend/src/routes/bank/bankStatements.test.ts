@@ -105,7 +105,7 @@ describe("bankStatements route handlers", () => {
   it("DELETE unmatch calls reconciler.unmatch with {tenantId, clientOrgId, txnId}", async () => {
     mockUnmatch.mockResolvedValue(undefined);
 
-    const router = createBankStatementsRouter();
+    const router = createBankStatementsRouter(undefined, undefined, undefined, new BankStatementParseProgress());
     const handler = findRouteHandler(router, "delete", "/bank-statements/transactions/:txnId/match");
 
     const res = mockResponse();
@@ -124,7 +124,7 @@ describe("bankStatements route handlers", () => {
   });
 
   it("POST match returns 400 when invoiceId is missing from body", async () => {
-    const router = createBankStatementsRouter();
+    const router = createBankStatementsRouter(undefined, undefined, undefined, new BankStatementParseProgress());
     const handler = findRouteHandler(router, "post", "/bank-statements/transactions/:txnId/match");
 
     const res = mockResponse();
@@ -151,7 +151,7 @@ describe("GET /bank-statements pagination and filtering", () => {
     mockStatementFind.mockReturnValue(chain);
     mockStatementCountDocuments.mockResolvedValue(1);
 
-    const router = createBankStatementsRouter();
+    const router = createBankStatementsRouter(undefined, undefined, undefined, new BankStatementParseProgress());
     const handler = findRouteHandler(router, "get", "/bank-statements");
     const res = mockResponse();
 
@@ -174,7 +174,7 @@ describe("GET /bank-statements pagination and filtering", () => {
     mockStatementFind.mockReturnValue(chain);
     mockStatementCountDocuments.mockResolvedValue(0);
 
-    const router = createBankStatementsRouter();
+    const router = createBankStatementsRouter(undefined, undefined, undefined, new BankStatementParseProgress());
     const handler = findRouteHandler(router, "get", "/bank-statements");
     const res = mockResponse();
 
@@ -198,7 +198,7 @@ describe("GET /bank-statements pagination and filtering", () => {
     mockStatementFind.mockReturnValue(chain);
     mockStatementCountDocuments.mockResolvedValue(0);
 
-    const router = createBankStatementsRouter();
+    const router = createBankStatementsRouter(undefined, undefined, undefined, new BankStatementParseProgress());
     const handler = findRouteHandler(router, "get", "/bank-statements");
     const res = mockResponse();
 
@@ -222,7 +222,7 @@ describe("GET /bank-statements pagination and filtering", () => {
     mockStatementFind.mockReturnValue(chain);
     mockStatementCountDocuments.mockResolvedValue(0);
 
-    const router = createBankStatementsRouter();
+    const router = createBankStatementsRouter(undefined, undefined, undefined, new BankStatementParseProgress());
     const handler = findRouteHandler(router, "get", "/bank-statements");
     const res = mockResponse();
 
@@ -252,7 +252,7 @@ describe("GET /bank-statements/:id/transactions filtering", () => {
     mockTransactionFind.mockReturnValue(chain);
     mockTransactionCountDocuments.mockResolvedValue(0);
 
-    const router = createBankStatementsRouter();
+    const router = createBankStatementsRouter(undefined, undefined, undefined, new BankStatementParseProgress());
     const handler = findRouteHandler(router, "get", "/bank-statements/:id/transactions");
     const res = mockResponse();
 
@@ -279,7 +279,7 @@ describe("GET /bank-statements/:id/transactions filtering", () => {
     mockTransactionFind.mockReturnValue(chain);
     mockTransactionCountDocuments.mockResolvedValue(0);
 
-    const router = createBankStatementsRouter();
+    const router = createBankStatementsRouter(undefined, undefined, undefined, new BankStatementParseProgress());
     const handler = findRouteHandler(router, "get", "/bank-statements/:id/transactions");
     const res = mockResponse();
 
@@ -303,7 +303,7 @@ describe("GET /bank-statements/:id/transactions filtering", () => {
     mockTransactionFind.mockReturnValue(chain);
     mockTransactionCountDocuments.mockResolvedValue(0);
 
-    const router = createBankStatementsRouter();
+    const router = createBankStatementsRouter(undefined, undefined, undefined, new BankStatementParseProgress());
     const handler = findRouteHandler(router, "get", "/bank-statements/:id/transactions");
     const res = mockResponse();
 
@@ -328,7 +328,7 @@ describe("GET /bank-statements/:id/transactions filtering", () => {
     mockTransactionFind.mockReturnValue(chain);
     mockTransactionCountDocuments.mockResolvedValue(25);
 
-    const router = createBankStatementsRouter();
+    const router = createBankStatementsRouter(undefined, undefined, undefined, new BankStatementParseProgress());
     const handler = findRouteHandler(router, "get", "/bank-statements/:id/transactions");
     const res = mockResponse();
 
@@ -368,7 +368,7 @@ describe("GET /bank-statements/account-names", () => {
     chain.lean = jest.fn().mockResolvedValue(statements);
     mockStatementFind.mockReturnValue(chain);
 
-    const router = createBankStatementsRouter();
+    const router = createBankStatementsRouter(undefined, undefined, undefined, new BankStatementParseProgress());
     const handler = findRouteHandler(router, "get", "/bank-statements/account-names");
     const res = mockResponse();
 
@@ -550,7 +550,7 @@ describe("GET /bank-statements/:id/matches", () => {
   it("returns 404 when statement is not found", async () => {
     mockStatementFindOne.mockReturnValue({ lean: jest.fn().mockResolvedValue(null) });
 
-    const router = createBankStatementsRouter();
+    const router = createBankStatementsRouter(undefined, undefined, undefined, new BankStatementParseProgress());
     const handler = findRouteHandler(router, "get", "/bank-statements/:id/matches");
     const res = mockResponse();
 
@@ -571,7 +571,7 @@ describe("GET /bank-statements/:id/matches", () => {
     ]));
     mockInvoiceFind.mockReturnValue({ lean: jest.fn().mockResolvedValue([]) });
 
-    const router = createBankStatementsRouter();
+    const router = createBankStatementsRouter(undefined, undefined, undefined, new BankStatementParseProgress());
     const handler = findRouteHandler(router, "get", "/bank-statements/:id/matches");
     const res = mockResponse();
 
@@ -600,7 +600,7 @@ describe("GET /bank-statements/:id/matches", () => {
       { _id: "inv-2", status: "PENDING", parsed: { invoiceNumber: "INV-002", vendorName: "Corp B", totalAmountMinor: 50000, invoiceDate: new Date("2024-02-08") } }
     ]) });
 
-    const router = createBankStatementsRouter();
+    const router = createBankStatementsRouter(undefined, undefined, undefined, new BankStatementParseProgress());
     const handler = findRouteHandler(router, "get", "/bank-statements/:id/matches");
     const res = mockResponse();
 

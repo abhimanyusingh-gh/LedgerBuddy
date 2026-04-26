@@ -58,10 +58,10 @@ export function createBankStatementsParseSseRouter(parseProgress: BankStatementP
 }
 
 export function createBankStatementsRouter(
-  fileStore?: FileStore,
-  ocrProvider?: OcrProvider,
-  fieldVerifier?: FieldVerifier,
-  parseProgress: BankStatementParseProgress = new BankStatementParseProgress()
+  fileStore: FileStore | undefined,
+  ocrProvider: OcrProvider | undefined,
+  fieldVerifier: FieldVerifier | undefined,
+  parseProgress: BankStatementParseProgress
 ) {
   const parser = new BankStatementExtractionPipeline({ ocrProvider, fieldVerifier });
   const router = Router();
