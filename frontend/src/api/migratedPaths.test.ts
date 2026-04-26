@@ -78,12 +78,38 @@ describe("api/migratedPaths", () => {
     });
   });
 
+  describe("isMigratedRealmScopedPath — migrated paths (bank domain, sub-PR 2)", () => {
+    const migrated = [
+      "/bank/accounts",
+      "/bank/accounts/abc-123",
+      "/bank/accounts/abc-123/refresh",
+      "/bank-accounts",
+      "/bank-statements",
+      "/bank-statements/upload",
+      "/bank-statements/upload-csv",
+      "/bank-statements/vendor-gstins",
+      "/bank-statements/account-names",
+      "/bank-statements/abc-123/matches",
+      "/bank-statements/abc-123/transactions",
+      "/bank-statements/abc-123/reconcile",
+      "/bank-statements/transactions/txn-1/match"
+    ];
+
+    test.each(migrated)("returns true for %s", (path) => {
+      expect(isMigratedRealmScopedPath(path)).toBe(true);
+    });
+
+    it("matches bank paths with a query string suffix", () => {
+      expect(isMigratedRealmScopedPath("/bank-statements?page=2")).toBe(true);
+      expect(isMigratedRealmScopedPath("/bank-statements/abc-123/transactions?dateFrom=2024-02-01")).toBe(true);
+    });
+  });
+
   describe("isMigratedRealmScopedPath — non-migrated paths fall through to legacy interceptor", () => {
     const nonMigrated = [
       "/invoices",
       "/invoices/abc-123",
       "/payments",
-      "/bank-statements",
       "/admin/notification-config",
       "/admin/users",
       "/auth/token",
@@ -113,6 +139,10 @@ describe("api/migratedPaths", () => {
       expect(isMigratedRealmScopedPath("/vendors-archive")).toBe(false);
       // /admin/gl-codes-archive must NOT match /admin/gl-codes.
       expect(isMigratedRealmScopedPath("/admin/gl-codes-archive")).toBe(false);
+      // /bank-statements-archive must NOT match /bank-statements.
+      expect(isMigratedRealmScopedPath("/bank-statements-archive")).toBe(false);
+      // /bank-accounts-archive must NOT match /bank-accounts.
+      expect(isMigratedRealmScopedPath("/bank-accounts-archive")).toBe(false);
     });
   });
 
@@ -193,8 +223,8 @@ describe("api/migratedPaths", () => {
     });
   });
 
-  describe("MIGRATED_REALM_SCOPED_PREFIXES — current scope (export + ingestion-upload + compliance)", () => {
-    it("contains export, ingestion-upload, and compliance domain prefixes", () => {
+  describe("MIGRATED_REALM_SCOPED_PREFIXES — accumulated scope across sub-PRs", () => {
+    it("contains export, ingestion-upload, compliance, and bank domain prefixes", () => {
       expect([...MIGRATED_REALM_SCOPED_PREFIXES]).toEqual([
         "/exports",
         "/export-config",
@@ -202,7 +232,10 @@ describe("api/migratedPaths", () => {
         "/vendors",
         "/admin/gl-codes",
         "/admin/tcs-config",
-        "/admin/compliance-config"
+        "/admin/compliance-config",
+        "/bank/accounts",
+        "/bank-accounts",
+        "/bank-statements"
       ]);
     });
   });

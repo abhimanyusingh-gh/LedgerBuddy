@@ -29,11 +29,10 @@ export const REALM_SCOPED_PATH_PREFIXES = [
   // `/exports` migrated to nested-router shape (#171 sub-PR 1) — handled by
   // `MIGRATED_REALM_SCOPED_PREFIXES` in `migratedPaths.ts`.
   // `/vendors`, `/admin/gl-codes`, `/admin/tcs-config`, `/admin/compliance-config`
-  // migrated by sub-PR for #200 (compliance domain). Remaining domains stay
-  // here until their respective sub-PRs ship.
-  "/bank-statements",
-  "/bank-accounts",
-  "/bank/accounts",
+  // migrated by sub-PR for #200 (compliance domain).
+  // `/bank-statements`, `/bank-accounts`, `/bank/accounts` migrated by sub-PR
+  // for #201 (bank domain). Remaining domains stay here until their respective
+  // sub-PRs ship.
   // Composite-key endpoints that live under otherwise-tenant-scoped trees.
   // Listed before the broader `/admin` and `/tenant` tenant-scoped prefixes
   // so the realm-scoped check fires first.

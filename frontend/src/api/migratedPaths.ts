@@ -31,7 +31,14 @@ export const MIGRATED_REALM_SCOPED_PREFIXES = [
   "/vendors",
   "/admin/gl-codes",
   "/admin/tcs-config",
-  "/admin/compliance-config"
+  "/admin/compliance-config",
+  // Bank domain (#201, sub-PR 2) — bank accounts + bank statements (the
+  // tenant-scoped SSE subscriber endpoint /bank-statements/parse/sse uses
+  // EventSource directly and bypasses the axios interceptor, so it stays
+  // on the legacy `/api` mount and is NOT included here).
+  "/bank/accounts",
+  "/bank-accounts",
+  "/bank-statements"
 ] as const;
 
 export const MIGRATED_TENANT_SCOPED_PREFIXES = [

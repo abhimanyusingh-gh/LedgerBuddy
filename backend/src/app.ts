@@ -27,7 +27,8 @@ import { createVendorsRouter } from "@/routes/compliance/vendors.js";
 import { createClientComplianceConfigRouter, createComplianceMetadataRouter } from "@/routes/compliance/clientComplianceConfig.js";
 import { createCsvExportRouter } from "@/routes/export/csvExport.js";
 import { createClientExportConfigRouter } from "@/routes/export/clientExportConfig.js";
-import { createBankStatementsRouter } from "@/routes/bank/bankStatements.js";
+import { createBankStatementsRouter, createBankStatementsParseSseRouter } from "@/routes/bank/bankStatements.js";
+import { BankStatementParseProgress } from "@/ai/extractors/bank/BankStatementParseProgress.js";
 import { createTcsConfigRouter } from "@/routes/compliance/tcsConfig.js";
 import { createNotificationConfigRouter } from "@/routes/tenant/notificationConfig.js";
 import {
@@ -138,13 +139,11 @@ export async function createApp(prebuiltDependencies?: Awaited<ReturnType<typeof
   app.use("/api", requireNonPlatformAdmin, requireTenantSetupCompleted, jobsRouter);
   app.use("/api", requireNonPlatformAdmin, requireTenantSetupCompleted, uploadsRouter);
   app.use("/api", requireNonPlatformAdmin, requireTenantSetupCompleted, createAnalyticsRouter());
-  app.use("/api", requireNonPlatformAdmin, createBankAccountsRouter(dependencies.bankService));
   app.use("/api", requireNonPlatformAdmin, requireTenantSetupCompleted, requireActiveClientOrg, createGlCodesRouter());
   app.use("/api", requireNonPlatformAdmin, requireTenantSetupCompleted, requireActiveClientOrg, createVendorsRouter());
   app.use("/api", requireNonPlatformAdmin, requireTenantSetupCompleted, requireActiveClientOrg, createClientComplianceConfigRouter());
   app.use("/api", requireNonPlatformAdmin, requireTenantSetupCompleted, createComplianceMetadataRouter());
   app.use("/api", createTdsRatesRouter());
-  app.use("/api", requireNonPlatformAdmin, requireTenantSetupCompleted, createBankStatementsRouter(dependencies.fileStore, dependencies.ocrProvider, dependencies.fieldVerifier));
   app.use("/api", requireNonPlatformAdmin, requireTenantSetupCompleted, requireActiveClientOrg, createTcsConfigRouter());
   app.use("/api", requireNonPlatformAdmin, requireTenantSetupCompleted, createNotificationConfigRouter());
 
@@ -222,6 +221,38 @@ export async function createApp(prebuiltDependencies?: Awaited<ReturnType<typeof
     requireTenantSetupCompleted,
     requireActiveClientOrg,
     createClientExportConfigRouter()
+  );
+
+  // Bank domain (sub-PR for #201) — second domain migrated to the dual-mount
+  // nested-router shape. Realm-scoped routers mount under BOTH the new path-
+  // scoped tree and the old `/api` mount (additive — FE cuts over per-domain).
+  // The shared `BankStatementParseProgress` instance is passed into both the
+  // realm-scoped router (for upload broadcasts) and the standalone SSE router
+  // (for subscribers) so events flow end-to-end.
+  // The SSE endpoint is tenant-scoped (no clientOrgId filter), so it lives
+  // only on the legacy `/api` mount and is NOT migrated to the new shape.
+  const bankParseProgress = new BankStatementParseProgress();
+  clientOrgRouter.use(createBankAccountsRouter(dependencies.bankService));
+  clientOrgRouter.use(createBankStatementsRouter(dependencies.fileStore, dependencies.ocrProvider, dependencies.fieldVerifier, bankParseProgress));
+
+  app.use(
+    "/api",
+    requireNonPlatformAdmin,
+    requireActiveClientOrg,
+    createBankAccountsRouter(dependencies.bankService)
+  );
+  app.use(
+    "/api",
+    requireNonPlatformAdmin,
+    requireTenantSetupCompleted,
+    requireActiveClientOrg,
+    createBankStatementsRouter(dependencies.fileStore, dependencies.ocrProvider, dependencies.fieldVerifier, bankParseProgress)
+  );
+  app.use(
+    "/api",
+    requireNonPlatformAdmin,
+    requireTenantSetupCompleted,
+    createBankStatementsParseSseRouter(bankParseProgress)
   );
 
   app.use((error: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
