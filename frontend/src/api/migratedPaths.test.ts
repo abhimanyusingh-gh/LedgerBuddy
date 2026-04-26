@@ -19,7 +19,7 @@ import {
   isMigratedRealmScopedPath,
   isMigratedTenantScopedPath,
   rewriteToNestedShape,
-  rewriteToTenantNestedShape
+  rewriteToTenantShape
 } from "@/api/migratedPaths";
 
 describe("api/migratedPaths", () => {
@@ -149,27 +149,27 @@ describe("api/migratedPaths", () => {
     });
   });
 
-  describe("rewriteToTenantNestedShape", () => {
+  describe("rewriteToTenantShape", () => {
     it("rewrites into the /tenants/:tenantId/... shape (no clientOrgId segment)", () => {
-      expect(rewriteToTenantNestedShape("/jobs/ingest", "tenant-1")).toBe(
+      expect(rewriteToTenantShape("/jobs/ingest", "tenant-1")).toBe(
         "/tenants/tenant-1/jobs/ingest"
       );
     });
 
     it("preserves nested sub-paths and query strings", () => {
-      expect(rewriteToTenantNestedShape("/jobs/ingest/status?live=1", "tenant-1")).toBe(
+      expect(rewriteToTenantShape("/jobs/ingest/status?live=1", "tenant-1")).toBe(
         "/tenants/tenant-1/jobs/ingest/status?live=1"
       );
     });
 
     it("rewrites the presign endpoint", () => {
-      expect(rewriteToTenantNestedShape("/uploads/presign", "tenant-1")).toBe(
+      expect(rewriteToTenantShape("/uploads/presign", "tenant-1")).toBe(
         "/tenants/tenant-1/uploads/presign"
       );
     });
 
     it("normalises a missing leading slash by adding one", () => {
-      expect(rewriteToTenantNestedShape("jobs/ingest", "tenant-1")).toBe(
+      expect(rewriteToTenantShape("jobs/ingest", "tenant-1")).toBe(
         "/tenants/tenant-1/jobs/ingest"
       );
     });

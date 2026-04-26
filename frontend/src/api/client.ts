@@ -6,7 +6,7 @@ import {
   isMigratedRealmScopedPath,
   isMigratedTenantScopedPath,
   rewriteToNestedShape,
-  rewriteToTenantNestedShape
+  rewriteToTenantShape
 } from "@/api/migratedPaths";
 import { MissingActiveClientOrgError } from "@/api/errors";
 import { ACTIVE_TENANT_ID_STORAGE_KEY, readActiveTenantId } from "@/api/tenantStorage";
@@ -47,7 +47,7 @@ apiClient.interceptors.request.use((config) => {
     if (!tenantId) {
       return Promise.reject(new MissingActiveClientOrgError(requestPath));
     }
-    config.url = rewriteToTenantNestedShape(requestPath, tenantId);
+    config.url = rewriteToTenantShape(requestPath, tenantId);
     return config;
   }
 

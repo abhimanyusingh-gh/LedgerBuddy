@@ -54,6 +54,6 @@ export function rewriteToNestedShape(path: string, tenantId: string, clientOrgId
   return `/tenants/${tenantId}/clientOrgs/${clientOrgId}${path.startsWith("/") ? path : `/${path}`}`;
 }
 
-export function rewriteToTenantNestedShape(path: string, tenantId: string): string {
+export function rewriteToTenantShape(path: string, tenantId: string): string {
   return `/tenants/${tenantId}${path.startsWith("/") ? path : `/${path}`}`;
 }
