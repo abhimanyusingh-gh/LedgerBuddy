@@ -392,6 +392,23 @@ export function createBankStatementsRouter(
     }
   });
 
+  router.put("/bank-statements/:id/gstin", requireNotViewer, requireCap("canManageConnections"), async (req, res, next) => {
+    try {
+      const tenantId = req.authContext!.tenantId;
+      const gstin = typeof req.body?.gstin === "string" ? req.body.gstin.trim() : "";
+      const label = typeof req.body?.label === "string" ? req.body.label.trim() : null;
+      if (gstin.length !== 15) { res.status(400).json({ message: "gstin must be a 15-character string." }); return; }
+
+      const updated = await BankStatementModel.findOneAndUpdate(
+        { _id: req.params.id, tenantId, clientOrgId: req.activeClientOrgId },
+        { $set: { gstin, gstinLabel: label && label.length > 0 ? label : null } },
+        { new: true, lean: true }
+      );
+      if (!updated) { res.status(404).json({ message: "Bank statement not found." }); return; }
+      res.json({ ok: true });
+    } catch (error) { next(error); }
+  });
+
   router.post("/bank-statements/:id/reconcile", requireNotViewer, requireCap("canManageConnections"), async (req, res, next) => {
     try {
       const tenantId = req.authContext!.tenantId;
