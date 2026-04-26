@@ -67,6 +67,18 @@ export function createClientOrgsRouter(service: ClientOrgsAdminService) {
     }
   });
 
+  router.get("/admin/client-orgs/:id/preview-archive", requireCap("canManageUsers"), async (req, res, next) => {
+    try {
+      const result = await service.previewArchive({
+        tenantId: getAuth(req).tenantId,
+        clientOrgId: req.params.id
+      });
+      res.json(result);
+    } catch (error) {
+      next(error);
+    }
+  });
+
   router.delete("/admin/client-orgs/:id", requireCap("canManageUsers"), async (req, res, next) => {
     try {
       const result = await service.deleteOrArchive({

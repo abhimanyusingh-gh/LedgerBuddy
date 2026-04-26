@@ -120,6 +120,37 @@ export class ClientOrgsAdminService {
   }
 
   /**
+   * Read-only pre-flight for `deleteOrArchive`. Returns the same
+   * `linkedCounts` breakdown the destructive path would surface, plus
+   * the projected outcome (`deleted` when total === 0, `archived`
+   * otherwise) so FE can render an accurate confirm dialog before the
+   * admin commits. No mutation occurs — re-running this method N times
+   * yields identical responses and never advances `archivedAt`.
+   */
+  async previewArchive(input: { tenantId: string; clientOrgId: string }) {
+    const oid = this.toOid(input.clientOrgId);
+    const existing = await ClientOrganizationModel.findOne({
+      _id: oid,
+      tenantId: input.tenantId
+    }).lean();
+    if (!existing) {
+      throw new HttpError("Client organization not found.", 404, "client_org_not_found");
+    }
+
+    const { counts, total } = await countClientOrgDependents({
+      tenantId: input.tenantId,
+      clientOrgId: oid
+    });
+
+    const projectedStatus = total > 0 ? ("archived" as const) : ("deleted" as const);
+    return {
+      projectedStatus,
+      linkedCounts: counts,
+      archivedAt: existing.archivedAt ?? null
+    };
+  }
+
+  /**
    * Hard-delete when the org has no dependent accounting-leaf rows;
    * otherwise soft-archive (`archivedAt = now`) and return the
    * linked-counts breakdown so FE can render "X invoices, Y vendors are
