@@ -98,6 +98,13 @@ export function createNotificationConfigRouter() {
     }
   });
 
+  return router;
+}
+
+export function createNotificationLogRouter() {
+  const router = Router();
+  router.use(requireAuth);
+
   router.get("/admin/notifications/log", requireCap("canManageConnections"), async (req, res, next) => {
     try {
       const tenantId = getAuth(req).tenantId;

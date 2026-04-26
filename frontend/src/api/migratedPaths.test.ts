@@ -3,23 +3,24 @@
  * the axios request interceptor in `client.ts`. Imported from
  * `migratedPaths.ts` (not `client.ts`) so the tests stay in a pure-node
  * environment — `client.ts` pulls in `import.meta.env` which Jest's CJS
- * runtime can't parse (same workaround pattern as `classifyApiPath.test.ts`).
+ * runtime can't parse.
  *
  * These tests assert three complementary contracts:
  *   1. For migrated REALM-scoped paths (export, ingestion-upload, compliance,
- *      bank, invoice), the helper detects the path AND rewrites it into the
- *      nested `/tenants/:tenantId/clientOrgs/:clientOrgId/...` shape the BE
- *      expects.
+ *      bank, invoice, notification config), the helper detects the path AND
+ *      rewrites it into the nested
+ *      `/tenants/:tenantId/clientOrgs/:clientOrgId/...` shape the BE expects.
  *   2. For migrated TENANT-scoped paths (ingestion orchestration, tenant
- *      domain admin/integrations, plus invoice triage + triage mutations),
- *      the helper rewrites them into `/tenants/:tenantId/...` (no
- *      clientOrgs segment) — these routes are mounted under `tenantRouter`
- *      directly. Triage routes are scoped this way because PENDING_TRIAGE
- *      invoices carry `clientOrgId: null` (#156).
+ *      domain admin/integrations, notification log, analytics, plus invoice
+ *      triage + triage mutations), the helper rewrites them into
+ *      `/tenants/:tenantId/...` (no clientOrgs segment) — these routes are
+ *      mounted under `tenantRouter` / `tenantAdminRouter` directly. Triage
+ *      routes are scoped this way because PENDING_TRIAGE invoices carry
+ *      `clientOrgId: null` (#156).
  *   3. For NON-migrated paths (everything else), the helper returns
- *      `MIGRATED_PATH_KIND.NONE` so the interceptor falls through to the
- *      legacy `?clientOrgId=` query injection branch (covered by
- *      classifyApiPath.test.ts).
+ *      `MIGRATED_PATH_KIND.NONE`. Post-#223, the interceptor passes such
+ *      paths through unmodified — the legacy `?clientOrgId=` query-injection
+ *      branch was retired with the `classifyApiPath` module.
  */
 import {
   MIGRATED_PATH_KIND,
@@ -68,7 +69,10 @@ describe("api/migratedPaths", () => {
       "/invoices/delete",
       "/invoices/action-required",
       "/admin/approval-workflow",
-      "/admin/approval-limits"
+      "/admin/approval-limits",
+      // Notification config (#223 — final teardown).
+      "/admin/notification-config",
+      "/admin/notification-config?fields=mailboxReauthEnabled"
     ];
 
     test.each(migratedRealm)("returns true for %s", (path) => {
@@ -166,8 +170,6 @@ describe("api/migratedPaths", () => {
 
   describe("classifyMigratedPath — non-migrated paths fall through to legacy interceptor", () => {
     const nonMigrated = [
-      "/payments",
-      "/admin/notification-config",
       "/auth/token",
       "/session",
       "/healthz",
@@ -327,7 +329,8 @@ describe("api/migratedPaths", () => {
         "/bank-statements",
         "/invoices",
         "/admin/approval-workflow",
-        "/admin/approval-limits"
+        "/admin/approval-limits",
+        "/admin/notification-config"
       ]);
     });
   });
@@ -343,6 +346,8 @@ describe("api/migratedPaths", () => {
       "/admin/client-orgs/abc-123",
       "/admin/mailbox-assignments",
       "/admin/mailbox-assignments/abc-123/recent-ingestions",
+      "/admin/notifications/log",
+      "/admin/notifications/log?page=2&limit=10",
       "/integrations/gmail",
       "/integrations/gmail/connect-url"
     ];
@@ -402,6 +407,7 @@ describe("api/migratedPaths", () => {
         "/admin/mailboxes",
         "/admin/client-orgs",
         "/admin/mailbox-assignments",
+        "/admin/notifications/log",
         "/integrations/gmail",
         "/analytics/overview"
       ]);

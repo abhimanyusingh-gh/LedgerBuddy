@@ -30,7 +30,7 @@ import { createClientExportConfigRouter } from "@/routes/export/clientExportConf
 import { createBankStatementsRouter, createBankStatementsParseSseRouter } from "@/routes/bank/bankStatements.js";
 import { BankStatementParseProgress } from "@/ai/extractors/bank/BankStatementParseProgress.js";
 import { createTcsConfigRouter } from "@/routes/compliance/tcsConfig.js";
-import { createNotificationConfigRouter } from "@/routes/tenant/notificationConfig.js";
+import { createNotificationConfigRouter, createNotificationLogRouter } from "@/routes/tenant/notificationConfig.js";
 import {
   createAuthenticationMiddleware,
   requireNonPlatformAdmin,
@@ -156,6 +156,11 @@ export async function createApp(prebuiltDependencies?: Awaited<ReturnType<typeof
   app.use("/api", createTdsRatesRouter());
   app.use("/api", requireNonPlatformAdmin, requireTenantSetupCompleted, requireActiveClientOrg, createTcsConfigRouter());
   app.use("/api", requireNonPlatformAdmin, requireTenantSetupCompleted, createNotificationConfigRouter());
+  // `/admin/notifications/log` is purely tenant-scoped (no clientOrgId) and
+  // historically lived in `notificationConfig.ts` for file-organisation reasons.
+  // Mount it as its own router so the new tenant-domain mount below can pick it
+  // up without dragging the realm-scoped notification-config routes along.
+  app.use("/api", requireNonPlatformAdmin, createNotificationLogRouter());
 
   // Nested-router scaffold for #171 — REST URL refactor.
   // Routes under `/api/tenants/:tenantId/...` get tenant-id-from-path validation;
@@ -227,6 +232,12 @@ export async function createApp(prebuiltDependencies?: Awaited<ReturnType<typeof
   clientOrgRouter.use(createApprovalWorkflowRouter(dependencies.approvalWorkflowService));
   tenantRouter.use(createTriageRouter(dependencies.triageService));
 
+  // Notification config (#223 — final teardown of legacy realm-scoped classifier).
+  // The router's per-route `requireActiveClientOrg` short-circuits when the path-
+  // scope middleware has already stamped `req.activeClientOrgId`, so the same
+  // factory backs both the legacy `/api` mount above and the nested mount here.
+  clientOrgRouter.use(createNotificationConfigRouter());
+
   // Analytics domain (#222, sub-PR B of #171) — tenant-scoped mount of the
   // shared `analyticsRouter` instance built above. Optional clientOrgId still
   // flows via `?clientOrgId=` query param (see `resolveOptionalClientOrgId`),
@@ -254,6 +265,10 @@ export async function createApp(prebuiltDependencies?: Awaited<ReturnType<typeof
   tenantAdminRouter.use(createClientOrgsRouter(dependencies.clientOrgsAdminService));
   tenantAdminRouter.use(createMailboxAssignmentsRouter(dependencies.mailboxAssignmentsAdminService));
   tenantAdminRouter.use(createGmailConnectionRouter(dependencies.gmailIntegrationService));
+  // Notification log (tenant-scoped) — same router instance shape as the legacy
+  // `/api` mount above; the FE migrated-paths interceptor rewrites
+  // `/admin/notifications/log` to `/api/tenants/:tenantId/admin/notifications/log`.
+  tenantAdminRouter.use(createNotificationLogRouter());
 
   app.use(
     "/api",

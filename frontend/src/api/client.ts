@@ -1,7 +1,6 @@
 import axios from "axios";
 import { normalizeApiError } from "@/lib/common/apiError";
-import { readActiveClientOrgId, ACTIVE_CLIENT_ORG_QUERY_PARAM } from "@/hooks/useActiveClientOrg";
-import { isRealmScopedPath } from "@/api/classifyApiPath";
+import { readActiveClientOrgId } from "@/hooks/useActiveClientOrg";
 import {
   MIGRATED_PATH_KIND,
   classifyMigratedPath,
@@ -26,7 +25,6 @@ apiClient.interceptors.request.use((config) => {
 
   const requestPath = config.url ?? "";
 
-  // Migrated paths take precedence over the classifier-based query injection.
   // Single enum dispatcher classifies the path as realm-scoped, tenant-scoped,
   // or none — both data prefixes (`MIGRATED_REALM_SCOPED_PREFIXES`,
   // `MIGRATED_TENANT_SCOPED_PREFIXES`) plus the invoice-domain triage bypass
@@ -34,6 +32,9 @@ apiClient.interceptors.request.use((config) => {
   // under realm-scoped trees via `/invoices/triage` and the
   // `/assign-client-org` / `/reject` suffixes). Realm-scoped → nested shape;
   // tenant-scoped → tenant shape (no `/clientOrgs/:clientOrgId` segment).
+  // The legacy `?clientOrgId=` query-injection branch + `classifyApiPath`
+  // module were retired in #223 once every realm-scoped prefix migrated to
+  // the nested URL shape.
   const migratedKind = classifyMigratedPath(requestPath);
   if (migratedKind === MIGRATED_PATH_KIND.REALM_SCOPED) {
     const tenantId = readActiveTenantId();
@@ -51,18 +52,6 @@ apiClient.interceptors.request.use((config) => {
     }
     config.url = rewriteToTenantShape(requestPath, tenantId);
     return config;
-  }
-
-  if (isRealmScopedPath(requestPath)) {
-    const activeClientOrgId = readActiveClientOrgId();
-    if (!activeClientOrgId) {
-      // Use Promise.reject so the error propagates through axios's .catch
-      // chain (and react-query's queryFn) cleanly, rather than synchronously
-      // throwing — which can surface as an unhandled rejection on direct
-      // axios calls outside of react-query.
-      return Promise.reject(new MissingActiveClientOrgError(requestPath));
-    }
-    config.params = { ...(config.params ?? {}), [ACTIVE_CLIENT_ORG_QUERY_PARAM]: activeClientOrgId };
   }
   return config;
 });

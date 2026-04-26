@@ -1,8 +1,7 @@
 /**
  * Pure helpers for the #171 nested-router URL migration. Extracted from
  * `client.ts` so they can be unit-tested standalone — `client.ts` pulls in
- * `import.meta.env` which Jest's CJS runtime can't parse (same workaround
- * pattern as `classifyApiPath.ts`).
+ * `import.meta.env` which Jest's CJS runtime can't parse.
  *
  * Two prefix lists, two rewrite shapes, one enum dispatcher:
  *   - `MIGRATED_REALM_SCOPED_PREFIXES` → `/tenants/:tenantId/clientOrgs/:clientOrgId/...`
@@ -52,7 +51,10 @@ export const MIGRATED_REALM_SCOPED_PREFIXES = [
   // Invoice domain (#204, final vertical slice — closes #171).
   "/invoices",
   "/admin/approval-workflow",
-  "/admin/approval-limits"
+  "/admin/approval-limits",
+  // Notification config (#223 — last realm-scoped prefix off the legacy
+  // classifier; ships with the classifier teardown).
+  "/admin/notification-config"
 ] as const;
 
 /**
@@ -70,6 +72,9 @@ export const MIGRATED_TENANT_SCOPED_PREFIXES = [
   "/admin/mailboxes",
   "/admin/client-orgs",
   "/admin/mailbox-assignments",
+  // Notification log (#223) — split out from the realm-scoped notification-config
+  // router; tenant-wide and admin-only (no clientOrgId in the path).
+  "/admin/notifications/log",
   "/integrations/gmail",
   // Analytics domain (#222, sub-PR B of #171) — single overview endpoint.
   // Optional realm scoping flows via `?clientOrgId=` query param; the BE

@@ -91,6 +91,7 @@ const authedReq = (overrides: Record<string, unknown> = {}) =>
   mockRequest({ authContext: defaultAuth, activeClientOrgId: ACTIVE_CLIENT_ORG_ID, ...overrides });
 
 let createNotificationConfigRouter: typeof import("./notificationConfig.ts").createNotificationConfigRouter;
+let createNotificationLogRouter: typeof import("./notificationConfig.ts").createNotificationLogRouter;
 
 const nextFn = jest.fn();
 
@@ -110,6 +111,7 @@ beforeEach(async () => {
 
   const mod = await import("./notificationConfig.ts");
   createNotificationConfigRouter = mod.createNotificationConfigRouter;
+  createNotificationLogRouter = mod.createNotificationLogRouter;
 });
 
 describe("notification config routes", () => {
@@ -216,7 +218,7 @@ describe("notification config routes", () => {
 
   describe("GET /admin/notifications/log", () => {
     it("returns empty log when no events exist", async () => {
-      const router = createNotificationConfigRouter();
+      const router = createNotificationLogRouter();
       const handler = findHandler(router, "get", "/admin/notifications/log");
       const res = mockResponse();
 
@@ -255,7 +257,7 @@ describe("notification config routes", () => {
         }
       ];
 
-      const router = createNotificationConfigRouter();
+      const router = createNotificationLogRouter();
       const handler = findHandler(router, "get", "/admin/notifications/log");
       const res = mockResponse();
 
@@ -271,7 +273,7 @@ describe("notification config routes", () => {
     });
 
     it("respects page and limit query params", async () => {
-      const router = createNotificationConfigRouter();
+      const router = createNotificationLogRouter();
       const handler = findHandler(router, "get", "/admin/notifications/log");
       const res = mockResponse();
 

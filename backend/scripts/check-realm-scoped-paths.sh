@@ -1,27 +1,26 @@
 #!/usr/bin/env bash
-# Sync guard between BE composite-key middleware and the FE classifier.
+# Sync guard between BE composite-key middleware and the FE migrated-path list.
 #
 # - Enumerates every BE route registered with `requireActiveClientOrg`.
-# - Reads the FE classifier's REALM_SCOPED_PATH_PREFIXES list.
+# - Reads the FE `MIGRATED_REALM_SCOPED_PREFIXES` list.
 # - Fails CI if any BE-protected route literal is not classified as
-#   realm-scoped by a FE prefix (i.e. the FE interceptor would forget to
-#   inject the active clientOrgId, BE would 400, user gets stuck).
+#   realm-scoped by a FE prefix (i.e. the FE migrated-paths interceptor would
+#   forget to rewrite to the nested URL shape, BE would 400, user gets stuck).
 #
-# Long-term, prefer code-generating the FE list from the BE middleware
-# contract (see follow-up issue referenced in classifyApiPath.ts).
+# History: pre-#223 this script also consumed the legacy
+# `REALM_SCOPED_PATH_PREFIXES` array from `classifyApiPath.ts`. After every
+# realm-scoped prefix migrated to the nested URL shape, the legacy classifier
+# was deleted and this script now reads only `migratedPaths.ts`. Long-term,
+# prefer code-generating the FE list from the BE middleware contract (see
+# follow-up issue referenced in migratedPaths.ts).
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 BE_ROUTES_DIR="$REPO_ROOT/backend/src/routes"
-FE_CLASSIFIER="$REPO_ROOT/frontend/src/api/classifyApiPath.ts"
 FE_MIGRATED="$REPO_ROOT/frontend/src/api/migratedPaths.ts"
 
 if [ ! -d "$BE_ROUTES_DIR" ]; then
   echo "error: backend routes dir not found at $BE_ROUTES_DIR" >&2
-  exit 2
-fi
-if [ ! -f "$FE_CLASSIFIER" ]; then
-  echo "error: FE classifier not found at $FE_CLASSIFIER" >&2
   exit 2
 fi
 if [ ! -f "$FE_MIGRATED" ]; then
@@ -29,22 +28,17 @@ if [ ! -f "$FE_MIGRATED" ]; then
   exit 2
 fi
 
-# 1. Extract FE realm-scoped prefixes from BOTH (a) the legacy classifier and
-#    (b) the #171 migratedPaths module — domains that have cut over to the
-#    nested-router shape keep their `router.use(requireActiveClientOrg)` for
-#    backward compat (the middleware short-circuits when the path-scope
-#    middleware has already stamped `req.activeClientOrgId`), but their FE
-#    prefix lives in `MIGRATED_REALM_SCOPED_PREFIXES`, not the legacy list.
-FE_PREFIXES_CLASSIFIER="$(sed -n '/REALM_SCOPED_PATH_PREFIXES = \[/,/^\] as const;/p' "$FE_CLASSIFIER" \
+# 1. Extract FE realm-scoped prefixes from `MIGRATED_REALM_SCOPED_PREFIXES`.
+#    Domains that have cut over to the nested-router shape keep their
+#    `router.use(requireActiveClientOrg)` for backward compat (the middleware
+#    short-circuits when the path-scope middleware has already stamped
+#    `req.activeClientOrgId`), so the FE prefix lives in the migrated list.
+FE_PREFIXES="$(sed -n '/MIGRATED_REALM_SCOPED_PREFIXES = \[/,/^\] as const;/p' "$FE_MIGRATED" \
   | grep -oE '"[^"]+"' \
   | sed -E 's/^"//; s/"$//')"
-FE_PREFIXES_MIGRATED="$(sed -n '/MIGRATED_REALM_SCOPED_PREFIXES = \[/,/^\] as const;/p' "$FE_MIGRATED" \
-  | grep -oE '"[^"]+"' \
-  | sed -E 's/^"//; s/"$//')"
-FE_PREFIXES="$(printf '%s\n%s\n' "$FE_PREFIXES_CLASSIFIER" "$FE_PREFIXES_MIGRATED" | sed '/^$/d')"
 
 if [ -z "$FE_PREFIXES" ]; then
-  echo "error: could not parse REALM_SCOPED_PATH_PREFIXES from $FE_CLASSIFIER or MIGRATED_REALM_SCOPED_PREFIXES from $FE_MIGRATED" >&2
+  echo "error: could not parse MIGRATED_REALM_SCOPED_PREFIXES from $FE_MIGRATED" >&2
   exit 2
 fi
 
@@ -122,13 +116,13 @@ while IFS= read -r route; do
 done <<< "$(echo "$BE_ROUTES" | sort -u)"
 
 if [ ${#MISSING[@]} -gt 0 ]; then
-  echo "error: FE classifier is out of sync with BE requireActiveClientOrg middleware." >&2
+  echo "error: FE migrated-path list is out of sync with BE requireActiveClientOrg middleware." >&2
   echo "       The following BE realm-scoped routes are NOT covered by any FE prefix" >&2
-  echo "       in REALM_SCOPED_PATH_PREFIXES (see $FE_CLASSIFIER):" >&2
+  echo "       in MIGRATED_REALM_SCOPED_PREFIXES (see $FE_MIGRATED):" >&2
   for r in "${MISSING[@]}"; do
     echo "         - $r" >&2
   done
   exit 1
 fi
 
-echo "ok: FE classifier covers all $(echo "$BE_ROUTES" | sort -u | wc -l | tr -d ' ') BE realm-scoped routes."
+echo "ok: FE migrated-path list covers all $(echo "$BE_ROUTES" | sort -u | wc -l | tr -d ' ') BE realm-scoped routes."

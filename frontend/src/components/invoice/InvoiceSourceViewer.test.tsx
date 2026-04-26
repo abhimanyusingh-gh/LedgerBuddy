@@ -42,19 +42,19 @@ describe("InvoiceSourceViewer", () => {
     const html = renderToStaticMarkup(
       <InvoiceSourceViewer
         invoice={baseInvoice}
-        resolvePreviewUrl={() => "http://localhost:4100/api/invoices/inv-1/preview?page=1"}
+        resolvePreviewUrl={() => "http://localhost:4100/api/tenants/tenant-1/clientOrgs/org-1/invoices/inv-1/preview?page=1"}
       />
     );
 
     expect(html).toContain("source-preview-box");
-    expect(html).toContain("/api/invoices/inv-1/preview?page=1");
+    expect(html).toContain("/api/tenants/tenant-1/clientOrgs/org-1/invoices/inv-1/preview?page=1");
   });
 
   it("bbox uses percentage positioning independent of zoom transform", () => {
     const html = renderToStaticMarkup(
       <InvoiceSourceViewer
         invoice={baseInvoice}
-        resolvePreviewUrl={() => "http://localhost:4100/api/invoices/inv-1/preview?page=1"}
+        resolvePreviewUrl={() => "http://localhost:4100/api/tenants/tenant-1/clientOrgs/org-1/invoices/inv-1/preview?page=1"}
       />
     );
 
@@ -84,7 +84,7 @@ describe("InvoiceSourceViewer", () => {
     const html = renderToStaticMarkup(
       <InvoiceSourceViewer
         invoice={legacyInvoice}
-        resolvePreviewUrl={() => "http://localhost:4100/api/invoices/inv-1/preview?page=1"}
+        resolvePreviewUrl={() => "http://localhost:4100/api/tenants/tenant-1/clientOrgs/org-1/invoices/inv-1/preview?page=1"}
       />
     );
 

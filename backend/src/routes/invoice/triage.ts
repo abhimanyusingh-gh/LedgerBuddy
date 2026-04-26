@@ -16,9 +16,10 @@ function wrap(fn: AsyncHandler): AsyncHandler {
  * #183 (sidebar count), #185, #186. Tenant-scoped only: these routes
  * MUST NOT use `requireActiveClientOrg` because PENDING_TRIAGE invoices
  * carry `clientOrgId: null` (the documented composite-key exception per
- * #156). The FE classifier `frontend/src/api/classifyApiPath.ts`
- * mirrors this with a bypass entry for `/invoices/triage` plus suffix
- * bypasses for `/assign-client-org` and `/reject`.
+ * #156). The FE migrated-paths dispatcher in
+ * `frontend/src/api/migratedPaths.ts` mirrors this with a tenant-scoped
+ * bypass entry for `/invoices/triage` plus suffix bypasses for
+ * `/assign-client-org` and `/reject`.
  */
 export function createTriageRouter(service: TriageService) {
   const router = Router();
