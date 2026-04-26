@@ -10,16 +10,13 @@ import {
 import { TRIAGE_REJECT_REASON } from "@/features/triage/triageReasons";
 
 jest.mock("@/api/client", () => {
-  const get = jest.fn();
-  const patch = jest.fn();
-  return {
-    apiClient: { get, patch }
-  };
+  const { buildApiClientMockModule } = require("@/test-utils/mockApiClient");
+  return buildApiClientMockModule();
 });
 
-const { apiClient } = jest.requireMock("@/api/client") as {
-  apiClient: { get: jest.Mock; patch: jest.Mock };
-};
+import { getMockedApiClient } from "@/test-utils/mockApiClient";
+
+const apiClient = getMockedApiClient();
 
 beforeEach(() => {
   jest.clearAllMocks();

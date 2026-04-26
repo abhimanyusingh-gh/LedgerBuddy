@@ -6,23 +6,25 @@ import { MissingActiveClientOrgError } from "@/api/errors";
 import { setActiveClientOrgId } from "@/hooks/useActiveClientOrg";
 import { writeActiveTenantId } from "@/api/tenantStorage";
 
-jest.mock("@/api/client", () => ({
-  apiClient: {},
-  authenticatedUrl: jest.fn(
-    (path: string, params?: Record<string, unknown>) => {
-      const query = params
-        ? new URLSearchParams(
-            Object.entries(params).map(([k, v]) => [k, String(v)])
-          ).toString()
-        : "";
-      const separator = query ? `?${query}&` : "?";
-      return `https://api.example.com${path}${separator}authToken=tok`;
-    }
-  ),
-  safeNum: (v: unknown, fallback: number) =>
-    typeof v === "number" && Number.isFinite(v) ? v : fallback,
-  stripNulls: (v: unknown) => v
-}));
+jest.mock("@/api/client", () => {
+  const { buildApiClientMockModule } = require("@/test-utils/mockApiClient");
+  return buildApiClientMockModule({
+    authenticatedUrl: jest.fn(
+      (path: string, params?: Record<string, unknown>) => {
+        const query = params
+          ? new URLSearchParams(
+              Object.entries(params).map(([k, v]) => [k, String(v)])
+            ).toString()
+          : "";
+        const separator = query ? `?${query}&` : "?";
+        return `https://api.example.com${path}${separator}authToken=tok`;
+      }
+    ),
+    safeNum: (v: unknown, fallback: number) =>
+      typeof v === "number" && Number.isFinite(v) ? v : fallback,
+    stripNulls: (v: unknown) => v
+  });
+});
 
 const { authenticatedUrl } = jest.requireMock("@/api/client") as {
   authenticatedUrl: jest.Mock;

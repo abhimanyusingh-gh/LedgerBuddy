@@ -10,18 +10,13 @@ import {
 } from "@/api/mailboxAssignments";
 
 jest.mock("@/api/client", () => {
-  const get = jest.fn();
-  const post = jest.fn();
-  const patch = jest.fn();
-  const del = jest.fn();
-  return {
-    apiClient: { get, post, patch, delete: del }
-  };
+  const { buildApiClientMockModule } = require("@/test-utils/mockApiClient");
+  return buildApiClientMockModule();
 });
 
-const { apiClient } = jest.requireMock("@/api/client") as {
-  apiClient: { get: jest.Mock; post: jest.Mock; patch: jest.Mock; delete: jest.Mock };
-};
+import { getMockedApiClient } from "@/test-utils/mockApiClient";
+
+const apiClient = getMockedApiClient();
 
 beforeEach(() => {
   jest.clearAllMocks();
