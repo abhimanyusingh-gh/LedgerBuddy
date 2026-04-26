@@ -119,14 +119,7 @@ export class ClientOrgsAdminService {
     return this.serialize(updated);
   }
 
-  /**
-   * Read-only pre-flight for `deleteOrArchive`. Returns the same
-   * `linkedCounts` breakdown the destructive path would surface, plus
-   * the projected outcome (`deleted` when total === 0, `archived`
-   * otherwise) so FE can render an accurate confirm dialog before the
-   * admin commits. No mutation occurs — re-running this method N times
-   * yields identical responses and never advances `archivedAt`.
-   */
+  /** `projectedStatus === 'deleted'` iff total dependents === 0; otherwise `'archived'`. Read-only — never advances `archivedAt`. */
   async previewArchive(input: { tenantId: string; clientOrgId: string }) {
     const oid = this.toOid(input.clientOrgId);
     const existing = await ClientOrganizationModel.findOne({

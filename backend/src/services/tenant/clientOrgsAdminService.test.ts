@@ -242,11 +242,35 @@ describeHarness("ClientOrgsAdminService (#174)", ({ getHarness }) => {
   });
 
   describe("previewArchive (#206)", () => {
+    it("returns exactly { projectedStatus, linkedCounts, archivedAt } and no extra keys", async () => {
+      const a = await ClientOrganizationModel.create({ tenantId: TENANT_A, gstin: GSTIN_A, companyName: "ACME" });
+      const result = await service.previewArchive({ tenantId: TENANT_A, clientOrgId: a._id.toString() });
+
+      expect(Object.keys(result).sort()).toEqual(["archivedAt", "linkedCounts", "projectedStatus"]);
+      expect(["archived", "deleted"]).toContain(result.projectedStatus);
+      expect(typeof result.linkedCounts).toBe("object");
+      expect(result.linkedCounts).not.toBeNull();
+      expect(result.archivedAt === null || result.archivedAt instanceof Date).toBe(true);
+    });
+
     it("404s for cross-tenant id (matches deleteOrArchive semantics)", async () => {
       const a = await ClientOrganizationModel.create({ tenantId: TENANT_A, gstin: GSTIN_A, companyName: "ACME" });
       await expect(
         service.previewArchive({ tenantId: TENANT_B, clientOrgId: a._id.toString() })
       ).rejects.toMatchObject({ statusCode: 404, code: "client_org_not_found" });
+    });
+
+    it("404s for a same-tenant id that does not exist", async () => {
+      const ghostId = new Types.ObjectId().toString();
+      await expect(
+        service.previewArchive({ tenantId: TENANT_A, clientOrgId: ghostId })
+      ).rejects.toMatchObject({ statusCode: 404, code: "client_org_not_found" });
+    });
+
+    it("400s for a malformed ObjectId clientOrgId", async () => {
+      await expect(
+        service.previewArchive({ tenantId: TENANT_A, clientOrgId: "not-an-oid" })
+      ).rejects.toMatchObject({ statusCode: 400, code: "client_org_invalid_id" });
     });
 
     it("does not mutate state — re-running yields identical responses and never sets archivedAt", async () => {
