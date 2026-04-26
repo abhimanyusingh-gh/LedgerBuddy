@@ -142,14 +142,13 @@ export class IngestionService {
     for (const source of tenantScopedSources) {
       const effectiveTenantId = runtimeTenantId ?? source.tenantId;
       const checkpoint = await CheckpointModel.findOne({ sourceKey: source.key, tenantId: effectiveTenantId }).lean();
-      const sourceFiles = await source.fetchNewFiles(checkpoint?.marker ?? null);
-      const files = await this.filterAlreadyProcessedFiles(source, sourceFiles, effectiveTenantId);
+      const files = await source.fetchNewFiles(checkpoint?.marker ?? null);
       logger.info("ingestion.source.scan", {
         tenantId: effectiveTenantId,
         workloadTier: source.workloadTier,
         sourceType: source.type,
         sourceKey: source.key,
-        fetchedFiles: sourceFiles.length,
+        fetchedFiles: files.length,
         queuedFiles: files.length,
         checkpoint: checkpoint?.marker ?? null
       });
@@ -226,40 +225,6 @@ export class IngestionService {
     logger.info("ingestion.run.complete", { ...summary, processedFiles });
     await emitProgress(false);
     return { ...summary, paused };
-  }
-
-  private async filterAlreadyProcessedFiles(
-    source: IngestionSource,
-    files: IngestedFile[],
-    effectiveTenantId: UUID
-  ): Promise<IngestedFile[]> {
-    if (files.length === 0 || source.type !== INGESTION_SOURCE_TYPE.S3_UPLOAD) {
-      return files;
-    }
-
-    // Per #156: accounting-leaf read filtered by (tenantId, sourceKey).
-    // sourceDocumentId is unique per (tenantId, sourceKey) by design
-    // (S3 object key) so we do not need to pivot on clientOrgId here —
-    // a single tenant's S3 source cannot repeat sourceDocumentId across
-    // client-orgs. Triage-state rows (clientOrgId: null) are correctly
-    // included because this filter does not constrain clientOrgId.
-    const existingDocs = await InvoiceModel.find({
-      sourceType: source.type,
-      tenantId: effectiveTenantId,
-      sourceKey: source.key,
-      sourceDocumentId: { $in: files.map((file) => file.sourceDocumentId) },
-      status: { $ne: INVOICE_STATUS.PENDING }
-    })
-      .select({ sourceDocumentId: 1, _id: 0 })
-      .lean();
-
-    const existingDocumentIds = new Set(
-      existingDocs
-        .map((doc) => doc.sourceDocumentId)
-        .filter((value): value is string => typeof value === "string" && value.length > 0)
-    );
-
-    return files.filter((file) => !existingDocumentIds.has(file.sourceDocumentId));
   }
 
   private async processFile(file: IngestedFile): Promise<{ result: IngestionFileResult; systemAlert?: string }> {

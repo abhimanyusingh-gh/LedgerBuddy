@@ -28,15 +28,20 @@ export class S3UploadIngestionSource implements IngestionSource {
     this.prefix = `uploads/${tenantId}`;
   }
 
-  async fetchNewFiles(_lastCheckpoint: string | null): Promise<IngestedFile[]> {
+  async fetchNewFiles(lastCheckpoint: string | null): Promise<IngestedFile[]> {
     if (!this.fileStore.listObjects) {
       return [];
     }
 
+    const checkpointMs = parseCheckpoint(lastCheckpoint);
     const objects = await this.fileStore.listObjects(this.prefix);
+    const fresh = objects
+      .filter((object) => object.lastModified.getTime() > checkpointMs)
+      .sort((a, b) => a.lastModified.getTime() - b.lastModified.getTime());
+
     const files: IngestedFile[] = [];
 
-    for (const object of objects) {
+    for (const object of fresh) {
       const fileName = path.basename(object.key);
       const extension = path.extname(fileName).toLowerCase();
       const mimeType = MIME_BY_EXTENSION[extension];
@@ -44,7 +49,11 @@ export class S3UploadIngestionSource implements IngestionSource {
         continue;
       }
 
-      const result = await this.fileStore.getObject(object.key);
+      const result = await this.safeGetObject(object.key);
+      if (!result) {
+        continue;
+      }
+
       files.push({
         tenantId: this.tenantId,
         // Background-polled S3 uploads have no per-object client-org
@@ -60,9 +69,9 @@ export class S3UploadIngestionSource implements IngestionSource {
         sourceDocumentId: object.key,
         attachmentName: fileName,
         mimeType,
-        receivedAt: new Date(),
+        receivedAt: object.lastModified,
         buffer: result.body,
-        checkpointValue: object.key,
+        checkpointValue: object.lastModified.toISOString(),
         metadata: {
           uploadKey: object.key
         }
@@ -71,4 +80,21 @@ export class S3UploadIngestionSource implements IngestionSource {
 
     return files;
   }
+
+  private async safeGetObject(key: string): Promise<{ body: Buffer } | null> {
+    try {
+      return await this.fileStore.getObject(key);
+    } catch {
+      // Object may have been deleted between list + get; skip gracefully.
+      return null;
+    }
+  }
+}
+
+function parseCheckpoint(value: string | null): number {
+  if (!value) {
+    return Number.NEGATIVE_INFINITY;
+  }
+  const parsed = Date.parse(value);
+  return Number.isFinite(parsed) ? parsed : Number.NEGATIVE_INFINITY;
 }

@@ -72,9 +72,9 @@ export class S3FileStore implements FileStore {
     };
   }
 
-  async listObjects(prefix: string): Promise<{ key: string }[]> {
+  async listObjects(prefix: string): Promise<{ key: string; lastModified: Date }[]> {
     const fullPrefix = this.prefix ? `${this.prefix}/${normalizeKey(prefix)}` : normalizeKey(prefix);
-    const results: { key: string }[] = [];
+    const results: { key: string; lastModified: Date }[] = [];
     let continuationToken: string | undefined;
 
     do {
@@ -89,7 +89,10 @@ export class S3FileStore implements FileStore {
       for (const object of response.Contents ?? []) {
         if (object.Key) {
           const stripped = this.prefix ? object.Key.slice(this.prefix.length + 1) : object.Key;
-          results.push({ key: stripped });
+          results.push({
+            key: stripped,
+            lastModified: object.LastModified ?? new Date(0)
+          });
         }
       }
 
