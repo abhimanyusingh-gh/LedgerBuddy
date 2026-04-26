@@ -2,7 +2,6 @@ import { getAuth } from "@/types/auth.js";
 import { Router } from "express";
 import type { ApprovalWorkflowService } from "@/services/invoice/approvalWorkflowService.js";
 import { requireAuth } from "@/auth/requireAuth.js";
-import { requireActiveClientOrg } from "@/auth/activeClientOrg.js";
 import { requireCap } from "@/auth/requireCapability.js";
 import { TenantUserRoleModel, TenantAssignableRoles } from "@/models/core/TenantUserRole.js";
 import { getRoleDefaults } from "@/auth/personaDefaults.js";
@@ -60,7 +59,6 @@ export function validateStepCondition(condition: unknown): string | null {
 export function createApprovalWorkflowRouter(workflowService: ApprovalWorkflowService) {
   const router = Router();
   router.use(requireAuth);
-  router.use(requireActiveClientOrg);
 
   router.get("/admin/approval-limits", requireCap("canConfigureWorkflow"), async (req, res, next) => {
     try {

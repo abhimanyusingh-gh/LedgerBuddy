@@ -27,7 +27,6 @@ import { InvoiceModel } from "@/models/invoice/Invoice.js";
 import { VendorMasterService } from "@/services/compliance/VendorMasterService.js";
 import { GlCodeSuggestionService } from "@/services/compliance/GlCodeSuggestionService.js";
 import { requireAuth } from "@/auth/requireAuth.js";
-import { requireActiveClientOrg } from "@/auth/activeClientOrg.js";
 import { logger } from "@/utils/logger.js";
 import { isRecord, isString, validateDateRange } from "@/utils/validation.js";
 
@@ -68,7 +67,6 @@ export function createInvoiceRouter(
 ) {
   const router = Router();
   router.use(requireAuth);
-  router.use(requireActiveClientOrg);
   const ALLOWED_SORT_COLUMNS = new Set(["file", "vendor", "invoiceNumber", "invoiceDate", "total", "confidence", "status", "received"]);
 
   async function buildActionActor(req: Request): Promise<InvoiceActionActor> {

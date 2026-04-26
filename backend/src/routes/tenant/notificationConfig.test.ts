@@ -6,10 +6,6 @@ jest.mock("../../auth/requireCapability.js", () => ({
   requireCap: () => (_req: unknown, _res: unknown, next: Function) => next()
 }));
 
-jest.mock("../../auth/activeClientOrg.js", () => ({
-  requireActiveClientOrg: (_req: unknown, _res: unknown, next: Function) => next()
-}));
-
 let configStore: Record<string, Record<string, unknown>> = {};
 
 function configKey(query: { tenantId: unknown; clientOrgId?: unknown }): string {

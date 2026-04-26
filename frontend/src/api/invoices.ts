@@ -1,5 +1,5 @@
 import { apiClient, authenticatedUrl, safeNum, stripNulls } from "@/api/client";
-import { rewriteToNestedShape } from "@/api/migratedPaths";
+import { rewriteToNestedShape } from "@/api/apiPaths";
 import { readActiveTenantId } from "@/api/tenantStorage";
 import { readActiveClientOrgId } from "@/hooks/useActiveClientOrg";
 import { MissingActiveClientOrgError } from "@/api/errors";

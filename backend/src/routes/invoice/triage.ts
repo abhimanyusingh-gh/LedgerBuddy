@@ -14,10 +14,10 @@ function wrap(fn: AsyncHandler): AsyncHandler {
 /**
  * Triage queue endpoints (#179) — consumed by FE PRs #180 (queue UI),
  * #183 (sidebar count), #185, #186. Tenant-scoped only: these routes
- * MUST NOT use `requireActiveClientOrg` because PENDING_TRIAGE invoices
- * carry `clientOrgId: null` (the documented composite-key exception per
- * #156). The FE migrated-paths dispatcher in
- * `frontend/src/api/migratedPaths.ts` mirrors this with a tenant-scoped
+ * mount under `tenantRouter` (NOT `clientOrgRouter`) because
+ * PENDING_TRIAGE invoices carry `clientOrgId: null` (the documented
+ * composite-key exception per #156). The FE path dispatcher in
+ * `frontend/src/api/apiPaths.ts` mirrors this with a tenant-scoped
  * bypass entry for `/invoices/triage` plus suffix bypasses for
  * `/assign-client-org` and `/reject`.
  */

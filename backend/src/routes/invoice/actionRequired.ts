@@ -1,7 +1,6 @@
 import { Router, type Request, type Response, type NextFunction } from "express";
 import { getAuth } from "@/types/auth.js";
 import { requireAuth } from "@/auth/requireAuth.js";
-import { requireActiveClientOrg } from "@/auth/activeClientOrg.js";
 import {
   ACTION_REQUIRED_DEFAULT_LIMIT,
   ACTION_REQUIRED_MAX_LIMIT,
@@ -30,7 +29,6 @@ function parseLimit(raw: unknown): number {
 export function createActionRequiredRouter() {
   const router = Router();
   router.use(requireAuth);
-  router.use(requireActiveClientOrg);
 
   router.get("/invoices/action-required", wrap(async (req, res) => {
     const { tenantId } = getAuth(req);

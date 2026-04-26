@@ -1,42 +1,42 @@
 /**
- * Standalone tests for the #171 nested-router migration helpers consumed by
- * the axios request interceptor in `client.ts`. Imported from
- * `migratedPaths.ts` (not `client.ts`) so the tests stay in a pure-node
- * environment — `client.ts` pulls in `import.meta.env` which Jest's CJS
- * runtime can't parse.
+ * Standalone tests for the URL-shape helpers consumed by the axios request
+ * interceptor in `client.ts`. Imported from `apiPaths.ts` (not `client.ts`)
+ * so the tests stay in a pure-node environment — `client.ts` pulls in
+ * `import.meta.env` which Jest's CJS runtime can't parse.
  *
  * These tests assert three complementary contracts:
- *   1. For migrated REALM-scoped paths (export, ingestion-upload, compliance,
- *      bank, invoice, notification config), the helper detects the path AND
+ *   1. For REALM-scoped paths (export, ingestion-upload, compliance, bank,
+ *      invoice, notification config), the helper detects the path AND
  *      rewrites it into the nested
  *      `/tenants/:tenantId/clientOrgs/:clientOrgId/...` shape the BE expects.
- *   2. For migrated TENANT-scoped paths (ingestion orchestration, tenant
- *      domain admin/integrations, notification log, analytics, plus invoice
- *      triage + triage mutations), the helper rewrites them into
+ *   2. For TENANT-scoped paths (ingestion orchestration, tenant domain
+ *      admin/integrations, notification log, analytics, plus invoice triage +
+ *      triage mutations), the helper rewrites them into
  *      `/tenants/:tenantId/...` (no clientOrgs segment) — these routes are
  *      mounted under `tenantRouter` / `tenantAdminRouter` directly. Triage
  *      routes are scoped this way because PENDING_TRIAGE invoices carry
  *      `clientOrgId: null` (#156).
- *   3. For NON-migrated paths (everything else), the helper returns
- *      `MIGRATED_PATH_KIND.NONE`. Post-#223, the interceptor passes such
- *      paths through unmodified — the legacy `?clientOrgId=` query-injection
- *      branch was retired with the `classifyApiPath` module.
+ *   3. For unscoped legacy paths (everything else), the helper returns
+ *      `PATH_KIND.NONE` and the interceptor passes the path through
+ *      unmodified — only the deliberately-retained legacy mounts
+ *      (auth/session/webhooks/health/tenant-onboarding/compliance-metadata/
+ *      tds-rates/bank-parse-sse) accept these.
  */
 import {
-  MIGRATED_PATH_KIND,
-  MIGRATED_REALM_SCOPED_PREFIXES,
-  MIGRATED_TENANT_SCOPED_PREFIXES,
-  classifyMigratedPath,
-  isMigratedRealmScopedPath,
-  isMigratedTenantScopedPath,
+  PATH_KIND,
+  REALM_SCOPED_PREFIXES,
+  TENANT_SCOPED_PREFIXES,
+  classifyApiPath,
+  isRealmScopedPath,
+  isTenantScopedPath,
   rewriteToNestedShape,
   rewriteToTenantShape
-} from "@/api/migratedPaths";
+} from "@/api/apiPaths";
 
-describe("api/migratedPaths", () => {
-  describe("isMigratedRealmScopedPath — migrated realm-scoped paths", () => {
-    const migratedRealm = [
-      // Export domain (#199, sub-PR 1).
+describe("api/apiPaths", () => {
+  describe("isRealmScopedPath — realm-scoped paths", () => {
+    const realmScoped = [
+      // Export domain.
       "/exports",
       "/exports/tally",
       "/exports/tally/download",
@@ -44,10 +44,10 @@ describe("api/migratedPaths", () => {
       "/exports/tally/download/batch-123",
       "/exports/csv",
       "/export-config",
-      // Ingestion sub-PR 2: realm-scoped uploads.
+      // Ingestion: realm-scoped uploads.
       "/jobs/upload",
       "/jobs/upload/by-keys",
-      // Compliance domain (#200).
+      // Compliance domain.
       "/vendors",
       "/vendors/v-1",
       "/admin/gl-codes",
@@ -57,7 +57,7 @@ describe("api/migratedPaths", () => {
       "/admin/tcs-config/roles",
       "/admin/tcs-config/history",
       "/admin/compliance-config",
-      // Invoice domain (#204, final vertical slice).
+      // Invoice domain.
       "/invoices",
       "/invoices/abc-123",
       "/invoices/abc-123/preview",
@@ -69,28 +69,28 @@ describe("api/migratedPaths", () => {
       "/invoices/action-required",
       "/admin/approval-workflow",
       "/admin/approval-limits",
-      // Notification config (#223 — final teardown).
+      // Notification config.
       "/admin/notification-config",
       "/admin/notification-config?fields=mailboxReauthEnabled"
     ];
 
-    test.each(migratedRealm)("returns true for %s", (path) => {
-      expect(isMigratedRealmScopedPath(path)).toBe(true);
-      expect(classifyMigratedPath(path)).toBe(MIGRATED_PATH_KIND.REALM_SCOPED);
+    test.each(realmScoped)("returns true for %s", (path) => {
+      expect(isRealmScopedPath(path)).toBe(true);
+      expect(classifyApiPath(path)).toBe(PATH_KIND.REALM_SCOPED);
     });
 
     it("matches a path with a query string suffix", () => {
-      expect(isMigratedRealmScopedPath("/exports/tally/history?page=2")).toBe(true);
-      expect(isMigratedRealmScopedPath("/export-config?fields=tallyCompanyName")).toBe(true);
-      expect(isMigratedRealmScopedPath("/vendors?search=acme")).toBe(true);
-      expect(isMigratedRealmScopedPath("/admin/gl-codes?limit=200")).toBe(true);
-      expect(isMigratedRealmScopedPath("/invoices?status=pending")).toBe(true);
-      expect(isMigratedRealmScopedPath("/invoices/action-required?limit=50")).toBe(true);
+      expect(isRealmScopedPath("/exports/tally/history?page=2")).toBe(true);
+      expect(isRealmScopedPath("/export-config?fields=tallyCompanyName")).toBe(true);
+      expect(isRealmScopedPath("/vendors?search=acme")).toBe(true);
+      expect(isRealmScopedPath("/admin/gl-codes?limit=200")).toBe(true);
+      expect(isRealmScopedPath("/invoices?status=pending")).toBe(true);
+      expect(isRealmScopedPath("/invoices/action-required?limit=50")).toBe(true);
     });
   });
 
-  describe("isMigratedTenantScopedPath — migrated paths (ingestion orchestration + presign)", () => {
-    const migrated = [
+  describe("isTenantScopedPath — tenant-scoped paths (ingestion orchestration + presign)", () => {
+    const tenantScoped = [
       "/jobs/ingest",
       "/jobs/ingest/status",
       "/jobs/ingest/sse",
@@ -99,19 +99,19 @@ describe("api/migratedPaths", () => {
       "/uploads/presign"
     ];
 
-    test.each(migrated)("returns true for %s", (path) => {
-      expect(isMigratedTenantScopedPath(path)).toBe(true);
-      expect(classifyMigratedPath(path)).toBe(MIGRATED_PATH_KIND.TENANT_SCOPED);
+    test.each(tenantScoped)("returns true for %s", (path) => {
+      expect(isTenantScopedPath(path)).toBe(true);
+      expect(classifyApiPath(path)).toBe(PATH_KIND.TENANT_SCOPED);
     });
 
     it("does NOT classify realm-scoped upload paths as tenant-scoped", () => {
-      expect(isMigratedTenantScopedPath("/jobs/upload")).toBe(false);
-      expect(isMigratedTenantScopedPath("/jobs/upload/by-keys")).toBe(false);
+      expect(isTenantScopedPath("/jobs/upload")).toBe(false);
+      expect(isTenantScopedPath("/jobs/upload/by-keys")).toBe(false);
     });
   });
 
-  describe("isMigratedRealmScopedPath — migrated paths (bank domain, sub-PR 2)", () => {
-    const migrated = [
+  describe("isRealmScopedPath — bank domain", () => {
+    const realmScoped = [
       "/bank/accounts",
       "/bank/accounts/abc-123",
       "/bank/accounts/abc-123/refresh",
@@ -127,17 +127,17 @@ describe("api/migratedPaths", () => {
       "/bank-statements/transactions/txn-1/match"
     ];
 
-    test.each(migrated)("returns true for %s", (path) => {
-      expect(isMigratedRealmScopedPath(path)).toBe(true);
+    test.each(realmScoped)("returns true for %s", (path) => {
+      expect(isRealmScopedPath(path)).toBe(true);
     });
 
     it("matches bank paths with a query string suffix", () => {
-      expect(isMigratedRealmScopedPath("/bank-statements?page=2")).toBe(true);
-      expect(isMigratedRealmScopedPath("/bank-statements/abc-123/transactions?dateFrom=2024-02-01")).toBe(true);
+      expect(isRealmScopedPath("/bank-statements?page=2")).toBe(true);
+      expect(isRealmScopedPath("/bank-statements/abc-123/transactions?dateFrom=2024-02-01")).toBe(true);
     });
   });
 
-  describe("isMigratedTenantScopedPath — triage bypass (#166): clientOrgId-null invoices", () => {
+  describe("isTenantScopedPath — triage bypass (#166): clientOrgId-null invoices", () => {
     const tenantBypass = [
       "/invoices/triage",
       "/invoices/triage?status=PENDING_TRIAGE",
@@ -146,29 +146,29 @@ describe("api/migratedPaths", () => {
     ];
 
     test.each(tenantBypass)("returns true for %s", (path) => {
-      expect(isMigratedTenantScopedPath(path)).toBe(true);
-      expect(classifyMigratedPath(path)).toBe(MIGRATED_PATH_KIND.TENANT_SCOPED);
-      expect(isMigratedRealmScopedPath(path)).toBe(false);
+      expect(isTenantScopedPath(path)).toBe(true);
+      expect(classifyApiPath(path)).toBe(PATH_KIND.TENANT_SCOPED);
+      expect(isRealmScopedPath(path)).toBe(false);
     });
 
-    it("does not bypass realm-scoping for /reject suffixes outside migrated realm-scoped trees", () => {
+    it("does not bypass realm-scoping for /reject suffixes outside realm-scoped trees", () => {
       // The suffix bypass only fires when the path also sits under one of the
-      // migrated realm-scoped prefixes (e.g. `/invoices/...`). An unrelated
+      // realm-scoped prefixes (e.g. `/invoices/...`). An unrelated
       // `/somewhere-else/reject` stays unclassified by this helper.
-      expect(classifyMigratedPath("/somewhere-else/reject")).toBe(MIGRATED_PATH_KIND.NONE);
+      expect(classifyApiPath("/somewhere-else/reject")).toBe(PATH_KIND.NONE);
     });
 
     it("does not bypass realm-scoping for /workflow-reject (suffix is exactly `/reject`)", () => {
       // `/invoices/abc-123/workflow-reject` ends with `-reject`, NOT `/reject`.
       // The boundary check ensures workflow approval mutations stay
       // realm-scoped.
-      expect(isMigratedRealmScopedPath("/invoices/abc-123/workflow-reject")).toBe(true);
-      expect(isMigratedTenantScopedPath("/invoices/abc-123/workflow-reject")).toBe(false);
+      expect(isRealmScopedPath("/invoices/abc-123/workflow-reject")).toBe(true);
+      expect(isTenantScopedPath("/invoices/abc-123/workflow-reject")).toBe(false);
     });
   });
 
-  describe("classifyMigratedPath — non-migrated paths fall through to legacy interceptor", () => {
-    const nonMigrated = [
+  describe("classifyApiPath — unscoped paths fall through to the legacy mount", () => {
+    const unscoped = [
       "/auth/token",
       "/session",
       "/healthz",
@@ -178,47 +178,47 @@ describe("api/migratedPaths", () => {
       "/compliance/tds-rates"
     ];
 
-    test.each(nonMigrated)("classifies %s as NONE (legacy ?clientOrgId= path)", (path) => {
-      expect(classifyMigratedPath(path)).toBe(MIGRATED_PATH_KIND.NONE);
-      expect(isMigratedRealmScopedPath(path)).toBe(false);
-      expect(isMigratedTenantScopedPath(path)).toBe(false);
+    test.each(unscoped)("classifies %s as NONE (legacy `/api` mount)", (path) => {
+      expect(classifyApiPath(path)).toBe(PATH_KIND.NONE);
+      expect(isRealmScopedPath(path)).toBe(false);
+      expect(isTenantScopedPath(path)).toBe(false);
     });
 
     it("does not match prefix substrings outside a path-segment boundary", () => {
       // /exports-archive must NOT match /exports.
-      expect(classifyMigratedPath("/exports-archive")).toBe(MIGRATED_PATH_KIND.NONE);
+      expect(classifyApiPath("/exports-archive")).toBe(PATH_KIND.NONE);
       // /export-config-history must NOT match /export-config.
-      expect(classifyMigratedPath("/export-config-history")).toBe(MIGRATED_PATH_KIND.NONE);
+      expect(classifyApiPath("/export-config-history")).toBe(PATH_KIND.NONE);
       // /jobs/upload-foo must NOT match /jobs/upload exactly.
-      expect(isMigratedRealmScopedPath("/jobs/upload-foo")).toBe(false);
+      expect(isRealmScopedPath("/jobs/upload-foo")).toBe(false);
       // /vendors-archive must NOT match /vendors.
-      expect(isMigratedRealmScopedPath("/vendors-archive")).toBe(false);
+      expect(isRealmScopedPath("/vendors-archive")).toBe(false);
       // /admin/gl-codes-archive must NOT match /admin/gl-codes.
-      expect(isMigratedRealmScopedPath("/admin/gl-codes-archive")).toBe(false);
+      expect(isRealmScopedPath("/admin/gl-codes-archive")).toBe(false);
       // /bank-statements-archive must NOT match /bank-statements.
-      expect(isMigratedRealmScopedPath("/bank-statements-archive")).toBe(false);
+      expect(isRealmScopedPath("/bank-statements-archive")).toBe(false);
       // /bank-accounts-archive must NOT match /bank-accounts.
-      expect(isMigratedRealmScopedPath("/bank-accounts-archive")).toBe(false);
+      expect(isRealmScopedPath("/bank-accounts-archive")).toBe(false);
       // /invoices-archive must NOT match /invoices.
-      expect(classifyMigratedPath("/invoices-archive")).toBe(MIGRATED_PATH_KIND.NONE);
+      expect(classifyApiPath("/invoices-archive")).toBe(PATH_KIND.NONE);
     });
   });
 
-  describe("isMigratedTenantScopedPath — non-migrated paths fall through", () => {
-    const nonMigrated = [
+  describe("isTenantScopedPath — unscoped paths fall through", () => {
+    const unscoped = [
       "/exports/tally",
       "/jobs/upload",
       "/auth/token",
       "/session"
     ];
 
-    test.each(nonMigrated)("returns false for %s", (path) => {
-      expect(isMigratedTenantScopedPath(path)).toBe(false);
+    test.each(unscoped)("returns false for %s", (path) => {
+      expect(isTenantScopedPath(path)).toBe(false);
     });
 
     it("does not match prefix substrings outside a path-segment boundary", () => {
-      expect(isMigratedTenantScopedPath("/jobs/ingest-foo")).toBe(false);
-      expect(isMigratedTenantScopedPath("/uploads/presign-foo")).toBe(false);
+      expect(isTenantScopedPath("/jobs/ingest-foo")).toBe(false);
+      expect(isTenantScopedPath("/uploads/presign-foo")).toBe(false);
     });
   });
 
@@ -313,9 +313,9 @@ describe("api/migratedPaths", () => {
     });
   });
 
-  describe("MIGRATED_REALM_SCOPED_PREFIXES — accumulated scope across sub-PRs", () => {
+  describe("REALM_SCOPED_PREFIXES — accumulated scope across sub-PRs", () => {
     it("contains export, ingestion-upload, compliance, bank, and invoice domain prefixes", () => {
-      expect([...MIGRATED_REALM_SCOPED_PREFIXES]).toEqual([
+      expect([...REALM_SCOPED_PREFIXES]).toEqual([
         "/exports",
         "/export-config",
         "/jobs/upload",
@@ -334,8 +334,8 @@ describe("api/migratedPaths", () => {
     });
   });
 
-  describe("isMigratedTenantScopedPath — tenant domain (#203)", () => {
-    const migrated = [
+  describe("isTenantScopedPath — tenant domain (#203)", () => {
+    const tenantScoped = [
       "/admin/users",
       "/admin/users/invite",
       "/admin/users/abc-123/role",
@@ -351,35 +351,35 @@ describe("api/migratedPaths", () => {
       "/integrations/gmail/connect-url"
     ];
 
-    test.each(migrated)("returns true for %s", (path) => {
-      expect(isMigratedTenantScopedPath(path)).toBe(true);
-      expect(classifyMigratedPath(path)).toBe(MIGRATED_PATH_KIND.TENANT_SCOPED);
+    test.each(tenantScoped)("returns true for %s", (path) => {
+      expect(isTenantScopedPath(path)).toBe(true);
+      expect(classifyApiPath(path)).toBe(PATH_KIND.TENANT_SCOPED);
     });
 
     it("matches a path with a query string suffix", () => {
-      expect(isMigratedTenantScopedPath("/admin/client-orgs?includeArchived=true")).toBe(true);
-      expect(isMigratedTenantScopedPath("/admin/mailbox-assignments/abc/recent-ingestions?days=30")).toBe(true);
+      expect(isTenantScopedPath("/admin/client-orgs?includeArchived=true")).toBe(true);
+      expect(isTenantScopedPath("/admin/mailbox-assignments/abc/recent-ingestions?days=30")).toBe(true);
     });
 
     it("returns false for non-tenant-domain admin/integration paths", () => {
       // Composite-key admin endpoints belong to other vertical slices.
-      expect(isMigratedTenantScopedPath("/admin/notification-config")).toBe(false);
-      expect(isMigratedTenantScopedPath("/admin/compliance-config")).toBe(false);
-      expect(isMigratedTenantScopedPath("/admin/tcs-config")).toBe(false);
-      expect(isMigratedTenantScopedPath("/admin/gl-codes")).toBe(false);
-      expect(isMigratedTenantScopedPath("/admin/approval-workflow")).toBe(false);
+      expect(isTenantScopedPath("/admin/notification-config")).toBe(false);
+      expect(isTenantScopedPath("/admin/compliance-config")).toBe(false);
+      expect(isTenantScopedPath("/admin/tcs-config")).toBe(false);
+      expect(isTenantScopedPath("/admin/gl-codes")).toBe(false);
+      expect(isTenantScopedPath("/admin/approval-workflow")).toBe(false);
     });
 
     it("does not match prefix substrings outside a path-segment boundary", () => {
-      expect(isMigratedTenantScopedPath("/admin/users-archive")).toBe(false);
-      expect(isMigratedTenantScopedPath("/integrations/gmail-legacy")).toBe(false);
-      expect(isMigratedTenantScopedPath("/admin/client-orgs-export")).toBe(false);
+      expect(isTenantScopedPath("/admin/users-archive")).toBe(false);
+      expect(isTenantScopedPath("/integrations/gmail-legacy")).toBe(false);
+      expect(isTenantScopedPath("/admin/client-orgs-export")).toBe(false);
     });
 
-    it("returns false for unmigrated tenant-scoped paths", () => {
-      expect(isMigratedTenantScopedPath("/tenant/onboarding/complete")).toBe(false);
-      expect(isMigratedTenantScopedPath("/session")).toBe(false);
-      expect(isMigratedTenantScopedPath("/auth/token")).toBe(false);
+    it("returns false for unscoped tenant paths that stay on the legacy mount", () => {
+      expect(isTenantScopedPath("/tenant/onboarding/complete")).toBe(false);
+      expect(isTenantScopedPath("/session")).toBe(false);
+      expect(isTenantScopedPath("/auth/token")).toBe(false);
     });
   });
 
@@ -397,9 +397,9 @@ describe("api/migratedPaths", () => {
     });
   });
 
-  describe("MIGRATED_TENANT_SCOPED_PREFIXES — accumulated tenant-scoped scope", () => {
+  describe("TENANT_SCOPED_PREFIXES — accumulated tenant-scoped scope", () => {
     it("contains ingestion-orchestration, presign, tenant-domain, and analytics prefixes", () => {
-      expect([...MIGRATED_TENANT_SCOPED_PREFIXES]).toEqual([
+      expect([...TENANT_SCOPED_PREFIXES]).toEqual([
         "/jobs/ingest",
         "/uploads/presign",
         "/admin/users",
@@ -413,23 +413,23 @@ describe("api/migratedPaths", () => {
     });
   });
 
-  describe("isMigratedTenantScopedPath — analytics domain (#222)", () => {
-    const migrated = [
+  describe("isTenantScopedPath — analytics domain (#222)", () => {
+    const tenantScoped = [
       "/analytics/overview",
       "/analytics/overview?from=2026-04-01&to=2026-04-30",
       "/analytics/overview?clientOrgId=65a1b2c3d4e5f6a7b8c9d0e1",
       "/analytics/overview?scope=all"
     ];
 
-    test.each(migrated)("returns true for %s", (path) => {
-      expect(isMigratedTenantScopedPath(path)).toBe(true);
-      expect(classifyMigratedPath(path)).toBe(MIGRATED_PATH_KIND.TENANT_SCOPED);
-      expect(isMigratedRealmScopedPath(path)).toBe(false);
+    test.each(tenantScoped)("returns true for %s", (path) => {
+      expect(isTenantScopedPath(path)).toBe(true);
+      expect(classifyApiPath(path)).toBe(PATH_KIND.TENANT_SCOPED);
+      expect(isRealmScopedPath(path)).toBe(false);
     });
 
     it("does not match prefix substrings outside a path-segment boundary", () => {
-      expect(isMigratedTenantScopedPath("/analytics/overview-archive")).toBe(false);
-      expect(isMigratedTenantScopedPath("/analytics-other")).toBe(false);
+      expect(isTenantScopedPath("/analytics/overview-archive")).toBe(false);
+      expect(isTenantScopedPath("/analytics-other")).toBe(false);
     });
   });
 

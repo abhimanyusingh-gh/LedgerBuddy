@@ -2,11 +2,11 @@ import axios from "axios";
 import { normalizeApiError } from "@/lib/common/apiError";
 import { readActiveClientOrgId } from "@/hooks/useActiveClientOrg";
 import {
-  MIGRATED_PATH_KIND,
-  classifyMigratedPath,
+  PATH_KIND,
+  classifyApiPath,
   rewriteToNestedShape,
   rewriteToTenantShape
-} from "@/api/migratedPaths";
+} from "@/api/apiPaths";
 import { MissingActiveClientOrgError } from "@/api/errors";
 import { ACTIVE_TENANT_ID_STORAGE_KEY, readActiveTenantId } from "@/api/tenantStorage";
 
@@ -26,17 +26,17 @@ apiClient.interceptors.request.use((config) => {
   const requestPath = config.url ?? "";
 
   // Single enum dispatcher classifies the path as realm-scoped, tenant-scoped,
-  // or none — both data prefixes (`MIGRATED_REALM_SCOPED_PREFIXES`,
-  // `MIGRATED_TENANT_SCOPED_PREFIXES`) plus the invoice-domain triage bypass
-  // (#166: PENDING_TRIAGE invoices carry `clientOrgId: null` per #156, exposed
-  // under realm-scoped trees via `/invoices/triage` and the
-  // `/assign-client-org` / `/reject` suffixes). Realm-scoped → nested shape;
-  // tenant-scoped → tenant shape (no `/clientOrgs/:clientOrgId` segment).
-  // The legacy `?clientOrgId=` query-injection branch + `classifyApiPath`
-  // module were retired in #223 once every realm-scoped prefix migrated to
-  // the nested URL shape.
-  const migratedKind = classifyMigratedPath(requestPath);
-  if (migratedKind === MIGRATED_PATH_KIND.REALM_SCOPED) {
+  // or none — both data prefixes (`REALM_SCOPED_PREFIXES`,
+  // `TENANT_SCOPED_PREFIXES`) plus the invoice-domain triage bypass (#166:
+  // PENDING_TRIAGE invoices carry `clientOrgId: null` per #156, exposed under
+  // realm-scoped trees via `/invoices/triage` and the `/assign-client-org` /
+  // `/reject` suffixes). Realm-scoped → nested shape; tenant-scoped → tenant
+  // shape (no `/clientOrgs/:clientOrgId` segment); none → pass through
+  // unchanged (legacy `/api/...` mounts kept deliberately for auth/session/
+  // webhooks/health/tenant-onboarding/compliance-metadata/tds-rates/
+  // bank-parse-sse).
+  const pathKind = classifyApiPath(requestPath);
+  if (pathKind === PATH_KIND.REALM_SCOPED) {
     const tenantId = readActiveTenantId();
     const clientOrgId = readActiveClientOrgId();
     if (!tenantId || !clientOrgId) {
@@ -45,7 +45,7 @@ apiClient.interceptors.request.use((config) => {
     config.url = rewriteToNestedShape(requestPath, tenantId, clientOrgId);
     return config;
   }
-  if (migratedKind === MIGRATED_PATH_KIND.TENANT_SCOPED) {
+  if (pathKind === PATH_KIND.TENANT_SCOPED) {
     const tenantId = readActiveTenantId();
     if (!tenantId) {
       return Promise.reject(new MissingActiveClientOrgError(requestPath));

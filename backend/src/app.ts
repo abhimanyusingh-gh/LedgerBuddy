@@ -37,7 +37,6 @@ import {
   requireTenantSetupCompleted
 } from "@/auth/middleware.js";
 import { requireMatchingTenantIdParam, requirePathClientOrgOwnership } from "@/auth/pathScope.js";
-import { requireActiveClientOrg } from "@/auth/activeClientOrg.js";
 import { logger, runWithLogContext } from "@/utils/logger.js";
 import { isHttpError } from "@/errors/HttpError.js";
 import { env } from "@/config/env.js";
@@ -102,73 +101,35 @@ export async function createApp(prebuiltDependencies?: Awaited<ReturnType<typeof
     requireNonPlatformAdmin,
     createTenantLifecycleRouter(dependencies.tenantAdminService, dependencies.tenantInviteService)
   );
-  app.use(
-    "/api",
-    requireNonPlatformAdmin,
-    createTenantAdminRouter(dependencies.tenantAdminService, dependencies.tenantInviteService)
-  );
-  app.use(
-    "/api",
-    requireNonPlatformAdmin,
-    createClientOrgsRouter(dependencies.clientOrgsAdminService)
-  );
-  app.use(
-    "/api",
-    requireNonPlatformAdmin,
-    createMailboxAssignmentsRouter(dependencies.mailboxAssignmentsAdminService)
-  );
-  app.use("/api", requireNonPlatformAdmin, createApprovalWorkflowRouter(dependencies.approvalWorkflowService));
-  app.use("/api", createGmailConnectionRouter(dependencies.gmailIntegrationService));
-  app.use("/api", requireNonPlatformAdmin, requireTenantSetupCompleted, createInvoiceRouter(dependencies.invoiceService, dependencies.approvalWorkflowService, dependencies.fileStore));
-  app.use("/api", requireNonPlatformAdmin, requireTenantSetupCompleted, createActionRequiredRouter());
-  app.use("/api", requireNonPlatformAdmin, requireTenantSetupCompleted, createTriageRouter(dependencies.triageService));
-  // Ingestion domain (#198, sub-PR 2) — additive dual-mount to match sibling
-  // pattern (#210/#216/#217/#218/#220). The same `createJobsRouter` instance
-  // is reused across the legacy `/api` mount and the two nested mounts below
-  // so per-tenant orchestrator state (running flag, pendingRerun, SSE
-  // subscribers) lives in one place. Legacy `/api/jobs/...` and
-  // `/api/uploads/presign` continue to respond for callers that bypass the
-  // FE migrated-paths interceptor (nginx SSE proxy, raw-axios e2e helpers,
-  // BE supertest fixtures).
+  // Unscoped compliance metadata + tds-rates — deliberately retained on the
+  // legacy `/api` mount. These routes have no tenantId/clientOrgId in the URL
+  // (tenant comes from the auth context, no realm at all) and FE callers in
+  // `frontend/src/api/admin.ts` invoke them via the bare path, bypassing the
+  // path-rewriting interceptor in `client.ts`.
+  app.use("/api", requireNonPlatformAdmin, requireTenantSetupCompleted, createComplianceMetadataRouter());
+  app.use("/api", createTdsRatesRouter());
+
+  // Shared router instances reused across the new nested-router mounts below.
+  // `createJobsRouter` carries per-tenant orchestrator state (running flag,
+  // pendingRerun, SSE subscribers) so a single instance must back every mount.
   const jobsRouter = createJobsRouter(
     dependencies.ingestionService,
     dependencies.emailSimulationService,
     dependencies.fileStore
   );
   const uploadsRouter = createUploadsRouter(dependencies.fileStore);
-  app.use("/api", requireNonPlatformAdmin, requireTenantSetupCompleted, jobsRouter);
-  app.use("/api", requireNonPlatformAdmin, requireTenantSetupCompleted, uploadsRouter);
-  // Analytics domain (#222, sub-PR B of #171) — additive dual-mount. The same
-  // `createAnalyticsRouter` instance is reused across the legacy `/api` mount
-  // and the new tenant-scoped mount below. Optional realm scoping continues
-  // to flow through the `?clientOrgId=` query param (resolved by
-  // `resolveOptionalClientOrgId`); promoting it into the path would force a
-  // dual-handler split (`/analytics/overview` aggregate vs
-  // `/clientOrgs/:clientOrgId/analytics/overview` scoped) for no behaviour
-  // gain — keeping the query param preserves cache keying in
-  // `useScopedQuery`.
+  // `createAnalyticsRouter` is mounted on the new tenant-scoped tree only;
+  // optional realm scoping flows via `?clientOrgId=` query param resolved by
+  // `resolveOptionalClientOrgId` (#162), so no realm-scoped mount is needed.
   const analyticsRouter = createAnalyticsRouter();
-  app.use("/api", requireNonPlatformAdmin, requireTenantSetupCompleted, analyticsRouter);
-  app.use("/api", requireNonPlatformAdmin, requireTenantSetupCompleted, requireActiveClientOrg, createGlCodesRouter());
-  app.use("/api", requireNonPlatformAdmin, requireTenantSetupCompleted, requireActiveClientOrg, createVendorsRouter());
-  app.use("/api", requireNonPlatformAdmin, requireTenantSetupCompleted, requireActiveClientOrg, createClientComplianceConfigRouter());
-  app.use("/api", requireNonPlatformAdmin, requireTenantSetupCompleted, createComplianceMetadataRouter());
-  app.use("/api", createTdsRatesRouter());
-  app.use("/api", requireNonPlatformAdmin, requireTenantSetupCompleted, requireActiveClientOrg, createTcsConfigRouter());
-  app.use("/api", requireNonPlatformAdmin, requireTenantSetupCompleted, createNotificationConfigRouter());
-  // `/admin/notifications/log` is purely tenant-scoped (no clientOrgId) and
-  // historically lived in `notificationConfig.ts` for file-organisation reasons.
-  // Mount it as its own router so the new tenant-domain mount below can pick it
-  // up without dragging the realm-scoped notification-config routes along.
-  app.use("/api", requireNonPlatformAdmin, createNotificationLogRouter());
 
-  // Nested-router scaffold for #171 — REST URL refactor.
+  // Nested-router scaffold for #171 — REST URL refactor (Stage 2 freeze lift).
   // Routes under `/api/tenants/:tenantId/...` get tenant-id-from-path validation;
   // routes under `/api/tenants/:tenantId/clientOrgs/:clientOrgId/...` additionally
   // get composite-key ownership validation that stamps `req.activeClientOrgId`.
-  // Domains migrate one vertical slice at a time (per-domain sub-PRs); the OLD
-  // `/api/...` mount stays alive in parallel (additive) so existing FE callers
-  // keep working until the FE has fully cut over for that domain.
+  // Post-#230 (Sub-PR B-2): all legacy `/api/...` realm-scoped mounts dropped;
+  // the path-stamping middleware below is the sole source of
+  // `req.activeClientOrgId` (no more query/header/session source chain).
   // `mergeParams: true` propagates the path params down to mounted routers.
   const tenantRouter = express.Router({ mergeParams: true });
   app.use(
@@ -181,79 +142,51 @@ export async function createApp(prebuiltDependencies?: Awaited<ReturnType<typeof
   const clientOrgRouter = express.Router({ mergeParams: true });
   tenantRouter.use("/clientOrgs/:clientOrgId", requirePathClientOrgOwnership, clientOrgRouter);
 
-  // Export domain (sub-PR 1) — first domain migrated to the new path shape.
-  // Mount BOTH new (path-scoped) and old (query-scoped) — backward compat.
-  // The router handlers read `req.activeClientOrgId`, which is stamped by
-  // either `requirePathClientOrgOwnership` (new) or `requireActiveClientOrg`
-  // (old query/header/session source chain).
+  // Export domain — realm-scoped routers mount under `clientOrgRouter`.
   clientOrgRouter.use(createExportRouter(dependencies.exportService));
   clientOrgRouter.use(createCsvExportRouter());
   clientOrgRouter.use(createClientExportConfigRouter());
 
-  // Ingestion domain (sub-PR 2, #198) — additive dual-mount. The single
-  // `createJobsRouter` / `createUploadsRouter` instances built above for the
-  // legacy `/api` mount are reused here so per-tenant orchestrator state
-  // (running flag, pendingRerun, SSE subscribers) lives in one place across
-  // both URL shapes. The new mounts add the path-scoped variants:
-  // `/api/tenants/:tenantId/jobs/ingest{,/status,/sse,/pause,
-  // /email-simulate}` and `/api/tenants/:tenantId/clientOrgs/:clientOrgId/
-  // jobs/upload{,/by-keys}`. Routes that need a clientOrgId read
-  // `req.activeClientOrgId` which is stamped by either
-  // `requirePathClientOrgOwnership` (new mount) or — for legacy callers
-  // that supply clientOrgId via query/header/session and hit this router
-  // through future intermediaries — by upstream middleware on those mounts.
+  // Ingestion domain — `jobsRouter` mounts on BOTH the tenant-scoped tree (for
+  // ingest orchestration: status/sse/pause/email-simulate) AND the realm-scoped
+  // tree (for `/jobs/upload{,/by-keys}` which needs `req.activeClientOrgId`).
+  // `uploadsRouter` is tenant-scoped only.
   tenantRouter.use(jobsRouter);
   clientOrgRouter.use(jobsRouter);
   tenantRouter.use(uploadsRouter);
 
-  // Compliance domain (sub-PR for #200) — vendors, GL codes, TCS config,
-  // realm-scoped compliance config. Same dual-mount pattern as export.
-  // Unscoped metadata routes (`/compliance/tds-sections`, `/compliance/risk-signals`,
-  // `/compliance/tds-rates`) intentionally stay on the legacy `/api` mount only —
-  // they have no clientOrg scope.
+  // Compliance domain — vendors, GL codes, TCS config, realm-scoped compliance
+  // config. Unscoped metadata + tds-rates routes stay on the legacy `/api`
+  // mount above (FE bypasses the rewriter for those).
   clientOrgRouter.use(createVendorsRouter());
   clientOrgRouter.use(createGlCodesRouter());
   clientOrgRouter.use(createTcsConfigRouter());
   clientOrgRouter.use(createClientComplianceConfigRouter());
 
-  // Invoice domain (#204, final vertical slice — closes #171). Realm-scoped
-  // routers (`/invoices`, `/invoices/action-required`, `/admin/approval-*`,
-  // `/invoices/:id/workflow-*`) mount under `clientOrgRouter`. The triage
-  // router mounts under `tenantRouter` (no `/clientOrgs/:clientOrgId` segment)
-  // because PENDING_TRIAGE invoices carry `clientOrgId: null` per the
+  // Invoice domain — realm-scoped routers (`/invoices`, `/invoices/action-required`,
+  // `/admin/approval-*`, `/invoices/:id/workflow-*`) mount under `clientOrgRouter`.
+  // The triage router mounts under `tenantRouter` (no `/clientOrgs/:clientOrgId`
+  // segment) because PENDING_TRIAGE invoices carry `clientOrgId: null` per the
   // documented composite-key exception (#156, #166).
-  //
-  // The same router instance backs BOTH old and new mounts: the legacy
-  // `router.use(requireActiveClientOrg)` inside each invoice router now
-  // short-circuits when `req.activeClientOrgId` is already stamped (by
-  // `requirePathClientOrgOwnership` upstream), so no per-router duplication.
   clientOrgRouter.use(createInvoiceRouter(dependencies.invoiceService, dependencies.approvalWorkflowService, dependencies.fileStore));
   clientOrgRouter.use(createActionRequiredRouter());
   clientOrgRouter.use(createApprovalWorkflowRouter(dependencies.approvalWorkflowService));
   tenantRouter.use(createTriageRouter(dependencies.triageService));
 
-  // Notification config (#223 — final teardown of legacy realm-scoped classifier).
-  // The router's per-route `requireActiveClientOrg` short-circuits when the path-
-  // scope middleware has already stamped `req.activeClientOrgId`, so the same
-  // factory backs both the legacy `/api` mount above and the nested mount here.
+  // Notification config (realm-scoped) — mounts under `clientOrgRouter`.
   clientOrgRouter.use(createNotificationConfigRouter());
 
-  // Analytics domain (#222, sub-PR B of #171) — tenant-scoped mount of the
-  // shared `analyticsRouter` instance built above. Optional clientOrgId still
-  // flows via `?clientOrgId=` query param (see `resolveOptionalClientOrgId`),
-  // so no `/clientOrgs/:clientOrgId/...` mount is added.
+  // Analytics domain — tenant-scoped mount of the shared `analyticsRouter`.
+  // Optional clientOrgId flows via `?clientOrgId=` query param (see
+  // `resolveOptionalClientOrgId`), so no realm-scoped mount.
   tenantRouter.use(analyticsRouter);
 
-  // Tenant domain (sub-PR — #203) — administrative routes that operate on the
+  // Tenant domain — administrative + integration routes that operate on the
   // tenant itself (users, mailboxes, client-orgs, mailbox-assignments, gmail
-  // connection). All purely tenant-scoped — no clientOrgId dependency.
-  //
-  // These routes run DURING tenant onboarding (admin sets things up before
-  // setup is marked completed), so they mount on a separate router that
-  // omits `requireTenantSetupCompleted` — matching the legacy `/api/...`
-  // mounts above. Both new (path-scoped) and old (`/api/...`) mounts
-  // coexist; FE migrates its callers via the `migratedPaths` rewriter
-  // (additive cutover, mirrors the export-domain pattern).
+  // connection, notification log). All purely tenant-scoped — no clientOrgId
+  // dependency. These routes run DURING tenant onboarding (admin sets things
+  // up before setup is marked completed), so they mount on a separate router
+  // that omits `requireTenantSetupCompleted`.
   const tenantAdminRouter = express.Router({ mergeParams: true });
   app.use(
     "/api/tenants/:tenantId",
@@ -265,58 +198,17 @@ export async function createApp(prebuiltDependencies?: Awaited<ReturnType<typeof
   tenantAdminRouter.use(createClientOrgsRouter(dependencies.clientOrgsAdminService));
   tenantAdminRouter.use(createMailboxAssignmentsRouter(dependencies.mailboxAssignmentsAdminService));
   tenantAdminRouter.use(createGmailConnectionRouter(dependencies.gmailIntegrationService));
-  // Notification log (tenant-scoped) — same router instance shape as the legacy
-  // `/api` mount above; the FE migrated-paths interceptor rewrites
-  // `/admin/notifications/log` to `/api/tenants/:tenantId/admin/notifications/log`.
   tenantAdminRouter.use(createNotificationLogRouter());
 
-  app.use(
-    "/api",
-    requireNonPlatformAdmin,
-    requireTenantSetupCompleted,
-    requireActiveClientOrg,
-    createExportRouter(dependencies.exportService)
-  );
-  app.use(
-    "/api",
-    requireNonPlatformAdmin,
-    requireTenantSetupCompleted,
-    requireActiveClientOrg,
-    createCsvExportRouter()
-  );
-  app.use(
-    "/api",
-    requireNonPlatformAdmin,
-    requireTenantSetupCompleted,
-    requireActiveClientOrg,
-    createClientExportConfigRouter()
-  );
-
-  // Bank domain (sub-PR for #201) — second domain migrated to the dual-mount
-  // nested-router shape. Realm-scoped routers mount under BOTH the new path-
-  // scoped tree and the old `/api` mount (additive — FE cuts over per-domain).
-  // The shared `BankStatementParseProgress` instance is passed into both the
-  // realm-scoped router (for upload broadcasts) and the standalone SSE router
-  // (for subscribers) so events flow end-to-end.
-  // The SSE endpoint is tenant-scoped (no clientOrgId filter), so it lives
-  // only on the legacy `/api` mount and is NOT migrated to the new shape.
+  // Bank domain — realm-scoped routers (accounts + statements) mount under
+  // `clientOrgRouter`. The shared `BankStatementParseProgress` instance is
+  // passed into both the realm-scoped router (for upload broadcasts) and the
+  // standalone SSE router (for subscribers) so events flow end-to-end.
+  // The SSE subscriber endpoint is tenant-scoped and uses EventSource which
+  // bypasses the axios interceptor, so it stays on the legacy `/api` mount.
   const bankParseProgress = new BankStatementParseProgress();
   clientOrgRouter.use(createBankAccountsRouter(dependencies.bankService));
   clientOrgRouter.use(createBankStatementsRouter(dependencies.fileStore, dependencies.ocrProvider, dependencies.fieldVerifier, bankParseProgress));
-
-  app.use(
-    "/api",
-    requireNonPlatformAdmin,
-    requireActiveClientOrg,
-    createBankAccountsRouter(dependencies.bankService)
-  );
-  app.use(
-    "/api",
-    requireNonPlatformAdmin,
-    requireTenantSetupCompleted,
-    requireActiveClientOrg,
-    createBankStatementsRouter(dependencies.fileStore, dependencies.ocrProvider, dependencies.fieldVerifier, bankParseProgress)
-  );
   app.use(
     "/api",
     requireNonPlatformAdmin,

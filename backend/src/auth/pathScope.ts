@@ -1,20 +1,24 @@
 import type { NextFunction, Request, Response } from "express";
+import type { Types } from "mongoose";
 import { findClientOrgIdByIdForTenant } from "@/services/auth/tenantScope.js";
 import { getAuth } from "@/types/auth.js";
+
+declare module "express-serve-static-core" {
+  interface Request {
+    activeClientOrgId?: Types.ObjectId;
+  }
+}
 
 /**
  * Middleware for the nested-router scaffold introduced by #171.
  *
- * The new URL shape encodes scope in the path:
+ * The URL shape encodes scope in the path:
  *   /api/tenants/:tenantId/...                          tenant-wide
  *   /api/tenants/:tenantId/clientOrgs/:clientOrgId/...  realm-scoped
  *
- * These middlewares replace the query/header/session priority chain in
- * `requireActiveClientOrg` for routes mounted under the nested path tree.
- *
- * Old (`requireActiveClientOrg`) and new path-scope middlewares coexist
- * during the per-domain rollout: each domain swaps off the old onto the
- * new in a single vertical-slice PR. See feedback_freeze_be_extensions_until_171.md.
+ * These middlewares are the sole source of `req.activeClientOrgId` post-#230;
+ * the legacy query/header/session priority chain has been deleted now that
+ * every realm-scoped route mounts under the nested tree.
  */
 
 /**

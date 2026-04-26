@@ -1,6 +1,6 @@
 import { apiClient, getStoredSessionToken } from "@/api/client";
 import { readActiveTenantId } from "@/api/tenantStorage";
-import { rewriteToTenantShape } from "@/api/migratedPaths";
+import { rewriteToTenantShape } from "@/api/apiPaths";
 import type { IngestionJobStatus } from "@/types";
 
 function sanitizeIngestionStatus(value: unknown): IngestionJobStatus {

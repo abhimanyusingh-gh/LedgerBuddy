@@ -5,7 +5,6 @@ import { MailboxNotificationEventModel } from "@/models/integration/MailboxNotif
 import { TenantUserRoleModel } from "@/models/core/TenantUserRole.js";
 import { requireAuth } from "@/auth/requireAuth.js";
 import { requireCap } from "@/auth/requireCapability.js";
-import { requireActiveClientOrg } from "@/auth/activeClientOrg.js";
 
 const VALID_RECIPIENT_TYPES = new Set<string>(NOTIFICATION_RECIPIENT_TYPES);
 
@@ -21,7 +20,7 @@ export function createNotificationConfigRouter() {
   const router = Router();
   router.use(requireAuth);
 
-  router.get("/admin/notification-config", requireActiveClientOrg, requireCap("canManageConnections"), async (req, res, next) => {
+  router.get("/admin/notification-config", requireCap("canManageConnections"), async (req, res, next) => {
     try {
       const tenantId = getAuth(req).tenantId;
       const clientOrgId = req.activeClientOrgId!;
@@ -44,7 +43,7 @@ export function createNotificationConfigRouter() {
     }
   });
 
-  router.patch("/admin/notification-config", requireActiveClientOrg, requireCap("canManageConnections"), async (req, res, next) => {
+  router.patch("/admin/notification-config", requireCap("canManageConnections"), async (req, res, next) => {
     try {
       const tenantId = getAuth(req).tenantId;
       const clientOrgId = req.activeClientOrgId!;
