@@ -161,22 +161,15 @@ export class MailboxAssignmentsAdminService {
   }
 
   /**
-   * Recent invoices that fell under any of this assignment's mapped
-   * client-orgs in the last `days` days. Powers #167's "View recent
-   * ingestions" affordance + the count column. We filter by
-   * `clientOrgId ∈ assignment.clientOrgIds` AND `tenantId` (defence in
-   * depth) AND `createdAt >= now - days`. Triage invoices
-   * (`clientOrgId: null`) are not currently linked back to a specific
-   * mailbox assignment in the schema and are therefore excluded — the
-   * triage queue has its own UI surface.
+   * Recent invoices stamped with this mailbox assignment as their
+   * source (#181). Filters by `tenantId` (defence in depth) +
+   * `sourceMailboxAssignmentId` (precise attribution) + `createdAt`.
+   * Triage invoices stamped with the assignment ID are included;
+   * pre-cutover invoices (no `sourceMailboxAssignmentId`) are not
+   * surfaced — backfill is intentionally out of scope per the issue.
    *
-   * NOTE: the `clientOrgId ∈ assignment.clientOrgIds` proxy
-   * over-/under-counts when the same client-org is shared across
-   * multiple mailbox assignments. Tracked for follow-up in a separate
-   * issue (sourceMailboxAssignmentId on Invoice).
-   *
-   * `limit` is caller-controlled (default 50, capped at 100) and the
-   * applied limit is echoed back as `truncatedAt` so FE can render
+   * `limit` is caller-controlled (default 50, capped at 100); the
+   * applied limit is echoed back as `truncatedAt` so the FE can render
    * "showing first N of total".
    */
   async recentIngestions(input: {
@@ -199,7 +192,7 @@ export class MailboxAssignmentsAdminService {
     const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
     const filter = {
       tenantId: input.tenantId,
-      clientOrgId: { $in: assignment.clientOrgIds },
+      sourceMailboxAssignmentId: oid,
       createdAt: { $gte: since }
     };
     const [items, total] = await Promise.all([

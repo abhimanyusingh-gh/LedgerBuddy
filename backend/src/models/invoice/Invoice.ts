@@ -410,6 +410,12 @@ const invoiceSchema = new Schema(
     },
 
     gmailMessageId: { type: String, default: undefined },
+    sourceMailboxAssignmentId: {
+      type: Schema.Types.ObjectId,
+      ref: "TenantMailboxAssignment",
+      default: null,
+      index: false
+    },
     metadata: { type: Map, of: String, default: {} }
   },
   {
@@ -462,6 +468,10 @@ invoiceSchema.index({ clientOrgId: 1, "parsed.gst.gstin": 1 }, { sparse: true })
 invoiceSchema.index(
   { status: 1, createdAt: 1 },
   { partialFilterExpression: { status: INVOICE_STATUS.PENDING_TRIAGE } }
+);
+invoiceSchema.index(
+  { tenantId: 1, clientOrgId: 1, sourceMailboxAssignmentId: 1, createdAt: -1 },
+  { partialFilterExpression: { sourceMailboxAssignmentId: { $type: "objectId" } } }
 );
 
 type Invoice = InferSchemaType<typeof invoiceSchema>;

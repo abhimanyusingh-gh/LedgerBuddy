@@ -296,6 +296,7 @@ export class IngestionService {
         try {
           const assignment = await this.mailboxAssignmentResolver(file);
           if (assignment) {
+            file.sourceMailboxAssignmentId = String(assignment._id);
             const parsed = (extraction.parseResult.parsed ?? {}) as ParsedInvoiceData;
             const resolution = await resolveClientOrgForIngestion(parsed, assignment);
             if (resolution.clientOrgId) {
