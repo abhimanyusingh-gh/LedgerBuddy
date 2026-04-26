@@ -193,6 +193,14 @@ export class IngestionService {
           if (newAlert) emittedAlerts.add(newAlert);
           await emitProgress(true, newAlert);
 
+          // Advance the checkpoint regardless of result (CREATED / DUPLICATE
+          // / FAILED). FAILED rows still land in InvoiceModel via
+          // persistFailure -> upsertFromPending, so a re-poll will resolve
+          // them as duplicates by (tenantId, sourceDocumentId) — they are
+          // not silently re-OCR'd. This matches the dedup contract the
+          // deleted filterAlreadyProcessedFiles previously enforced via
+          // a (tenantId, sourceKey, sourceDocumentId) lookup. Skipping the
+          // checkpoint on failure would replay the same file forever.
           if (scopedFile.checkpointValue !== nextMarker) {
             await CheckpointModel.findOneAndUpdate(
               { sourceKey: source.key, tenantId: effectiveTenantId },
