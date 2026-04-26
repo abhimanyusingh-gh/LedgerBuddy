@@ -4,16 +4,26 @@
  * `import.meta.env` which Jest's CJS runtime can't parse (same workaround
  * pattern as `classifyApiPath.ts`).
  *
- * Two prefix lists, two rewrite shapes:
+ * Two prefix lists, two rewrite shapes, one enum dispatcher:
  *   - `MIGRATED_REALM_SCOPED_PREFIXES` → `/tenants/:tenantId/clientOrgs/:clientOrgId/...`
  *     (handlers depend on `req.activeClientOrgId`).
  *   - `MIGRATED_TENANT_SCOPED_PREFIXES` → `/tenants/:tenantId/...`
  *     (tenant-wide; no clientOrgId in the path).
+ *   - `classifyMigratedPath(path)` → `MIGRATED_PATH_KIND.{REALM_SCOPED|TENANT_SCOPED|NONE}`
+ *     reads both arrays plus the invoice-domain bypass rules.
  *
- * The axios interceptor in `client.ts` consults these BEFORE the legacy
- * `?clientOrgId=` query injection: migrated paths take the new shape and
- * skip the query param entirely.
+ * The axios interceptor in `client.ts` calls `classifyMigratedPath` BEFORE the
+ * legacy `?clientOrgId=` query injection: migrated paths take the new shape
+ * and skip the query param entirely.
  */
+
+export const MIGRATED_PATH_KIND = {
+  REALM_SCOPED: "realm-scoped",
+  TENANT_SCOPED: "tenant-scoped",
+  NONE: "none"
+} as const;
+
+type MigratedPathKind = typeof MIGRATED_PATH_KIND[keyof typeof MIGRATED_PATH_KIND];
 
 export const MIGRATED_REALM_SCOPED_PREFIXES = [
   // Export domain (#199, sub-PR 1) — first vertical slice migrated.
@@ -38,7 +48,11 @@ export const MIGRATED_REALM_SCOPED_PREFIXES = [
   // on the legacy `/api` mount and is NOT included here).
   "/bank/accounts",
   "/bank-accounts",
-  "/bank-statements"
+  "/bank-statements",
+  // Invoice domain (#204, final vertical slice — closes #171).
+  "/invoices",
+  "/admin/approval-workflow",
+  "/admin/approval-limits"
 ] as const;
 
 /**
@@ -59,22 +73,96 @@ export const MIGRATED_TENANT_SCOPED_PREFIXES = [
   "/integrations/gmail"
 ] as const;
 
+/**
+ * Sub-paths under a realm-scoped prefix that are actually tenant-scoped
+ * (PENDING_TRIAGE invoices carry `clientOrgId: null` per the documented
+ * composite-key exception #156, exposed via #166 triage endpoints). These
+ * rewrite to `/tenants/:tenantId/...` (no `/clientOrgs/:clientOrgId`
+ * segment) — the BE mounts them under `tenantRouter` directly.
+ */
+const MIGRATED_TENANT_SCOPED_BYPASS_PREFIXES = [
+  "/invoices/triage"
+] as const;
+
+/**
+ * Suffix-based bypasses for triage mutations under realm-scoped trees:
+ * `/invoices/:id/assign-client-org` and `/invoices/:id/reject`. The check
+ * is suffix + must-also-sit-under a realm-scoped prefix (mirrors the
+ * legacy classifier's bypass shape so naming stays consistent).
+ *
+ * WARNING: any new realm-scoped route ending with one of these suffixes
+ * (e.g. `/invoices/:id/some-feature/reject`) will silently inherit the
+ * tenant-scoped bypass. Add a counter-rule before adding such a route.
+ *
+ * COUNTER-RULE: any path that ends in `/reject` or `/assign-client-org` but
+ * should REMAIN realm-scoped (i.e. needs `?clientOrgId=` injection / the
+ * nested `/clientOrgs/:clientOrgId` segment) must NOT use these suffix
+ * names. Rename the new endpoint (e.g. `/workflow-reject`,
+ * `/reassign-client-org`), OR explicitly path-handle it BEFORE the suffix
+ * check fires in `classifyMigratedPath`.
+ */
+const MIGRATED_TENANT_SCOPED_BYPASS_SUFFIXES = [
+  "/assign-client-org",
+  "/reject"
+] as const;
+
+function stripQueryString(path: string): string {
+  const idx = path.indexOf("?");
+  return idx === -1 ? path : path.slice(0, idx);
+}
+
 function matchesPrefix(path: string, prefix: string): boolean {
   return path === prefix || path.startsWith(`${prefix}/`) || path.startsWith(`${prefix}?`);
 }
 
-export function isMigratedRealmScopedPath(path: string): boolean {
+function endsWithSuffix(path: string, suffix: string): boolean {
+  const bare = stripQueryString(path);
+  return bare.endsWith(suffix);
+}
+
+function matchesAnyRealmScopedPrefix(path: string): boolean {
   for (const prefix of MIGRATED_REALM_SCOPED_PREFIXES) {
     if (matchesPrefix(path, prefix)) return true;
   }
   return false;
 }
 
-export function isMigratedTenantScopedPath(path: string): boolean {
+function matchesAnyTenantScopedPrefix(path: string): boolean {
   for (const prefix of MIGRATED_TENANT_SCOPED_PREFIXES) {
     if (matchesPrefix(path, prefix)) return true;
   }
   return false;
+}
+
+export function classifyMigratedPath(path: string): MigratedPathKind {
+  // Tenant-scoped bypass (prefix) wins over realm-scoped — a path may match
+  // BOTH `/invoices` (realm) and `/invoices/triage` (tenant bypass). The
+  // bypass is the more specific rule.
+  for (const bypass of MIGRATED_TENANT_SCOPED_BYPASS_PREFIXES) {
+    if (matchesPrefix(path, bypass)) return MIGRATED_PATH_KIND.TENANT_SCOPED;
+  }
+  // Tenant-scoped bypass (suffix) — only fires when the path also sits under
+  // a migrated realm-scoped prefix, so unrelated `/foo/reject` paths stay
+  // unclassified by this helper.
+  if (matchesAnyRealmScopedPrefix(path)) {
+    for (const suffix of MIGRATED_TENANT_SCOPED_BYPASS_SUFFIXES) {
+      if (endsWithSuffix(path, suffix)) return MIGRATED_PATH_KIND.TENANT_SCOPED;
+    }
+  }
+  // Tenant-scoped data prefixes (ingestion orchestration, tenant-domain admin,
+  // integrations) — checked BEFORE realm-scoped so e.g. `/admin/users` (tenant)
+  // doesn't get caught by a future `/admin/...` realm prefix.
+  if (matchesAnyTenantScopedPrefix(path)) return MIGRATED_PATH_KIND.TENANT_SCOPED;
+  if (matchesAnyRealmScopedPrefix(path)) return MIGRATED_PATH_KIND.REALM_SCOPED;
+  return MIGRATED_PATH_KIND.NONE;
+}
+
+export function isMigratedRealmScopedPath(path: string): boolean {
+  return classifyMigratedPath(path) === MIGRATED_PATH_KIND.REALM_SCOPED;
+}
+
+export function isMigratedTenantScopedPath(path: string): boolean {
+  return classifyMigratedPath(path) === MIGRATED_PATH_KIND.TENANT_SCOPED;
 }
 
 export function rewriteToNestedShape(path: string, tenantId: string, clientOrgId: string): string {

@@ -24,47 +24,26 @@
  * file.
  */
 export const REALM_SCOPED_PATH_PREFIXES = [
-  "/invoices",
   "/payments",
   // `/exports` migrated to nested-router shape (#171 sub-PR 1) — handled by
   // `MIGRATED_REALM_SCOPED_PREFIXES` in `migratedPaths.ts`.
   // `/vendors`, `/admin/gl-codes`, `/admin/tcs-config`, `/admin/compliance-config`
   // migrated by sub-PR for #200 (compliance domain).
   // `/bank-statements`, `/bank-accounts`, `/bank/accounts` migrated by sub-PR
-  // for #201 (bank domain). Remaining domains stay here until their respective
-  // sub-PRs ship.
+  // for #201 (bank domain).
+  // `/invoices`, `/admin/approval-workflow`, `/admin/approval-limits` migrated
+  // to nested-router shape (#171 / #204 — final sub-PR closes #171). Triage
+  // bypass entries (`/invoices/triage`, `/assign-client-org`, `/reject`)
+  // moved to `migratedPaths.ts` as `MIGRATED_TENANT_SCOPED_BYPASS_*` since
+  // the new path shape routes them under `tenantRouter` directly.
   // Composite-key endpoints that live under otherwise-tenant-scoped trees.
   // Listed before the broader `/admin` and `/tenant` tenant-scoped prefixes
   // so the realm-scoped check fires first.
-  "/admin/notification-config",
-  "/admin/approval-limits",
-  "/admin/approval-workflow"
+  "/admin/notification-config"
 ] as const;
 
 const REALM_SCOPED_PATH_BYPASS_PREFIXES = [
-  "/compliance/admin",
-  // Triage list (#166): the ONE accounting-leaf list query that legitimately
-  // filters by tenantId WITHOUT clientOrgId — these invoices have
-  // clientOrgId: null because mailbox routing couldn't decide their realm.
-  // Documented exception per #156.
-  "/invoices/triage"
-] as const;
-
-// Triage mutations (#166): assign-client-org / reject sit under /invoices/:id/
-// but operate on invoices with clientOrgId: null. They MUST NOT have
-// `?clientOrgId=` injected by the interceptor (operator may have no active
-// realm picked while triaging). Suffix-based bypass keeps the existing
-// prefix matcher untouched for everything else.
-//
-// WARNING: any new sub-path ending with one of these suffixes UNDER a
-// realm-scoped prefix (e.g. `/invoices/:id/some-feature/reject`) will
-// silently inherit the bypass and skip clientOrgId injection. Do NOT reuse
-// these suffixes for non-bypass routes. If a new route legitimately needs
-// to end with `/reject` or `/assign-client-org` AND must remain realm-scoped,
-// add a counter-rule here before adding the route.
-const REALM_SCOPED_PATH_BYPASS_SUFFIXES = [
-  "/assign-client-org",
-  "/reject"
+  "/compliance/admin"
 ] as const;
 
 const TENANT_SCOPED_PATH_PREFIXES = [
@@ -97,15 +76,6 @@ function matchesPrefix(path: string, prefix: string): boolean {
   return path === prefix || path.startsWith(`${prefix}/`);
 }
 
-function matchesSuffixUnderRealmScoped(path: string, suffix: string): boolean {
-  if (!path.endsWith(suffix)) return false;
-  const head = path.slice(0, path.length - suffix.length);
-  for (const prefix of REALM_SCOPED_PATH_PREFIXES) {
-    if (matchesPrefix(head, prefix)) return true;
-  }
-  return false;
-}
-
 /**
  * Single source of truth for routing API paths into the {tenantId, clientOrgId}
  * composite-key access boundary. Both the bypass list and the realm-scoped list
@@ -119,9 +89,6 @@ export function classifyApiPath(path: string): RealmScope {
   const normalized = stripQueryString(path);
   for (const bypass of REALM_SCOPED_PATH_BYPASS_PREFIXES) {
     if (matchesPrefix(normalized, bypass)) return "tenant-scoped";
-  }
-  for (const suffix of REALM_SCOPED_PATH_BYPASS_SUFFIXES) {
-    if (matchesSuffixUnderRealmScoped(normalized, suffix)) return "tenant-scoped";
   }
   for (const prefix of REALM_SCOPED_PATH_PREFIXES) {
     if (matchesPrefix(normalized, prefix)) return "realm-scoped";

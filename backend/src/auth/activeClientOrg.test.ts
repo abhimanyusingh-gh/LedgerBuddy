@@ -17,6 +17,10 @@ function buildReq(overrides: Record<string, unknown> = {}) {
   const headers = (overrides.headers ?? {}) as Record<string, string>;
   return mockRequest({
     authContext: defaultAuth,
+    // mockRequest defaults `activeClientOrgId` to DEFAULT_ACTIVE_CLIENT_ORG_ID
+    // (suits the route handler tests), but for the source-priority chain we
+    // exercise the legacy query/header/session path — so clear the pre-stamp.
+    activeClientOrgId: undefined,
     header(name: string) {
       return headers[name.toLowerCase()];
     },
@@ -29,6 +33,29 @@ beforeEach(() => {
 });
 
 describe("requireActiveClientOrg", () => {
+  it("short-circuits when req.activeClientOrgId is already stamped (path-scoped middleware ran upstream)", async () => {
+    // The nested-router scaffold (#171) installs `requirePathClientOrgOwnership`
+    // on the new `/api/tenants/:tenantId/clientOrgs/:clientOrgId/...` mount,
+    // which validates and stamps `req.activeClientOrgId` from the path. When
+    // a router mounted under BOTH shapes still calls `requireActiveClientOrg`
+    // internally, the source-priority chain (query/header/session) must NOT
+    // re-run — there is no clientOrgId query/header in the new path shape and
+    // the lookup would 400 spuriously.
+    const preStamped = new Types.ObjectId();
+    const req = buildReq({});
+    req.activeClientOrgId = preStamped;
+    const res = mockResponse();
+    const next = jest.fn();
+
+    await requireActiveClientOrg(req, res as unknown as import("express").Response, next);
+
+    expect(mockFind).not.toHaveBeenCalled();
+    expect(req.activeClientOrgId).toBe(preStamped);
+    expect(next).toHaveBeenCalledWith();
+    // mockResponse defaults statusCode=200; assert no error response was set.
+    expect(res.jsonBody).toBeUndefined();
+  });
+
   it("resolves clientOrgId from query string (highest priority)", async () => {
     mockFind.mockResolvedValue(VALID_ID_QUERY);
     const req = buildReq({

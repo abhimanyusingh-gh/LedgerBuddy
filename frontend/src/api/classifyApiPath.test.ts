@@ -15,14 +15,12 @@ import { classifyApiPath, isRealmScopedPath } from "@/api/classifyApiPath";
 describe("api/client classifier", () => {
   describe("realm-scoped paths (require active clientOrgId)", () => {
     const realmScoped = [
-      "/invoices",
-      "/invoices/abc-123",
-      "/invoices/abc-123/workflow-approve",
+      // `/invoices`, `/admin/approval-workflow`, `/admin/approval-limits`
+      // migrated to nested-router shape (#171 / #204) — covered by
+      // migratedPaths.test.ts.
       "/payments",
       // Composite-key endpoints under otherwise-tenant-scoped trees:
-      "/admin/notification-config",
-      "/admin/approval-limits",
-      "/admin/approval-workflow"
+      "/admin/notification-config"
     ];
 
     test.each(realmScoped)("classifies %s as realm-scoped", (path) => {
@@ -31,8 +29,8 @@ describe("api/client classifier", () => {
     });
 
     it("strips query string before classifying", () => {
-      expect(classifyApiPath("/invoices?status=pending")).toBe("realm-scoped");
-      expect(isRealmScopedPath("/invoices?status=pending")).toBe(true);
+      expect(classifyApiPath("/payments?status=pending")).toBe("realm-scoped");
+      expect(isRealmScopedPath("/payments?status=pending")).toBe(true);
     });
   });
 
@@ -94,28 +92,26 @@ describe("api/client classifier", () => {
       expect(classifyApiPath("/compliance/tds-rates")).toBe("unknown");
     });
 
-    describe("triage bypass (#166) — invoices with clientOrgId: null", () => {
-      it("classifies the triage list /invoices/triage as tenant-scoped", () => {
-        expect(classifyApiPath("/invoices/triage")).toBe("tenant-scoped");
-        expect(classifyApiPath("/invoices/triage?status=PENDING_TRIAGE")).toBe("tenant-scoped");
-        expect(isRealmScopedPath("/invoices/triage")).toBe(false);
-      });
-
-      it("classifies /invoices/:id/assign-client-org as tenant-scoped", () => {
-        expect(classifyApiPath("/invoices/abc-123/assign-client-org")).toBe("tenant-scoped");
-        expect(isRealmScopedPath("/invoices/abc-123/assign-client-org")).toBe(false);
-      });
-
-      it("classifies /invoices/:id/reject as tenant-scoped", () => {
-        expect(classifyApiPath("/invoices/abc-123/reject")).toBe("tenant-scoped");
-        expect(isRealmScopedPath("/invoices/abc-123/reject")).toBe(false);
-      });
-
-      it("does not bypass realm-scoping for unrelated suffix matches outside realm-scoped trees", () => {
-        // The suffix-bypass only applies to paths that ALSO sit under a realm-scoped prefix.
-        expect(classifyApiPath("/somewhere-else/reject")).toBe("unknown");
-      });
+    it("classifies migrated invoice paths so they fall through to the migratedPaths interceptor", () => {
+      // Invoice domain (#204) migrated to nested-router shape — `/invoices`,
+      // `/admin/approval-workflow`, `/admin/approval-limits` are no longer in
+      // REALM_SCOPED_PATH_PREFIXES. `/admin/...` paths match the broader
+      // `/admin` tenant-scoped prefix; `/invoices/...` matches no prefix and
+      // is 'unknown'. The migratedPaths interceptor rewrites BEFORE this
+      // classifier is consulted.
+      expect(classifyApiPath("/invoices")).toBe("unknown");
+      expect(classifyApiPath("/invoices/abc-123")).toBe("unknown");
+      expect(classifyApiPath("/admin/approval-workflow")).toBe("tenant-scoped");
+      expect(classifyApiPath("/admin/approval-limits")).toBe("tenant-scoped");
+      expect(isRealmScopedPath("/invoices")).toBe(false);
+      expect(isRealmScopedPath("/admin/approval-workflow")).toBe(false);
     });
+
+    // Triage bypass (#166) moved to migratedPaths.test.ts (covered by
+    // `MIGRATED_TENANT_SCOPED_BYPASS_*` lists). The new path shape mounts
+    // `/invoices/triage` and `/invoices/:id/{assign-client-org,reject}`
+    // under `tenantRouter` directly so the legacy classifier no longer
+    // sees them.
   });
 
   describe("edge case: bypass-vs-allow asymmetry (the original bug)", () => {
@@ -131,9 +127,9 @@ describe("api/client classifier", () => {
     });
 
     it("does not match a prefix that is only a substring of a path segment", () => {
-      // `/invoices-archive` should NOT be matched by the `/invoices` prefix.
-      expect(classifyApiPath("/invoices-archive")).toBe("unknown");
-      expect(isRealmScopedPath("/invoices-archive")).toBe(false);
+      // `/payments-archive` should NOT be matched by the `/payments` prefix.
+      expect(classifyApiPath("/payments-archive")).toBe("unknown");
+      expect(isRealmScopedPath("/payments-archive")).toBe(false);
     });
 
     it("does not match a prefix that is only a substring of a tenant-scoped path", () => {

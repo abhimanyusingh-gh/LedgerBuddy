@@ -14,6 +14,7 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 BE_ROUTES_DIR="$REPO_ROOT/backend/src/routes"
 FE_CLASSIFIER="$REPO_ROOT/frontend/src/api/classifyApiPath.ts"
+FE_MIGRATED="$REPO_ROOT/frontend/src/api/migratedPaths.ts"
 
 if [ ! -d "$BE_ROUTES_DIR" ]; then
   echo "error: backend routes dir not found at $BE_ROUTES_DIR" >&2
@@ -23,15 +24,27 @@ if [ ! -f "$FE_CLASSIFIER" ]; then
   echo "error: FE classifier not found at $FE_CLASSIFIER" >&2
   exit 2
 fi
+if [ ! -f "$FE_MIGRATED" ]; then
+  echo "error: FE migratedPaths not found at $FE_MIGRATED" >&2
+  exit 2
+fi
 
-# 1. Extract FE realm-scoped prefixes from the classifier source (between the
-#    REALM_SCOPED_PATH_PREFIXES opening bracket and its closing `] as const`).
-FE_PREFIXES="$(sed -n '/REALM_SCOPED_PATH_PREFIXES = \[/,/^\] as const;/p' "$FE_CLASSIFIER" \
+# 1. Extract FE realm-scoped prefixes from BOTH (a) the legacy classifier and
+#    (b) the #171 migratedPaths module — domains that have cut over to the
+#    nested-router shape keep their `router.use(requireActiveClientOrg)` for
+#    backward compat (the middleware short-circuits when the path-scope
+#    middleware has already stamped `req.activeClientOrgId`), but their FE
+#    prefix lives in `MIGRATED_REALM_SCOPED_PREFIXES`, not the legacy list.
+FE_PREFIXES_CLASSIFIER="$(sed -n '/REALM_SCOPED_PATH_PREFIXES = \[/,/^\] as const;/p' "$FE_CLASSIFIER" \
   | grep -oE '"[^"]+"' \
   | sed -E 's/^"//; s/"$//')"
+FE_PREFIXES_MIGRATED="$(sed -n '/MIGRATED_REALM_SCOPED_PREFIXES = \[/,/^\] as const;/p' "$FE_MIGRATED" \
+  | grep -oE '"[^"]+"' \
+  | sed -E 's/^"//; s/"$//')"
+FE_PREFIXES="$(printf '%s\n%s\n' "$FE_PREFIXES_CLASSIFIER" "$FE_PREFIXES_MIGRATED" | sed '/^$/d')"
 
 if [ -z "$FE_PREFIXES" ]; then
-  echo "error: could not parse REALM_SCOPED_PATH_PREFIXES from $FE_CLASSIFIER" >&2
+  echo "error: could not parse REALM_SCOPED_PATH_PREFIXES from $FE_CLASSIFIER or MIGRATED_REALM_SCOPED_PREFIXES from $FE_MIGRATED" >&2
   exit 2
 fi
 

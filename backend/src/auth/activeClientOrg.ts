@@ -46,6 +46,16 @@ export async function requireActiveClientOrg(
   next: NextFunction
 ): Promise<void> {
   try {
+    // Short-circuit when an upstream middleware (#171 nested-router scaffold's
+    // `requirePathClientOrgOwnership`) has already validated and stamped
+    // `req.activeClientOrgId` from the path. Letting both middlewares coexist
+    // lets a single domain router mount under both the legacy `/api/...` shape
+    // (query/header/session source chain) AND the new `/api/tenants/:tenantId/
+    // clientOrgs/:clientOrgId/...` shape during the per-domain rollout.
+    if (req.activeClientOrgId) {
+      next();
+      return;
+    }
     const { tenantId } = getAuth(req);
     const { raw, source } = extractClientOrgId(req);
     if (!raw) {
