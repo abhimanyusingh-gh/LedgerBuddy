@@ -11,7 +11,30 @@ import type { ArtifactResults } from "@/services/ingestion/artifacts.js";
 import { normalizeExtractionData } from "@/services/ingestion/provenance.js";
 import { ExtractionPipelineError } from "@/ai/extractors/invoice/InvoiceExtractionPipeline.js";
 import { PIPELINE_ERROR_CODE } from "@/core/engine/types.js";
+import { logger } from "@/utils/logger.js";
 import { uniqueStrings } from "@/utils/text.js";
+
+/**
+ * Statuses whose existing rows are safe for the ingestion pipeline to
+ * overwrite via the `upsertFromPending` fallback. These are the
+ * automation-owned states (no human edits applied yet) — the pipeline
+ * legitimately re-fires when a previous attempt failed mid-flight or
+ * the row was created in triage and is still awaiting auto-resolve.
+ *
+ * Conversely, every status outside this list is "human or downstream
+ * has touched this row" — `PARSED`, `NEEDS_REVIEW`, `AWAITING_APPROVAL`,
+ * `APPROVED`, `EXPORTED`, `REJECTED`. The fallback must NEVER clobber
+ * those: a stray re-fire (e.g. from a regressed checkpoint that
+ * re-yields an already-processed object) would silently destroy
+ * human-edited fields. See `ingestionService.test.ts` legacy-marker
+ * regression for the concrete bug class.
+ */
+const UPSERT_OVERWRITE_SAFE_STATUSES: readonly InvoiceStatus[] = [
+  INVOICE_STATUS.PENDING,
+  INVOICE_STATUS.PENDING_TRIAGE,
+  INVOICE_STATUS.FAILED_OCR,
+  INVOICE_STATUS.FAILED_PARSE,
+];
 
 interface ExtractionResult {
   provider: string;
@@ -138,10 +161,24 @@ export async function upsertFromPending(file: IngestedFile, data: Record<string,
   if (updated) return;
 
   const overwritten = await InvoiceModel.findOneAndUpdate(
-    matchBase,
+    { ...matchBase, status: { $in: UPSERT_OVERWRITE_SAFE_STATUSES } },
     { $set: updateData }
   );
   if (overwritten) return;
+
+  const protectedExisting = await InvoiceModel.findOne(matchBase)
+    .select({ _id: 1, status: 1 })
+    .lean();
+  if (protectedExisting) {
+    logger.warn("ingestion.upsert.skipped.protected", {
+      tenantId: file.tenantId,
+      sourceKey: file.sourceKey,
+      sourceDocumentId: file.sourceDocumentId,
+      existingStatus: protectedExisting.status,
+      invoiceId: String(protectedExisting._id),
+    });
+    return;
+  }
 
   await InvoiceModel.create(data);
 }

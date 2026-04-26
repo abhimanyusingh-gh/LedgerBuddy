@@ -9,6 +9,7 @@ import { describeHarness } from "@/test-utils";
 import { EXTRACTION_SOURCE } from "@/core/engine/extractionSource.js";
 import { INVOICE_STATUS } from "@/types/invoice.js";
 import { toUUID } from "@/types/uuid.js";
+import { logger } from "@/utils/logger.js";
 
 const TENANT_ID = toUUID("tenant-orch-checkpoint");
 
@@ -127,6 +128,56 @@ describeHarness("IngestionService — S3 checkpoint regression", ({ getHarness }
     expect(after?.ocrText).toBe("human-edited-text");
     expect(after?.attachmentName).toBe("human-renamed.pdf");
     expect(after?.status).toBe(INVOICE_STATUS.PARSED);
+  });
+
+  it("legacy ISO-only marker re-yields an object but upsertFromPending protects the human-edited PARSED row", async () => {
+    const editedKey = `uploads/${TENANT_ID}/legacy.pdf`;
+    const lastModified = new Date("2026-04-20T10:00:00.000Z");
+    const objects = [{ key: editedKey, lastModified }];
+    const fileStore = buildFileStore(objects);
+
+    const firstPipeline = buildStubPipeline("auto-extracted");
+    await new IngestionService([], noopOcrProvider, { pipeline: firstPipeline, fileStore }).runOnce({ tenantId: TENANT_ID });
+
+    const sourceKey = new S3UploadIngestionSource(TENANT_ID, fileStore).key;
+    const persisted = await InvoiceModel.findOne({ tenantId: TENANT_ID, sourceDocumentId: editedKey }).lean();
+    expect(persisted).not.toBeNull();
+    await InvoiceModel.findByIdAndUpdate(persisted!._id, {
+      $set: {
+        attachmentName: "human-renamed.pdf",
+        ocrText: "human-edited-text",
+        "parsed.invoiceNumber": "human-edited-invoice-number",
+        status: INVOICE_STATUS.PARSED
+      }
+    });
+
+    await CheckpointModel.findOneAndUpdate(
+      { sourceKey, tenantId: TENANT_ID },
+      { sourceKey, tenantId: TENANT_ID, marker: lastModified.toISOString() },
+      { upsert: true, new: true }
+    );
+
+    const warnSpy = jest.spyOn(logger, "warn").mockImplementation(() => undefined);
+    try {
+      const secondPipeline = buildStubPipeline("would-clobber");
+      await new IngestionService([], noopOcrProvider, { pipeline: secondPipeline, fileStore }).runOnce({ tenantId: TENANT_ID });
+
+      expect((secondPipeline.extract as jest.Mock)).toHaveBeenCalledTimes(1);
+      const after = await InvoiceModel.findOne({ tenantId: TENANT_ID, sourceDocumentId: editedKey, sourceKey }).lean();
+      expect(after?.ocrText).toBe("human-edited-text");
+      expect(after?.attachmentName).toBe("human-renamed.pdf");
+      expect(after?.status).toBe(INVOICE_STATUS.PARSED);
+      expect((after?.parsed as { invoiceNumber?: string } | null | undefined)?.invoiceNumber).toBe("human-edited-invoice-number");
+
+      const protectedLog = warnSpy.mock.calls.find(([msg]) => msg === "ingestion.upsert.skipped.protected");
+      expect(protectedLog).toBeDefined();
+      expect(protectedLog?.[1]).toMatchObject({
+        sourceDocumentId: editedKey,
+        existingStatus: INVOICE_STATUS.PARSED
+      });
+    } finally {
+      warnSpy.mockRestore();
+    }
   });
 
   it("does not advance the checkpoint when the source returns an empty batch", async () => {
