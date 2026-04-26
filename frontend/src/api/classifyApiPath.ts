@@ -8,6 +8,11 @@
  * in `requireActiveClientOrg`. CI guard `backend/scripts/check-realm-scoped-paths.sh`
  * diffs this file against BE middleware registrations and fails the build on
  * drift. Long-term replacement (BE-driven code-gen) tracked in #170.
+ *
+ * Cache-key partitioning is owned by `useScopedQuery` (which reads
+ * `activeClientOrgId` directly), NOT by this classifier. Removing entries here
+ * as domains migrate to the nested-mount path shape (#171) is safe for
+ * realm-scoping cache isolation.
  */
 
 /**
