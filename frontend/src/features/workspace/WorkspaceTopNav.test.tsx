@@ -6,16 +6,16 @@ import "@testing-library/jest-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 
-jest.mock("@/api/client", () => ({
-  apiClient: { get: jest.fn() }
-}));
+jest.mock("@/api/client", () => {
+  const { buildApiClientMockModule } = require("@/test-utils/mockApiClient");
+  return buildApiClientMockModule();
+});
 jest.mock("@/api", () => ({
   fetchInvoices: jest.fn().mockResolvedValue({ items: [], total: 0 })
 }));
 
-const { apiClient } = jest.requireMock("@/api/client") as {
-  apiClient: { get: jest.Mock };
-};
+import { getMockedApiClient } from "@/test-utils/mockApiClient";
+const apiClient = getMockedApiClient();
 
 import { WorkspaceTopNav } from "@/features/workspace/WorkspaceTopNav";
 import type { ClientOrganization } from "@/api/clientOrgs";

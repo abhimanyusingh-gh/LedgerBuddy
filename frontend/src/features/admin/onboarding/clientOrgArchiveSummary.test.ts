@@ -1,4 +1,7 @@
-jest.mock("@/api/client", () => ({ apiClient: { get: jest.fn(), post: jest.fn(), patch: jest.fn(), delete: jest.fn() } }));
+jest.mock("@/api/client", () => {
+  const { buildApiClientMockModule } = require("@/test-utils/mockApiClient");
+  return buildApiClientMockModule();
+});
 
 import { summarizeLinkedCounts } from "@/features/admin/onboarding/clientOrgArchiveSummary";
 

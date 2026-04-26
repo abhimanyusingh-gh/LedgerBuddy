@@ -6,19 +6,15 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 
 jest.mock("@/api/client", () => {
-  const get = jest.fn();
-  const patch = jest.fn();
-  return {
-    apiClient: { get, patch }
-  };
+  const { buildApiClientMockModule } = require("@/test-utils/mockApiClient");
+  return buildApiClientMockModule();
 });
 
 import { useTriageQueue } from "@/hooks/useTriageQueue";
 import { setActiveClientOrgId } from "@/hooks/useActiveClientOrg";
+import { getMockedApiClient } from "@/test-utils/mockApiClient";
 
-const { apiClient } = jest.requireMock("@/api/client") as {
-  apiClient: { get: jest.Mock; patch: jest.Mock };
-};
+const apiClient = getMockedApiClient();
 
 function reset() {
   window.history.replaceState({}, "", "/");

@@ -4,17 +4,16 @@
 import { fetchAnalyticsOverview } from "@/api/admin";
 
 jest.mock("@/api/client", () => {
-  const get = jest.fn();
-  return {
-    apiClient: { get },
+  const { buildApiClientMockModule } = require("@/test-utils/mockApiClient");
+  return buildApiClientMockModule({
     safeNum: (v: unknown) => (typeof v === "number" ? v : 0),
     stripNulls: (v: unknown) => v
-  };
+  });
 });
 
-const { apiClient } = jest.requireMock("@/api/client") as {
-  apiClient: { get: jest.Mock };
-};
+import { getMockedApiClient } from "@/test-utils/mockApiClient";
+
+const apiClient = getMockedApiClient();
 
 beforeEach(() => {
   jest.clearAllMocks();

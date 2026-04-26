@@ -5,28 +5,31 @@ import { getInvoicePreviewUrl } from "@/api/invoices";
 import { MissingActiveClientOrgError } from "@/api/errors";
 import { setActiveClientOrgId } from "@/hooks/useActiveClientOrg";
 import { writeActiveTenantId } from "@/api/tenantStorage";
+import { getMockedApiClientModule } from "@/test-utils/mockApiClient";
 
-jest.mock("@/api/client", () => ({
-  apiClient: {},
-  authenticatedUrl: jest.fn(
-    (path: string, params?: Record<string, unknown>) => {
-      const query = params
-        ? new URLSearchParams(
-            Object.entries(params).map(([k, v]) => [k, String(v)])
-          ).toString()
-        : "";
-      const separator = query ? `?${query}&` : "?";
-      return `https://api.example.com${path}${separator}authToken=tok`;
-    }
-  ),
-  safeNum: (v: unknown, fallback: number) =>
-    typeof v === "number" && Number.isFinite(v) ? v : fallback,
-  stripNulls: (v: unknown) => v
-}));
+jest.mock("@/api/client", () => {
+  const { buildApiClientMockModule } = require("@/test-utils/mockApiClient");
+  return buildApiClientMockModule({
+    authenticatedUrl: jest.fn(
+      (path: string, params?: Record<string, unknown>) => {
+        const query = params
+          ? new URLSearchParams(
+              Object.entries(params).map(([k, v]) => [k, String(v)])
+            ).toString()
+          : "";
+        const separator = query ? `?${query}&` : "?";
+        return `https://api.example.com${path}${separator}authToken=tok`;
+      }
+    ),
+    safeNum: (v: unknown, fallback: number) =>
+      typeof v === "number" && Number.isFinite(v) ? v : fallback,
+    stripNulls: (v: unknown) => v
+  });
+});
 
-const { authenticatedUrl } = jest.requireMock("@/api/client") as {
+const { authenticatedUrl: mockAuthenticatedUrl } = getMockedApiClientModule<{
   authenticatedUrl: jest.Mock;
-};
+}>();
 
 beforeEach(() => {
   jest.clearAllMocks();
@@ -42,7 +45,7 @@ afterEach(() => {
 describe("api/invoices — getInvoicePreviewUrl", () => {
   it("constructs the nested-shape preview URL after #220 BE migration", () => {
     const url = getInvoicePreviewUrl("inv-abc", 2);
-    expect(authenticatedUrl).toHaveBeenCalledWith(
+    expect(mockAuthenticatedUrl).toHaveBeenCalledWith(
       "/tenants/tenant-1/clientOrgs/org-9/invoices/inv-abc/preview",
       { page: 2 }
     );
@@ -53,12 +56,12 @@ describe("api/invoices — getInvoicePreviewUrl", () => {
 
   it("defaults page to 1 and clamps non-positive page values", () => {
     getInvoicePreviewUrl("inv-abc");
-    expect(authenticatedUrl).toHaveBeenLastCalledWith(
+    expect(mockAuthenticatedUrl).toHaveBeenLastCalledWith(
       "/tenants/tenant-1/clientOrgs/org-9/invoices/inv-abc/preview",
       { page: 1 }
     );
     getInvoicePreviewUrl("inv-abc", 0);
-    expect(authenticatedUrl).toHaveBeenLastCalledWith(
+    expect(mockAuthenticatedUrl).toHaveBeenLastCalledWith(
       "/tenants/tenant-1/clientOrgs/org-9/invoices/inv-abc/preview",
       { page: 1 }
     );
@@ -66,7 +69,7 @@ describe("api/invoices — getInvoicePreviewUrl", () => {
 
   it("rounds fractional page numbers to the nearest integer", () => {
     getInvoicePreviewUrl("inv-abc", 3.6);
-    expect(authenticatedUrl).toHaveBeenLastCalledWith(
+    expect(mockAuthenticatedUrl).toHaveBeenLastCalledWith(
       "/tenants/tenant-1/clientOrgs/org-9/invoices/inv-abc/preview",
       { page: 4 }
     );
@@ -77,7 +80,7 @@ describe("api/invoices — getInvoicePreviewUrl", () => {
     expect(() => getInvoicePreviewUrl("inv-abc")).toThrow(
       MissingActiveClientOrgError
     );
-    expect(authenticatedUrl).not.toHaveBeenCalled();
+    expect(mockAuthenticatedUrl).not.toHaveBeenCalled();
   });
 
   it("throws MissingActiveClientOrgError when clientOrgId is unset", () => {
@@ -85,6 +88,6 @@ describe("api/invoices — getInvoicePreviewUrl", () => {
     expect(() => getInvoicePreviewUrl("inv-abc")).toThrow(
       MissingActiveClientOrgError
     );
-    expect(authenticatedUrl).not.toHaveBeenCalled();
+    expect(mockAuthenticatedUrl).not.toHaveBeenCalled();
   });
 });
