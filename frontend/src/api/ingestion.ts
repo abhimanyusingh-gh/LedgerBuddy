@@ -1,4 +1,6 @@
 import { apiClient, getStoredSessionToken } from "@/api/client";
+import { readActiveTenantId } from "@/api/tenantStorage";
+import { rewriteToTenantNestedShape } from "@/api/migratedPaths";
 import type { IngestionJobStatus } from "@/types";
 
 function sanitizeIngestionStatus(value: unknown): IngestionJobStatus {
@@ -59,7 +61,15 @@ export function subscribeIngestionSSE(
   onMessage: (status: IngestionJobStatus) => void,
   onError?: () => void
 ): () => void {
-  const url = `${apiClient.defaults.baseURL ?? ""}/jobs/ingest/sse`;
+  // Post #198: SSE endpoint is mounted under the nested-router scaffold at
+  // `/api/tenants/:tenantId/jobs/ingest/sse`. EventSource bypasses the axios
+  // interceptor, so resolve the tenant-scoped URL here directly.
+  const tenantId = readActiveTenantId();
+  if (!tenantId) {
+    onError?.();
+    return () => {};
+  }
+  const url = `${apiClient.defaults.baseURL ?? ""}${rewriteToTenantNestedShape("/jobs/ingest/sse", tenantId)}`;
   const resolved = new URL(url, window.location.origin);
   const token = getStoredSessionToken();
   if (token) resolved.searchParams.set("authToken", token);

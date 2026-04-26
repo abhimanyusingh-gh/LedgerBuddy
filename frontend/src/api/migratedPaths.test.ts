@@ -6,20 +6,24 @@
  * runtime can't parse (same workaround pattern as `classifyApiPath.test.ts`).
  *
  * These tests assert two complementary contracts:
- *   1. For migrated paths (export domain, sub-PR 1), the helper detects the
- *      path AND rewrites it into the new nested shape that the BE expects.
+ *   1. For migrated paths (export domain sub-PR 1, ingestion sub-PR 2), the
+ *      helper detects the path AND rewrites it into the new nested shape that
+ *      the BE expects.
  *   2. For NON-migrated paths (everything else), the helper returns false so
  *      the interceptor falls through to the legacy `?clientOrgId=` query
  *      injection branch (covered by classifyApiPath.test.ts).
  */
 import {
   MIGRATED_REALM_SCOPED_PREFIXES,
+  MIGRATED_TENANT_SCOPED_PREFIXES,
   isMigratedRealmScopedPath,
-  rewriteToNestedShape
+  isMigratedTenantScopedPath,
+  rewriteToNestedShape,
+  rewriteToTenantNestedShape
 } from "@/api/migratedPaths";
 
 describe("api/migratedPaths", () => {
-  describe("isMigratedRealmScopedPath — migrated paths (export domain)", () => {
+  describe("isMigratedRealmScopedPath — migrated paths (export + ingestion-upload)", () => {
     const migrated = [
       "/exports",
       "/exports/tally",
@@ -27,7 +31,10 @@ describe("api/migratedPaths", () => {
       "/exports/tally/history",
       "/exports/tally/download/batch-123",
       "/exports/csv",
-      "/export-config"
+      "/export-config",
+      // Ingestion sub-PR 2: realm-scoped uploads.
+      "/jobs/upload",
+      "/jobs/upload/by-keys"
     ];
 
     test.each(migrated)("returns true for %s", (path) => {
@@ -37,6 +44,26 @@ describe("api/migratedPaths", () => {
     it("matches a path with a query string suffix", () => {
       expect(isMigratedRealmScopedPath("/exports/tally/history?page=2")).toBe(true);
       expect(isMigratedRealmScopedPath("/export-config?fields=tallyCompanyName")).toBe(true);
+    });
+  });
+
+  describe("isMigratedTenantScopedPath — migrated paths (ingestion orchestration + presign)", () => {
+    const migrated = [
+      "/jobs/ingest",
+      "/jobs/ingest/status",
+      "/jobs/ingest/sse",
+      "/jobs/ingest/pause",
+      "/jobs/ingest/email-simulate",
+      "/uploads/presign"
+    ];
+
+    test.each(migrated)("returns true for %s", (path) => {
+      expect(isMigratedTenantScopedPath(path)).toBe(true);
+    });
+
+    it("does NOT classify realm-scoped upload paths as tenant-scoped", () => {
+      expect(isMigratedTenantScopedPath("/jobs/upload")).toBe(false);
+      expect(isMigratedTenantScopedPath("/jobs/upload/by-keys")).toBe(false);
     });
   });
 
@@ -51,7 +78,10 @@ describe("api/migratedPaths", () => {
       "/admin/users",
       "/auth/token",
       "/session",
-      "/healthz"
+      "/healthz",
+      // Ingestion: tenant-scoped paths are NOT realm-scoped.
+      "/jobs/ingest",
+      "/uploads/presign"
     ];
 
     test.each(nonMigrated)("returns false for %s (legacy ?clientOrgId= path)", (path) => {
@@ -63,6 +93,27 @@ describe("api/migratedPaths", () => {
       expect(isMigratedRealmScopedPath("/exports-archive")).toBe(false);
       // /export-config-history must NOT match /export-config.
       expect(isMigratedRealmScopedPath("/export-config-history")).toBe(false);
+      // /jobs/upload-foo must NOT match /jobs/upload exactly.
+      expect(isMigratedRealmScopedPath("/jobs/upload-foo")).toBe(false);
+    });
+  });
+
+  describe("isMigratedTenantScopedPath — non-migrated paths fall through", () => {
+    const nonMigrated = [
+      "/invoices",
+      "/exports/tally",
+      "/jobs/upload",
+      "/auth/token",
+      "/session"
+    ];
+
+    test.each(nonMigrated)("returns false for %s", (path) => {
+      expect(isMigratedTenantScopedPath(path)).toBe(false);
+    });
+
+    it("does not match prefix substrings outside a path-segment boundary", () => {
+      expect(isMigratedTenantScopedPath("/jobs/ingest-foo")).toBe(false);
+      expect(isMigratedTenantScopedPath("/uploads/presign-foo")).toBe(false);
     });
   });
 
@@ -90,11 +141,56 @@ describe("api/migratedPaths", () => {
         "/tenants/tenant-1/clientOrgs/org-9/exports/tally"
       );
     });
+
+    it("rewrites the ingestion upload path", () => {
+      expect(rewriteToNestedShape("/jobs/upload/by-keys", "tenant-1", "org-9")).toBe(
+        "/tenants/tenant-1/clientOrgs/org-9/jobs/upload/by-keys"
+      );
+    });
   });
 
-  describe("MIGRATED_REALM_SCOPED_PREFIXES — sub-PR 1 scope", () => {
-    it("contains exactly the export domain prefixes (subsequent sub-PRs add more)", () => {
-      expect([...MIGRATED_REALM_SCOPED_PREFIXES]).toEqual(["/exports", "/export-config"]);
+  describe("rewriteToTenantNestedShape", () => {
+    it("rewrites into the /tenants/:tenantId/... shape (no clientOrgId segment)", () => {
+      expect(rewriteToTenantNestedShape("/jobs/ingest", "tenant-1")).toBe(
+        "/tenants/tenant-1/jobs/ingest"
+      );
+    });
+
+    it("preserves nested sub-paths and query strings", () => {
+      expect(rewriteToTenantNestedShape("/jobs/ingest/status?live=1", "tenant-1")).toBe(
+        "/tenants/tenant-1/jobs/ingest/status?live=1"
+      );
+    });
+
+    it("rewrites the presign endpoint", () => {
+      expect(rewriteToTenantNestedShape("/uploads/presign", "tenant-1")).toBe(
+        "/tenants/tenant-1/uploads/presign"
+      );
+    });
+
+    it("normalises a missing leading slash by adding one", () => {
+      expect(rewriteToTenantNestedShape("jobs/ingest", "tenant-1")).toBe(
+        "/tenants/tenant-1/jobs/ingest"
+      );
+    });
+  });
+
+  describe("MIGRATED_REALM_SCOPED_PREFIXES — sub-PR 1 + 2 scope", () => {
+    it("contains export + ingestion-upload prefixes", () => {
+      expect([...MIGRATED_REALM_SCOPED_PREFIXES]).toEqual([
+        "/exports",
+        "/export-config",
+        "/jobs/upload"
+      ]);
+    });
+  });
+
+  describe("MIGRATED_TENANT_SCOPED_PREFIXES — sub-PR 2 scope", () => {
+    it("contains ingestion-orchestration and presign prefixes", () => {
+      expect([...MIGRATED_TENANT_SCOPED_PREFIXES]).toEqual([
+        "/jobs/ingest",
+        "/uploads/presign"
+      ]);
     });
   });
 });

@@ -70,8 +70,10 @@ const TENANT_SCOPED_PATH_PREFIXES = [
   "/admin",
   "/auth",
   "/integrations",
-  "/jobs",
-  "/uploads",
+  // `/jobs` and `/uploads` migrated to nested-router shape (#198, sub-PR 2).
+  // The ingest-orchestration sub-tree (`/jobs/ingest`) and `/uploads/presign`
+  // live in `MIGRATED_TENANT_SCOPED_PREFIXES` in `migratedPaths.ts`; the
+  // upload sub-tree (`/jobs/upload`) lives in `MIGRATED_REALM_SCOPED_PREFIXES`.
   "/tenant",
   "/platform",
   "/analytics",

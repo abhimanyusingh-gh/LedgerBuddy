@@ -1,30 +1,11 @@
 import axios from "axios";
 import { apiClient } from "@/api/client";
+import { writeActiveTenantId } from "@/api/tenantStorage";
 import type { SessionUser, TenantRole, TenantUser } from "@/types";
 
 export type FeatureFlagName = "example.healthCheckVerbose";
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:4100/api";
-
-// Mirror the active tenantId into sessionStorage so the axios interceptor in
-// `client.ts` can rewrite migrated `/api/...` paths into the new nested
-// `/api/tenants/:tenantId/...` shape without depending on React state.
-// Mirrors the `useActiveClientOrg` sessionStorage pattern (per-tab; cleared
-// on logout).
-export const ACTIVE_TENANT_ID_STORAGE_KEY = "activeTenantId";
-
-export function readActiveTenantId(): string | null {
-  const value = window.sessionStorage.getItem(ACTIVE_TENANT_ID_STORAGE_KEY);
-  return value && value.length > 0 ? value : null;
-}
-
-function writeActiveTenantId(tenantId: string | null): void {
-  if (!tenantId) {
-    window.sessionStorage.removeItem(ACTIVE_TENANT_ID_STORAGE_KEY);
-    return;
-  }
-  window.sessionStorage.setItem(ACTIVE_TENANT_ID_STORAGE_KEY, tenantId);
-}
 
 export async function refreshSessionToken(currentToken: string): Promise<string> {
   const response = await axios.post<{ token: string }>(

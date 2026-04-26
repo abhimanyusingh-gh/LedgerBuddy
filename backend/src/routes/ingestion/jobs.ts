@@ -15,7 +15,6 @@ import { IngestionJobOrchestrator } from "@/services/ingestion/IngestionJobOrche
 import { MAX_UPLOAD_FILE_COUNT, MAX_UPLOAD_FILE_SIZE_BYTES } from "@/constants.js";
 import { isAllowedFileExtension } from "@/utils/validation.js";
 import { guessMimeTypeFromKey } from "@/utils/mime.js";
-import { findClientOrgIdByIdForTenant } from "@/services/auth/tenantScope.js";
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -30,6 +29,11 @@ function matchesMagicBytes(filename: string, buffer: Buffer): boolean {
   return true;
 }
 
+/**
+ * Tenant-scoped ingestion job orchestration: status / SSE / start / pause /
+ * email-simulate. Mounted under `/api/tenants/:tenantId/...` — the parent
+ * router validates the path tenantId against the authenticated tenant.
+ */
 export function createJobsRouter(
   ingestionService: IngestionService,
   emailSimulationService?: EmailSimulationService,
@@ -112,19 +116,12 @@ export function createJobsRouter(
         return;
       }
 
-      // Post-hierarchy-pivot (#156): every upload must carry a
-      // caller-supplied `clientOrgId` that belongs to the caller's
-      // tenant. Ownership re-check each request — never trust the body.
-      const clientOrgIdRaw = typeof (req.body as { clientOrgId?: unknown })?.clientOrgId === "string"
-        ? ((req.body as { clientOrgId: string }).clientOrgId).trim()
-        : "";
-      if (!clientOrgIdRaw) {
-        res.status(400).json({ message: "clientOrgId is required in the upload request." });
-        return;
-      }
-      const ownedClientOrgId = await findClientOrgIdByIdForTenant(clientOrgIdRaw, context.tenantId);
+      // Post #198 cutover: clientOrgId is supplied by the path
+      // (`/clientOrgs/:clientOrgId/...`) and ownership-validated upstream by
+      // `requirePathClientOrgOwnership`, which stamps `req.activeClientOrgId`.
+      const ownedClientOrgId = req.activeClientOrgId;
       if (!ownedClientOrgId) {
-        res.status(403).json({ message: "clientOrgId does not belong to this tenant." });
+        res.status(400).json({ message: "clientOrgId is required in the upload path." });
         return;
       }
 
@@ -227,15 +224,12 @@ export function createJobsRouter(
         return;
       }
 
-      // Post-hierarchy-pivot: by-keys uploads carry a single
-      // `clientOrgId` that applies to every key in the batch. Wrap each
-      // item in a fresh ownership re-check — callers don't get to
-      // cross-assign on a per-key basis without a second ownership call.
-      const clientOrgIdRaw = typeof (req.body as { clientOrgId?: unknown })?.clientOrgId === "string"
-        ? ((req.body as { clientOrgId: string }).clientOrgId).trim()
-        : "";
-      if (!clientOrgIdRaw) {
-        res.status(400).json({ message: "clientOrgId is required in the upload request." });
+      // Post #198 cutover: clientOrgId is supplied by the path
+      // (`/clientOrgs/:clientOrgId/...`) and ownership-validated upstream by
+      // `requirePathClientOrgOwnership`, which stamps `req.activeClientOrgId`.
+      const ownedClientOrgId = req.activeClientOrgId;
+      if (!ownedClientOrgId) {
+        res.status(400).json({ message: "clientOrgId is required in the upload path." });
         return;
       }
 
@@ -243,14 +237,6 @@ export function createJobsRouter(
       let newlyCreated = 0;
 
       for (const key of keys) {
-        // Re-verify ownership inside the loop — mirrors the closed #153
-        // reviewer feedback: batch loops must not skip per-item checks.
-        const ownedClientOrgId = await findClientOrgIdByIdForTenant(clientOrgIdRaw, context.tenantId);
-        if (!ownedClientOrgId) {
-          res.status(403).json({ message: "clientOrgId does not belong to this tenant." });
-          return;
-        }
-
         const { body: fileBuffer, contentType } = await fileStore.getObject(key);
         const contentHash = createHash("sha256").update(fileBuffer).digest("base64url");
         const mimeType = contentType !== "application/octet-stream" ? contentType : guessMimeTypeFromKey(key);

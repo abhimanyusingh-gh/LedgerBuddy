@@ -121,18 +121,22 @@ export async function createApp(prebuiltDependencies?: Awaited<ReturnType<typeof
   app.use("/api", requireNonPlatformAdmin, requireTenantSetupCompleted, createInvoiceRouter(dependencies.invoiceService, dependencies.approvalWorkflowService, dependencies.fileStore));
   app.use("/api", requireNonPlatformAdmin, requireTenantSetupCompleted, createActionRequiredRouter());
   app.use("/api", requireNonPlatformAdmin, requireTenantSetupCompleted, createTriageRouter(dependencies.triageService));
-  app.use(
-    "/api",
-    requireNonPlatformAdmin,
-    requireTenantSetupCompleted,
-    createJobsRouter(dependencies.ingestionService, dependencies.emailSimulationService, dependencies.fileStore)
+  // Ingestion domain (#198, sub-PR 2) — additive dual-mount to match sibling
+  // pattern (#210/#216/#217/#218/#220). The same `createJobsRouter` instance
+  // is reused across the legacy `/api` mount and the two nested mounts below
+  // so per-tenant orchestrator state (running flag, pendingRerun, SSE
+  // subscribers) lives in one place. Legacy `/api/jobs/...` and
+  // `/api/uploads/presign` continue to respond for callers that bypass the
+  // FE migrated-paths interceptor (nginx SSE proxy, raw-axios e2e helpers,
+  // BE supertest fixtures).
+  const jobsRouter = createJobsRouter(
+    dependencies.ingestionService,
+    dependencies.emailSimulationService,
+    dependencies.fileStore
   );
-  app.use(
-    "/api",
-    requireNonPlatformAdmin,
-    requireTenantSetupCompleted,
-    createUploadsRouter(dependencies.fileStore)
-  );
+  const uploadsRouter = createUploadsRouter(dependencies.fileStore);
+  app.use("/api", requireNonPlatformAdmin, requireTenantSetupCompleted, jobsRouter);
+  app.use("/api", requireNonPlatformAdmin, requireTenantSetupCompleted, uploadsRouter);
   app.use("/api", requireNonPlatformAdmin, requireTenantSetupCompleted, createAnalyticsRouter());
   app.use("/api", requireNonPlatformAdmin, createBankAccountsRouter(dependencies.bankService));
   app.use("/api", requireNonPlatformAdmin, requireTenantSetupCompleted, createGlCodesRouter());
@@ -170,6 +174,22 @@ export async function createApp(prebuiltDependencies?: Awaited<ReturnType<typeof
   clientOrgRouter.use(createExportRouter(dependencies.exportService));
   clientOrgRouter.use(createCsvExportRouter());
   clientOrgRouter.use(createClientExportConfigRouter());
+
+  // Ingestion domain (sub-PR 2, #198) — additive dual-mount. The single
+  // `createJobsRouter` / `createUploadsRouter` instances built above for the
+  // legacy `/api` mount are reused here so per-tenant orchestrator state
+  // (running flag, pendingRerun, SSE subscribers) lives in one place across
+  // both URL shapes. The new mounts add the path-scoped variants:
+  // `/api/tenants/:tenantId/jobs/ingest{,/status,/sse,/pause,
+  // /email-simulate}` and `/api/tenants/:tenantId/clientOrgs/:clientOrgId/
+  // jobs/upload{,/by-keys}`. Routes that need a clientOrgId read
+  // `req.activeClientOrgId` which is stamped by either
+  // `requirePathClientOrgOwnership` (new mount) or — for legacy callers
+  // that supply clientOrgId via query/header/session and hit this router
+  // through future intermediaries — by upstream middleware on those mounts.
+  tenantRouter.use(jobsRouter);
+  clientOrgRouter.use(jobsRouter);
+  tenantRouter.use(uploadsRouter);
 
   app.use(
     "/api",

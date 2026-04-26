@@ -66,9 +66,10 @@ describe("api/client classifier", () => {
       "/auth/change-password",
       "/integrations/gmail",
       "/integrations/gmail/connect-url",
-      "/jobs/ingest",
-      "/jobs/upload",
-      "/uploads/presign",
+      // Ingestion paths (`/jobs/ingest`, `/jobs/upload`, `/uploads/presign`)
+      // moved to the migrated-paths layer in #198 sub-PR 2 — covered by
+      // `migratedPaths.test.ts`. The classifier now returns `unknown` for
+      // them, which the interceptor treats as "no clientOrgId injection".
       "/tenant/onboarding/complete",
       "/platform/tenants/usage",
       "/analytics/overview",
