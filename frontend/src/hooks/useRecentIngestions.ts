@@ -4,7 +4,7 @@ import {
   type MailboxRecentIngestionsResponse
 } from "@/api/mailboxAssignments";
 
-export const RECENT_INGESTIONS_QUERY_KEY = "mailboxRecentIngestions" as const;
+const RECENT_INGESTIONS_QUERY_KEY = "mailboxRecentIngestions" as const;
 
 export function recentIngestionsQueryKey(
   assignmentId: string,
@@ -14,7 +14,7 @@ export function recentIngestionsQueryKey(
   return [RECENT_INGESTIONS_QUERY_KEY, assignmentId, days, limit ?? null] as const;
 }
 
-export interface UseRecentIngestionsOptions {
+interface UseRecentIngestionsOptions {
   assignmentId: string;
   days: number;
   limit?: number;
@@ -35,12 +35,12 @@ export function useRecentIngestions({
   });
 }
 
-export interface UseRecentIngestionCountsArgs {
+interface UseRecentIngestionCountsArgs {
   assignmentIds: string[];
   days: number;
 }
 
-export interface RecentIngestionCountsResult {
+interface RecentIngestionCountsResult {
   countsById: Record<string, number | null | undefined>;
 }
 

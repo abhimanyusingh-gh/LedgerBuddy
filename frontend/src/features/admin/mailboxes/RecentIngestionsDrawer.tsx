@@ -20,7 +20,7 @@ type RecentIngestionsDrawerView =
 const DAYS = 30;
 const LIMIT = 50;
 
-export interface RecentIngestionsDrawerProps {
+interface RecentIngestionsDrawerProps {
   open: boolean;
   assignmentId: string | null;
   mailboxEmail: string | null;
