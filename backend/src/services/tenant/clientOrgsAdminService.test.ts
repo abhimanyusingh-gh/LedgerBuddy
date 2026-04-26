@@ -241,6 +241,113 @@ describeHarness("ClientOrgsAdminService (#174)", ({ getHarness }) => {
     });
   });
 
+  describe("previewArchive (#206)", () => {
+    it("returns exactly { projectedStatus, linkedCounts, archivedAt } and no extra keys", async () => {
+      const a = await ClientOrganizationModel.create({ tenantId: TENANT_A, gstin: GSTIN_A, companyName: "ACME" });
+      const result = await service.previewArchive({ tenantId: TENANT_A, clientOrgId: a._id.toString() });
+
+      expect(Object.keys(result).sort()).toEqual(["archivedAt", "linkedCounts", "projectedStatus"]);
+      expect(["archived", "deleted"]).toContain(result.projectedStatus);
+      expect(typeof result.linkedCounts).toBe("object");
+      expect(result.linkedCounts).not.toBeNull();
+      expect(result.archivedAt === null || result.archivedAt instanceof Date).toBe(true);
+    });
+
+    it("404s for cross-tenant id (matches deleteOrArchive semantics)", async () => {
+      const a = await ClientOrganizationModel.create({ tenantId: TENANT_A, gstin: GSTIN_A, companyName: "ACME" });
+      await expect(
+        service.previewArchive({ tenantId: TENANT_B, clientOrgId: a._id.toString() })
+      ).rejects.toMatchObject({ statusCode: 404, code: "client_org_not_found" });
+    });
+
+    it("404s for a same-tenant id that does not exist", async () => {
+      const ghostId = new Types.ObjectId().toString();
+      await expect(
+        service.previewArchive({ tenantId: TENANT_A, clientOrgId: ghostId })
+      ).rejects.toMatchObject({ statusCode: 404, code: "client_org_not_found" });
+    });
+
+    it("400s for a malformed ObjectId clientOrgId", async () => {
+      await expect(
+        service.previewArchive({ tenantId: TENANT_A, clientOrgId: "not-an-oid" })
+      ).rejects.toMatchObject({ statusCode: 400, code: "client_org_invalid_id" });
+    });
+
+    it("does not mutate state — re-running yields identical responses and never sets archivedAt", async () => {
+      const a = await ClientOrganizationModel.create({ tenantId: TENANT_A, gstin: GSTIN_A, companyName: "ACME" });
+      await InvoiceModel.create({
+        tenantId: TENANT_A, clientOrgId: a._id, sourceType: "upload", sourceKey: "k", sourceDocumentId: "d",
+        attachmentName: "x.pdf", mimeType: "application/pdf", receivedAt: new Date(),
+        status: INVOICE_STATUS.NEEDS_REVIEW
+      });
+
+      const first = await service.previewArchive({ tenantId: TENANT_A, clientOrgId: a._id.toString() });
+      const second = await service.previewArchive({ tenantId: TENANT_A, clientOrgId: a._id.toString() });
+      expect(first).toEqual(second);
+      expect(first.projectedStatus).toBe("archived");
+      expect(first.archivedAt).toBeNull();
+
+      const reread = await ClientOrganizationModel.findById(a._id).lean();
+      expect(reread?.archivedAt ?? null).toBeNull();
+    });
+
+    it("parity: preview counts === post-archive counts on the same fixture (with dependents)", async () => {
+      const a = await ClientOrganizationModel.create({ tenantId: TENANT_A, gstin: GSTIN_A, companyName: "ACME" });
+      await InvoiceModel.create({
+        tenantId: TENANT_A, clientOrgId: a._id, sourceType: "upload", sourceKey: "k", sourceDocumentId: "d",
+        attachmentName: "x.pdf", mimeType: "application/pdf", receivedAt: new Date(),
+        status: INVOICE_STATUS.NEEDS_REVIEW
+      });
+      await TenantMailboxAssignmentModel.create({
+        tenantId: TENANT_A,
+        integrationId: new Types.ObjectId(),
+        assignedTo: "all",
+        clientOrgIds: [a._id]
+      });
+
+      const preview = await service.previewArchive({ tenantId: TENANT_A, clientOrgId: a._id.toString() });
+      expect(preview.projectedStatus).toBe("archived");
+
+      const archived = await service.deleteOrArchive({ tenantId: TENANT_A, clientOrgId: a._id.toString() });
+      expect(archived.status).toBe("archived");
+
+      expect(preview.linkedCounts).toEqual(archived.linkedCounts);
+    });
+
+    it("parity: empty fixture projects 'deleted' and matches the destructive path", async () => {
+      const a = await ClientOrganizationModel.create({ tenantId: TENANT_A, gstin: GSTIN_A, companyName: "ACME" });
+
+      const preview = await service.previewArchive({ tenantId: TENANT_A, clientOrgId: a._id.toString() });
+      expect(preview.projectedStatus).toBe("deleted");
+
+      const deleted = await service.deleteOrArchive({ tenantId: TENANT_A, clientOrgId: a._id.toString() });
+      expect(deleted.status).toBe("deleted");
+      expect(preview.linkedCounts).toEqual(deleted.linkedCounts);
+    });
+
+    it("returns the existing archivedAt timestamp for an already-archived org without advancing it", async () => {
+      const a = await ClientOrganizationModel.create({ tenantId: TENANT_A, gstin: GSTIN_A, companyName: "ACME" });
+      await InvoiceModel.create({
+        tenantId: TENANT_A, clientOrgId: a._id, sourceType: "upload", sourceKey: "k", sourceDocumentId: "d",
+        attachmentName: "x.pdf", mimeType: "application/pdf", receivedAt: new Date(),
+        status: INVOICE_STATUS.NEEDS_REVIEW
+      });
+      await service.deleteOrArchive({ tenantId: TENANT_A, clientOrgId: a._id.toString() });
+      const archivedAtBefore = (await ClientOrganizationModel.findById(a._id).lean())?.archivedAt;
+      expect(archivedAtBefore).toBeInstanceOf(Date);
+
+      await new Promise((r) => setTimeout(r, 5));
+
+      const preview = await service.previewArchive({ tenantId: TENANT_A, clientOrgId: a._id.toString() });
+      expect(preview.projectedStatus).toBe("archived");
+      expect(preview.archivedAt).toBeInstanceOf(Date);
+      expect((preview.archivedAt as Date).getTime()).toBe(archivedAtBefore?.getTime());
+
+      const archivedAtAfter = (await ClientOrganizationModel.findById(a._id).lean())?.archivedAt;
+      expect(archivedAtAfter?.getTime()).toBe(archivedAtBefore?.getTime());
+    });
+  });
+
   describe("dependency registry coverage (BLOCKER drift detection)", () => {
     /**
      * Drift fixture: every Mongoose model registered in the codebase
