@@ -258,6 +258,63 @@ describeHarness("MailboxAssignmentsAdminService (#174)", ({ getHarness }) => {
     });
   });
 
+  describe("listAvailableIntegrations (#191 — Add picker source)", () => {
+    it("returns only the caller's tenant integrations", async () => {
+      await seedTenantWithIntegration(TENANT_A, "a@firm.com");
+      await seedTenantWithIntegration(TENANT_B, "b@firm.com");
+
+      const items = await service.listAvailableIntegrations(TENANT_A);
+      expect(items).toHaveLength(1);
+      expect(items[0].emailAddress).toBe("a@firm.com");
+    });
+
+    it("excludes integrations that already have a mailbox assignment", async () => {
+      const assigned = await seedTenantWithIntegration(TENANT_A, "assigned@firm.com");
+      const unassigned = await seedTenantWithIntegration(TENANT_A, "free@firm.com");
+      const orgA = await ClientOrganizationModel.create({
+        tenantId: TENANT_A, gstin: GSTIN_A, companyName: "A"
+      });
+      await TenantMailboxAssignmentModel.create({
+        tenantId: TENANT_A,
+        integrationId: assigned._id,
+        assignedTo: "all",
+        clientOrgIds: [orgA._id]
+      });
+
+      const items = await service.listAvailableIntegrations(TENANT_A);
+      expect(items.map((i) => i._id)).toEqual([String(unassigned._id)]);
+    });
+
+    it("returns the {_id, emailAddress, status, providerKind} shape exactly", async () => {
+      const integration = await seedTenantWithIntegration(TENANT_A, "shape@firm.com");
+
+      const items = await service.listAvailableIntegrations(TENANT_A);
+      expect(items).toHaveLength(1);
+      expect(items[0]).toEqual({
+        _id: String(integration._id),
+        emailAddress: "shape@firm.com",
+        status: "connected",
+        providerKind: "gmail"
+      });
+    });
+
+    it("returns [] when every tenant integration is already assigned", async () => {
+      const integration = await seedTenantWithIntegration(TENANT_A, "only@firm.com");
+      const orgA = await ClientOrganizationModel.create({
+        tenantId: TENANT_A, gstin: GSTIN_A, companyName: "A"
+      });
+      await TenantMailboxAssignmentModel.create({
+        tenantId: TENANT_A,
+        integrationId: integration._id,
+        assignedTo: "all",
+        clientOrgIds: [orgA._id]
+      });
+
+      const items = await service.listAvailableIntegrations(TENANT_A);
+      expect(items).toEqual([]);
+    });
+  });
+
   describe("validateClientOrgIds (single batched lookup, defence-in-depth)", () => {
     it("rejects with all missing ids in one error message", async () => {
       const integration = await seedTenantWithIntegration(TENANT_A, "a@firm.com");

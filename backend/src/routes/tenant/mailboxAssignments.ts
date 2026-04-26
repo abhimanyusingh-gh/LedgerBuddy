@@ -14,6 +14,15 @@ import { HttpError } from "@/errors/HttpError.js";
 export function createMailboxAssignmentsRouter(service: MailboxAssignmentsAdminService) {
   const router = Router();
 
+  router.get("/admin/integrations", requireCap("canManageConnections"), async (req, res, next) => {
+    try {
+      const items = await service.listAvailableIntegrations(getAuth(req).tenantId);
+      res.json({ items });
+    } catch (error) {
+      next(error);
+    }
+  });
+
   router.get("/admin/mailbox-assignments", requireCap("canManageConnections"), async (req, res, next) => {
     try {
       const items = await service.list(getAuth(req).tenantId);

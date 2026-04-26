@@ -71,6 +71,37 @@ export class MailboxAssignmentsAdminService {
     return items;
   }
 
+  /**
+   * List the tenant's integrations that are NOT already attached to a
+   * mailbox assignment. Powers the FE Add-mailbox picker (#191) — feeding
+   * a picker the assigned set lets the user pick a duplicate, which the
+   * unique index `(tenantId, integrationId, assignedTo)` then rejects with
+   * a 409 surfaced as a generic error. Pre-filtering at list time keeps
+   * the picker honest. Two-query implementation (fetch tenant integrations
+   * + fetch tenant assignment integrationIds) — sufficient for the
+   * expected per-tenant cardinality (low-tens of integrations); revisit
+   * with an aggregation if cardinality grows materially.
+   */
+  async listAvailableIntegrations(tenantId: string) {
+    const [integrations, assignments] = await Promise.all([
+      TenantIntegrationModel.find({ tenantId })
+        .select({ _id: 1, emailAddress: 1, status: 1, provider: 1 })
+        .lean(),
+      TenantMailboxAssignmentModel.find({ tenantId }).select({ integrationId: 1 }).lean()
+    ]);
+    const assignedIds = new Set(assignments.map((a) => String(a.integrationId)));
+    const items = integrations
+      .filter((i) => !assignedIds.has(String(i._id)))
+      .map((i) => ({
+        _id: String(i._id),
+        emailAddress: i.emailAddress ?? null,
+        status: i.status,
+        providerKind: i.provider
+      }));
+    items.sort((left, right) => (left.emailAddress ?? "").localeCompare(right.emailAddress ?? ""));
+    return items;
+  }
+
   async create(input: {
     tenantId: string;
     integrationId: string;
