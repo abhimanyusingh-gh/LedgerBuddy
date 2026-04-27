@@ -1,30 +1,33 @@
 import { create } from "zustand";
 import { persist, type StateStorage } from "zustand/middleware";
-import { useAdminRealmStore } from "@/stores/adminRealmStore";
+import { useActiveRealmStore } from "@/stores/activeRealmStore";
 import { registerStoreReset } from "@/test-utils/resetStores";
 
-export const ACTIVE_CLIENT_ORG_QUERY_PARAM = "clientOrgId";
-export const ACTIVE_CLIENT_ORG_STORAGE_KEY = "activeClientOrgId";
+export const ADMIN_CLIENT_ORG_QUERY_PARAM = "clientOrgId";
+export const ADMIN_CLIENT_ORG_STORAGE_KEY = "adminClientOrgId";
 
-interface ActiveRealmState {
+const OBJECT_ID_REGEX = /^[a-f0-9]{24}$/i;
+
+interface AdminRealmState {
   id: string | null;
-  setActiveRealm: (id: string | null) => void;
+  setAdminRealm: (id: string | null) => void;
 }
 
 function readFromUrl(): string | null {
   if (typeof window === "undefined") return null;
   const params = new URLSearchParams(window.location.search);
-  const value = params.get(ACTIVE_CLIENT_ORG_QUERY_PARAM);
-  return value && value.length > 0 ? value : null;
+  const value = params.get(ADMIN_CLIENT_ORG_QUERY_PARAM);
+  if (!value || value.length === 0) return null;
+  return OBJECT_ID_REGEX.test(value) ? value : null;
 }
 
 function writeToUrl(id: string | null): void {
   if (typeof window === "undefined") return;
   const params = new URLSearchParams(window.location.search);
   if (id === null) {
-    params.delete(ACTIVE_CLIENT_ORG_QUERY_PARAM);
+    params.delete(ADMIN_CLIENT_ORG_QUERY_PARAM);
   } else {
-    params.set(ACTIVE_CLIENT_ORG_QUERY_PARAM, id);
+    params.set(ADMIN_CLIENT_ORG_QUERY_PARAM, id);
   }
   const search = params.toString();
   window.history.replaceState(
@@ -60,20 +63,20 @@ const rawSessionStorage: StateStorage = {
   }
 };
 
-export const useActiveRealmStore = create<ActiveRealmState>()(
+export const useAdminRealmStore = create<AdminRealmState>()(
   persist(
     (set) => ({
       id: null,
-      setActiveRealm: (id) => {
+      setAdminRealm: (id) => {
         writeToUrl(id);
         set({ id });
-        if (useAdminRealmStore.getState().id !== id) {
-          useAdminRealmStore.setState({ id });
+        if (useActiveRealmStore.getState().id !== id) {
+          useActiveRealmStore.setState({ id });
         }
       }
     }),
     {
-      name: ACTIVE_CLIENT_ORG_STORAGE_KEY,
+      name: ADMIN_CLIENT_ORG_STORAGE_KEY,
       storage: {
         getItem: (name) => {
           const raw = rawSessionStorage.getItem(name) as string | null;
@@ -86,7 +89,7 @@ export const useActiveRealmStore = create<ActiveRealmState>()(
           rawSessionStorage.removeItem(name);
         }
       },
-      partialize: (state) => ({ id: state.id }) as ActiveRealmState,
+      partialize: (state) => ({ id: state.id }) as AdminRealmState,
       onRehydrateStorage: () => (state) => {
         if (!state) return;
         const fromUrl = readFromUrl();
@@ -98,27 +101,21 @@ export const useActiveRealmStore = create<ActiveRealmState>()(
   )
 );
 
-export function setActiveRealm(id: string | null): void {
-  useActiveRealmStore.getState().setActiveRealm(id);
+export function readAdminRealmFromUrl(): string | null {
+  return readFromUrl();
 }
 
-export function readActiveRealmId(): string | null {
-  return readFromUrl() ?? useActiveRealmStore.getState().id;
+export function syncAdminRealmFromUrl(): void {
+  const fromUrl = readFromUrl();
+  if (fromUrl !== useAdminRealmStore.getState().id) {
+    useAdminRealmStore.setState({ id: fromUrl });
+  }
 }
 
-registerStoreReset(() => useActiveRealmStore.setState({ id: null }));
+registerStoreReset(() => useAdminRealmStore.setState({ id: null }));
 
 if (typeof window !== "undefined") {
-  const initialFromUrl = readFromUrl();
-  if (initialFromUrl !== null && useActiveRealmStore.getState().id !== initialFromUrl) {
-    useActiveRealmStore.setState({ id: initialFromUrl });
-  }
-  const rehydrateFromUrl = () => {
-    const fromUrl = readFromUrl();
-    if (fromUrl !== useActiveRealmStore.getState().id) {
-      useActiveRealmStore.setState({ id: fromUrl });
-    }
-  };
-  window.addEventListener("popstate", rehydrateFromUrl);
-  window.addEventListener("hashchange", rehydrateFromUrl);
+  syncAdminRealmFromUrl();
+  window.addEventListener("popstate", syncAdminRealmFromUrl);
+  window.addEventListener("hashchange", syncAdminRealmFromUrl);
 }

@@ -7,6 +7,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import { AdminRealmSwitcher } from "@/features/admin/AdminRealmSwitcher";
 import { ADMIN_CLIENT_ORG_QUERY_PARAM } from "@/hooks/useAdminClientOrgFilter";
+import { resetStores } from "@/test-utils/resetStores";
 
 const ORG_A = "65a1b2c3d4e5f6a7b8c9d0e1";
 const ORG_B = "65a1b2c3d4e5f6a7b8c9d0e2";
@@ -41,6 +42,7 @@ beforeEach(() => {
   jest.clearAllMocks();
   window.history.replaceState({}, "", "/");
   window.sessionStorage.clear();
+  resetStores();
 });
 
 afterEach(() => {

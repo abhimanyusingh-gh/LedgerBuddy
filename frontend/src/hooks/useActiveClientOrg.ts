@@ -7,8 +7,7 @@ import {
 
 export {
   ACTIVE_CLIENT_ORG_QUERY_PARAM,
-  ACTIVE_CLIENT_ORG_STORAGE_KEY,
-  ACTIVE_CLIENT_ORG_CHANGE_EVENT
+  ACTIVE_CLIENT_ORG_STORAGE_KEY
 } from "@/stores/activeRealmStore";
 
 export function readActiveClientOrgId(): string | null {
@@ -25,8 +24,9 @@ interface UseActiveClientOrgResult {
 }
 
 export function useActiveClientOrg(): UseActiveClientOrgResult {
-  const storeId = useActiveRealmStore((s) => s.id);
-  const activeClientOrgId = readActiveRealmId() ?? storeId;
+  // Subscribe so the component re-renders on store changes; the value itself comes from the URL-aware reader.
+  useActiveRealmStore((s) => s.id);
+  const activeClientOrgId = readActiveRealmId();
   const setActiveClientOrg = useCallback((id: string | null) => {
     setActiveRealm(id);
   }, []);
