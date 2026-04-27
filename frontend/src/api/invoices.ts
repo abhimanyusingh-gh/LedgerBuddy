@@ -1,5 +1,6 @@
 import { apiClient, safeNum, stripNulls } from "@/api/client";
 import { invoiceUrls } from "@/api/urls/invoiceUrls";
+import { ingestionUrls } from "@/api/urls/ingestionUrls";
 import type { Invoice, InvoiceListResponse, TallyFileExportResponse, ExportHistoryResponse } from "@/types";
 
 interface UpdateInvoiceParsedPayload {
@@ -20,7 +21,7 @@ interface UpdateInvoiceParsedPayload {
 export async function uploadInvoiceFiles(files: File[]): Promise<{ uploaded: string[]; count: number }> {
   const formData = new FormData();
   for (const file of files) formData.append("files", file);
-  return (await apiClient.post<{ uploaded: string[]; count: number }>("/jobs/upload", formData, {
+  return (await apiClient.post<{ uploaded: string[]; count: number }>(ingestionUrls.upload(), formData, {
     headers: { "Content-Type": "multipart/form-data" }
   })).data;
 }

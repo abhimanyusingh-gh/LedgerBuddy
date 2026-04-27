@@ -1,4 +1,5 @@
 import { apiClient } from "@/api/client";
+import { complianceUrls } from "@/api/urls/complianceUrls";
 import type { TcsConfig, TcsRateChange } from "@/types";
 
 interface UpdateTcsConfigBody {
@@ -16,17 +17,17 @@ interface TcsHistoryResponse {
 }
 
 export async function fetchTcsConfig(): Promise<TcsConfig> {
-  return (await apiClient.get<TcsConfig>("/admin/tcs-config")).data;
+  return (await apiClient.get<TcsConfig>(complianceUrls.tcsConfig())).data;
 }
 
 export async function updateTcsConfig(body: UpdateTcsConfigBody): Promise<TcsConfig> {
-  return (await apiClient.put<TcsConfig>("/admin/tcs-config", body)).data;
+  return (await apiClient.put<TcsConfig>(complianceUrls.tcsConfig(), body)).data;
 }
 
 export async function updateTcsModifyRoles(roles: string[]): Promise<TcsConfig> {
-  return (await apiClient.put<TcsConfig>("/admin/tcs-config/roles", { tcsModifyRoles: roles })).data;
+  return (await apiClient.put<TcsConfig>(complianceUrls.tcsConfigRoles(), { tcsModifyRoles: roles })).data;
 }
 
 export async function fetchTcsHistory(page: number = 1): Promise<TcsHistoryResponse> {
-  return (await apiClient.get<TcsHistoryResponse>("/admin/tcs-config/history", { params: { page } })).data;
+  return (await apiClient.get<TcsHistoryResponse>(complianceUrls.tcsConfigHistory(), { params: { page } })).data;
 }

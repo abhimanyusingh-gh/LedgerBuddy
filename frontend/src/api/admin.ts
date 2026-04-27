@@ -1,4 +1,5 @@
 import { apiClient, safeNum, stripNulls } from "@/api/client";
+import { complianceUrls } from "@/api/urls/complianceUrls";
 import type {
   AnalyticsOverview,
   ApprovalWorkflowConfig,
@@ -78,19 +79,19 @@ export async function saveApprovalWorkflow(config: ApprovalWorkflowConfig): Prom
 }
 
 export async function fetchGlCodes(params?: { search?: string; category?: string; active?: boolean }): Promise<{ items: GlCode[]; total: number }> {
-  return (await apiClient.get<{ items: GlCode[]; total: number }>("/admin/gl-codes", { params: { limit: 200, ...params } })).data;
+  return (await apiClient.get<{ items: GlCode[]; total: number }>(complianceUrls.glCodesList(), { params: { limit: 200, ...params } })).data;
 }
 
 export async function createGlCode(payload: { code: string; name: string; category: string; linkedTdsSection?: string }): Promise<GlCode> {
-  return (await apiClient.post<GlCode>("/admin/gl-codes", payload)).data;
+  return (await apiClient.post<GlCode>(complianceUrls.glCodesCreate(), payload)).data;
 }
 
 async function updateGlCode(code: string, payload: Partial<{ name: string; category: string; linkedTdsSection: string | null; isActive: boolean }>): Promise<GlCode> {
-  return (await apiClient.put<GlCode>(`/admin/gl-codes/${encodeURIComponent(code)}`, payload)).data;
+  return (await apiClient.put<GlCode>(complianceUrls.glCodeUpdate(code), payload)).data;
 }
 
 export async function deleteGlCode(code: string): Promise<GlCode> {
-  return (await apiClient.delete<GlCode>(`/admin/gl-codes/${encodeURIComponent(code)}`)).data;
+  return (await apiClient.delete<GlCode>(complianceUrls.glCodeDelete(code))).data;
 }
 
 export async function fetchTdsRates(): Promise<TdsRate[]> {
@@ -98,11 +99,11 @@ export async function fetchTdsRates(): Promise<TdsRate[]> {
 }
 
 export async function fetchComplianceConfig(): Promise<ClientComplianceConfig> {
-  return (await apiClient.get<ClientComplianceConfig>("/admin/compliance-config")).data;
+  return (await apiClient.get<ClientComplianceConfig>(complianceUrls.complianceConfig())).data;
 }
 
 export async function saveComplianceConfig(config: Partial<ClientComplianceConfig>): Promise<ClientComplianceConfig> {
-  return (await apiClient.put<ClientComplianceConfig>("/admin/compliance-config", config)).data;
+  return (await apiClient.put<ClientComplianceConfig>(complianceUrls.complianceConfig(), config)).data;
 }
 
 export async function fetchDefaultTdsSections(): Promise<TdsRateEntry[]> {
@@ -122,7 +123,7 @@ export interface GlCodeImportResult {
 export async function importGlCodesCsv(file: File): Promise<GlCodeImportResult> {
   const formData = new FormData();
   formData.append("file", file);
-  return (await apiClient.post<GlCodeImportResult>("/admin/gl-codes/import-csv", formData, {
+  return (await apiClient.post<GlCodeImportResult>(complianceUrls.glCodesImportCsv(), formData, {
     headers: { "Content-Type": "multipart/form-data" }
   })).data;
 }
@@ -177,11 +178,11 @@ export interface NotificationLogResponse {
 }
 
 export async function fetchNotificationConfig(): Promise<NotificationConfig> {
-  return (await apiClient.get<NotificationConfig>("/admin/notification-config")).data;
+  return (await apiClient.get<NotificationConfig>(complianceUrls.notificationConfig())).data;
 }
 
 export async function saveNotificationConfig(config: Partial<NotificationConfig>): Promise<NotificationConfig> {
-  return (await apiClient.patch<NotificationConfig>("/admin/notification-config", config)).data;
+  return (await apiClient.patch<NotificationConfig>(complianceUrls.notificationConfig(), config)).data;
 }
 
 export async function fetchNotificationLog(page = 1, limit = 20): Promise<NotificationLogResponse> {

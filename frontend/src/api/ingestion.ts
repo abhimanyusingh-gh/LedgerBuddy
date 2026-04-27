@@ -36,25 +36,25 @@ interface PresignedUploadResponse {
 export async function requestPresignedUrls(
   files: Array<{ name: string; contentType: string; sizeBytes: number }>
 ): Promise<PresignedUploadResponse> {
-  return (await apiClient.post<PresignedUploadResponse>("/uploads/presign", { files })).data;
+  return (await apiClient.post<PresignedUploadResponse>(ingestionUrls.presign(), { files })).data;
 }
 
 export async function registerUploadedKeys(
   keys: string[]
 ): Promise<{ uploaded: string[]; count: number }> {
-  return (await apiClient.post<{ uploaded: string[]; count: number }>("/jobs/upload/by-keys", { keys })).data;
+  return (await apiClient.post<{ uploaded: string[]; count: number }>(ingestionUrls.uploadByKeys(), { keys })).data;
 }
 
 export async function runIngestion() {
-  return sanitizeIngestionStatus((await apiClient.post<IngestionJobStatus>("/jobs/ingest")).data);
+  return sanitizeIngestionStatus((await apiClient.post<IngestionJobStatus>(ingestionUrls.ingestRun())).data);
 }
 
 export async function pauseIngestion() {
-  return sanitizeIngestionStatus((await apiClient.post<IngestionJobStatus>("/jobs/ingest/pause")).data);
+  return sanitizeIngestionStatus((await apiClient.post<IngestionJobStatus>(ingestionUrls.ingestPause())).data);
 }
 
 export async function fetchIngestionStatus() {
-  return sanitizeIngestionStatus((await apiClient.get<IngestionJobStatus>("/jobs/ingest/status")).data);
+  return sanitizeIngestionStatus((await apiClient.get<IngestionJobStatus>(ingestionUrls.ingestStatus())).data);
 }
 
 export function subscribeIngestionSSE(

@@ -1,4 +1,5 @@
 import { apiClient, getStoredSessionToken } from "@/api/client";
+import { bankUrls } from "@/api/urls/bankUrls";
 import type { BankAccount, BankStatementSummary } from "@/types";
 
 export interface BankParseProgressEvent {
@@ -90,19 +91,19 @@ export async function removeMailbox(integrationId: string): Promise<void> {
 }
 
 export async function fetchBankAccounts(): Promise<BankAccount[]> {
-  return (await apiClient.get<{ items: BankAccount[] }>("/bank/accounts")).data.items;
+  return (await apiClient.get<{ items: BankAccount[] }>(bankUrls.accountsList())).data.items;
 }
 
 export async function initiateBankConsent(aaAddress: string, displayName: string): Promise<{ _id: string; redirectUrl: string }> {
-  return (await apiClient.post<{ _id: string; redirectUrl: string }>("/bank/accounts", { aaAddress, displayName })).data;
+  return (await apiClient.post<{ _id: string; redirectUrl: string }>(bankUrls.accountsCreate(), { aaAddress, displayName })).data;
 }
 
 export async function revokeBankAccount(id: string): Promise<void> {
-  await apiClient.delete(`/bank/accounts/${id}`);
+  await apiClient.delete(bankUrls.accountDelete(id));
 }
 
 export async function refreshBankBalance(id: string): Promise<void> {
-  await apiClient.post(`/bank/accounts/${id}/refresh`);
+  await apiClient.post(bankUrls.accountRefresh(id));
 }
 
 export interface BankStatementFilterParams {
@@ -124,7 +125,7 @@ export async function fetchBankStatements(params?: BankStatementFilterParams): P
     total: number;
     page: number;
     limit: number;
-  }>("/bank-statements", { params })).data;
+  }>(bankUrls.statementsList(), { params })).data;
 }
 
 export async function uploadBankStatement(file: File, columnMapping?: Record<string, number>, gstin?: string, gstinLabel?: string): Promise<{
@@ -139,21 +140,21 @@ export async function uploadBankStatement(file: File, columnMapping?: Record<str
   if (columnMapping) formData.append("columnMapping", JSON.stringify(columnMapping));
   if (gstin) formData.append("gstin", gstin);
   if (gstinLabel) formData.append("gstinLabel", gstinLabel);
-  return (await apiClient.post("/bank-statements/upload", formData, {
+  return (await apiClient.post(bankUrls.statementUpload(), formData, {
     headers: { "Content-Type": "multipart/form-data" }
   })).data;
 }
 
 export async function fetchStatementMatches(statementId: string): Promise<{ items: import("@/types").ReconciliationMatchItem[]; summary: { totalTransactions: number; matched: number; suggested: number; unmatched: number } }> {
-  return (await apiClient.get(`/bank-statements/${statementId}/matches`)).data;
+  return (await apiClient.get(bankUrls.statementMatches(statementId))).data;
 }
 
 export async function updateStatementGstin(statementId: string, gstin: string, label?: string): Promise<void> {
-  await apiClient.put(`/bank-statements/${statementId}/gstin`, { gstin, label });
+  await apiClient.put(bankUrls.statementGstin(statementId), { gstin, label });
 }
 
 export async function fetchVendorGstins(): Promise<Array<{ gstin: string; vendorName: string; label: string }>> {
-  return (await apiClient.get<{ items: Array<{ gstin: string; vendorName: string; label: string }> }>("/bank-statements/vendor-gstins")).data.items;
+  return (await apiClient.get<{ items: Array<{ gstin: string; vendorName: string; label: string }> }>(bankUrls.vendorGstins())).data.items;
 }
 
 export interface BankTransactionFilterParams {
@@ -167,19 +168,19 @@ export interface BankTransactionFilterParams {
 }
 
 export async function fetchBankTransactions(statementId: string, params?: BankTransactionFilterParams): Promise<{ items: import("@/types").BankTransactionEntry[]; total: number; page: number; limit: number }> {
-  return (await apiClient.get(`/bank-statements/${statementId}/transactions`, { params })).data;
+  return (await apiClient.get(bankUrls.statementTransactions(statementId), { params })).data;
 }
 
 export async function reconcileStatement(statementId: string): Promise<{ matched: number; suggested: number; unmatched: number }> {
-  return (await apiClient.post(`/bank-statements/${statementId}/reconcile`)).data;
+  return (await apiClient.post(bankUrls.statementReconcile(statementId))).data;
 }
 
 export async function matchTransactionToInvoice(transactionId: string, invoiceId: string): Promise<void> {
-  await apiClient.post(`/bank-statements/transactions/${transactionId}/match`, { invoiceId });
+  await apiClient.post(bankUrls.transactionMatch(transactionId), { invoiceId });
 }
 
 export async function unmatchTransaction(transactionId: string): Promise<void> {
-  await apiClient.delete(`/bank-statements/transactions/${transactionId}/match`);
+  await apiClient.delete(bankUrls.transactionMatch(transactionId));
 }
 
 export interface AccountNameOption {
@@ -189,5 +190,5 @@ export interface AccountNameOption {
 }
 
 export async function fetchAccountNames(): Promise<AccountNameOption[]> {
-  return (await apiClient.get<{ items: AccountNameOption[] }>("/bank-statements/account-names")).data.items;
+  return (await apiClient.get<{ items: AccountNameOption[] }>(bankUrls.accountNames())).data.items;
 }

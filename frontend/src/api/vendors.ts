@@ -1,4 +1,5 @@
 import { apiClient } from "@/api/client";
+import { complianceUrls } from "@/api/urls/complianceUrls";
 
 export interface VendorListItem {
   _id: string;
@@ -11,7 +12,7 @@ export interface VendorListItem {
 }
 
 export async function fetchVendors(params: { hasMsme?: boolean; page?: number; limit?: number }): Promise<{ items: VendorListItem[]; page: number; limit: number; total: number }> {
-  const response = await apiClient.get<{ items: VendorListItem[]; page: number; limit: number; total: number }>("/vendors", {
+  const response = await apiClient.get<{ items: VendorListItem[]; page: number; limit: number; total: number }>(complianceUrls.vendorsList(), {
     params: {
       hasMsme: params.hasMsme ? "true" : undefined,
       page: params.page ?? 1,
@@ -22,5 +23,5 @@ export async function fetchVendors(params: { hasMsme?: boolean; page?: number; l
 }
 
 export async function updateVendorMsme(id: string, agreedPaymentDays: number | null): Promise<unknown> {
-  return (await apiClient.patch(`/vendors/${id}`, { msme: { agreedPaymentDays } })).data;
+  return (await apiClient.patch(complianceUrls.vendorUpdate(id), { msme: { agreedPaymentDays } })).data;
 }
