@@ -13,9 +13,12 @@ jest.mock("@/api/client", () => {
 import { useTriageQueue } from "@/hooks/useTriageQueue";
 import { setActiveClientOrgId } from "@/hooks/useActiveClientOrg";
 import { writeTenantSetupCompleted } from "@/hooks/useTenantSetupCompleted";
+import { writeActiveTenantId } from "@/api/tenantStorage";
 import { getMockedApiClient } from "@/test-utils/mockApiClient";
 
 const apiClient = getMockedApiClient();
+
+const TEST_TENANT_ID = "tenant-1";
 
 function reset() {
   window.history.replaceState({}, "", "/");
@@ -38,6 +41,9 @@ describe("hooks/useTriageQueue — tenant-scoped, NOT realm-scoped (composite-ke
     reset();
     apiClient.get.mockReset();
     apiClient.patch.mockReset();
+    // triageUrls.triageList() requires an active tenantId at construction
+    // time (tenant-scoped bypass — no clientOrgId in path).
+    writeActiveTenantId(TEST_TENANT_ID);
     writeTenantSetupCompleted(true);
   });
   afterEach(reset);
@@ -52,7 +58,7 @@ describe("hooks/useTriageQueue — tenant-scoped, NOT realm-scoped (composite-ke
     expect(result.current.invoices).toHaveLength(1);
     expect(apiClient.get).toHaveBeenCalledTimes(1);
     expect(apiClient.get).toHaveBeenCalledWith(
-      "/invoices/triage",
+      `/tenants/${TEST_TENANT_ID}/invoices/triage`,
       expect.objectContaining({ params: { status: "PENDING_TRIAGE" } })
     );
   });

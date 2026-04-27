@@ -1,4 +1,5 @@
 import { apiClient, safeNum, stripNulls } from "@/api/client";
+import { invoiceUrls } from "@/api/urls/invoiceUrls";
 import type { Invoice, InvoiceListResponse, TallyFileExportResponse, ExportHistoryResponse } from "@/types";
 
 interface UpdateInvoiceParsedPayload {
@@ -37,7 +38,7 @@ interface FetchInvoicesOptions {
 
 export async function fetchInvoices(options: FetchInvoicesOptions = {}) {
   const { status, from, to, page = 1, limit = 20, approvedBy, sortBy, sortDir } = options;
-  const response = await apiClient.get<InvoiceListResponse>("/invoices", {
+  const response = await apiClient.get<InvoiceListResponse>(invoiceUrls.list(), {
     params: {
       page, limit,
       status: status || undefined,
@@ -61,27 +62,27 @@ export async function fetchInvoices(options: FetchInvoicesOptions = {}) {
 }
 
 export async function fetchInvoiceById(invoiceId: string) {
-  return stripNulls((await apiClient.get<Invoice>(`/invoices/${invoiceId}`)).data) as Invoice;
+  return stripNulls((await apiClient.get<Invoice>(invoiceUrls.detail(invoiceId))).data) as Invoice;
 }
 
 export async function approveInvoices(ids: string[], approvedBy: string) {
-  return (await apiClient.post<{ modifiedCount: number }>("/invoices/approve", { ids, approvedBy })).data;
+  return (await apiClient.post<{ modifiedCount: number }>(invoiceUrls.approve(), { ids, approvedBy })).data;
 }
 
 export async function approveWorkflowStep(invoiceId: string) {
-  return (await apiClient.post(`/invoices/${invoiceId}/workflow-approve`)).data;
+  return (await apiClient.post(invoiceUrls.workflowApprove(invoiceId))).data;
 }
 
 export async function rejectWorkflowStep(invoiceId: string, reason: string) {
-  return (await apiClient.post(`/invoices/${invoiceId}/workflow-reject`, { reason })).data;
+  return (await apiClient.post(invoiceUrls.workflowReject(invoiceId), { reason })).data;
 }
 
 export async function deleteInvoices(ids: string[]) {
-  return (await apiClient.post<{ deletedCount: number }>("/invoices/delete", { ids })).data;
+  return (await apiClient.post<{ deletedCount: number }>(invoiceUrls.bulkDelete(), { ids })).data;
 }
 
 export async function retryInvoices(ids: string[]) {
-  return (await apiClient.post<{ modifiedCount: number }>("/invoices/retry", { ids })).data;
+  return (await apiClient.post<{ modifiedCount: number }>(invoiceUrls.retry(), { ids })).data;
 }
 
 export async function generateTallyXmlFile(ids?: string[]) {
@@ -101,14 +102,14 @@ export async function fetchExportHistory(page = 1, limit = 20): Promise<ExportHi
 }
 
 export async function updateInvoiceParsedFields(invoiceId: string, payload: UpdateInvoiceParsedPayload) {
-  return stripNulls((await apiClient.patch<Invoice>(`/invoices/${invoiceId}`, payload)).data) as Invoice;
+  return stripNulls((await apiClient.patch<Invoice>(invoiceUrls.update(invoiceId), payload)).data) as Invoice;
 }
 
 export async function updateInvoiceComplianceOverride(invoiceId: string, payload: Record<string, unknown>): Promise<Invoice> {
-  return stripNulls((await apiClient.patch<Invoice>(`/invoices/${invoiceId}`, payload)).data) as Invoice;
+  return stripNulls((await apiClient.patch<Invoice>(invoiceUrls.update(invoiceId), payload)).data) as Invoice;
 }
 
 
 export async function renameInvoiceAttachment(invoiceId: string, attachmentName: string) {
-  return stripNulls((await apiClient.patch<Invoice>(`/invoices/${invoiceId}`, { attachmentName })).data) as Invoice;
+  return stripNulls((await apiClient.patch<Invoice>(invoiceUrls.update(invoiceId), { attachmentName })).data) as Invoice;
 }

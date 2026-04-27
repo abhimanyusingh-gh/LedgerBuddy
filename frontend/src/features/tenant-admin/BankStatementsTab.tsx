@@ -15,6 +15,7 @@ import {
 } from "@/api/bank";
 import type { AccountNameOption, BankStatementFilterParams, BankTransactionFilterParams } from "@/api/bank";
 import { apiClient } from "@/api/client";
+import { invoiceUrls } from "@/api/urls/invoiceUrls";
 import { EmptyState } from "@/components/common/EmptyState";
 
 interface BankStatementsTabProps {
@@ -81,7 +82,7 @@ function InvoiceSearchPicker({
         const params: Record<string, unknown> = { limit: 10, page: 1 };
         if (gstin) params.gstin = gstin;
         params.search = query;
-        const resp = await apiClient.get<{ items: Invoice[] }>("/invoices", { params });
+        const resp = await apiClient.get<{ items: Invoice[] }>(invoiceUrls.list(), { params });
         setResults(resp.data.items);
       } catch {
         setResults([]);
