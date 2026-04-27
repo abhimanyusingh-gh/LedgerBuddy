@@ -25,7 +25,8 @@ interface UseActiveClientOrgResult {
 }
 
 export function useActiveClientOrg(): UseActiveClientOrgResult {
-  const activeClientOrgId = useActiveRealmStore((s) => s.id);
+  useActiveRealmStore((s) => s.id);
+  const activeClientOrgId = readActiveRealmId();
   const setActiveClientOrg = useCallback((id: string | null) => {
     setActiveRealm(id);
   }, []);

@@ -1,5 +1,5 @@
-import { create, type StateStorage } from "zustand";
-import { persist } from "zustand/middleware";
+import { create } from "zustand";
+import { persist, type StateStorage } from "zustand/middleware";
 import { ADMIN_CLIENT_ORG_CHANGE_EVENT } from "@/hooks/useAdminClientOrgFilter";
 
 export const ACTIVE_CLIENT_ORG_QUERY_PARAM = "clientOrgId";
@@ -77,7 +77,7 @@ export const useActiveRealmStore = create<ActiveRealmState>()(
       name: ACTIVE_CLIENT_ORG_STORAGE_KEY,
       storage: {
         getItem: (name) => {
-          const raw = rawSessionStorage.getItem(name);
+          const raw = rawSessionStorage.getItem(name) as string | null;
           return raw === null ? null : JSON.parse(raw);
         },
         setItem: (name, value) => {
@@ -87,7 +87,7 @@ export const useActiveRealmStore = create<ActiveRealmState>()(
           rawSessionStorage.removeItem(name);
         }
       },
-      partialize: (state) => ({ id: state.id }),
+      partialize: (state) => ({ id: state.id }) as ActiveRealmState,
       onRehydrateStorage: () => (state) => {
         if (!state) return;
         const fromUrl = readFromUrl();

@@ -9,11 +9,13 @@ import {
   ACTIVE_CLIENT_ORG_STORAGE_KEY,
   setActiveClientOrgId
 } from "@/hooks/useActiveClientOrg";
+import { resetStores } from "@/test-utils/resetStores";
 
 function clearActiveRealm() {
   window.history.replaceState({}, "", "/");
   window.localStorage.clear();
   window.sessionStorage.clear();
+  resetStores();
 }
 
 describe("components/workspace/TenantBadge", () => {
@@ -104,8 +106,8 @@ describe("components/workspace/ActiveRealmBadge", () => {
     expect(screen.queryByTestId("active-realm-badge")).not.toBeInTheDocument();
   });
 
-  it("reads the active id from the URL query parameter (URL > sessionStorage)", () => {
-    window.sessionStorage.setItem(ACTIVE_CLIENT_ORG_STORAGE_KEY, "from-storage");
+  it("reads the active id from the URL query parameter (URL > store)", () => {
+    setActiveClientOrgId("from-storage");
     window.history.replaceState({}, "", `/?${ACTIVE_CLIENT_ORG_QUERY_PARAM}=from-url`);
     render(
       <ActiveRealmBadge
@@ -118,8 +120,10 @@ describe("components/workspace/ActiveRealmBadge", () => {
     expect(screen.getByTestId("active-realm-badge")).toHaveTextContent("URL-driven Co.");
   });
 
-  it("falls back to sessionStorage when the URL has no active id", () => {
-    window.sessionStorage.setItem(ACTIVE_CLIENT_ORG_STORAGE_KEY, "from-storage");
+  it("falls back to the store when the URL has no active id", () => {
+    setActiveClientOrgId("from-storage");
+    window.history.replaceState({}, "", "/");
+    expect(window.sessionStorage.getItem(ACTIVE_CLIENT_ORG_STORAGE_KEY)).toBe("from-storage");
     render(
       <ActiveRealmBadge
         clientOrgs={[{ id: "from-storage", companyName: "Storage-driven Co." }]}
