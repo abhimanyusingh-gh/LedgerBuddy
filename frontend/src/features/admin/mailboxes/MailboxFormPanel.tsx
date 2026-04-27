@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
-import { Button } from "@/components/ds";
+import { Button, Spinner } from "@/components/ds";
 import { SlideOverPanel } from "@/components/ds/SlideOverPanel";
-import type { MailboxAssignment } from "@/api/mailboxAssignments";
+import type { AvailableIntegration, MailboxAssignment } from "@/api/mailboxAssignments";
 import type { ClientOrgOption } from "@/components/workspace/HierarchyBadges";
 import { ClientOrgMultiPicker } from "@/features/admin/mailboxes/ClientOrgMultiPicker";
+import { useAvailableIntegrations } from "@/hooks/useAvailableIntegrations";
 
 export const MAILBOX_FORM_MODE = {
   Add: "add",
@@ -31,11 +32,15 @@ interface MailboxFormPanelProps {
   onClose: () => void;
 }
 
-const OBJECT_ID_PATTERN = /^[0-9a-fA-F]{24}$/;
-const INTEGRATION_ID_INVALID_MESSAGE = "Integration ID must be a 24-character ObjectId.";
+const INTEGRATIONS_EMPTY_MESSAGE =
+  "No available integrations to assign — contact admin to add one.";
+const INTEGRATIONS_ERROR_MESSAGE = "Couldn't load integrations.";
 
-function isValidObjectId(value: string): boolean {
-  return OBJECT_ID_PATTERN.test(value);
+function describeIntegration(integration: AvailableIntegration): string {
+  const email = integration.emailAddress ?? "(no email)";
+  const provider = integration.provider ?? "unknown";
+  const status = integration.status ?? "unknown";
+  return `${email} (${provider}, ${status})`;
 }
 
 function buildInitial(initial: MailboxAssignment | null | undefined): MailboxFormValues {
@@ -86,22 +91,22 @@ export function MailboxFormPanel({
     }
   }, [open, initial]);
 
-  const trimmedIntegrationId = values.integrationId.trim();
-  const integrationIdTouched = values.integrationId.length > 0;
-  const integrationIdValid = isValidObjectId(trimmedIntegrationId);
+  const integrationsQuery = useAvailableIntegrations(open && !isEdit);
+
+  const hasIntegrationId = values.integrationId.length > 0;
   const hasOneClientOrg = values.clientOrgIds.length >= 1;
 
   const canSubmit = useMemo(() => {
     if (submitting) return false;
     if (!hasOneClientOrg) return false;
-    if (!isEdit && !integrationIdValid) return false;
+    if (!isEdit && !hasIntegrationId) return false;
     return true;
-  }, [submitting, hasOneClientOrg, isEdit, integrationIdValid]);
+  }, [submitting, hasOneClientOrg, isEdit, hasIntegrationId]);
 
   const handleSubmit = () => {
     if (!canSubmit) return;
     onSubmit({
-      integrationId: trimmedIntegrationId,
+      integrationId: values.integrationId,
       clientOrgIds: values.clientOrgIds
     });
   };
@@ -159,36 +164,61 @@ export function MailboxFormPanel({
 
         {!isEdit ? (
           <div className="mailboxes-form-field">
-            <label htmlFor="mailbox-form-integration-id">Integration ID</label>
-            <input
-              id="mailbox-form-integration-id"
-              data-testid="mailbox-form-integration-id-input"
-              type="text"
-              autoComplete="off"
-              spellCheck={false}
-              value={values.integrationId}
-              aria-invalid={integrationIdTouched && !integrationIdValid ? true : undefined}
-              aria-describedby="mailbox-form-integration-id-hint"
-              onChange={(event) =>
-                setValues((current) => ({ ...current, integrationId: event.target.value }))
-              }
-            />
-            <span
-              id="mailbox-form-integration-id-hint"
-              className="mailboxes-form-field-hint"
-            >
-              Identifier of the connected Gmail integration this mailbox maps
-              to. A future iteration will offer a picker; for now copy the id
-              from the connected mailbox row in Settings (24-character hex).
-            </span>
-            {integrationIdTouched && !integrationIdValid ? (
+            <label htmlFor="mailbox-form-integration-id">Integration</label>
+            {integrationsQuery.status === "pending" ? (
+              <div
+                className="mailboxes-form-field-loading"
+                data-testid="mailbox-form-integration-loading"
+                role="status"
+                aria-live="polite"
+              >
+                <Spinner />
+                <span>Loading available integrations…</span>
+              </div>
+            ) : null}
+            {integrationsQuery.status === "success" && integrationsQuery.data.length === 0 ? (
               <span
+                className="mailboxes-form-field-hint"
+                data-testid="mailbox-form-integration-empty"
+              >
+                {INTEGRATIONS_EMPTY_MESSAGE}
+              </span>
+            ) : null}
+            {integrationsQuery.status === "success" && integrationsQuery.data.length > 0 ? (
+              <select
+                id="mailbox-form-integration-id"
+                data-testid="mailbox-form-integration-id-select"
+                value={values.integrationId}
+                onChange={(event) =>
+                  setValues((current) => ({ ...current, integrationId: event.target.value }))
+                }
+              >
+                <option value="">Select a connected integration…</option>
+                {integrationsQuery.data.map((integration) => (
+                  <option key={integration._id} value={integration._id}>
+                    {describeIntegration(integration)}
+                  </option>
+                ))}
+              </select>
+            ) : null}
+            {integrationsQuery.status === "error" ? (
+              <div
                 className="mailboxes-form-field-error"
                 role="alert"
-                data-testid="mailbox-form-integration-id-error"
+                data-testid="mailbox-form-integration-error"
               >
-                {INTEGRATION_ID_INVALID_MESSAGE}
-              </span>
+                <span>{INTEGRATIONS_ERROR_MESSAGE}</span>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => {
+                    void integrationsQuery.refetch();
+                  }}
+                  data-testid="mailbox-form-integration-retry"
+                >
+                  Retry
+                </Button>
+              </div>
             ) : null}
           </div>
         ) : null}

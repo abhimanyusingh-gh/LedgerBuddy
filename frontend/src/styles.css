@@ -5053,6 +5053,14 @@ pre {
   color: var(--warn);
 }
 
+.mailboxes-form-field-loading {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-size: 0.8125rem;
+  color: var(--ink-soft);
+}
+
 .mailboxes-form-routing-preview {
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);

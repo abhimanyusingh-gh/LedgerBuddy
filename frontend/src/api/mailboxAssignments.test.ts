@@ -6,6 +6,7 @@ import {
   deleteMailboxAssignment,
   fetchMailboxAssignments,
   fetchMailboxRecentIngestions,
+  listIntegrations,
   updateMailboxAssignment
 } from "@/api/mailboxAssignments";
 
@@ -69,6 +70,20 @@ describe("api/mailboxAssignments", () => {
       "/admin/mailbox-assignments/a-1/recent-ingestions",
       { params: { days: 30, limit: 50 } }
     );
+  });
+
+  it("listIntegrations unwraps the items array and returns [] for malformed payloads", async () => {
+    apiClient.get.mockResolvedValueOnce({
+      data: { items: [{ _id: "i-1", emailAddress: "a@b.com", status: "CONNECTED", provider: "gmail" }] }
+    });
+    const items = await listIntegrations();
+    expect(apiClient.get).toHaveBeenCalledWith("/admin/integrations");
+    expect(items).toEqual([
+      { _id: "i-1", emailAddress: "a@b.com", status: "CONNECTED", provider: "gmail" }
+    ]);
+
+    apiClient.get.mockResolvedValueOnce({ data: {} });
+    expect(await listIntegrations()).toEqual([]);
   });
 
   it("fetchMailboxRecentIngestions omits limit when not provided and percent-encodes the id", async () => {

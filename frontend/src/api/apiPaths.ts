@@ -71,6 +71,7 @@ export const TENANT_SCOPED_PREFIXES = [
   "/admin/mailboxes",
   "/admin/client-orgs",
   "/admin/mailbox-assignments",
+  "/admin/integrations",
   // Notification log — tenant-wide and admin-only (no clientOrgId in the path).
   "/admin/notifications/log",
   "/integrations/gmail",

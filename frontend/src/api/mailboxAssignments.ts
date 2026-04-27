@@ -32,6 +32,19 @@ interface UpdateMailboxAssignmentPayload {
 }
 
 const MAILBOX_ASSIGNMENTS_PATH = "/admin/mailbox-assignments";
+const INTEGRATIONS_PATH = "/admin/integrations";
+
+export interface AvailableIntegration {
+  _id: string;
+  emailAddress: string | null;
+  status: string;
+  provider: string;
+}
+
+export async function listIntegrations(): Promise<AvailableIntegration[]> {
+  const response = await apiClient.get<{ items?: AvailableIntegration[] }>(INTEGRATIONS_PATH);
+  return Array.isArray(response.data?.items) ? response.data.items : [];
+}
 
 export interface MailboxRecentIngestionItem {
   _id: string;

@@ -345,6 +345,7 @@ describe("api/apiPaths", () => {
       "/admin/client-orgs/abc-123",
       "/admin/mailbox-assignments",
       "/admin/mailbox-assignments/abc-123/recent-ingestions",
+      "/admin/integrations",
       "/admin/notifications/log",
       "/admin/notifications/log?page=2&limit=10",
       "/integrations/gmail",
@@ -406,6 +407,7 @@ describe("api/apiPaths", () => {
         "/admin/mailboxes",
         "/admin/client-orgs",
         "/admin/mailbox-assignments",
+        "/admin/integrations",
         "/admin/notifications/log",
         "/integrations/gmail",
         "/analytics/overview"

@@ -16,6 +16,7 @@ jest.mock("@/api/mailboxAssignments", () => ({
   createMailboxAssignment: jest.fn(),
   updateMailboxAssignment: jest.fn(),
   deleteMailboxAssignment: jest.fn(),
+  listIntegrations: jest.fn().mockResolvedValue([]),
   fetchMailboxRecentIngestions: jest
     .fn()
     .mockResolvedValue({ items: [], total: 0, periodDays: 30, truncatedAt: 1 })
