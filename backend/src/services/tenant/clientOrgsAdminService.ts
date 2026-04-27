@@ -119,6 +119,30 @@ export class ClientOrgsAdminService {
     return this.serialize(updated);
   }
 
+  /** `projectedStatus === 'deleted'` iff total dependents === 0; otherwise `'archived'`. Read-only — never advances `archivedAt`. */
+  async previewArchive(input: { tenantId: string; clientOrgId: string }) {
+    const oid = this.toOid(input.clientOrgId);
+    const existing = await ClientOrganizationModel.findOne({
+      _id: oid,
+      tenantId: input.tenantId
+    }).lean();
+    if (!existing) {
+      throw new HttpError("Client organization not found.", 404, "client_org_not_found");
+    }
+
+    const { counts, total } = await countClientOrgDependents({
+      tenantId: input.tenantId,
+      clientOrgId: oid
+    });
+
+    const projectedStatus = total > 0 ? ("archived" as const) : ("deleted" as const);
+    return {
+      projectedStatus,
+      linkedCounts: counts,
+      archivedAt: existing.archivedAt ?? null
+    };
+  }
+
   /**
    * Hard-delete when the org has no dependent accounting-leaf rows;
    * otherwise soft-archive (`archivedAt = now`) and return the
