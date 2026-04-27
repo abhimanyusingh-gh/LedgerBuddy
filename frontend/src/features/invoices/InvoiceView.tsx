@@ -11,7 +11,6 @@ import {
   fetchInvoices,
   pauseIngestion,
   runIngestion,
-  getInvoicePreviewUrl,
   subscribeIngestionSSE,
   updateInvoiceParsedFields,
   renameInvoiceAttachment,
@@ -19,6 +18,7 @@ import {
   requestPresignedUrls,
   registerUploadedKeys
 } from "@/api";
+import { invoiceUrls } from "@/api/urls/invoiceUrls";
 import type { IngestionJobStatus, Invoice, TenantUser, UserCapabilities } from "@/types";
 import { ConfidenceBadge } from "@/components/invoice/ConfidenceBadge";
 import { IngestionProgressCard } from "@/components/invoice/IngestionProgressCard";
@@ -404,12 +404,12 @@ export function InvoiceView({
 
   const activeCropUrlByField = useMemo(() => {
     if (!activeInvoice) return {};
-    return buildFieldCropSourceMap(activeInvoice._id, getInvoiceSourceHighlights(activeInvoice), getInvoicePreviewUrl);
+    return buildFieldCropSourceMap(activeInvoice._id, getInvoiceSourceHighlights(activeInvoice), invoiceUrls.preview);
   }, [activeInvoice]);
 
   const popupCropUrlByField = useMemo(() => {
     if (!popupInvoice) return {};
-    return buildFieldCropSourceMap(popupInvoice._id, getInvoiceSourceHighlights(popupInvoice), getInvoicePreviewUrl);
+    return buildFieldCropSourceMap(popupInvoice._id, getInvoiceSourceHighlights(popupInvoice), invoiceUrls.preview);
   }, [popupInvoice]);
 
   const ingestionProgressPercent = !ingestionStatus || ingestionStatus.totalFiles <= 0
@@ -1582,7 +1582,7 @@ export function InvoiceView({
                   tenantGlCodes={tenantGlCodes}
                   tenantTdsRates={tenantTdsRates}
                   activeCropUrlByField={activeCropUrlByField}
-                  resolvePreviewUrl={(page) => getInvoicePreviewUrl(activeInvoice._id, page)}
+                  resolvePreviewUrl={(page) => invoiceUrls.preview(activeInvoice._id, page)}
                   activeSourcePreviewExpanded={!!sectionExpanded.activeSourcePreview}
                   setActiveSourcePreviewExpanded={(v) => setSection("activeSourcePreview", v)}
                   activeExtractedFieldsExpanded={sectionExpanded.activeExtractedFields !== false}
@@ -1698,7 +1698,7 @@ export function InvoiceView({
           onClose={() => setPopupInvoiceId(null)}
           onSaveField={(fieldKey, value, refreshDetail) => handleSaveField(popupInvoice, fieldKey, value, refreshDetail)}
           refreshPopupInvoiceDetail={refreshPopupInvoiceDetail}
-          resolvePreviewUrl={(page) => getInvoicePreviewUrl(popupInvoice._id, page)}
+          resolvePreviewUrl={(page) => invoiceUrls.preview(popupInvoice._id, page)}
         />
       ) : null}
       <PreExportValidationPanel

@@ -19,6 +19,13 @@ const FRONTEND_SRC = join(REPO_ROOT, "frontend", "src");
 const BACKEND_SRC = join(REPO_ROOT, "backend", "src");
 const APP_TS = join(BACKEND_SRC, "app.ts");
 const API_PATHS_TS = join(FRONTEND_SRC, "api", "apiPaths.ts");
+const URL_PROVIDERS_DIR = join(FRONTEND_SRC, "api", "urls");
+
+const PROVIDER_BUILDER = {
+  NESTED: "buildNested",
+  TENANT: "buildTenantNested"
+} as const;
+type ProviderBuilder = typeof PROVIDER_BUILDER[keyof typeof PROVIDER_BUILDER];
 
 const HTTP_METHOD = {
   GET: "GET",
@@ -236,6 +243,114 @@ function applyRewrite(barePath: string, kind: PathKind): string {
   return `/api${normalized}`;
 }
 
+// ───────────────────────── Provider method walk ─────────────────────────
+// URL-provider methods (frontend/src/api/urls/*Urls.ts) bury the bare path
+// inside `buildNested(...)` / `buildTenantNested(...)` calls, invisible to the
+// apiClient call-site walker. Pre-extract a {provider.method -> {bare,scope}}
+// map so callers like `invoiceUrls.preview(id)` resolve to a real FE URL.
+
+interface ProviderMethodInfo {
+  bare: string;
+  builder: ProviderBuilder;
+  source: string;
+}
+
+type ProviderMethodMap = Map<string, ProviderMethodInfo>;
+
+function listProviderFiles(): string[] {
+  const out: string[] = [];
+  for (const entry of readdirSync(URL_PROVIDERS_DIR)) {
+    if (
+      entry.endsWith("Urls.ts") &&
+      !entry.endsWith(".test.ts") &&
+      !entry.endsWith(".d.ts")
+    ) {
+      out.push(join(URL_PROVIDERS_DIR, entry));
+    }
+  }
+  return out;
+}
+
+function extractProviderBare(node: ts.Expression, ctx: ResolveContext): string | null {
+  const resolved = resolvePathExpr(node, ctx);
+  return resolved ? resolved.bare : null;
+}
+
+function findBuilderCallInBody(
+  body: ts.Node,
+  ctx: ResolveContext
+): { builder: ProviderBuilder; bare: string } | null {
+  let found: { builder: ProviderBuilder; bare: string } | null = null;
+  function visit(node: ts.Node) {
+    if (found) return;
+    if (
+      ts.isCallExpression(node) &&
+      ts.isIdentifier(node.expression) &&
+      (node.expression.text === PROVIDER_BUILDER.NESTED ||
+        node.expression.text === PROVIDER_BUILDER.TENANT)
+    ) {
+      const arg0 = node.arguments[0];
+      if (arg0) {
+        const bare = extractProviderBare(arg0, ctx);
+        if (bare !== null) {
+          found = { builder: node.expression.text as ProviderBuilder, bare };
+          return;
+        }
+      }
+    }
+    ts.forEachChild(node, visit);
+  }
+  visit(body);
+  return found;
+}
+
+function buildProviderMethodMap(): ProviderMethodMap {
+  const out: ProviderMethodMap = new Map();
+  for (const file of listProviderFiles()) {
+    const source = ts.createSourceFile(file, readFileSync(file, "utf8"), ts.ScriptTarget.ES2022, true);
+    const ctx: ResolveContext = { source, constants: buildModuleConstants(source) };
+    function visit(node: ts.Node) {
+      if (
+        ts.isVariableDeclaration(node) &&
+        ts.isIdentifier(node.name) &&
+        /Urls$/.test(node.name.text) &&
+        node.initializer &&
+        ts.isObjectLiteralExpression(node.initializer)
+      ) {
+        const providerName = node.name.text;
+        for (const prop of node.initializer.properties) {
+          if (
+            (ts.isPropertyAssignment(prop) || ts.isMethodDeclaration(prop)) &&
+            (ts.isIdentifier(prop.name) || ts.isStringLiteral(prop.name))
+          ) {
+            const methodName = prop.name.text;
+            const body = ts.isPropertyAssignment(prop) ? prop.initializer : prop;
+            const found = findBuilderCallInBody(body, ctx);
+            const key = `${providerName}.${methodName}`;
+            const { line, character } = source.getLineAndCharacterOfPosition(prop.getStart());
+            const loc = `${relative(REPO_ROOT, file)}:${line + 1}:${character + 1}`;
+            if (!found) {
+              throw new Error(
+                `URL-provider method ${key} at ${loc} does not call ${PROVIDER_BUILDER.NESTED}/${PROVIDER_BUILDER.TENANT}; ` +
+                  `extend the contract walker or add the consumer file:line to UNANALYZABLE_FE_CALL_SITES.`
+              );
+            }
+            out.set(key, { bare: found.bare, builder: found.builder, source: loc });
+          }
+        }
+      }
+      ts.forEachChild(node, visit);
+    }
+    visit(source);
+  }
+  return out;
+}
+
+function providerInfoToFullUrl(info: ProviderMethodInfo): string {
+  const kind = info.builder === PROVIDER_BUILDER.NESTED ? PATH_KIND.REALM_SCOPED : PATH_KIND.TENANT_SCOPED;
+  return applyRewrite(info.bare, kind);
+}
+
 // ───────────────────────── FE walker ─────────────────────────
 
 function listTsFiles(dir: string, out: string[] = []): string[] {
@@ -354,10 +469,11 @@ interface RawFeCall {
   source: string;
 }
 
-function collectRawFeCalls(file: string): RawFeCall[] {
+function collectRawFeCalls(file: string, providerMap: ProviderMethodMap): RawFeCall[] {
   const source = ts.createSourceFile(file, readFileSync(file, "utf8"), ts.ScriptTarget.ES2022, true);
   const ctx: ResolveContext = { source, constants: buildModuleConstants(source) };
   const calls: RawFeCall[] = [];
+  const isProviderModule = file.startsWith(URL_PROVIDERS_DIR);
 
   function loc(node: ts.Node): string {
     const { line, character } = source.getLineAndCharacterOfPosition(node.getStart());
@@ -397,6 +513,35 @@ function collectRawFeCalls(file: string): RawFeCall[] {
               source: loc(node)
             });
           }
+        }
+      }
+
+      // <providerName>.<methodName>(...) call — provider modules expose their
+      // bare path inside `buildNested(...)` bodies that the apiClient walker
+      // cannot see. Resolve via the pre-built providerMap and emit a synthetic
+      // GET entry (provider URLs are bypass-route consumers: <img>, EventSource,
+      // authenticatedUrl). Skip the provider modules themselves.
+      if (
+        !isProviderModule &&
+        ts.isPropertyAccessExpression(callee) &&
+        ts.isIdentifier(callee.expression) &&
+        ts.isIdentifier(callee.name) &&
+        /Urls$/.test(callee.expression.text)
+      ) {
+        const key = `${callee.expression.text}.${callee.name.text}`;
+        const info = providerMap.get(key);
+        if (info) {
+          calls.push({
+            method: HTTP_METHOD.GET,
+            bare: info.bare,
+            fullUrlOverride: providerInfoToFullUrl(info),
+            source: loc(node)
+          });
+        } else if (providerMap.size > 0) {
+          throw new Error(
+            `Unknown URL-provider method ${key} at ${loc(node)} — no matching entry in providerMethodMap. ` +
+              `Add the method to a *Urls.ts module under api/urls/, or add the file:line to UNANALYZABLE_FE_CALL_SITES.`
+          );
         }
       }
 
@@ -480,10 +625,11 @@ function collectRawFeCalls(file: string): RawFeCall[] {
 }
 
 function walkFrontend(cfg: ClassifierConfig): FeUrl[] {
+  const providerMap = buildProviderMethodMap();
   const files = listTsFiles(FRONTEND_SRC);
   const seen = new Map<string, FeUrl>();
   for (const file of files) {
-    const raws = collectRawFeCalls(file);
+    const raws = collectRawFeCalls(file, providerMap);
     for (const raw of raws) {
       const resolvedUrl =
         raw.fullUrlOverride !== null
