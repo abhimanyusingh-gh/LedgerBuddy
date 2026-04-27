@@ -10,7 +10,7 @@ module.exports = {
   testEnvironment: 'node',
   roots: ['<rootDir>/src'],
   testMatch: ['**/*.test.ts'],
-  testPathIgnorePatterns: ['/node_modules/', '\\.integration\\.test\\.ts$', '\\.e2e\\.test\\.ts$'],
+  testPathIgnorePatterns: ['/node_modules/', '\\.e2e\\.test\\.ts$'],
   setupFiles: ['<rootDir>/src/testSetup.ts'],
   collectCoverageFrom: [
     'src/ai/parsers/invoiceParser.ts',
