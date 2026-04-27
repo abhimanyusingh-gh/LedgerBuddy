@@ -348,6 +348,38 @@ function providerInfoToFullUrl(info: ProviderMethodInfo): string {
   return applyRewrite(info.bare, kind);
 }
 
+// `apiClient.<verb>(invoiceUrls.list())` — detect when arg0 is itself a
+// `<providerName>.<methodName>(...)` CallExpression. The outer apiClient
+// branch uses this to emit with the real HTTP verb; the inner provider-call
+// visit then skips itself (apiClient-parented) to avoid double-emission.
+function resolveProviderCallArg(
+  arg: ts.Expression,
+  providerMap: ProviderMethodMap
+): { key: string; info: ProviderMethodInfo } | null {
+  if (!ts.isCallExpression(arg)) return null;
+  const callee = arg.expression;
+  if (!ts.isPropertyAccessExpression(callee)) return null;
+  if (!ts.isIdentifier(callee.expression) || !ts.isIdentifier(callee.name)) return null;
+  if (!/Urls$/.test(callee.expression.text)) return null;
+  const key = `${callee.expression.text}.${callee.name.text}`;
+  const info = providerMap.get(key);
+  return info ? { key, info } : null;
+}
+
+function isApiClientCallParent(node: ts.Node): boolean {
+  const parent = node.parent;
+  if (!parent || !ts.isCallExpression(parent)) return false;
+  if (parent.arguments[0] !== node) return false;
+  const callee = parent.expression;
+  return (
+    ts.isPropertyAccessExpression(callee) &&
+    ts.isIdentifier(callee.expression) &&
+    callee.expression.text === "apiClient" &&
+    ts.isIdentifier(callee.name) &&
+    METHOD_NAMES.has(callee.name.text)
+  );
+}
+
 // ───────────────────────── FE walker ─────────────────────────
 
 function listTsFiles(dir: string, out: string[] = []): string[] {
@@ -492,23 +524,36 @@ function collectRawFeCalls(file: string, providerMap: ProviderMethodMap): RawFeC
         const method = callee.name.text.toUpperCase() as HttpMethod;
         const arg0 = node.arguments[0];
         if (arg0) {
-          const resolved = resolvePathExpr(arg0, ctx);
-          if (resolved === null) {
-            const tag = `${relative(REPO_ROOT, file)}:${source.getLineAndCharacterOfPosition(arg0.getStart()).line + 1}`;
-            if (!UNANALYZABLE_FE_CALL_SITES.has(tag)) {
-              throw new Error(
-                `Unanalyzable FE apiClient.${callee.name.text} path at ${loc(arg0)}. ` +
-                  `Add the file:line to UNANALYZABLE_FE_CALL_SITES in check-fe-be-contract.ts ` +
-                  `if this is intentional.`
-              );
-            }
-          } else {
+          // Provider call as apiClient arg — `apiClient.post(invoiceUrls.x())`.
+          // Resolve via providerMap and emit with the real HTTP verb; the
+          // inner provider-call visit will skip itself (parent-aware).
+          const providerInfo = resolveProviderCallArg(arg0, providerMap);
+          if (providerInfo) {
             calls.push({
               method,
-              bare: resolved.bare,
-              fullUrlOverride: null,
+              bare: providerInfo.info.bare,
+              fullUrlOverride: providerInfoToFullUrl(providerInfo.info),
               source: loc(node)
             });
+          } else {
+            const resolved = resolvePathExpr(arg0, ctx);
+            if (resolved === null) {
+              const tag = `${relative(REPO_ROOT, file)}:${source.getLineAndCharacterOfPosition(arg0.getStart()).line + 1}`;
+              if (!UNANALYZABLE_FE_CALL_SITES.has(tag)) {
+                throw new Error(
+                  `Unanalyzable FE apiClient.${callee.name.text} path at ${loc(arg0)}. ` +
+                    `Add the file:line to UNANALYZABLE_FE_CALL_SITES in check-fe-be-contract.ts ` +
+                    `if this is intentional.`
+                );
+              }
+            } else {
+              calls.push({
+                method,
+                bare: resolved.bare,
+                fullUrlOverride: null,
+                source: loc(node)
+              });
+            }
           }
         }
       }
@@ -517,13 +562,16 @@ function collectRawFeCalls(file: string, providerMap: ProviderMethodMap): RawFeC
       // bare path inside `buildNested(...)` bodies that the apiClient walker
       // cannot see. Resolve via the pre-built providerMap and emit a synthetic
       // GET entry (provider URLs are bypass-route consumers: <img>, EventSource,
-      // authenticatedUrl). Skip the provider modules themselves.
+      // authenticatedUrl). Skip the provider modules themselves; also skip
+      // when the parent is an apiClient call — that branch already emitted
+      // with the real HTTP verb.
       if (
         !isProviderModule &&
         ts.isPropertyAccessExpression(callee) &&
         ts.isIdentifier(callee.expression) &&
         ts.isIdentifier(callee.name) &&
-        /Urls$/.test(callee.expression.text)
+        /Urls$/.test(callee.expression.text) &&
+        !isApiClientCallParent(node)
       ) {
         const key = `${callee.expression.text}.${callee.name.text}`;
         const info = providerMap.get(key);
