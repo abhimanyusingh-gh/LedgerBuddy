@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist, type StateStorage } from "zustand/middleware";
 import { ADMIN_CLIENT_ORG_CHANGE_EVENT } from "@/hooks/useAdminClientOrgFilter";
+import { registerStoreReset } from "@/test-utils/resetStores";
 
 export const ACTIVE_CLIENT_ORG_QUERY_PARAM = "clientOrgId";
 export const ACTIVE_CLIENT_ORG_STORAGE_KEY = "activeClientOrgId";
@@ -106,6 +107,8 @@ export function setActiveRealm(id: string | null): void {
 export function readActiveRealmId(): string | null {
   return readFromUrl() ?? useActiveRealmStore.getState().id;
 }
+
+registerStoreReset(() => useActiveRealmStore.setState({ id: null }));
 
 if (typeof window !== "undefined") {
   const initialFromUrl = readFromUrl();

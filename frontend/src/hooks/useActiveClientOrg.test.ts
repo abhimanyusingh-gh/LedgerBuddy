@@ -4,7 +4,8 @@
 import {
   setActiveClientOrgId,
   ACTIVE_CLIENT_ORG_QUERY_PARAM,
-  ACTIVE_CLIENT_ORG_STORAGE_KEY
+  ACTIVE_CLIENT_ORG_STORAGE_KEY,
+  ACTIVE_CLIENT_ORG_CHANGE_EVENT
 } from "@/hooks/useActiveClientOrg";
 import { ADMIN_CLIENT_ORG_CHANGE_EVENT } from "@/hooks/useAdminClientOrgFilter";
 import { resetStores } from "@/test-utils/resetStores";
@@ -33,6 +34,14 @@ describe("setActiveClientOrgId", () => {
     setActiveClientOrgId(ORG);
     const types = dispatchSpy.mock.calls.map((call) => (call[0] as Event).type);
     expect(types).toContain(ADMIN_CLIENT_ORG_CHANGE_EVENT);
+    dispatchSpy.mockRestore();
+  });
+
+  it("does NOT dispatch ACTIVE_CLIENT_ORG_CHANGE_EVENT (single-dispatch contract — would loop with the store's own listener)", () => {
+    const dispatchSpy = jest.spyOn(window, "dispatchEvent");
+    setActiveClientOrgId(ORG);
+    const types = dispatchSpy.mock.calls.map((call) => (call[0] as Event).type);
+    expect(types).not.toContain(ACTIVE_CLIENT_ORG_CHANGE_EVENT);
     dispatchSpy.mockRestore();
   });
 
