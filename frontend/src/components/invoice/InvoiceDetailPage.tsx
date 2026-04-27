@@ -10,7 +10,7 @@ import { LineItemsTable } from "@/components/invoice/LineItemsTable";
 import { CompliancePanel } from "@/components/compliance/CompliancePanel";
 import { RiskSignalList } from "@/components/compliance/RiskSignalList";
 import { ConfidenceBadge } from "@/components/invoice/ConfidenceBadge";
-import { getInvoicePreviewUrl } from "@/api";
+import { invoiceUrls } from "@/api/urls/invoiceUrls";
 
 interface InvoiceDetailPageProps {
   invoiceId: string;
@@ -42,10 +42,10 @@ export function InvoiceDetailPage({ invoiceId }: InvoiceDetailPageProps) {
   }
 
   const highlights = getInvoiceSourceHighlights(invoice);
-  const cropMap = buildFieldCropSourceMap(invoice._id, highlights, getInvoicePreviewUrl);
+  const cropMap = buildFieldCropSourceMap(invoice._id, highlights, invoiceUrls.preview);
   const extractedRows = getExtractedFieldRows(invoice);
 
-  const resolvePreviewUrl = (page: number) => getInvoicePreviewUrl(invoice._id, page);
+  const resolvePreviewUrl = (page: number) => invoiceUrls.preview(invoice._id, page);
 
   return (
     <div style={{ maxWidth: "60rem", margin: "0 auto", padding: "1.5rem 1rem" }}>

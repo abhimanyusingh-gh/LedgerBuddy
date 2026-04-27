@@ -1,8 +1,4 @@
-import { apiClient, authenticatedUrl, safeNum, stripNulls } from "@/api/client";
-import { rewriteToNestedShape } from "@/api/apiPaths";
-import { readActiveTenantId } from "@/api/tenantStorage";
-import { readActiveClientOrgId } from "@/hooks/useActiveClientOrg";
-import { MissingActiveClientOrgError } from "@/api/errors";
+import { apiClient, safeNum, stripNulls } from "@/api/client";
 import type { Invoice, InvoiceListResponse, TallyFileExportResponse, ExportHistoryResponse } from "@/types";
 
 interface UpdateInvoiceParsedPayload {
@@ -66,17 +62,6 @@ export async function fetchInvoices(options: FetchInvoicesOptions = {}) {
 
 export async function fetchInvoiceById(invoiceId: string) {
   return stripNulls((await apiClient.get<Invoice>(`/invoices/${invoiceId}`)).data) as Invoice;
-}
-
-export function getInvoicePreviewUrl(invoiceId: string, page = 1): string {
-  const tenantId = readActiveTenantId();
-  const clientOrgId = readActiveClientOrgId();
-  const legacyPath = `/invoices/${invoiceId}/preview`;
-  if (!tenantId || !clientOrgId) {
-    throw new MissingActiveClientOrgError(legacyPath);
-  }
-  const nestedPath = rewriteToNestedShape(legacyPath, tenantId, clientOrgId);
-  return authenticatedUrl(nestedPath, { page: Math.max(1, Math.round(page)) });
 }
 
 export async function approveInvoices(ids: string[], approvedBy: string) {
