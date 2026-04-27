@@ -19,12 +19,14 @@ import { getMockedApiClient } from "@/test-utils/mockApiClient";
 
 const apiClient = getMockedApiClient();
 
+const TEST_TENANT_ID = "tenant-1";
+
 // Triage URLs route through the tenant-scoped bypass (no clientOrgId in path)
-// — only an active tenantId is required for invoiceUrls.triageList /
+// — only an active tenantId is required for triageUrls.triageList /
 // .assignClientOrg / .reject to construct.
 beforeEach(() => {
   jest.clearAllMocks();
-  writeActiveTenantId("tenant-1");
+  writeActiveTenantId(TEST_TENANT_ID);
 });
 
 afterEach(() => {
@@ -60,7 +62,7 @@ describe("api/triage", () => {
         }
       });
       const result = await fetchTriageInvoices();
-      expect(apiClient.get).toHaveBeenCalledWith("/tenants/tenant-1/invoices/triage", {
+      expect(apiClient.get).toHaveBeenCalledWith(`/tenants/${TEST_TENANT_ID}/invoices/triage`, {
         params: { status: "PENDING_TRIAGE" }
       });
       expect(result.total).toBe(1);
@@ -85,7 +87,7 @@ describe("api/triage", () => {
       apiClient.patch.mockResolvedValueOnce({ data: { ok: true } });
       const result = await assignClientOrg("inv-1", "org-9");
       expect(apiClient.patch).toHaveBeenCalledWith(
-        "/tenants/tenant-1/invoices/inv-1/assign-client-org",
+        `/tenants/${TEST_TENANT_ID}/invoices/inv-1/assign-client-org`,
         { clientOrgId: "org-9" }
       );
       expect(result).toEqual({ ok: true });
@@ -95,7 +97,7 @@ describe("api/triage", () => {
       apiClient.patch.mockResolvedValueOnce({ data: { ok: true } });
       await assignClientOrg("inv 1/2", "org-9");
       expect(apiClient.patch).toHaveBeenCalledWith(
-        "/tenants/tenant-1/invoices/inv%201%2F2/assign-client-org",
+        `/tenants/${TEST_TENANT_ID}/invoices/inv%201%2F2/assign-client-org`,
         { clientOrgId: "org-9" }
       );
     });
@@ -105,7 +107,7 @@ describe("api/triage", () => {
     it("PATCHes /invoices/:id/reject with the structured payload (reasonCode only)", async () => {
       apiClient.patch.mockResolvedValueOnce({ data: { ok: true } });
       const result = await rejectInvoice("inv-1", { reasonCode: TRIAGE_REJECT_REASON.Spam });
-      expect(apiClient.patch).toHaveBeenCalledWith("/tenants/tenant-1/invoices/inv-1/reject", {
+      expect(apiClient.patch).toHaveBeenCalledWith(`/tenants/${TEST_TENANT_ID}/invoices/inv-1/reject`, {
         reasonCode: "spam"
       });
       expect(result).toEqual({ ok: true });
@@ -117,7 +119,7 @@ describe("api/triage", () => {
         reasonCode: TRIAGE_REJECT_REASON.WrongVendor,
         notes: "Sent to wrong AP"
       });
-      expect(apiClient.patch).toHaveBeenCalledWith("/tenants/tenant-1/invoices/inv-1/reject", {
+      expect(apiClient.patch).toHaveBeenCalledWith(`/tenants/${TEST_TENANT_ID}/invoices/inv-1/reject`, {
         reasonCode: "wrong_vendor",
         notes: "Sent to wrong AP"
       });

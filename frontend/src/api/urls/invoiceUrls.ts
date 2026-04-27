@@ -1,5 +1,5 @@
 import { authenticatedUrl } from "@/api/client";
-import { buildNested, buildTenantNested } from "@/api/urls/buildNested";
+import { buildNested } from "@/api/urls/buildNested";
 
 export const invoiceUrls = {
   list: (): string => buildNested("/invoices"),
@@ -15,12 +15,5 @@ export const invoiceUrls = {
   preview: (invoiceId: string, page = 1): string =>
     authenticatedUrl(buildNested(`/invoices/${invoiceId}/preview`), {
       page: Math.max(1, Math.round(page))
-    }),
-  // Triage paths route through tenant-scoped bypass (PENDING_TRIAGE invoices
-  // carry clientOrgId: null per #156); the BE mounts them under tenantRouter.
-  triageList: (): string => buildTenantNested("/invoices/triage"),
-  assignClientOrg: (invoiceId: string): string =>
-    buildTenantNested(`/invoices/${encodeURIComponent(invoiceId)}/assign-client-org`),
-  reject: (invoiceId: string): string =>
-    buildTenantNested(`/invoices/${encodeURIComponent(invoiceId)}/reject`)
+    })
 };

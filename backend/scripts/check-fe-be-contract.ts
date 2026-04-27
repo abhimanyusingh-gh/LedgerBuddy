@@ -558,13 +558,11 @@ function collectRawFeCalls(file: string, providerMap: ProviderMethodMap): RawFeC
         }
       }
 
-      // <providerName>.<methodName>(...) call — provider modules expose their
-      // bare path inside `buildNested(...)` bodies that the apiClient walker
-      // cannot see. Resolve via the pre-built providerMap and emit a synthetic
-      // GET entry (provider URLs are bypass-route consumers: <img>, EventSource,
-      // authenticatedUrl). Skip the provider modules themselves; also skip
-      // when the parent is an apiClient call — that branch already emitted
-      // with the real HTTP verb.
+      // <providerName>.<methodName>(...) call NOT wrapped in an apiClient
+      // call — bypass-route consumers only (<img>, EventSource,
+      // authenticatedUrl). The apiClient-arg case is handled in the
+      // apiClient branch via resolveProviderCallArg with the real HTTP verb;
+      // here we emit a synthetic GET. Skip provider modules themselves.
       if (
         !isProviderModule &&
         ts.isPropertyAccessExpression(callee) &&

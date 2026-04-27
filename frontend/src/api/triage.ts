@@ -1,5 +1,5 @@
 import { apiClient } from "@/api/client";
-import { invoiceUrls } from "@/api/urls/invoiceUrls";
+import { triageUrls } from "@/api/urls/triageUrls";
 import type { TriageRejectPayload } from "@/features/triage/triageReasons";
 
 export const TRIAGE_QUEUE_QUERY_KEY = ["triageQueue"] as const;
@@ -25,7 +25,7 @@ export interface TriageListResponse {
 }
 
 export async function fetchTriageInvoices(): Promise<TriageListResponse> {
-  const response = await apiClient.get<TriageListResponse>(invoiceUrls.triageList(), {
+  const response = await apiClient.get<TriageListResponse>(triageUrls.triageList(), {
     params: { status: "PENDING_TRIAGE" }
   });
   const data = response.data;
@@ -41,7 +41,7 @@ export async function assignClientOrg(
 ): Promise<{ ok: true }> {
   return (
     await apiClient.patch<{ ok: true }>(
-      invoiceUrls.assignClientOrg(invoiceId),
+      triageUrls.assignClientOrg(invoiceId),
       { clientOrgId }
     )
   ).data;
@@ -53,7 +53,7 @@ export async function rejectInvoice(
 ): Promise<{ ok: true }> {
   return (
     await apiClient.patch<{ ok: true }>(
-      invoiceUrls.reject(invoiceId),
+      triageUrls.reject(invoiceId),
       payload
     )
   ).data;
