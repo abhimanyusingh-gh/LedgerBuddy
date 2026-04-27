@@ -4528,6 +4528,44 @@ pre {
   color: var(--ink-soft);
 }
 
+.client-orgs-archive-dialog-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  margin-top: var(--sp-3);
+}
+
+.client-orgs-archive-dialog-message {
+  margin: var(--sp-3) 0 0;
+  color: var(--ink-soft);
+  line-height: 1.5;
+}
+
+.client-orgs-archive-dialog-body .client-orgs-archive-dialog-message {
+  margin-top: 0;
+}
+
+.client-orgs-archive-dialog-list {
+  margin: 0;
+  padding-left: var(--sp-4);
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  font-size: 0.8125rem;
+  color: var(--ink-soft);
+  max-height: 12rem;
+  overflow-y: auto;
+}
+
+.client-orgs-archive-dialog-loading {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  margin-top: var(--sp-3);
+  color: var(--ink-soft);
+  font-size: 0.875rem;
+}
+
 .client-orgs-form-checkbox-label {
   font-size: 0.8125rem;
   color: var(--ink);

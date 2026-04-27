@@ -21,7 +21,8 @@ jest.mock("@/api/clientOrgs", () => {
     fetchClientOrganizations: jest.fn(),
     createClientOrganization: jest.fn(),
     updateClientOrganization: jest.fn(),
-    deleteClientOrganization: jest.fn()
+    deleteClientOrganization: jest.fn(),
+    previewArchiveClientOrganization: jest.fn()
   };
 });
 
@@ -30,6 +31,7 @@ const mocked = jest.requireMock("@/api/clientOrgs") as {
   createClientOrganization: jest.Mock;
   updateClientOrganization: jest.Mock;
   deleteClientOrganization: jest.Mock;
+  previewArchiveClientOrganization: jest.Mock;
 };
 
 function renderPage(): { unmount: () => void } {
@@ -56,6 +58,11 @@ function buildOrg(overrides: Partial<ClientOrganization> & { _id: string; gstin:
 
 beforeEach(() => {
   jest.clearAllMocks();
+  mocked.previewArchiveClientOrganization.mockResolvedValue({
+    projectedStatus: "archived",
+    linkedCounts: { invoices: 12, vendors: 3, bankStatements: 2 },
+    archivedAt: null
+  });
   window.history.replaceState({}, "", "/");
   window.localStorage.clear();
   window.sessionStorage.clear();
@@ -266,19 +273,76 @@ describe("features/admin/onboarding/ClientOrgsPage — archive flow", () => {
     });
   });
 
-  it("warns in the dialog that linked accounting records remain read-only", async () => {
+  it("renders the live linked-record breakdown inside the dialog when the probe resolves", async () => {
     mocked.fetchClientOrganizations.mockResolvedValue([
       buildOrg({ _id: "org-1", gstin: "29ABCPK1234F1Z5", companyName: "Sharma Textiles" })
     ]);
+    mocked.previewArchiveClientOrganization.mockResolvedValue({
+      projectedStatus: "archived",
+      linkedCounts: { invoices: 7, vendors: 1 },
+      archivedAt: null
+    });
 
     renderPage();
     await screen.findByTestId("client-orgs-table");
     fireEvent.click(screen.getByTestId("client-orgs-table-archive"));
 
     const dialog = await screen.findByRole("alertdialog");
+    await screen.findByTestId("client-orgs-archive-dialog-list");
     expect(dialog).toHaveTextContent(/linked accounting records/i);
-    expect(dialog).toHaveTextContent(/read-accessible|read-only/i);
-    expect(dialog).toHaveTextContent(/breakdown is shown/i);
+    expect(within(dialog).getByTestId("client-orgs-archive-dialog-item-invoices")).toHaveTextContent(/7 invoices/);
+    expect(within(dialog).getByTestId("client-orgs-archive-dialog-item-vendors")).toHaveTextContent(/1 vendor\b/);
+    expect(mocked.previewArchiveClientOrganization).toHaveBeenCalledWith("org-1");
+  });
+
+  it("shows a loading state in the dialog while the probe is in flight", async () => {
+    mocked.fetchClientOrganizations.mockResolvedValue([
+      buildOrg({ _id: "org-1", gstin: "29ABCPK1234F1Z5", companyName: "Sharma Textiles" })
+    ]);
+    mocked.previewArchiveClientOrganization.mockImplementation(() => new Promise(() => {}));
+
+    renderPage();
+    await screen.findByTestId("client-orgs-table");
+    fireEvent.click(screen.getByTestId("client-orgs-table-archive"));
+
+    await screen.findByRole("alertdialog");
+    expect(screen.getByTestId("client-orgs-archive-dialog-loading")).toHaveTextContent(/counting linked accounting records/i);
+  });
+
+  it("falls back to the generic warning copy when the probe fails", async () => {
+    mocked.fetchClientOrganizations.mockResolvedValue([
+      buildOrg({ _id: "org-1", gstin: "29ABCPK1234F1Z5", companyName: "Sharma Textiles" })
+    ]);
+    mocked.previewArchiveClientOrganization.mockRejectedValue(new Error("network"));
+
+    renderPage();
+    await screen.findByTestId("client-orgs-table");
+    fireEvent.click(screen.getByTestId("client-orgs-table-archive"));
+
+    await screen.findByRole("alertdialog");
+    const fallback = await screen.findByTestId("client-orgs-archive-dialog-fallback");
+    expect(fallback).toHaveTextContent(/linked accounting records/i);
+    expect(fallback).toHaveTextContent(/breakdown is shown/i);
+  });
+
+  it("flags the projected delete-outright in the dialog when no dependents exist", async () => {
+    mocked.fetchClientOrganizations.mockResolvedValue([
+      buildOrg({ _id: "org-1", gstin: "29ABCPK1234F1Z5", companyName: "Sharma Textiles" })
+    ]);
+    mocked.previewArchiveClientOrganization.mockResolvedValue({
+      projectedStatus: "deleted",
+      linkedCounts: {},
+      archivedAt: null
+    });
+
+    renderPage();
+    await screen.findByTestId("client-orgs-table");
+    fireEvent.click(screen.getByTestId("client-orgs-table-archive"));
+
+    await screen.findByRole("alertdialog");
+    const empty = await screen.findByTestId("client-orgs-archive-dialog-empty");
+    expect(empty).toHaveTextContent(/deleted outright/i);
+    expect(screen.queryByTestId("client-orgs-archive-dialog-list")).not.toBeInTheDocument();
   });
 
   it("renders the linked-records breakdown banner after a soft-archive succeeds", async () => {

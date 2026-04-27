@@ -77,6 +77,12 @@ export interface ArchiveClientOrganizationResult {
   archivedAt?: string;
 }
 
+export interface PreviewArchiveClientOrganizationResult {
+  projectedStatus: ArchiveResultStatus;
+  linkedCounts: ClientOrgLinkedCounts;
+  archivedAt: string | null;
+}
+
 const CLIENT_ORGS_PATH = "/admin/client-orgs";
 
 export async function fetchClientOrganizations(): Promise<ClientOrganization[]> {
@@ -103,6 +109,16 @@ export async function deleteClientOrganization(
   return (
     await apiClient.delete<ArchiveClientOrganizationResult>(
       `${CLIENT_ORGS_PATH}/${encodeURIComponent(id)}`
+    )
+  ).data;
+}
+
+export async function previewArchiveClientOrganization(
+  id: string
+): Promise<PreviewArchiveClientOrganizationResult> {
+  return (
+    await apiClient.get<PreviewArchiveClientOrganizationResult>(
+      `${CLIENT_ORGS_PATH}/${encodeURIComponent(id)}/preview-archive`
     )
   ).data;
 }

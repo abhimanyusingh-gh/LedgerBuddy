@@ -1,17 +1,18 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import { useModalDismiss } from "@/hooks/useModalDismiss";
 
 interface ConfirmDialogProps {
   open: boolean;
   title: string;
   message: string;
+  body?: ReactNode;
   confirmLabel?: string;
   destructive?: boolean;
   onConfirm: () => void;
   onCancel: () => void;
 }
 
-export function ConfirmDialog({ open, title, message, confirmLabel = "Confirm", destructive, onConfirm, onCancel }: ConfirmDialogProps) {
+export function ConfirmDialog({ open, title, message, body, confirmLabel = "Confirm", destructive, onConfirm, onCancel }: ConfirmDialogProps) {
   const cancelRef = useRef<HTMLButtonElement>(null);
 
   useModalDismiss({ open, onClose: onCancel });
@@ -36,7 +37,11 @@ export function ConfirmDialog({ open, title, message, confirmLabel = "Confirm", 
         <div className="popup-header">
           <h2>{title}</h2>
         </div>
-        <p style={{ margin: "0.75rem 0 0", color: "var(--ink-soft)", lineHeight: 1.5 }}>{message}</p>
+        {body !== undefined ? (
+          body
+        ) : (
+          <p style={{ margin: "0.75rem 0 0", color: "var(--ink-soft)", lineHeight: 1.5 }}>{message}</p>
+        )}
         <div className="confirm-actions">
           <button ref={cancelRef} type="button" className="app-button app-button-secondary" onClick={onCancel}>Cancel</button>
           <button

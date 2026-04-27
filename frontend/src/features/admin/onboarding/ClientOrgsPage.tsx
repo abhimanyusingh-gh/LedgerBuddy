@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button, Spinner } from "@/components/ds";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { useActiveClientOrg } from "@/hooks/useActiveClientOrg";
@@ -12,9 +12,11 @@ import {
   ARCHIVE_RESULT_STATUS,
   createClientOrganization,
   deleteClientOrganization,
+  previewArchiveClientOrganization,
   updateClientOrganization,
   type ArchiveClientOrganizationResult,
-  type ClientOrganization
+  type ClientOrganization,
+  type PreviewArchiveClientOrganizationResult
 } from "@/api/clientOrgs";
 import {
   CLIENT_ORG_FORM_MODE,
@@ -52,6 +54,8 @@ interface ArchiveSuccessNotice {
   companyName: string;
   result: ArchiveClientOrganizationResult;
 }
+
+const PREVIEW_ARCHIVE_QUERY_KEY = "clientOrgPreviewArchive" as const;
 
 export function ClientOrgsPage() {
   const query = useClientOrgsAdminList();
@@ -122,6 +126,13 @@ export function ClientOrgsPage() {
         )
       );
     }
+  });
+
+  const archiveTargetId = archiveTarget?._id ?? null;
+  const previewQuery = useQuery<PreviewArchiveClientOrganizationResult, Error>({
+    queryKey: [PREVIEW_ARCHIVE_QUERY_KEY, archiveTargetId],
+    queryFn: () => previewArchiveClientOrganization(archiveTargetId as string),
+    enabled: archiveTargetId !== null
   });
 
   const view: ClientOrgsPageView = (() => {
@@ -268,6 +279,16 @@ export function ClientOrgsPage() {
           archiveError ??
           `Archiving "${archiveTarget?.companyName ?? ""}" hides it from the realm switcher. All linked accounting records (invoices, vendors, bank statements, etc.) remain read-accessible. An exact per-record-type breakdown is shown after confirmation.`
         }
+        body={
+          archiveTarget !== null ? (
+            <ArchiveDialogBody
+              companyName={archiveTarget.companyName}
+              archiveError={archiveError}
+              previewStatus={previewQuery.status}
+              previewData={previewQuery.data ?? null}
+            />
+          ) : undefined
+        }
         confirmLabel={archiveMutation.isPending ? "Archiving…" : "Archive"}
         destructive
         onConfirm={() => {
@@ -281,6 +302,91 @@ export function ClientOrgsPage() {
         }}
       />
     </section>
+  );
+}
+
+interface ArchiveDialogBodyProps {
+  companyName: string;
+  archiveError: string | null;
+  previewStatus: "pending" | "error" | "success";
+  previewData: PreviewArchiveClientOrganizationResult | null;
+}
+
+const PREVIEW_STATUS = {
+  Pending: "pending",
+  Error: "error",
+  Success: "success"
+} as const;
+
+function ArchiveDialogBody({
+  companyName,
+  archiveError,
+  previewStatus,
+  previewData
+}: ArchiveDialogBodyProps) {
+  if (archiveError) {
+    return (
+      <p className="client-orgs-archive-dialog-message" data-testid="client-orgs-archive-dialog-error">
+        {archiveError}
+      </p>
+    );
+  }
+
+  if (previewStatus === PREVIEW_STATUS.Pending) {
+    return (
+      <div
+        className="client-orgs-archive-dialog-loading"
+        data-testid="client-orgs-archive-dialog-loading"
+        role="status"
+        aria-live="polite"
+      >
+        <Spinner />
+        <span>Counting linked accounting records…</span>
+      </div>
+    );
+  }
+
+  if (previewStatus === PREVIEW_STATUS.Error || !previewData) {
+    return (
+      <p className="client-orgs-archive-dialog-message" data-testid="client-orgs-archive-dialog-fallback">
+        {`Archiving "${companyName}" hides it from the realm switcher. All linked accounting records (invoices, vendors, bank statements, etc.) remain read-accessible. An exact per-record-type breakdown is shown after confirmation.`}
+      </p>
+    );
+  }
+
+  const breakdown = summarizeLinkedCounts(previewData.linkedCounts);
+  const willDelete = previewData.projectedStatus === ARCHIVE_RESULT_STATUS.Deleted;
+
+  if (willDelete) {
+    return (
+      <p
+        className="client-orgs-archive-dialog-message"
+        data-testid="client-orgs-archive-dialog-empty"
+      >
+        {`No linked accounting records were found for "${companyName}". The org will be deleted outright.`}
+      </p>
+    );
+  }
+
+  return (
+    <div className="client-orgs-archive-dialog-body" data-testid="client-orgs-archive-dialog-body">
+      <p className="client-orgs-archive-dialog-message">
+        {`Archiving "${companyName}" hides it from the realm switcher. The following linked accounting records will remain read-accessible:`}
+      </p>
+      <ul
+        className="client-orgs-archive-dialog-list"
+        data-testid="client-orgs-archive-dialog-list"
+      >
+        {breakdown.map((entry) => (
+          <li
+            key={entry.label}
+            data-testid={`client-orgs-archive-dialog-item-${entry.label}`}
+          >
+            {entry.text}
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
 
