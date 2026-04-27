@@ -3,17 +3,19 @@
  */
 import {
   setActiveClientOrgId,
-  ACTIVE_CLIENT_ORG_CHANGE_EVENT,
   ACTIVE_CLIENT_ORG_QUERY_PARAM,
-  ACTIVE_CLIENT_ORG_STORAGE_KEY
+  ACTIVE_CLIENT_ORG_STORAGE_KEY,
+  ACTIVE_CLIENT_ORG_CHANGE_EVENT
 } from "@/hooks/useActiveClientOrg";
 import { ADMIN_CLIENT_ORG_CHANGE_EVENT } from "@/hooks/useAdminClientOrgFilter";
+import { resetStores } from "@/test-utils/resetStores";
 
 const ORG = "65a1b2c3d4e5f6a7b8c9d0e1";
 
 beforeEach(() => {
   window.history.replaceState({}, "", "/");
   window.sessionStorage.clear();
+  resetStores();
 });
 
 describe("setActiveClientOrgId", () => {
@@ -27,14 +29,19 @@ describe("setActiveClientOrgId", () => {
     expect(window.sessionStorage.getItem(ACTIVE_CLIENT_ORG_STORAGE_KEY)).toBe(ORG);
   });
 
-  it("dispatches BOTH the active-client-org event and the admin filter event so both layers stay in sync (#162; interim until #173)", () => {
+  it("dispatches the admin filter event so the admin layer stays in sync (#162; interim until Sub-PR B replaces useAdminClientOrgFilter)", () => {
     const dispatchSpy = jest.spyOn(window, "dispatchEvent");
     setActiveClientOrgId(ORG);
     const types = dispatchSpy.mock.calls.map((call) => (call[0] as Event).type);
-    expect(types).toEqual(expect.arrayContaining([
-      ACTIVE_CLIENT_ORG_CHANGE_EVENT,
-      ADMIN_CLIENT_ORG_CHANGE_EVENT
-    ]));
+    expect(types).toContain(ADMIN_CLIENT_ORG_CHANGE_EVENT);
+    dispatchSpy.mockRestore();
+  });
+
+  it("does NOT dispatch ACTIVE_CLIENT_ORG_CHANGE_EVENT (single-dispatch contract — would loop with the store's own listener)", () => {
+    const dispatchSpy = jest.spyOn(window, "dispatchEvent");
+    setActiveClientOrgId(ORG);
+    const types = dispatchSpy.mock.calls.map((call) => (call[0] as Event).type);
+    expect(types).not.toContain(ACTIVE_CLIENT_ORG_CHANGE_EVENT);
     dispatchSpy.mockRestore();
   });
 

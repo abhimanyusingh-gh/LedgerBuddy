@@ -1,59 +1,22 @@
-import { useCallback, useEffect, useState } from "react";
-import { ADMIN_CLIENT_ORG_CHANGE_EVENT } from "@/hooks/useAdminClientOrgFilter";
+import { useCallback } from "react";
+import {
+  useActiveRealmStore,
+  setActiveRealm,
+  readActiveRealmId
+} from "@/stores/activeRealmStore";
 
-export const ACTIVE_CLIENT_ORG_QUERY_PARAM = "clientOrgId";
-export const ACTIVE_CLIENT_ORG_STORAGE_KEY = "activeClientOrgId";
-
-export const ACTIVE_CLIENT_ORG_CHANGE_EVENT = "ledgerbuddy:active-client-org-change";
-
-function readActiveClientOrgIdFromUrl(): string | null {
-  const params = new URLSearchParams(window.location.search);
-  const value = params.get(ACTIVE_CLIENT_ORG_QUERY_PARAM);
-  return value && value.length > 0 ? value : null;
-}
-
-// Persistence backed by sessionStorage (per-tab) instead of localStorage so a
-// CA can open Client A in one tab and Client B in another without realm
-// cross-contamination — closing the tab forgets the active realm and a new
-// tab starts fresh.
-function readActiveClientOrgIdFromStorage(): string | null {
-  const value = window.sessionStorage.getItem(ACTIVE_CLIENT_ORG_STORAGE_KEY);
-  return value && value.length > 0 ? value : null;
-}
+export {
+  ACTIVE_CLIENT_ORG_QUERY_PARAM,
+  ACTIVE_CLIENT_ORG_STORAGE_KEY,
+  ACTIVE_CLIENT_ORG_CHANGE_EVENT
+} from "@/stores/activeRealmStore";
 
 export function readActiveClientOrgId(): string | null {
-  return readActiveClientOrgIdFromUrl() ?? readActiveClientOrgIdFromStorage();
+  return readActiveRealmId();
 }
 
-function writeActiveClientOrgIdToUrl(id: string | null) {
-  const params = new URLSearchParams(window.location.search);
-  if (id === null) {
-    params.delete(ACTIVE_CLIENT_ORG_QUERY_PARAM);
-  } else {
-    params.set(ACTIVE_CLIENT_ORG_QUERY_PARAM, id);
-  }
-  const search = params.toString();
-  window.history.replaceState(
-    {},
-    "",
-    `${window.location.pathname}${search ? `?${search}` : ""}${window.location.hash}`
-  );
-}
-
-function writeActiveClientOrgIdToStorage(id: string | null) {
-  if (id === null) {
-    window.sessionStorage.removeItem(ACTIVE_CLIENT_ORG_STORAGE_KEY);
-  } else {
-    window.sessionStorage.setItem(ACTIVE_CLIENT_ORG_STORAGE_KEY, id);
-  }
-}
-
-export function setActiveClientOrgId(id: string | null) {
-  writeActiveClientOrgIdToUrl(id);
-  writeActiveClientOrgIdToStorage(id);
-  // Notify both layers — admin/app-shell intentionally share the URL key (#162). Single dispatch leaves the other layer stale until popstate. Will be replaced by store subscriptions when #173 lands.
-  window.dispatchEvent(new CustomEvent(ACTIVE_CLIENT_ORG_CHANGE_EVENT));
-  window.dispatchEvent(new CustomEvent(ADMIN_CLIENT_ORG_CHANGE_EVENT));
+export function setActiveClientOrgId(id: string | null): void {
+  setActiveRealm(id);
 }
 
 interface UseActiveClientOrgResult {
@@ -62,26 +25,10 @@ interface UseActiveClientOrgResult {
 }
 
 export function useActiveClientOrg(): UseActiveClientOrgResult {
-  const [activeClientOrgId, setLocalState] = useState<string | null>(() => readActiveClientOrgId());
-
-  useEffect(() => {
-    // sessionStorage is per-tab and does not fire the cross-tab `storage`
-    // event, so we only listen for in-tab signals.
-    const sync = () => setLocalState(readActiveClientOrgId());
-    window.addEventListener(ACTIVE_CLIENT_ORG_CHANGE_EVENT, sync);
-    window.addEventListener("popstate", sync);
-    window.addEventListener("hashchange", sync);
-    return () => {
-      window.removeEventListener(ACTIVE_CLIENT_ORG_CHANGE_EVENT, sync);
-      window.removeEventListener("popstate", sync);
-      window.removeEventListener("hashchange", sync);
-    };
-  }, []);
-
+  const storeId = useActiveRealmStore((s) => s.id);
+  const activeClientOrgId = readActiveRealmId() ?? storeId;
   const setActiveClientOrg = useCallback((id: string | null) => {
-    setActiveClientOrgId(id);
-    setLocalState(id);
+    setActiveRealm(id);
   }, []);
-
   return { activeClientOrgId, setActiveClientOrg };
 }
