@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { persist, type StateStorage } from "zustand/middleware";
-import { CLIENT_ORG_URL_SYNC_EVENT } from "@/stores/activeRealmStore";
+import { useActiveRealmStore } from "@/stores/activeRealmStore";
 import { registerStoreReset } from "@/test-utils/resetStores";
 
 export const ADMIN_CLIENT_ORG_QUERY_PARAM = "clientOrgId";
@@ -70,8 +70,8 @@ export const useAdminRealmStore = create<AdminRealmState>()(
       setAdminRealm: (id) => {
         writeToUrl(id);
         set({ id });
-        if (typeof window !== "undefined") {
-          window.dispatchEvent(new CustomEvent(CLIENT_ORG_URL_SYNC_EVENT));
+        if (useActiveRealmStore.getState().id !== id) {
+          useActiveRealmStore.setState({ id });
         }
       }
     }),
@@ -116,7 +116,6 @@ registerStoreReset(() => useAdminRealmStore.setState({ id: null }));
 
 if (typeof window !== "undefined") {
   syncAdminRealmFromUrl();
-  window.addEventListener(CLIENT_ORG_URL_SYNC_EVENT, syncAdminRealmFromUrl);
   window.addEventListener("popstate", syncAdminRealmFromUrl);
   window.addEventListener("hashchange", syncAdminRealmFromUrl);
 }

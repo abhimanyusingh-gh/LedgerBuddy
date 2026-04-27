@@ -1,10 +1,10 @@
 import { create } from "zustand";
 import { persist, type StateStorage } from "zustand/middleware";
+import { useAdminRealmStore } from "@/stores/adminRealmStore";
 import { registerStoreReset } from "@/test-utils/resetStores";
 
 export const ACTIVE_CLIENT_ORG_QUERY_PARAM = "clientOrgId";
 export const ACTIVE_CLIENT_ORG_STORAGE_KEY = "activeClientOrgId";
-export const CLIENT_ORG_URL_SYNC_EVENT = "ledgerbuddy:client-org-url-sync";
 
 interface ActiveRealmState {
   id: string | null;
@@ -67,8 +67,8 @@ export const useActiveRealmStore = create<ActiveRealmState>()(
       setActiveRealm: (id) => {
         writeToUrl(id);
         set({ id });
-        if (typeof window !== "undefined") {
-          window.dispatchEvent(new CustomEvent(CLIENT_ORG_URL_SYNC_EVENT));
+        if (useAdminRealmStore.getState().id !== id) {
+          useAdminRealmStore.setState({ id });
         }
       }
     }),
@@ -119,7 +119,6 @@ if (typeof window !== "undefined") {
       useActiveRealmStore.setState({ id: fromUrl });
     }
   };
-  window.addEventListener(CLIENT_ORG_URL_SYNC_EVENT, rehydrateFromUrl);
   window.addEventListener("popstate", rehydrateFromUrl);
   window.addEventListener("hashchange", rehydrateFromUrl);
 }

@@ -13,10 +13,9 @@ interface UseAdminClientOrgFilterResult {
 }
 
 export function useAdminClientOrgFilter(): UseAdminClientOrgFilterResult {
-  const storeId = useAdminRealmStore((s) => s.id);
+  useAdminRealmStore((s) => s.id);
   const setAdminRealm = useAdminRealmStore((s) => s.setAdminRealm);
-  // URL is the source of truth. Read it synchronously during render so the first frame is correct, even if the store hasn't been re-synced yet (test lifecycle, hard nav).
-  const clientOrgId = readAdminRealmFromUrl() ?? storeId;
+  const clientOrgId = readAdminRealmFromUrl();
   useEffect(() => { syncAdminRealmFromUrl(); }, []);
   const setClientOrgId = useCallback((id: string | null) => setAdminRealm(id), [setAdminRealm]);
   return { clientOrgId, setClientOrgId };
