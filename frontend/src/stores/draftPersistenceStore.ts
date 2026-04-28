@@ -1,6 +1,7 @@
 import { useCallback } from "react";
 import { create } from "zustand";
-import { createJSONStorage, persist, type StateStorage } from "zustand/middleware";
+import { createJSONStorage, devtools, persist, type StateStorage } from "zustand/middleware";
+import { devtoolsConfig } from "@/stores/devtoolsConfig";
 import { registerStoreReset } from "@/test-utils/resetStores";
 
 export const DRAFT_PERSISTENCE_STORAGE_KEY = "lb-form-drafts";
@@ -40,41 +41,44 @@ const sessionJsonStorage: StateStorage = {
 };
 
 export const useDraftStore = create<DraftState>()(
-  persist(
-    (set, get) => ({
-      drafts: {},
-      setDraft: (key, value) =>
-        set((state) => ({
-          drafts: { ...state.drafts, [key]: { value, updatedAt: Date.now() } }
-        })),
-      getDraft: (key) => get().drafts[key]?.value,
-      clearDraft: (key) =>
-        set((state) => {
-          if (!(key in state.drafts)) return state;
-          const next = { ...state.drafts };
-          delete next[key];
-          return { drafts: next };
-        }),
-      pruneStale: (ttlMs) =>
-        set((state) => {
-          const cutoff = Date.now() - ttlMs;
-          const filtered: Record<string, DraftEntry> = {};
-          let changed = false;
-          for (const [key, entry] of Object.entries(state.drafts)) {
-            if (entry.updatedAt >= cutoff) {
-              filtered[key] = entry;
-            } else {
-              changed = true;
+  devtools(
+    persist(
+      (set, get) => ({
+        drafts: {},
+        setDraft: (key, value) =>
+          set((state) => ({
+            drafts: { ...state.drafts, [key]: { value, updatedAt: Date.now() } }
+          })),
+        getDraft: (key) => get().drafts[key]?.value,
+        clearDraft: (key) =>
+          set((state) => {
+            if (!(key in state.drafts)) return state;
+            const next = { ...state.drafts };
+            delete next[key];
+            return { drafts: next };
+          }),
+        pruneStale: (ttlMs) =>
+          set((state) => {
+            const cutoff = Date.now() - ttlMs;
+            const filtered: Record<string, DraftEntry> = {};
+            let changed = false;
+            for (const [key, entry] of Object.entries(state.drafts)) {
+              if (entry.updatedAt >= cutoff) {
+                filtered[key] = entry;
+              } else {
+                changed = true;
+              }
             }
-          }
-          return changed ? { drafts: filtered } : state;
-        })
-    }),
-    {
-      name: DRAFT_PERSISTENCE_STORAGE_KEY,
-      storage: createJSONStorage(() => sessionJsonStorage),
-      partialize: (state) => ({ drafts: state.drafts }) as DraftState
-    }
+            return changed ? { drafts: filtered } : state;
+          })
+      }),
+      {
+        name: DRAFT_PERSISTENCE_STORAGE_KEY,
+        storage: createJSONStorage(() => sessionJsonStorage),
+        partialize: (state) => ({ drafts: state.drafts }) as DraftState
+      }
+    ),
+    devtoolsConfig(DRAFT_PERSISTENCE_STORAGE_KEY)
   )
 );
 

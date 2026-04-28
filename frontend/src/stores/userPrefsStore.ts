@@ -1,5 +1,6 @@
 import { create } from "zustand";
-import { persist, createJSONStorage } from "zustand/middleware";
+import { devtools, persist, createJSONStorage } from "zustand/middleware";
+import { devtoolsConfig } from "@/stores/devtoolsConfig";
 import { registerStoreReset } from "@/test-utils/resetStores";
 
 export const USER_PREFS_STORAGE_KEY = "ledgerbuddy:userPrefs";
@@ -145,53 +146,56 @@ const DEFAULTS = {
 >;
 
 export const useUserPrefsStore = create<UserPrefsState>()(
-  persist(
-    (set) => ({
-      ...DEFAULTS,
-      setInvoiceView: (patch) =>
-        set((state) => ({ invoiceView: { ...state.invoiceView, ...patch } })),
-      setTheme: (mode) => set({ theme: { mode } }),
-      setTenantWorkspaceTab: (tab) => set({ tenantWorkspace: { activeTab: tab } }),
-      setExportHistory: (patch) =>
-        set((state) => ({ exportHistory: { ...state.exportHistory, ...patch } })),
-      setIngestionOverlayPosition: (position) => set({ ingestionOverlay: { position } }),
-      setInvoicePreviewZoom: (key, zoom) =>
-        set((state) => ({
-          invoicePreview: {
-            zoomByKey: { ...state.invoicePreview.zoomByKey, [key]: zoom }
-          }
-        })),
-      setSectionOrder: (key, order) =>
-        set((state) => ({
-          sectionOrder: {
-            orderByKey: { ...state.sectionOrder.orderByKey, [key]: order }
-          }
-        })),
-      setUrlMigrationDismissal: (key, dismissal) =>
-        set((state) => {
-          const next = { ...state.urlMigration.dismissalsByKey };
-          if (dismissal === null) {
-            delete next[key];
-          } else {
-            next[key] = dismissal;
-          }
-          return { urlMigration: { dismissalsByKey: next } };
+  devtools(
+    persist(
+      (set) => ({
+        ...DEFAULTS,
+        setInvoiceView: (patch) =>
+          set((state) => ({ invoiceView: { ...state.invoiceView, ...patch } })),
+        setTheme: (mode) => set({ theme: { mode } }),
+        setTenantWorkspaceTab: (tab) => set({ tenantWorkspace: { activeTab: tab } }),
+        setExportHistory: (patch) =>
+          set((state) => ({ exportHistory: { ...state.exportHistory, ...patch } })),
+        setIngestionOverlayPosition: (position) => set({ ingestionOverlay: { position } }),
+        setInvoicePreviewZoom: (key, zoom) =>
+          set((state) => ({
+            invoicePreview: {
+              zoomByKey: { ...state.invoicePreview.zoomByKey, [key]: zoom }
+            }
+          })),
+        setSectionOrder: (key, order) =>
+          set((state) => ({
+            sectionOrder: {
+              orderByKey: { ...state.sectionOrder.orderByKey, [key]: order }
+            }
+          })),
+        setUrlMigrationDismissal: (key, dismissal) =>
+          set((state) => {
+            const next = { ...state.urlMigration.dismissalsByKey };
+            if (dismissal === null) {
+              delete next[key];
+            } else {
+              next[key] = dismissal;
+            }
+            return { urlMigration: { dismissalsByKey: next } };
+          })
+      }),
+      {
+        name: USER_PREFS_STORAGE_KEY,
+        storage: createJSONStorage(() => localStorage),
+        partialize: (state) => ({
+          invoiceView: state.invoiceView,
+          theme: state.theme,
+          tenantWorkspace: state.tenantWorkspace,
+          exportHistory: state.exportHistory,
+          ingestionOverlay: state.ingestionOverlay,
+          invoicePreview: state.invoicePreview,
+          sectionOrder: state.sectionOrder,
+          urlMigration: state.urlMigration
         })
-    }),
-    {
-      name: USER_PREFS_STORAGE_KEY,
-      storage: createJSONStorage(() => localStorage),
-      partialize: (state) => ({
-        invoiceView: state.invoiceView,
-        theme: state.theme,
-        tenantWorkspace: state.tenantWorkspace,
-        exportHistory: state.exportHistory,
-        ingestionOverlay: state.ingestionOverlay,
-        invoicePreview: state.invoicePreview,
-        sectionOrder: state.sectionOrder,
-        urlMigration: state.urlMigration
-      })
-    }
+      }
+    ),
+    devtoolsConfig(USER_PREFS_STORAGE_KEY)
   )
 );
 

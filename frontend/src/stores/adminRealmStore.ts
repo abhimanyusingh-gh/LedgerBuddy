@@ -1,6 +1,7 @@
 import { create } from "zustand";
-import { persist, type StateStorage } from "zustand/middleware";
+import { devtools, persist, type StateStorage } from "zustand/middleware";
 import { useActiveRealmStore } from "@/stores/activeRealmStore";
+import { devtoolsConfig } from "@/stores/devtoolsConfig";
 import { registerStoreReset } from "@/test-utils/resetStores";
 
 export const ADMIN_CLIENT_ORG_QUERY_PARAM = "clientOrgId";
@@ -64,40 +65,43 @@ const rawSessionStorage: StateStorage = {
 };
 
 export const useAdminRealmStore = create<AdminRealmState>()(
-  persist(
-    (set) => ({
-      id: null,
-      setAdminRealm: (id) => {
-        writeToUrl(id);
-        set({ id });
-        if (useActiveRealmStore.getState().id !== id) {
-          useActiveRealmStore.setState({ id });
+  devtools(
+    persist(
+      (set) => ({
+        id: null,
+        setAdminRealm: (id) => {
+          writeToUrl(id);
+          set({ id });
+          if (useActiveRealmStore.getState().id !== id) {
+            useActiveRealmStore.setState({ id });
+          }
+        }
+      }),
+      {
+        name: ADMIN_CLIENT_ORG_STORAGE_KEY,
+        storage: {
+          getItem: (name) => {
+            const raw = rawSessionStorage.getItem(name) as string | null;
+            return raw === null ? null : JSON.parse(raw);
+          },
+          setItem: (name, value) => {
+            rawSessionStorage.setItem(name, JSON.stringify(value));
+          },
+          removeItem: (name) => {
+            rawSessionStorage.removeItem(name);
+          }
+        },
+        partialize: (state) => ({ id: state.id }) as AdminRealmState,
+        onRehydrateStorage: () => (state) => {
+          if (!state) return;
+          const fromUrl = readFromUrl();
+          if (fromUrl !== null && fromUrl !== state.id) {
+            state.id = fromUrl;
+          }
         }
       }
-    }),
-    {
-      name: ADMIN_CLIENT_ORG_STORAGE_KEY,
-      storage: {
-        getItem: (name) => {
-          const raw = rawSessionStorage.getItem(name) as string | null;
-          return raw === null ? null : JSON.parse(raw);
-        },
-        setItem: (name, value) => {
-          rawSessionStorage.setItem(name, JSON.stringify(value));
-        },
-        removeItem: (name) => {
-          rawSessionStorage.removeItem(name);
-        }
-      },
-      partialize: (state) => ({ id: state.id }) as AdminRealmState,
-      onRehydrateStorage: () => (state) => {
-        if (!state) return;
-        const fromUrl = readFromUrl();
-        if (fromUrl !== null && fromUrl !== state.id) {
-          state.id = fromUrl;
-        }
-      }
-    }
+    ),
+    devtoolsConfig(ADMIN_CLIENT_ORG_STORAGE_KEY)
   )
 );
 
