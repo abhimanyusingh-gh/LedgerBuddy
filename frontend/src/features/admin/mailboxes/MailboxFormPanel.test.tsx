@@ -1,7 +1,7 @@
 /**
  * @jest-environment jsdom
  */
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
@@ -14,6 +14,7 @@ import type {
   AvailableIntegration,
   MailboxAssignment
 } from "@/api/mailboxAssignments";
+import { useDraftStore } from "@/stores/draftPersistenceStore";
 import { resetStores } from "@/test-utils/resetStores";
 
 jest.mock("@/api/mailboxAssignments", () => ({
@@ -275,5 +276,53 @@ describe("features/admin/mailboxes/MailboxFormPanel — Edit mode", () => {
         /no valid client organizations/i
       )
     );
+  });
+});
+
+describe("features/admin/mailboxes/MailboxFormPanel — clearDraft post-success", () => {
+  it("preserves the draft when onSubmit rejects and clears it when onSubmit resolves", async () => {
+    const draftKey = "mailboxFormPanel/edit/a-1";
+    const failingSubmit = jest.fn().mockRejectedValueOnce(new Error("boom"));
+    const { rerender } = renderPanel({
+      mode: MAILBOX_FORM_MODE.Edit,
+      initial: buildAssignment({ _id: "a-1", clientOrgIds: ["org-1"] }),
+      onSubmit: failingSubmit
+    });
+
+    fireEvent.click(screen.getByTestId("client-org-multi-picker-checkbox-org-2"));
+    expect(useDraftStore.getState().getDraft(draftKey)).toBeDefined();
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId("mailbox-form-submit"));
+    });
+    expect(failingSubmit).toHaveBeenCalledTimes(1);
+    expect(useDraftStore.getState().getDraft(draftKey)).toBeDefined();
+
+    const resolvingSubmit = jest.fn().mockResolvedValueOnce(undefined);
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false, staleTime: Infinity } }
+    });
+    rerender(
+      <QueryClientProvider client={client}>
+        <MailboxFormPanel
+          open
+          mode={MAILBOX_FORM_MODE.Edit}
+          initial={buildAssignment({ _id: "a-1", clientOrgIds: ["org-1"] })}
+          clientOrgs={ORGS}
+          clientOrgsLoading={false}
+          clientOrgsError={false}
+          onClientOrgsRetry={jest.fn()}
+          errorMessage={null}
+          onSubmit={resolvingSubmit}
+          onClose={jest.fn()}
+        />
+      </QueryClientProvider>
+    );
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId("mailbox-form-submit"));
+    });
+    expect(resolvingSubmit).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(useDraftStore.getState().getDraft(draftKey)).toBeUndefined());
   });
 });

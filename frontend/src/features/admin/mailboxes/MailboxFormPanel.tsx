@@ -29,7 +29,7 @@ interface MailboxFormPanelProps {
   onClientOrgsRetry: () => void;
   submitting?: boolean;
   errorMessage?: string | null;
-  onSubmit: (values: MailboxFormValues) => void;
+  onSubmit: (values: MailboxFormValues) => Promise<void> | void;
   onClose: () => void;
 }
 
@@ -126,13 +126,17 @@ export function MailboxFormPanel({
     return true;
   }, [submitting, hasOneClientOrg, isEdit, hasIntegrationId]);
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!canSubmit) return;
-    clearDraft();
-    onSubmit({
-      integrationId: values.integrationId,
-      clientOrgIds: values.clientOrgIds
-    });
+    try {
+      await onSubmit({
+        integrationId: values.integrationId,
+        clientOrgIds: values.clientOrgIds
+      });
+      clearDraft();
+    } catch {
+      return;
+    }
   };
 
   const routingPreview = buildRoutingPreview(values.clientOrgIds, clientOrgs);

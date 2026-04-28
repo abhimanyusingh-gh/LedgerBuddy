@@ -1,12 +1,13 @@
 /**
  * @jest-environment jsdom
  */
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import {
   CLIENT_ORG_FORM_MODE,
   ClientOrgFormPanel
 } from "@/features/admin/onboarding/ClientOrgFormPanel";
+import { useDraftStore } from "@/stores/draftPersistenceStore";
 import { resetStores } from "@/test-utils/resetStores";
 
 beforeEach(() => {
@@ -126,5 +127,50 @@ describe("features/admin/onboarding/ClientOrgFormPanel — edit mode", () => {
       />
     );
     expect(screen.getByTestId("client-org-form-error")).toHaveTextContent(/duplicate/i);
+  });
+});
+
+describe("features/admin/onboarding/ClientOrgFormPanel — clearDraft post-success", () => {
+  it("preserves the draft when onSubmit rejects and clears it when onSubmit resolves", async () => {
+    const draftKey = "clientOrgFormPanel/add";
+    const failingSubmit = jest.fn().mockRejectedValueOnce(new Error("boom"));
+    const { rerender } = render(
+      <ClientOrgFormPanel
+        open
+        mode={CLIENT_ORG_FORM_MODE.Add}
+        onSubmit={failingSubmit}
+        onClose={jest.fn()}
+      />
+    );
+
+    fireEvent.change(screen.getByTestId("client-org-gstin-input"), {
+      target: { value: "29ABCPK1234F1Z5" }
+    });
+    fireEvent.change(screen.getByTestId("client-org-company-name-input"), {
+      target: { value: "Acme" }
+    });
+    expect(useDraftStore.getState().getDraft(draftKey)).toBeDefined();
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId("client-org-form-submit"));
+    });
+    expect(failingSubmit).toHaveBeenCalledTimes(1);
+    expect(useDraftStore.getState().getDraft(draftKey)).toBeDefined();
+
+    const resolvingSubmit = jest.fn().mockResolvedValueOnce(undefined);
+    rerender(
+      <ClientOrgFormPanel
+        open
+        mode={CLIENT_ORG_FORM_MODE.Add}
+        onSubmit={resolvingSubmit}
+        onClose={jest.fn()}
+      />
+    );
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId("client-org-form-submit"));
+    });
+    expect(resolvingSubmit).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(useDraftStore.getState().getDraft(draftKey)).toBeUndefined());
   });
 });

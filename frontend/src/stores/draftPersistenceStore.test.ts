@@ -51,6 +51,26 @@ describe("draftPersistenceStore", () => {
     expect(useDraftStore.getState().getDraft(KEY_OTHER)).toEqual({ fresh: true });
   });
 
+  it("prunes entries past Long TTL on rehydrate from sessionStorage", async () => {
+    const now = 100_000_000;
+    const stalePayload = {
+      state: {
+        drafts: {
+          [KEY]: { value: { stale: true }, updatedAt: now - DRAFT_TTL_MS.Long - 1 },
+          [KEY_OTHER]: { value: { fresh: true }, updatedAt: now - 1_000 }
+        }
+      },
+      version: 0
+    };
+    window.sessionStorage.setItem(DRAFT_PERSISTENCE_STORAGE_KEY, JSON.stringify(stalePayload));
+    jest.spyOn(Date, "now").mockReturnValue(now);
+
+    await useDraftStore.persist.rehydrate();
+
+    expect(useDraftStore.getState().getDraft(KEY)).toBeUndefined();
+    expect(useDraftStore.getState().getDraft(KEY_OTHER)).toEqual({ fresh: true });
+  });
+
   it("resetStores() restores empty state (lock contract)", () => {
     useDraftStore.getState().setDraft(KEY, { x: 1 });
     expect(useDraftStore.getState().getDraft(KEY)).toEqual({ x: 1 });

@@ -151,12 +151,12 @@ export function ClientOrgsPage() {
   }, []);
 
   const handleSubmit = useCallback(
-    (values: ClientOrgFormValues) => {
+    async (values: ClientOrgFormValues) => {
       if (formState.mode === CLIENT_ORG_FORM_MODE.Edit && formState.target) {
-        updateMutation.mutate({ id: formState.target._id, values });
+        await updateMutation.mutateAsync({ id: formState.target._id, values });
         return;
       }
-      createMutation.mutate({
+      await createMutation.mutateAsync({
         gstin: values.gstin,
         companyName: values.companyName,
         stateName: values.stateName.length > 0 ? values.stateName : undefined

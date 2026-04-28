@@ -75,7 +75,11 @@ export const useDraftStore = create<DraftState>()(
       {
         name: DRAFT_PERSISTENCE_STORAGE_KEY,
         storage: createJSONStorage(() => sessionJsonStorage),
-        partialize: (state) => ({ drafts: state.drafts }) as DraftState
+        partialize: (state) => ({ drafts: state.drafts }) as DraftState,
+        onRehydrateStorage: () => (state) => {
+          if (!state) return;
+          state.pruneStale(DRAFT_TTL_MS.Long);
+        }
       }
     ),
     reduxDevtoolsConfig(DRAFT_PERSISTENCE_STORAGE_KEY)
