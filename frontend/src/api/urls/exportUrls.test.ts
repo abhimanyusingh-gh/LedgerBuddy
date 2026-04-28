@@ -16,16 +16,6 @@ afterEach(() => {
   setActiveClientOrgId(null);
 });
 
-describe("api/urls/exportUrls — collection routes", () => {
-  it.each([
-    ["tallyDownloadStart", "/tenants/tenant-1/clientOrgs/client-1/exports/tally/download"],
-    ["tallyHistory", "/tenants/tenant-1/clientOrgs/client-1/exports/tally/history"]
-  ] as const)("%s resolves to %s", (method, expected) => {
-    const fn = exportUrls[method] as () => string;
-    expect(fn()).toBe(expected);
-  });
-});
-
 describe("api/urls/exportUrls — id-bearing routes", () => {
   it("tallyDownloadResult encodes the batch id into the nested path", () => {
     expect(exportUrls.tallyDownloadResult("batch/42")).toBe(

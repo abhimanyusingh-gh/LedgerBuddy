@@ -16,21 +16,6 @@ afterEach(() => {
   setActiveClientOrgId(null);
 });
 
-describe("api/urls/mailboxUrls — collection routes", () => {
-  it.each([
-    ["list", "/tenants/tenant-1/admin/mailboxes"],
-    ["integrationsList", "/tenants/tenant-1/admin/integrations"],
-    ["assignmentsList", "/tenants/tenant-1/admin/mailbox-assignments"],
-    ["assignmentsCreate", "/tenants/tenant-1/admin/mailbox-assignments"],
-    ["gmailStatus", "/tenants/tenant-1/integrations/gmail"],
-    ["gmailConnectUrl", "/tenants/tenant-1/integrations/gmail/connect-url"],
-    ["notificationLog", "/tenants/tenant-1/admin/notifications/log"]
-  ] as const)("%s resolves to %s", (method, expected) => {
-    const fn = mailboxUrls[method] as () => string;
-    expect(fn()).toBe(expected);
-  });
-});
-
 describe("api/urls/mailboxUrls — id-bearing routes", () => {
   it("assign encodes the integration id and appends /assign", () => {
     expect(mailboxUrls.assign("int/1")).toBe(

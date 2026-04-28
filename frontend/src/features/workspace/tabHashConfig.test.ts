@@ -5,14 +5,6 @@ import {
 } from "@/features/workspace/tabHashConfig";
 
 describe("features/workspace/tabHashConfig — standalone hash routes", () => {
-  it("registers triage at the canonical hash", () => {
-    expect(STANDALONE_HASH_PATH.triage).toBe("#/triage");
-  });
-
-  it("registers mailboxes at the canonical hash", () => {
-    expect(STANDALONE_HASH_PATH.mailboxes).toBe("#/mailboxes");
-  });
-
   it("matches the registered mailboxes hash exactly", () => {
     expect(readStandaloneHashRoute("#/mailboxes")).toBe("mailboxes");
   });

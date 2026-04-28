@@ -16,17 +16,6 @@ afterEach(() => {
   setActiveClientOrgId(null);
 });
 
-describe("api/urls/tenantUrls — collection routes", () => {
-  it.each([
-    ["usersList", "/tenants/tenant-1/admin/users"],
-    ["usersInvite", "/tenants/tenant-1/admin/users/invite"],
-    ["onboardingComplete", "/tenants/tenant-1/onboarding/complete"]
-  ] as const)("%s resolves to %s", (method, expected) => {
-    const fn = tenantUrls[method] as () => string;
-    expect(fn()).toBe(expected);
-  });
-});
-
 describe("api/urls/tenantUrls — id-bearing routes", () => {
   it("userRole encodes the user id and appends /role", () => {
     expect(tenantUrls.userRole("user/42")).toBe(

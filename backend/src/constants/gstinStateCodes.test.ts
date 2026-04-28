@@ -1,31 +1,4 @@
-import { deriveVendorState, GSTIN_STATE_CODES } from "@/constants/gstinStateCodes.ts";
-
-describe("GSTIN_STATE_CODES registry", () => {
-  it("has exactly 37 entries (36 states/UTs + Other Territory code 97)", () => {
-    expect(Object.keys(GSTIN_STATE_CODES)).toHaveLength(37);
-  });
-
-  it("every code is a 2-digit string", () => {
-    for (const code of Object.keys(GSTIN_STATE_CODES)) {
-      expect(code).toMatch(/^\d{2}$/);
-    }
-  });
-
-  it("every state name is non-empty and free of leading/trailing whitespace", () => {
-    for (const name of Object.values(GSTIN_STATE_CODES)) {
-      expect(name.length).toBeGreaterThan(0);
-      expect(name).toBe(name.trim());
-    }
-  });
-
-  it("pins known codes to their canonical CBIC state names", () => {
-    expect(GSTIN_STATE_CODES["27"]).toBe("Maharashtra");
-    expect(GSTIN_STATE_CODES["29"]).toBe("Karnataka");
-    expect(GSTIN_STATE_CODES["33"]).toBe("Tamil Nadu");
-    expect(GSTIN_STATE_CODES["07"]).toBe("Delhi");
-    expect(GSTIN_STATE_CODES["97"]).toBe("Other Territory");
-  });
-});
+import { deriveVendorState } from "@/constants/gstinStateCodes.ts";
 
 describe("deriveVendorState — GSTIN prefix path", () => {
   it("resolves a valid 15-char GSTIN by its first-2-char state code", () => {

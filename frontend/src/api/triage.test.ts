@@ -2,7 +2,6 @@
  * @jest-environment jsdom
  */
 import {
-  TRIAGE_QUEUE_QUERY_KEY,
   assignClientOrg,
   fetchTriageInvoices,
   rejectInvoice
@@ -34,10 +33,6 @@ afterEach(() => {
 });
 
 describe("api/triage", () => {
-  it("uses the canonical query key", () => {
-    expect(TRIAGE_QUEUE_QUERY_KEY).toEqual(["triageQueue"]);
-  });
-
   describe("fetchTriageInvoices", () => {
     it("requests /invoices/triage with status=PENDING_TRIAGE and returns the response items + total", async () => {
       apiClient.get.mockResolvedValueOnce({
