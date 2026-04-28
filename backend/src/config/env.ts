@@ -218,8 +218,6 @@ const envSchema = z.object({
 
   WEBHOOK_SIGNING_SECRET: z.string().default(""),
 
-  AUDIT_LOG_FAILURE_ALERT_THRESHOLD: z.coerce.number().int().min(1).default(10),
-
   OTEL_ENABLED: z
     .string()
     .default("false")

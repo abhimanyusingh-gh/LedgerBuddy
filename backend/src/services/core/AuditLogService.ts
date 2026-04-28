@@ -23,21 +23,13 @@ const RETRY_BACKOFF_MS = [
 export const AUDIT_RETRY_MAX_ATTEMPTS = RETRY_BACKOFF_MS.length;
 
 interface AuditLogServiceOptions {
-  failureAlertThreshold: number;
-  onAlert?: (counter: number, threshold: number) => void;
   now?: () => Date;
 }
 
 export class AuditLogService {
-  private failureCounter = 0;
-  private alertFired = false;
-  private readonly failureAlertThreshold: number;
-  private readonly onAlert: ((counter: number, threshold: number) => void) | undefined;
   private readonly now: () => Date;
 
-  constructor(options: AuditLogServiceOptions) {
-    this.failureAlertThreshold = Math.max(1, options.failureAlertThreshold);
-    this.onAlert = options.onAlert;
+  constructor(options: AuditLogServiceOptions = {}) {
     this.now = options.now ?? (() => new Date());
   }
 
@@ -59,15 +51,6 @@ export class AuditLogService {
       .catch(async (error) => {
         await this.handleWriteFailure(doc, error);
       });
-  }
-
-  getFailureCounter(): number {
-    return this.failureCounter;
-  }
-
-  resetFailureCounter(): void {
-    this.failureCounter = 0;
-    this.alertFired = false;
   }
 
   async retryDeadLetters(): Promise<{ retried: number; succeeded: number; givenUp: number }> {
@@ -124,27 +107,13 @@ export class AuditLogService {
   }
 
   private async handleWriteFailure(doc: Record<string, unknown>, error: unknown): Promise<void> {
-    this.failureCounter += 1;
-    logger.error("audit_log.write_failed", {
+    logger.error("audit_log_write_failed", {
       tenantId: String(doc.tenantId),
       entityType: String(doc.entityType),
       entityId: String(doc.entityId),
       action: String(doc.action),
       error: serializeError(error)
     });
-
-    if (!this.alertFired && this.failureCounter >= this.failureAlertThreshold) {
-      this.alertFired = true;
-      logger.error("audit_log.write_failed.threshold_exceeded", {
-        counter: this.failureCounter,
-        threshold: this.failureAlertThreshold
-      });
-      try {
-        this.onAlert?.(this.failureCounter, this.failureAlertThreshold);
-      } catch (alertError) {
-        logger.error("audit_log.alert.dispatch_failed", { error: serializeError(alertError) });
-      }
-    }
 
     try {
       const firstBackoffMs = RETRY_BACKOFF_MS[0];

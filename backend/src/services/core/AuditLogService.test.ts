@@ -30,6 +30,7 @@ jest.mock("../../utils/logger.js", () => ({
 import { AuditLogModel, AUDIT_ENTITY_TYPE } from "@/models/core/AuditLog.js";
 import { AuditLogDeadLetterModel } from "@/models/core/AuditLogDeadLetter.js";
 import { AuditLogService, AUDIT_RETRY_MAX_ATTEMPTS, RETRY_BACKOFF_MS } from "@/services/core/AuditLogService.js";
+import { logger } from "@/utils/logger.js";
 
 const ONE_HOUR_MS = 60 * 60 * 1000;
 
@@ -51,7 +52,7 @@ describe("AuditLogService.record", () => {
 
   it("writes audit log on success without bubbling errors", async () => {
     (AuditLogModel.create as jest.Mock).mockResolvedValueOnce({});
-    const service = new AuditLogService({ failureAlertThreshold: 5 });
+    const service = new AuditLogService();
 
     await service.record(samplePayload);
 
@@ -66,24 +67,41 @@ describe("AuditLogService.record", () => {
         userEmail: "user@example.com"
       })
     );
-    expect(service.getFailureCounter()).toBe(0);
   });
 
   it("does not bubble error on Mongo failure (fire-and-forget)", async () => {
     (AuditLogModel.create as jest.Mock).mockRejectedValueOnce(new Error("mongo down"));
     (AuditLogDeadLetterModel.create as jest.Mock).mockResolvedValueOnce({});
-    const service = new AuditLogService({ failureAlertThreshold: 5 });
+    const service = new AuditLogService();
 
     await expect(service.record(samplePayload)).resolves.toBeUndefined();
-    expect(service.getFailureCounter()).toBe(1);
     expect(AuditLogDeadLetterModel.create).toHaveBeenCalledTimes(1);
+  });
+
+  it("emits a structured audit_log_write_failed log on Mongo failure", async () => {
+    (AuditLogModel.create as jest.Mock).mockRejectedValueOnce(new Error("mongo down"));
+    (AuditLogDeadLetterModel.create as jest.Mock).mockResolvedValueOnce({});
+    const service = new AuditLogService();
+
+    await service.record(samplePayload);
+
+    expect(logger.error).toHaveBeenCalledWith(
+      "audit_log_write_failed",
+      expect.objectContaining({
+        tenantId: "tenant-1",
+        entityType: "config",
+        entityId: "tenant-1",
+        action: "approval_workflow_updated",
+        error: "mongo down"
+      })
+    );
   });
 
   it("queues failed write to dead-letter store with first 1h backoff", async () => {
     const fixedNow = new Date("2026-01-01T00:00:00Z");
     (AuditLogModel.create as jest.Mock).mockRejectedValueOnce(new Error("write failed"));
     (AuditLogDeadLetterModel.create as jest.Mock).mockResolvedValueOnce({});
-    const service = new AuditLogService({ failureAlertThreshold: 5, now: () => fixedNow });
+    const service = new AuditLogService({ now: () => fixedNow });
 
     await service.record(samplePayload);
 
@@ -94,35 +112,6 @@ describe("AuditLogService.record", () => {
         lastError: "write failed"
       })
     );
-  });
-
-  it("fires alert when failure counter crosses threshold", async () => {
-    (AuditLogModel.create as jest.Mock).mockRejectedValue(new Error("down"));
-    (AuditLogDeadLetterModel.create as jest.Mock).mockResolvedValue({});
-    const onAlert = jest.fn();
-    const service = new AuditLogService({ failureAlertThreshold: 3, onAlert });
-
-    await service.record(samplePayload);
-    await service.record(samplePayload);
-    expect(onAlert).not.toHaveBeenCalled();
-    await service.record(samplePayload);
-    expect(onAlert).toHaveBeenCalledTimes(1);
-    expect(onAlert).toHaveBeenCalledWith(3, 3);
-
-    await service.record(samplePayload);
-    expect(onAlert).toHaveBeenCalledTimes(1);
-  });
-
-  it("alert dispatch failure does not bubble", async () => {
-    (AuditLogModel.create as jest.Mock).mockRejectedValue(new Error("x"));
-    (AuditLogDeadLetterModel.create as jest.Mock).mockResolvedValue({});
-    const onAlert = jest.fn(() => {
-      throw new Error("alerting broken");
-    });
-    const service = new AuditLogService({ failureAlertThreshold: 1, onAlert });
-
-    await expect(service.record(samplePayload)).resolves.toBeUndefined();
-    expect(onAlert).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -141,7 +130,7 @@ describe("AuditLogService.retryDeadLetters backoff", () => {
     (AuditLogModel.create as jest.Mock).mockResolvedValueOnce({});
     (AuditLogDeadLetterModel.deleteOne as jest.Mock).mockResolvedValueOnce({});
 
-    const service = new AuditLogService({ failureAlertThreshold: 5, now: () => fixedNow });
+    const service = new AuditLogService({ now: () => fixedNow });
     const result = await service.retryDeadLetters();
 
     expect(result).toEqual({ retried: 1, succeeded: 1, givenUp: 0 });
@@ -163,7 +152,7 @@ describe("AuditLogService.retryDeadLetters backoff", () => {
       });
       (AuditLogModel.create as jest.Mock).mockRejectedValueOnce(new Error("still down"));
 
-      const service = new AuditLogService({ failureAlertThreshold: 5, now: () => fixedNow });
+      const service = new AuditLogService({ now: () => fixedNow });
       await service.retryDeadLetters();
     }
 
@@ -195,7 +184,7 @@ describe("AuditLogService.retryDeadLetters backoff", () => {
     (AuditLogModel.create as jest.Mock).mockRejectedValueOnce(new Error("still down"));
     (AuditLogDeadLetterModel.updateOne as jest.Mock).mockResolvedValueOnce({});
 
-    const service = new AuditLogService({ failureAlertThreshold: 5, now: () => fixedNow });
+    const service = new AuditLogService({ now: () => fixedNow });
     const result = await service.retryDeadLetters();
 
     expect(result).toEqual({ retried: 1, succeeded: 0, givenUp: 1 });
@@ -219,7 +208,7 @@ describe("AuditLogService chaos: primary operation succeeds even if audit fails"
   it("simulates a TDS-override flow where AuditLog write fails but business op completes", async () => {
     (AuditLogModel.create as jest.Mock).mockRejectedValueOnce(new Error("mongo write timeout"));
     (AuditLogDeadLetterModel.create as jest.Mock).mockResolvedValueOnce({});
-    const service = new AuditLogService({ failureAlertThreshold: 10 });
+    const service = new AuditLogService();
 
     let tdsUpdateCommitted = false;
 
@@ -243,6 +232,6 @@ describe("AuditLogService chaos: primary operation succeeds even if audit fails"
     expect(tdsUpdateCommitted).toBe(true);
 
     await new Promise((resolve) => setImmediate(resolve));
-    expect(service.getFailureCounter()).toBe(1);
+    expect(AuditLogDeadLetterModel.create).toHaveBeenCalledTimes(1);
   });
 });

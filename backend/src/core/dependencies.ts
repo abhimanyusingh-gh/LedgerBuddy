@@ -169,9 +169,7 @@ export async function buildDependencies(): Promise<Dependencies> {
     fileStore: storage.fileStore
   });
   const approvalWorkflowService = new ApprovalWorkflowService();
-  const auditLogService = new AuditLogService({
-    failureAlertThreshold: env.AUDIT_LOG_FAILURE_ALERT_THRESHOLD
-  });
+  const auditLogService = new AuditLogService();
 
   return {
     ingestionService,
