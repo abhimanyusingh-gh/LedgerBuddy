@@ -15,6 +15,7 @@ import { IngestionJobOrchestrator } from "@/services/ingestion/IngestionJobOrche
 import { MAX_UPLOAD_FILE_COUNT, MAX_UPLOAD_FILE_SIZE_BYTES } from "@/constants.js";
 import { isAllowedFileExtension } from "@/utils/validation.js";
 import { guessMimeTypeFromKey } from "@/utils/mime.js";
+import { INGESTION_URL_PATHS } from "@/routes/urls/ingestionUrls.js";
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -38,15 +39,15 @@ export function createJobsRouter(
   const orchestrator = new IngestionJobOrchestrator();
   router.use(requireAuth);
 
-  router.get("/jobs/ingest/status", (req, res) => {
+  router.get(INGESTION_URL_PATHS.jobsIngestStatus, (req, res) => {
     res.json(orchestrator.getCurrentStatus(getAuth(req).tenantId));
   });
 
-  router.get("/jobs/ingest/sse", (req, res) => {
+  router.get(INGESTION_URL_PATHS.jobsIngestSse, (req, res) => {
     orchestrator.addSubscriber(getAuth(req).tenantId, res, req);
   });
 
-  router.post("/jobs/ingest", requireCap("canStartIngestion"), async (req, res, next) => {
+  router.post(INGESTION_URL_PATHS.jobsIngest, requireCap("canStartIngestion"), async (req, res, next) => {
     try {
       res.status(202).json(orchestrator.startJob(ingestionService, getAuth(req).tenantId));
     } catch (error) {
@@ -54,7 +55,7 @@ export function createJobsRouter(
     }
   });
 
-  router.post("/jobs/ingest/email-simulate", requireCap("canStartIngestion"), async (req, res, next) => {
+  router.post(INGESTION_URL_PATHS.jobsIngestEmailSimulate, requireCap("canStartIngestion"), async (req, res, next) => {
     try {
       const context = getAuth(req);
       const current = orchestrator.getCurrentStatus(context.tenantId);
@@ -85,7 +86,7 @@ export function createJobsRouter(
     }
   });
 
-  router.post("/jobs/upload", requireCap("canUploadFiles"), (req, res, next) => {
+  router.post(INGESTION_URL_PATHS.jobsUpload, requireCap("canUploadFiles"), (req, res, next) => {
     (upload.array("files", MAX_UPLOAD_FILE_COUNT) as unknown as import("express").RequestHandler)(req, res, (error: unknown) => {
       if (error instanceof multer.MulterError) {
         res.status(400).json({ message: multerErrorMessage(error) });
@@ -189,7 +190,7 @@ export function createJobsRouter(
     }
   });
 
-  router.post("/jobs/upload/by-keys", requireCap("canUploadFiles"), async (req, res, next) => {
+  router.post(INGESTION_URL_PATHS.jobsUploadByKeys, requireCap("canUploadFiles"), async (req, res, next) => {
     try {
       const context = getAuth(req);
       if (!fileStore) {
@@ -270,7 +271,7 @@ export function createJobsRouter(
     }
   });
 
-  router.post("/jobs/ingest/pause", requireCap("canStartIngestion"), (req, res) => {
+  router.post(INGESTION_URL_PATHS.jobsIngestPause, requireCap("canStartIngestion"), (req, res) => {
     res.json(orchestrator.pauseJob(ingestionService, getAuth(req).tenantId));
   });
 

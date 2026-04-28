@@ -11,6 +11,7 @@ import {
   decodeActionRequiredCursor,
   encodeActionRequiredCursor
 } from "@/services/invoice/actionRequiredCursor.js";
+import { INVOICE_URL_PATHS } from "@/routes/urls/invoiceUrls.js";
 
 type AsyncHandler = (req: Request, res: Response, next: NextFunction) => Promise<void>;
 
@@ -30,7 +31,7 @@ export function createActionRequiredRouter() {
   const router = Router();
   router.use(requireAuth);
 
-  router.get("/invoices/action-required", wrap(async (req, res) => {
+  router.get(INVOICE_URL_PATHS.actionRequired, wrap(async (req, res) => {
     const { tenantId } = getAuth(req);
 
     const limit = req.query.limit !== undefined

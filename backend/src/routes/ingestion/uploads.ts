@@ -10,6 +10,7 @@ import {
   MAX_UPLOAD_FILE_SIZE_BYTES,
   PRESIGNED_URL_EXPIRY_SECONDS
 } from "@/constants.js";
+import { INGESTION_URL_PATHS } from "@/routes/urls/ingestionUrls.js";
 
 interface PresignFileRequest {
   name: string;
@@ -31,7 +32,7 @@ export function createUploadsRouter(fileStore?: FileStore) {
   const router = Router();
   router.use(requireAuth);
 
-  router.post("/uploads/presign", requireCap("canUploadFiles"), async (req, res, next) => {
+  router.post(INGESTION_URL_PATHS.uploadsPresign, requireCap("canUploadFiles"), async (req, res, next) => {
     try {
       if (!fileStore?.generatePresignedPutUrl) {
         res.status(400).json({ message: "File storage does not support presigned uploads." });

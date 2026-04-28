@@ -29,6 +29,7 @@ import { GlCodeSuggestionService } from "@/services/compliance/GlCodeSuggestionS
 import { requireAuth } from "@/auth/requireAuth.js";
 import { logger } from "@/utils/logger.js";
 import { isRecord, isString, validateDateRange } from "@/utils/validation.js";
+import { INVOICE_URL_PATHS } from "@/routes/urls/invoiceUrls.js";
 
 let s3Client: S3Client | null = null;
 
@@ -75,7 +76,7 @@ export function createInvoiceRouter(
     return { userId: authContext.userId, role: authContext.role, capabilities };
   }
 
-  router.get("/invoices", wrap(async (req, res) => {
+  router.get(INVOICE_URL_PATHS.list, wrap(async (req, res) => {
     const authContext = getAuth(req);
     const page = Math.max(Number(req.query.page ?? 1), 1);
     const limit = Math.min(Math.max(Number(req.query.limit ?? 20), 1), 100);
@@ -115,7 +116,7 @@ export function createInvoiceRouter(
     res.json(response);
   }));
 
-  router.get("/invoices/:id", wrap(async (req, res) => {
+  router.get(INVOICE_URL_PATHS.detail, wrap(async (req, res) => {
     const authContext = getAuth(req);
     const invoice = await invoiceService.getInvoiceById(req.params.id, authContext.tenantId, req.activeClientOrgId!);
     if (!invoice) { res.status(404).json({ message: "Invoice not found" }); return; }
@@ -133,7 +134,7 @@ export function createInvoiceRouter(
     res.json(invoice);
   }));
 
-  router.post("/invoices/approve", requireCap("canApproveInvoices"), wrap(async (req, res) => {
+  router.post(INVOICE_URL_PATHS.approve, requireCap("canApproveInvoices"), wrap(async (req, res) => {
     const ids = requireStringIds(req.body);
     if (!ids) { res.status(400).json({ message: "Body 'ids' must include at least one invoice id." }); return; }
     const approvedBy = typeof req.body?.approvedBy === "string" ? req.body.approvedBy : undefined;
@@ -141,19 +142,19 @@ export function createInvoiceRouter(
     res.json(result);
   }));
 
-  router.post("/invoices/retry", requireCap("canRetryInvoices"), wrap(async (req, res) => {
+  router.post(INVOICE_URL_PATHS.retry, requireCap("canRetryInvoices"), wrap(async (req, res) => {
     const ids = requireStringIds(req.body);
     if (!ids) { res.status(400).json({ message: "Body 'ids' must include at least one invoice id." }); return; }
     res.json({ modifiedCount: await invoiceService.retryInvoices(ids, req.activeClientOrgId!, getAuth(req)) });
   }));
 
-  router.post("/invoices/delete", requireCap("canDeleteInvoices"), wrap(async (req, res) => {
+  router.post(INVOICE_URL_PATHS.bulkDelete, requireCap("canDeleteInvoices"), wrap(async (req, res) => {
     const ids = requireStringIds(req.body);
     if (!ids) { res.status(400).json({ message: "Body 'ids' must include at least one invoice id." }); return; }
     res.json({ deletedCount: await invoiceService.deleteInvoices(ids, req.activeClientOrgId!, getAuth(req)) });
   }));
 
-  router.patch("/invoices/:id", requireCap("canEditInvoiceFields"), wrap(async (req, res, next) => {
+  router.patch(INVOICE_URL_PATHS.update, requireCap("canEditInvoiceFields"), wrap(async (req, res, next) => {
     try {
       const authContext = getAuth(req);
       if (typeof req.body?.attachmentName === "string") {
@@ -239,7 +240,7 @@ export function createInvoiceRouter(
     }
   }));
 
-  router.post("/invoices/:id/retrigger-compliance", requireCap("canEditInvoiceFields"), wrap(async (req, res) => {
+  router.post(INVOICE_URL_PATHS.retriggerCompliance, requireCap("canEditInvoiceFields"), wrap(async (req, res) => {
     try {
       const authContext = getAuth(req);
       const glCode = typeof req.body?.glCode === "string" ? req.body.glCode.trim() : null;
@@ -253,7 +254,7 @@ export function createInvoiceRouter(
     }
   }));
 
-  router.get("/invoices/:id/preview", wrap(async (req, res, next) => {
+  router.get(INVOICE_URL_PATHS.preview, wrap(async (req, res, next) => {
     const invoice = await invoiceService.getInvoiceById(req.params.id, getAuth(req).tenantId, req.activeClientOrgId!);
     if (!invoice) { res.status(404).json({ message: "Invoice not found" }); return; }
     const page = Math.max(1, Number(req.query.page ?? 1));

@@ -3,12 +3,13 @@ import { Router } from "express";
 import { requireAuth } from "@/auth/requireAuth.js";
 import { resolveOptionalClientOrgId } from "@/auth/optionalClientOrg.js";
 import { getOverview } from "@/services/platform/analyticsService.js";
+import { INVOICE_URL_PATHS } from "@/routes/urls/invoiceUrls.js";
 
 export function createAnalyticsRouter() {
   const router = Router();
   router.use(requireAuth);
 
-  router.get("/analytics/overview", async (req, res, next) => {
+  router.get(INVOICE_URL_PATHS.analyticsOverview, async (req, res, next) => {
     try {
       const authContext = getAuth(req);
 

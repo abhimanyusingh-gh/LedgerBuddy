@@ -7,6 +7,7 @@ import { TenantUserRoleModel, TenantAssignableRoles } from "@/models/core/Tenant
 import { getRoleDefaults } from "@/auth/personaDefaults.js";
 import { AuditLogModel } from "@/models/core/AuditLog.js";
 import { logger } from "@/utils/logger.js";
+import { INVOICE_URL_PATHS } from "@/routes/urls/invoiceUrls.js";
 
 const VALID_CONDITION_FIELDS = ["totalAmountMinor", "tdsAmountMinor", "riskSignalMaxSeverity", "glCodeSource"] as const;
 const NUMERIC_FIELDS = new Set(["totalAmountMinor", "tdsAmountMinor", "riskSignalMaxSeverity"]);
@@ -60,7 +61,7 @@ export function createApprovalWorkflowRouter(workflowService: ApprovalWorkflowSe
   const router = Router();
   router.use(requireAuth);
 
-  router.get("/admin/approval-limits", requireCap("canConfigureWorkflow"), async (req, res, next) => {
+  router.get(INVOICE_URL_PATHS.adminApprovalLimits, requireCap("canConfigureWorkflow"), async (req, res, next) => {
     try {
       const { tenantId } = getAuth(req);
       const roleRecords = await TenantUserRoleModel.find({ tenantId }).lean();
@@ -87,7 +88,7 @@ export function createApprovalWorkflowRouter(workflowService: ApprovalWorkflowSe
     }
   });
 
-  router.put("/admin/approval-limits", requireCap("canConfigureWorkflow"), async (req, res, next) => {
+  router.put(INVOICE_URL_PATHS.adminApprovalLimits, requireCap("canConfigureWorkflow"), async (req, res, next) => {
     try {
       const { tenantId, userId: actingUserId } = getAuth(req);
       const limits = req.body?.limits;
@@ -125,7 +126,7 @@ export function createApprovalWorkflowRouter(workflowService: ApprovalWorkflowSe
     }
   });
 
-  router.get("/admin/approval-workflow", requireCap("canConfigureWorkflow"), async (req, res, next) => {
+  router.get(INVOICE_URL_PATHS.adminApprovalWorkflow, requireCap("canConfigureWorkflow"), async (req, res, next) => {
     try {
       const config = await workflowService.getWorkflowConfig(getAuth(req).tenantId);
       res.json(config ?? { enabled: false, mode: "simple", simpleConfig: { requireManagerReview: false, requireFinalSignoff: false }, steps: [] });
@@ -134,7 +135,7 @@ export function createApprovalWorkflowRouter(workflowService: ApprovalWorkflowSe
     }
   });
 
-  router.put("/admin/approval-workflow", requireCap("canConfigureWorkflow"), async (req, res, next) => {
+  router.put(INVOICE_URL_PATHS.adminApprovalWorkflow, requireCap("canConfigureWorkflow"), async (req, res, next) => {
     try {
       const context = getAuth(req);
       const enabled = typeof req.body?.enabled === "boolean" ? req.body.enabled : false;
@@ -185,7 +186,7 @@ export function createApprovalWorkflowRouter(workflowService: ApprovalWorkflowSe
     }
   });
 
-  router.post("/invoices/:id/workflow-approve", requireCap("canApproveInvoices"), async (req, res, next) => {
+  router.post(INVOICE_URL_PATHS.workflowApprove, requireCap("canApproveInvoices"), async (req, res, next) => {
     try {
       const result = await workflowService.approveStep(req.params.id, getAuth(req));
       res.json(result);
@@ -194,7 +195,7 @@ export function createApprovalWorkflowRouter(workflowService: ApprovalWorkflowSe
     }
   });
 
-  router.post("/invoices/:id/workflow-reject", requireCap("canApproveInvoices"), async (req, res, next) => {
+  router.post(INVOICE_URL_PATHS.workflowReject, requireCap("canApproveInvoices"), async (req, res, next) => {
     try {
       const reason = typeof req.body?.reason === "string" ? req.body.reason.trim() : "";
       if (!reason) {

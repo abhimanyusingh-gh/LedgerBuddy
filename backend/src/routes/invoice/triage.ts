@@ -4,6 +4,7 @@ import { requireAuth } from "@/auth/requireAuth.js";
 import { requireCap } from "@/auth/requireCapability.js";
 import type { TriageService } from "@/services/invoice/triageService.js";
 import { isRecord } from "@/utils/validation.js";
+import { TRIAGE_URL_PATHS } from "@/routes/urls/triageUrls.js";
 
 type AsyncHandler = (req: Request, res: Response, next: NextFunction) => Promise<void>;
 
@@ -16,7 +17,7 @@ export function createTriageRouter(service: TriageService) {
   router.use(requireAuth);
 
   router.get(
-    "/invoices/triage",
+    TRIAGE_URL_PATHS.list,
     requireCap("canViewAllInvoices"),
     wrap(async (req, res) => {
       const result = await service.list(getAuth(req).tenantId);
@@ -25,7 +26,7 @@ export function createTriageRouter(service: TriageService) {
   );
 
   router.patch(
-    "/invoices/:id/assign-client-org",
+    TRIAGE_URL_PATHS.assignClientOrg,
     requireCap("canEditInvoiceFields"),
     wrap(async (req, res) => {
       const body = isRecord(req.body) ? req.body : {};
@@ -39,7 +40,7 @@ export function createTriageRouter(service: TriageService) {
   );
 
   router.patch(
-    "/invoices/:id/reject",
+    TRIAGE_URL_PATHS.reject,
     requireCap("canEditInvoiceFields"),
     wrap(async (req, res) => {
       const body = isRecord(req.body) ? req.body : {};
