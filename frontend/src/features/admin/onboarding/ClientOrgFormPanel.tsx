@@ -31,7 +31,7 @@ interface ClientOrgFormPanelProps {
   initial?: ClientOrganization | null;
   submitting?: boolean;
   errorMessage?: string | null;
-  onSubmit: (values: ClientOrgFormValues) => void;
+  onSubmit: (values: ClientOrgFormValues) => Promise<void> | void;
   onClose: () => void;
 }
 
@@ -89,15 +89,19 @@ export function ClientOrgFormPanel({
     return gstinValid;
   }, [submitting, trimmedCompanyName, isEdit, gstinValid]);
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!canSubmit) return;
-    clearDraft();
-    onSubmit({
-      gstin: trimmedGstin,
-      companyName: trimmedCompanyName,
-      stateName: values.stateName.trim(),
-      f12OverwriteByGuidVerified: values.f12OverwriteByGuidVerified
-    });
+    try {
+      await onSubmit({
+        gstin: trimmedGstin,
+        companyName: trimmedCompanyName,
+        stateName: values.stateName.trim(),
+        f12OverwriteByGuidVerified: values.f12OverwriteByGuidVerified
+      });
+      clearDraft();
+    } catch {
+      return;
+    }
   };
 
   return (

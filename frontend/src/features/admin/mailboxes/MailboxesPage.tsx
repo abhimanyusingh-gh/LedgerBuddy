@@ -143,12 +143,12 @@ export function MailboxesPage() {
   }, []);
 
   const handleSubmit = useCallback(
-    (values: MailboxFormValues) => {
+    async (values: MailboxFormValues) => {
       if (formState.mode === MAILBOX_FORM_MODE.Edit && formState.target) {
-        updateMutation.mutate({ id: formState.target._id, values });
+        await updateMutation.mutateAsync({ id: formState.target._id, values });
         return;
       }
-      createMutation.mutate({
+      await createMutation.mutateAsync({
         integrationId: values.integrationId,
         clientOrgIds: values.clientOrgIds
       });
