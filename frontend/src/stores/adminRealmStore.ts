@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { devtools, persist, type StateStorage } from "zustand/middleware";
+import { devtools as reduxDevtools, persist, type StateStorage } from "zustand/middleware";
 import { useActiveRealmStore } from "@/stores/activeRealmStore";
 import { reduxDevtoolsConfig } from "@/stores/reduxDevtoolsConfig";
 import { registerStoreReset } from "@/test-utils/resetStores";
@@ -65,7 +65,7 @@ const rawSessionStorage: StateStorage = {
 };
 
 export const useAdminRealmStore = create<AdminRealmState>()(
-  devtools(
+  reduxDevtools(
     persist(
       (set) => ({
         id: null,

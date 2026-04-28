@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { devtools } from "zustand/middleware";
+import { devtools as reduxDevtools } from "zustand/middleware";
 import { useActiveRealmStore } from "@/stores/activeRealmStore";
 import { useAdminRealmStore } from "@/stores/adminRealmStore";
 import { reduxDevtoolsConfig } from "@/stores/reduxDevtoolsConfig";
@@ -46,7 +46,7 @@ function writeSetupCompletedToStorage(completed: boolean): void {
 }
 
 export const useAuthStore = create<AuthState>()(
-  devtools(
+  reduxDevtools(
     (set) => ({
       activeTenantId: readTenantIdFromStorage(),
       tenantSetupCompleted: readSetupCompletedFromStorage(),

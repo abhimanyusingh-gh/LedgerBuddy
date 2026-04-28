@@ -1,6 +1,6 @@
 import { useCallback } from "react";
 import { create } from "zustand";
-import { createJSONStorage, devtools, persist, type StateStorage } from "zustand/middleware";
+import { createJSONStorage, devtools as reduxDevtools, persist, type StateStorage } from "zustand/middleware";
 import { reduxDevtoolsConfig } from "@/stores/reduxDevtoolsConfig";
 import { registerStoreReset } from "@/test-utils/resetStores";
 
@@ -41,7 +41,7 @@ const sessionJsonStorage: StateStorage = {
 };
 
 export const useDraftStore = create<DraftState>()(
-  devtools(
+  reduxDevtools(
     persist(
       (set, get) => ({
         drafts: {},

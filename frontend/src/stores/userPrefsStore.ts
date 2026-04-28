@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { devtools, persist, createJSONStorage } from "zustand/middleware";
+import { devtools as reduxDevtools, persist, createJSONStorage } from "zustand/middleware";
 import { reduxDevtoolsConfig } from "@/stores/reduxDevtoolsConfig";
 import { registerStoreReset } from "@/test-utils/resetStores";
 
@@ -146,7 +146,7 @@ const DEFAULTS = {
 >;
 
 export const useUserPrefsStore = create<UserPrefsState>()(
-  devtools(
+  reduxDevtools(
     persist(
       (set) => ({
         ...DEFAULTS,
