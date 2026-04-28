@@ -4,11 +4,12 @@ import { TenantModel } from "@/models/core/Tenant.js";
 import { TenantUserRoleModel } from "@/models/core/TenantUserRole.js";
 import { mergeCapabilitiesWithDefaults } from "@/auth/personaDefaults.js";
 import { getFeatureFlagEvaluator } from "@/services/flags/featureFlagEvaluator.js";
+import { PLATFORM_URL_PATHS } from "@/routes/urls/platformUrls.js";
 
 export function createSessionRouter(authService: AuthService) {
   const router = Router();
 
-  router.get("/session", async (request, response, next) => {
+  router.get(PLATFORM_URL_PATHS.session, async (request, response, next) => {
     try {
       const context = request.authContext;
       if (!context) {

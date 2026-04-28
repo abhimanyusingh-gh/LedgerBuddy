@@ -6,10 +6,11 @@ import { OCR_PROVIDER_NAME } from "@/constants.js";
 import { HEALTH_CHECK_STATUS } from "@/types/health.js";
 import { getFeatureFlagEvaluator } from "@/services/flags/featureFlagEvaluator.js";
 import { logger } from "@/utils/logger.js";
+import { PLATFORM_URL_PATHS } from "@/routes/urls/platformUrls.js";
 
 export const healthRouter = Router();
 
-healthRouter.get("/health", async (_req, res) => {
+healthRouter.get(PLATFORM_URL_PATHS.healthRoot, async (_req, res) => {
   const mongoOk = mongoose.connection.readyState === 1;
   const [ocrOk, slmOk] = await Promise.all([
     env.OCR_PROVIDER === OCR_PROVIDER_NAME.LLAMAPARSE ? Promise.resolve(true) : probeService(env.OCR_PROVIDER_BASE_URL),
@@ -38,7 +39,7 @@ healthRouter.get("/health", async (_req, res) => {
   });
 });
 
-healthRouter.get("/health/ready", async (_req, res) => {
+healthRouter.get(PLATFORM_URL_PATHS.healthReady, async (_req, res) => {
   const mongoOk = mongoose.connection.readyState === 1;
   const [ocrOk, slmOk] = await Promise.all([
     env.OCR_PROVIDER === OCR_PROVIDER_NAME.LLAMAPARSE ? Promise.resolve(true) : probeService(env.OCR_PROVIDER_BASE_URL),

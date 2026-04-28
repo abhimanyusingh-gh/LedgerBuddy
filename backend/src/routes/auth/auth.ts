@@ -4,12 +4,13 @@ import type { AuthService } from "@/auth/AuthService.js";
 import { env } from "@/config/env.js";
 import { requireAuth } from "@/auth/requireAuth.js";
 import { createAuthenticationMiddleware } from "@/auth/middleware.js";
+import { PLATFORM_URL_PATHS } from "@/routes/urls/platformUrls.js";
 
 export function createAuthRouter(authService: AuthService) {
   const router = Router();
   const authenticate = createAuthenticationMiddleware(authService);
 
-  router.post("/auth/token", async (request, response, next) => {
+  router.post(PLATFORM_URL_PATHS.authToken, async (request, response, next) => {
     try {
       const email = typeof request.body?.email === "string" ? request.body.email : "";
       const password = typeof request.body?.password === "string" ? request.body.password : "";
@@ -20,7 +21,7 @@ export function createAuthRouter(authService: AuthService) {
     }
   });
 
-  router.get("/auth/login", async (request, response, next) => {
+  router.get(PLATFORM_URL_PATHS.authLogin, async (request, response, next) => {
     try {
       const nextPath = typeof request.query.next === "string" ? request.query.next : "/";
       const loginHint = typeof request.query.login_hint === "string" ? request.query.login_hint : "";
@@ -34,7 +35,7 @@ export function createAuthRouter(authService: AuthService) {
     }
   });
 
-  router.get("/auth/callback", async (request, response, next) => {
+  router.get(PLATFORM_URL_PATHS.authCallback, async (request, response, next) => {
     try {
       const code = typeof request.query.code === "string" ? request.query.code.trim() : "";
       const state = typeof request.query.state === "string" ? request.query.state.trim() : "";
@@ -54,7 +55,7 @@ export function createAuthRouter(authService: AuthService) {
     }
   });
 
-  router.post("/auth/refresh", async (request, response, next) => {
+  router.post(PLATFORM_URL_PATHS.authRefresh, async (request, response, next) => {
     try {
       const authHeader = typeof request.headers.authorization === "string" ? request.headers.authorization : "";
       const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7).trim() : "";
@@ -69,7 +70,7 @@ export function createAuthRouter(authService: AuthService) {
     }
   });
 
-  router.post("/auth/change-password", authenticate, requireAuth, async (request, response, next) => {
+  router.post(PLATFORM_URL_PATHS.authChangePassword, authenticate, requireAuth, async (request, response, next) => {
     try {
       const context = getAuth(request);
       const currentPassword = typeof request.body?.currentPassword === "string" ? request.body.currentPassword : "";

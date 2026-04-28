@@ -3,19 +3,20 @@ import { TdsRateTableModel } from "@/models/compliance/TdsRateTable.js";
 import { requirePlatformAdmin } from "@/auth/middleware.js";
 import { requireAuth } from "@/auth/requireAuth.js";
 import { requireCap } from "@/auth/requireCapability.js";
+import { PLATFORM_URL_PATHS } from "@/routes/urls/platformUrls.js";
 
 export function createTdsRatesRouter() {
   const router = Router();
   router.use(requireAuth);
 
-  router.get("/compliance/tds-rates", async (_req, res, next) => {
+  router.get(PLATFORM_URL_PATHS.complianceTdsRates, async (_req, res, next) => {
     try {
       const items = await TdsRateTableModel.find({ effectiveTo: null, isActive: true }).sort({ section: 1 }).lean();
       res.json({ items });
     } catch (error) { next(error); }
   });
 
-  router.put("/compliance/tds-rates/:section", requireCap("canConfigureTdsMappings"), async (req, res, next) => {
+  router.put(PLATFORM_URL_PATHS.complianceTdsRateBySection, requireCap("canConfigureTdsMappings"), async (req, res, next) => {
     try {
       const section = req.params.section;
       const now = new Date();
