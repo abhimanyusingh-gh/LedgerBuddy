@@ -43,7 +43,7 @@ export function createTenantLifecycleRouter(tenantAdminService: TenantAdminServi
 
   router.post(TENANT_URL_PATHS.onboardingCompleteLegacy, requireCap("canManageUsers"), buildOnboardingCompleteHandler(tenantAdminService));
 
-  router.post("/tenant/invites/accept", async (request, response, next) => {
+  router.post(TENANT_URL_PATHS.inviteAccept, async (request, response, next) => {
     try {
       const context = request.authContext;
       if (!context) {

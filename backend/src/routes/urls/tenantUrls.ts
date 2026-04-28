@@ -5,5 +5,6 @@
 // check-fe-be-contract.ts) so registration-site drift is caught.
 export const TENANT_URL_PATHS = {
   onboardingCompleteLegacy: "/tenant/onboarding/complete",
-  onboardingCompleteNested: "/onboarding/complete"
+  onboardingCompleteNested: "/onboarding/complete",
+  inviteAccept: "/tenant/invites/accept"
 } as const;
