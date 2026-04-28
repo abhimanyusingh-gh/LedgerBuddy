@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { devtools } from "zustand/middleware";
 import { useActiveRealmStore } from "@/stores/activeRealmStore";
 import { useAdminRealmStore } from "@/stores/adminRealmStore";
-import { devtoolsConfig } from "@/stores/devtoolsConfig";
+import { reduxDevtoolsConfig } from "@/stores/reduxDevtoolsConfig";
 import { registerStoreReset } from "@/test-utils/resetStores";
 
 export const ACTIVE_TENANT_ID_STORAGE_KEY = "activeTenantId";
@@ -66,7 +66,7 @@ export const useAuthStore = create<AuthState>()(
         useAdminRealmStore.setState({ id: null });
       }
     }),
-    devtoolsConfig(ACTIVE_TENANT_ID_STORAGE_KEY)
+    reduxDevtoolsConfig(ACTIVE_TENANT_ID_STORAGE_KEY)
   )
 );
 

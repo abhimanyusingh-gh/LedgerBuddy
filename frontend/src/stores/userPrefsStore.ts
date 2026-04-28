@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { devtools, persist, createJSONStorage } from "zustand/middleware";
-import { devtoolsConfig } from "@/stores/devtoolsConfig";
+import { reduxDevtoolsConfig } from "@/stores/reduxDevtoolsConfig";
 import { registerStoreReset } from "@/test-utils/resetStores";
 
 export const USER_PREFS_STORAGE_KEY = "ledgerbuddy:userPrefs";
@@ -195,7 +195,7 @@ export const useUserPrefsStore = create<UserPrefsState>()(
         })
       }
     ),
-    devtoolsConfig(USER_PREFS_STORAGE_KEY)
+    reduxDevtoolsConfig(USER_PREFS_STORAGE_KEY)
   )
 );
 

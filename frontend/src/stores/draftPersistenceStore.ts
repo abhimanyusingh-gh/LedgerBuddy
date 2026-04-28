@@ -1,7 +1,7 @@
 import { useCallback } from "react";
 import { create } from "zustand";
 import { createJSONStorage, devtools, persist, type StateStorage } from "zustand/middleware";
-import { devtoolsConfig } from "@/stores/devtoolsConfig";
+import { reduxDevtoolsConfig } from "@/stores/reduxDevtoolsConfig";
 import { registerStoreReset } from "@/test-utils/resetStores";
 
 export const DRAFT_PERSISTENCE_STORAGE_KEY = "lb-form-drafts";
@@ -78,7 +78,7 @@ export const useDraftStore = create<DraftState>()(
         partialize: (state) => ({ drafts: state.drafts }) as DraftState
       }
     ),
-    devtoolsConfig(DRAFT_PERSISTENCE_STORAGE_KEY)
+    reduxDevtoolsConfig(DRAFT_PERSISTENCE_STORAGE_KEY)
   )
 );
 

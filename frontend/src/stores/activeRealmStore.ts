@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { devtools, persist, type StateStorage } from "zustand/middleware";
 import { useAdminRealmStore } from "@/stores/adminRealmStore";
-import { devtoolsConfig } from "@/stores/devtoolsConfig";
+import { reduxDevtoolsConfig } from "@/stores/reduxDevtoolsConfig";
 import { registerStoreReset } from "@/test-utils/resetStores";
 
 export const ACTIVE_CLIENT_ORG_QUERY_PARAM = "clientOrgId";
@@ -98,7 +98,7 @@ export const useActiveRealmStore = create<ActiveRealmState>()(
         }
       }
     ),
-    devtoolsConfig(ACTIVE_CLIENT_ORG_STORAGE_KEY)
+    reduxDevtoolsConfig(ACTIVE_CLIENT_ORG_STORAGE_KEY)
   )
 );
 
