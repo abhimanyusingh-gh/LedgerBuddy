@@ -5,6 +5,7 @@ import type { AvailableIntegration, MailboxAssignment } from "@/api/mailboxAssig
 import type { ClientOrgOption } from "@/components/workspace/HierarchyBadges";
 import { ClientOrgMultiPicker } from "@/features/admin/mailboxes/ClientOrgMultiPicker";
 import { useAvailableIntegrations } from "@/hooks/useAvailableIntegrations";
+import { DRAFT_TTL_MS, useDraft } from "@/stores/draftPersistenceStore";
 
 export const MAILBOX_FORM_MODE = {
   Add: "add",
@@ -50,6 +51,15 @@ function buildInitial(initial: MailboxAssignment | null | undefined): MailboxFor
   };
 }
 
+function buildMailboxDraftKey(
+  mode: MailboxFormMode,
+  initial: MailboxAssignment | null | undefined
+): string {
+  return mode === MAILBOX_FORM_MODE.Edit && initial?._id
+    ? `mailboxFormPanel/edit/${initial._id}`
+    : "mailboxFormPanel/add";
+}
+
 function buildRoutingPreview(
   selectedIds: string[],
   clientOrgs: ClientOrgOption[] | undefined
@@ -83,13 +93,26 @@ export function MailboxFormPanel({
   onClose
 }: MailboxFormPanelProps) {
   const isEdit = mode === MAILBOX_FORM_MODE.Edit;
-  const [values, setValues] = useState<MailboxFormValues>(() => buildInitial(initial));
+  const draftKey = buildMailboxDraftKey(mode, initial);
+  const [draft, persistDraft, clearDraft] = useDraft<MailboxFormValues>(draftKey, {
+    ttlMs: DRAFT_TTL_MS.Default
+  });
+  const [values, setValues] = useState<MailboxFormValues>(
+    () => draft ?? buildInitial(initial)
+  );
 
   useEffect(() => {
     if (open) {
-      setValues(buildInitial(initial));
+      setValues(draft ?? buildInitial(initial));
     }
+    // intentionally exclude `draft` to avoid stomping in-flight edits with stale store reads
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, initial]);
+
+  const updateValues = (next: MailboxFormValues) => {
+    setValues(next);
+    persistDraft(next);
+  };
 
   const integrationsQuery = useAvailableIntegrations(open && !isEdit);
 
@@ -105,6 +128,7 @@ export function MailboxFormPanel({
 
   const handleSubmit = () => {
     if (!canSubmit) return;
+    clearDraft();
     onSubmit({
       integrationId: values.integrationId,
       clientOrgIds: values.clientOrgIds
@@ -190,7 +214,7 @@ export function MailboxFormPanel({
                 data-testid="mailbox-form-integration-id-select"
                 value={values.integrationId}
                 onChange={(event) =>
-                  setValues((current) => ({ ...current, integrationId: event.target.value }))
+                  updateValues({ ...values, integrationId: event.target.value })
                 }
               >
                 <option value="">Select a connected integration…</option>
@@ -236,7 +260,7 @@ export function MailboxFormPanel({
             isError={clientOrgsError}
             onRetry={onClientOrgsRetry}
             selectedIds={values.clientOrgIds}
-            onChange={(ids) => setValues((current) => ({ ...current, clientOrgIds: ids }))}
+            onChange={(ids) => updateValues({ ...values, clientOrgIds: ids })}
           />
         </div>
 

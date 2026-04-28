@@ -14,6 +14,7 @@ import type {
   AvailableIntegration,
   MailboxAssignment
 } from "@/api/mailboxAssignments";
+import { resetStores } from "@/test-utils/resetStores";
 
 jest.mock("@/api/mailboxAssignments", () => ({
   listIntegrations: jest.fn()
@@ -92,6 +93,8 @@ function renderPanel(opts: {
 
 beforeEach(() => {
   jest.clearAllMocks();
+  window.sessionStorage.clear();
+  resetStores();
   Object.defineProperty(window, "matchMedia", {
     writable: true,
     configurable: true,

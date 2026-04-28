@@ -7,8 +7,11 @@ import {
   CLIENT_ORG_FORM_MODE,
   ClientOrgFormPanel
 } from "@/features/admin/onboarding/ClientOrgFormPanel";
+import { resetStores } from "@/test-utils/resetStores";
 
 beforeEach(() => {
+  window.sessionStorage.clear();
+  resetStores();
   Object.defineProperty(window, "matchMedia", {
     writable: true,
     configurable: true,

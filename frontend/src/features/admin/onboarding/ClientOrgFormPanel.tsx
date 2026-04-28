@@ -3,6 +3,7 @@ import { Button } from "@/components/ds";
 import { SlideOverPanel } from "@/components/ds/SlideOverPanel";
 import { isValidGstinFormat } from "@/lib/common/gstinFormat";
 import type { ClientOrganization } from "@/api/clientOrgs";
+import { DRAFT_TTL_MS, useDraft } from "@/stores/draftPersistenceStore";
 
 export const CLIENT_ORG_FORM_MODE = {
   Add: "add",
@@ -16,6 +17,12 @@ export interface ClientOrgFormValues {
   companyName: string;
   stateName: string;
   f12OverwriteByGuidVerified: boolean;
+}
+
+function buildClientOrgDraftKey(mode: ClientOrgFormMode, initial: ClientOrganization | null | undefined): string {
+  return mode === CLIENT_ORG_FORM_MODE.Edit && initial?._id
+    ? `clientOrgFormPanel/edit/${initial._id}`
+    : "clientOrgFormPanel/add";
 }
 
 interface ClientOrgFormPanelProps {
@@ -47,15 +54,28 @@ export function ClientOrgFormPanel({
   onClose
 }: ClientOrgFormPanelProps) {
   const isEdit = mode === CLIENT_ORG_FORM_MODE.Edit;
-  const [values, setValues] = useState<ClientOrgFormValues>(() => buildInitial(initial));
+  const draftKey = buildClientOrgDraftKey(mode, initial);
+  const [draft, persistDraft, clearDraft] = useDraft<ClientOrgFormValues>(draftKey, {
+    ttlMs: DRAFT_TTL_MS.Default
+  });
+  const [values, setValues] = useState<ClientOrgFormValues>(
+    () => draft ?? buildInitial(initial)
+  );
   const gstinHintId = useId();
   const gstinErrorId = useId();
 
   useEffect(() => {
     if (open) {
-      setValues(buildInitial(initial));
+      setValues(draft ?? buildInitial(initial));
     }
+    // intentionally exclude `draft` to avoid stomping in-flight edits with stale store reads
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, initial]);
+
+  const updateValues = (next: ClientOrgFormValues) => {
+    setValues(next);
+    persistDraft(next);
+  };
 
   const trimmedGstin = values.gstin.trim().toUpperCase();
   const trimmedCompanyName = values.companyName.trim();
@@ -71,6 +91,7 @@ export function ClientOrgFormPanel({
 
   const handleSubmit = () => {
     if (!canSubmit) return;
+    clearDraft();
     onSubmit({
       gstin: trimmedGstin,
       companyName: trimmedCompanyName,
@@ -125,7 +146,7 @@ export function ClientOrgFormPanel({
             aria-describedby={`${gstinHintId} ${showGstinError ? gstinErrorId : ""}`.trim()}
             aria-invalid={showGstinError}
             onChange={(event) =>
-              setValues((current) => ({ ...current, gstin: event.target.value.toUpperCase() }))
+              updateValues({ ...values, gstin: event.target.value.toUpperCase() })
             }
           />
           <span id={gstinHintId} className="client-orgs-form-field-hint">
@@ -148,7 +169,7 @@ export function ClientOrgFormPanel({
             autoComplete="organization"
             value={values.companyName}
             onChange={(event) =>
-              setValues((current) => ({ ...current, companyName: event.target.value }))
+              updateValues({ ...values, companyName: event.target.value })
             }
           />
           <span className="client-orgs-form-field-hint">
@@ -165,7 +186,7 @@ export function ClientOrgFormPanel({
             autoComplete="address-level1"
             value={values.stateName}
             onChange={(event) =>
-              setValues((current) => ({ ...current, stateName: event.target.value }))
+              updateValues({ ...values, stateName: event.target.value })
             }
           />
           <span className="client-orgs-form-field-hint">
@@ -181,10 +202,10 @@ export function ClientOrgFormPanel({
             type="checkbox"
             checked={values.f12OverwriteByGuidVerified}
             onChange={(event) =>
-              setValues((current) => ({
-                ...current,
+              updateValues({
+                ...values,
                 f12OverwriteByGuidVerified: event.target.checked
-              }))
+              })
             }
           />
           <label htmlFor="client-org-f12-verified" className="client-orgs-form-checkbox-label">
