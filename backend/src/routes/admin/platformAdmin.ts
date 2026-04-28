@@ -2,11 +2,12 @@ import { Router } from "express";
 import { requirePlatformAdmin } from "@/auth/middleware.js";
 import type { PlatformAdminService } from "@/services/platform/platformAdminService.js";
 import { scanAllWorkflows } from "@/services/invoice/workflowHealthScanner.js";
+import { PLATFORM_URL_PATHS } from "@/routes/urls/platformUrls.js";
 
 export function createPlatformAdminRouter(platformAdminService: PlatformAdminService) {
   const router = Router();
 
-  router.post("/platform/tenants/onboard-admin", requirePlatformAdmin, async (request, response, next) => {
+  router.post(PLATFORM_URL_PATHS.platformTenantsOnboardAdmin, requirePlatformAdmin, async (request, response, next) => {
     try {
       const tenantName = typeof request.body?.tenantName === "string" ? request.body.tenantName : "";
       const adminEmail = typeof request.body?.adminEmail === "string" ? request.body.adminEmail : "";
@@ -26,7 +27,7 @@ export function createPlatformAdminRouter(platformAdminService: PlatformAdminSer
     }
   });
 
-  router.patch("/platform/tenants/:tenantId/enabled", requirePlatformAdmin, async (request, response, next) => {
+  router.patch(PLATFORM_URL_PATHS.platformTenantEnabled, requirePlatformAdmin, async (request, response, next) => {
     try {
       const tenantId = request.params.tenantId;
       const enabled = request.body?.enabled;
@@ -41,7 +42,7 @@ export function createPlatformAdminRouter(platformAdminService: PlatformAdminSer
     }
   });
 
-  router.get("/platform/tenants/usage", requirePlatformAdmin, async (_request, response, next) => {
+  router.get(PLATFORM_URL_PATHS.platformTenantsUsage, requirePlatformAdmin, async (_request, response, next) => {
     try {
       const items = await platformAdminService.listTenantUsageOverview();
       response.json({ items });
@@ -50,7 +51,7 @@ export function createPlatformAdminRouter(platformAdminService: PlatformAdminSer
     }
   });
 
-  router.get("/admin/workflow-health", requirePlatformAdmin, async (_request, response, next) => {
+  router.get(PLATFORM_URL_PATHS.adminWorkflowHealth, requirePlatformAdmin, async (_request, response, next) => {
     try {
       const report = await scanAllWorkflows();
       response.json(report);

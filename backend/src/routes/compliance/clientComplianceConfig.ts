@@ -4,6 +4,7 @@ import { ClientComplianceConfigModel } from "@/models/integration/ClientComplian
 import { requireAuth } from "@/auth/requireAuth.js";
 import { requireCap } from "@/auth/requireCapability.js";
 import { RISK_SIGNAL_CODE } from "@/types/riskSignals.js";
+import { PLATFORM_URL_PATHS } from "@/routes/urls/platformUrls.js";
 
 const VALID_PAN_LEVELS = new Set(["format", "format_and_checksum", "disabled"]);
 
@@ -251,11 +252,11 @@ export function createComplianceMetadataRouter() {
   const router = Router();
   router.use(requireAuth);
 
-  router.get("/compliance/tds-sections", async (_req, res) => {
+  router.get(PLATFORM_URL_PATHS.complianceTdsSections, async (_req, res) => {
     res.json({ items: DEFAULT_TDS_SECTIONS });
   });
 
-  router.get("/compliance/risk-signals", async (_req, res) => {
+  router.get(PLATFORM_URL_PATHS.complianceRiskSignals, async (_req, res) => {
     res.json({ items: AVAILABLE_RISK_SIGNALS });
   });
 

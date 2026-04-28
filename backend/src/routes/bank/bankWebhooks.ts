@@ -5,6 +5,7 @@ import type { IBankConnectionService } from "@/services/bank/anumati/IBankConnec
 import { logger } from "@/utils/logger.js";
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { env } from "@/config/env.js";
+import { PLATFORM_URL_PATHS } from "@/routes/urls/platformUrls.js";
 
 function verifyWebhookSignature(req: Request, res: Response, next: NextFunction): void {
   const secret = env.WEBHOOK_SIGNING_SECRET;
@@ -35,7 +36,7 @@ function verifyWebhookSignature(req: Request, res: Response, next: NextFunction)
 export function createBankWebhooksRouter(bankService: IBankConnectionService) {
   const router = Router();
 
-  router.get("/bank/aa-callback", async (req, res) => {
+  router.get(PLATFORM_URL_PATHS.bankAaCallback, async (req, res) => {
     const ecres = typeof req.query.ecres === "string" ? req.query.ecres : undefined;
     const iv = typeof req.query.iv === "string" ? req.query.iv : undefined;
     const sessionId = typeof req.query.sessionId === "string" ? req.query.sessionId : "";
@@ -49,7 +50,7 @@ export function createBankWebhooksRouter(bankService: IBankConnectionService) {
     }
   });
 
-  router.get("/bank/mock-callback", async (req, res) => {
+  router.get(PLATFORM_URL_PATHS.bankMockCallback, async (req, res) => {
     const sessionId = typeof req.query.sessionId === "string" ? req.query.sessionId : "";
     const success = req.query.success !== "false";
 
@@ -62,7 +63,7 @@ export function createBankWebhooksRouter(bankService: IBankConnectionService) {
     }
   });
 
-  router.post("/bank/consent-notify", verifyWebhookSignature, async (req, res) => {
+  router.post(PLATFORM_URL_PATHS.bankConsentNotify, verifyWebhookSignature, async (req, res) => {
     try {
       await bankService.handleConsentNotify(req.body);
       res.status(200).json({ status: "ok" });
@@ -72,7 +73,7 @@ export function createBankWebhooksRouter(bankService: IBankConnectionService) {
     }
   });
 
-  router.post("/bank/fi-notify", verifyWebhookSignature, async (req, res) => {
+  router.post(PLATFORM_URL_PATHS.bankFiNotify, verifyWebhookSignature, async (req, res) => {
     try {
       await bankService.handleFiNotify(req.body);
       res.status(200).json({ status: "ok" });

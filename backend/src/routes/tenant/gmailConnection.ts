@@ -7,6 +7,7 @@ import { logger } from "@/utils/logger.js";
 import { apiUrl } from "@/config/env.js";
 import { TenantUserRoleModel } from "@/models/core/TenantUserRole.js";
 import { mergeCapabilitiesWithDefaults } from "@/auth/personaDefaults.js";
+import { PLATFORM_URL_PATHS } from "@/routes/urls/platformUrls.js";
 
 export function createGmailPublicRouter(
   gmailIntegrationService: TenantGmailIntegrationService,
@@ -14,7 +15,7 @@ export function createGmailPublicRouter(
 ) {
   const router = Router();
 
-  router.get("/connect/gmail", async (request, response, next) => {
+  router.get(PLATFORM_URL_PATHS.connectGmail, async (request, response, next) => {
     try {
       const token = typeof request.query.token === "string" ? request.query.token.trim() : "";
       if (!token) {
@@ -45,7 +46,7 @@ export function createGmailPublicRouter(
     }
   });
 
-  router.get("/connect/gmail/callback", async (request, response) => {
+  router.get(PLATFORM_URL_PATHS.connectGmailCallback, async (request, response) => {
     const code = typeof request.query.code === "string" ? request.query.code.trim() : "";
     const state = typeof request.query.state === "string" ? request.query.state.trim() : "";
     if (!code || !state) {
@@ -108,7 +109,7 @@ export function createGmailConnectionRouter(gmailIntegrationService: TenantGmail
         return;
       }
 
-      const connectUrl = `${apiUrl("/api/connect/gmail")}?token=${encodeURIComponent(sessionToken)}`;
+      const connectUrl = `${apiUrl(`/api${PLATFORM_URL_PATHS.connectGmail}`)}?token=${encodeURIComponent(sessionToken)}`;
       response.json({ connectUrl, tenantId: context.tenantId });
     } catch (error) {
       next(error);
