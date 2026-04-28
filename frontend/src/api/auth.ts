@@ -1,5 +1,5 @@
-import axios from "axios";
 import { apiClient } from "@/api/client";
+import { platformUrls } from "@/api/urls/platformUrls";
 import { tenantUrls } from "@/api/urls/tenantUrls";
 import { writeActiveTenantId } from "@/api/tenantStorage";
 import { writeTenantSetupCompleted } from "@/hooks/useTenantSetupCompleted";
@@ -7,11 +7,9 @@ import type { SessionUser, TenantRole, TenantUser } from "@/types";
 
 export type FeatureFlagName = "example.healthCheckVerbose";
 
-const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:4100/api";
-
 export async function refreshSessionToken(currentToken: string): Promise<string> {
-  const response = await axios.post<{ token: string }>(
-    `${apiBaseUrl}/auth/refresh`,
+  const response = await apiClient.post<{ token: string }>(
+    platformUrls.authRefresh(),
     {},
     { headers: { Authorization: `Bearer ${currentToken}` } }
   );
@@ -38,14 +36,14 @@ interface SessionContextResponse {
 }
 
 export async function loginWithCredentials(email: string, password: string): Promise<string> {
-  const response = await apiClient.post<{ token?: string }>("/auth/token", { email, password });
+  const response = await apiClient.post<{ token?: string }>(platformUrls.authToken(), { email, password });
   const token = typeof response.data?.token === "string" ? response.data.token.trim() : "";
   if (!token) throw new Error("Login did not return a session token.");
   return token;
 }
 
 export async function fetchSessionContext(): Promise<SessionContextResponse> {
-  const response = (await apiClient.get<SessionContextResponse>("/session")).data;
+  const response = (await apiClient.get<SessionContextResponse>(platformUrls.session())).data;
   writeActiveTenantId(response.tenant?.id ?? null);
   writeTenantSetupCompleted(response.flags?.requires_tenant_setup === false);
   return response;
@@ -56,7 +54,7 @@ export async function completeTenantOnboarding(payload: { tenantName: string; ad
 }
 
 export async function changePassword(currentPassword: string, newPassword: string): Promise<void> {
-  await apiClient.post("/auth/change-password", { currentPassword, newPassword });
+  await apiClient.post(platformUrls.authChangePassword(), { currentPassword, newPassword });
 }
 
 export async function fetchTenantUsers(): Promise<TenantUser[]> {

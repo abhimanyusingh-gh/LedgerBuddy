@@ -2,6 +2,7 @@ import { apiClient, safeNum, stripNulls } from "@/api/client";
 import { analyticsUrls } from "@/api/urls/analyticsUrls";
 import { complianceUrls } from "@/api/urls/complianceUrls";
 import { mailboxUrls } from "@/api/urls/mailboxUrls";
+import { platformUrls } from "@/api/urls/platformUrls";
 import type {
   AnalyticsOverview,
   ApprovalWorkflowConfig,
@@ -54,12 +55,12 @@ export async function fetchAnalyticsOverview(
 }
 
 export async function fetchPlatformTenantUsage(): Promise<PlatformTenantUsageSummary[]> {
-  const response = await apiClient.get<{ items?: PlatformTenantUsageSummary[] }>("/platform/tenants/usage");
+  const response = await apiClient.get<{ items?: PlatformTenantUsageSummary[] }>(platformUrls.platformTenantsUsage());
   return Array.isArray(response.data?.items) ? response.data.items : [];
 }
 
 export async function setTenantEnabled(tenantId: string, enabled: boolean): Promise<void> {
-  await apiClient.patch(`/platform/tenants/${tenantId}/enabled`, { enabled });
+  await apiClient.patch(platformUrls.platformTenantEnabled(tenantId), { enabled });
 }
 
 export async function onboardTenantAdmin(payload: {
@@ -68,7 +69,7 @@ export async function onboardTenantAdmin(payload: {
   adminDisplayName?: string;
   mode?: string;
 }): Promise<PlatformTenantOnboardResult> {
-  return (await apiClient.post<PlatformTenantOnboardResult>("/platform/tenants/onboard-admin", payload)).data;
+  return (await apiClient.post<PlatformTenantOnboardResult>(platformUrls.platformTenantsOnboardAdmin(), payload)).data;
 }
 
 export async function fetchApprovalWorkflow(): Promise<ApprovalWorkflowConfig> {
@@ -96,7 +97,7 @@ export async function deleteGlCode(code: string): Promise<GlCode> {
 }
 
 export async function fetchTdsRates(): Promise<TdsRate[]> {
-  return (await apiClient.get<{ items: TdsRate[] }>("/compliance/tds-rates")).data.items;
+  return (await apiClient.get<{ items: TdsRate[] }>(platformUrls.complianceTdsRates())).data.items;
 }
 
 export async function fetchComplianceConfig(): Promise<ClientComplianceConfig> {
@@ -108,11 +109,11 @@ export async function saveComplianceConfig(config: Partial<ClientComplianceConfi
 }
 
 export async function fetchDefaultTdsSections(): Promise<TdsRateEntry[]> {
-  return (await apiClient.get<{ items: TdsRateEntry[] }>("/compliance/tds-sections")).data.items;
+  return (await apiClient.get<{ items: TdsRateEntry[] }>(platformUrls.complianceTdsSections())).data.items;
 }
 
 export async function fetchAvailableRiskSignals(): Promise<RiskSignalDefinition[]> {
-  return (await apiClient.get<{ items: RiskSignalDefinition[] }>("/compliance/risk-signals")).data.items;
+  return (await apiClient.get<{ items: RiskSignalDefinition[] }>(platformUrls.complianceRiskSignals())).data.items;
 }
 
 export interface GlCodeImportResult {

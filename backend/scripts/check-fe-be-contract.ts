@@ -13,7 +13,8 @@ const BE_URL_PROVIDERS_DIR = join(BACKEND_SRC, "routes", "urls");
 
 const PROVIDER_BUILDER = {
   NESTED: "buildClientOrgPathUrl",
-  TENANT: "buildTenantPathUrl"
+  TENANT: "buildTenantPathUrl",
+  NONE: "none"
 } as const;
 type ProviderBuilder = typeof PROVIDER_BUILDER[keyof typeof PROVIDER_BUILDER];
 
@@ -48,7 +49,6 @@ const KNOWN_ORPHAN_BE_ROUTES: ReadonlySet<string> = new Set<string>([
   "GET /health/ready",
   "GET /api/auth/login",
   "GET /api/auth/callback",
-  "POST /api/auth/refresh",
   "GET /api/connect/gmail",
   "GET /api/connect/gmail/callback",
   "GET /api/bank/aa-callback",
@@ -224,7 +224,38 @@ function findBuilderCallInBody(
     ts.forEachChild(node, visit);
   }
   visit(body);
-  return found;
+  if (found) return found;
+  const bare = findBareReturnInBody(body, ctx);
+  if (bare !== null) return { builder: PROVIDER_BUILDER.NONE, bare };
+  return null;
+}
+
+function findBareReturnInBody(body: ts.Node, ctx: ResolveContext): string | null {
+  if (ts.isPropertyAssignment(body) || ts.isMethodDeclaration(body)) {
+    const inner = ts.isPropertyAssignment(body) ? body.initializer : body;
+    return findBareReturnInBody(inner, ctx);
+  }
+  if (ts.isArrowFunction(body) || ts.isFunctionExpression(body)) {
+    if (ts.isBlock(body.body)) {
+      let result: string | null = null;
+      function visit(node: ts.Node) {
+        if (result !== null) return;
+        if (ts.isReturnStatement(node) && node.expression) {
+          const resolved = resolvePathExpr(node.expression, ctx);
+          if (resolved !== null) {
+            result = resolved.bare;
+            return;
+          }
+        }
+        ts.forEachChild(node, visit);
+      }
+      visit(body.body);
+      return result;
+    }
+    const resolved = resolvePathExpr(body.body, ctx);
+    return resolved ? resolved.bare : null;
+  }
+  return null;
 }
 
 function buildProviderMethodMap(): ProviderMethodMap {
@@ -270,8 +301,9 @@ function buildProviderMethodMap(): ProviderMethodMap {
 }
 
 function providerInfoToFullUrl(info: ProviderMethodInfo): string {
-  const kind = info.builder === PROVIDER_BUILDER.NESTED ? PROVIDER_KIND.NESTED : PROVIDER_KIND.TENANT;
-  return applyProviderKindShape(info.bare, kind);
+  if (info.builder === PROVIDER_BUILDER.NESTED) return applyProviderKindShape(info.bare, PROVIDER_KIND.NESTED);
+  if (info.builder === PROVIDER_BUILDER.TENANT) return applyProviderKindShape(info.bare, PROVIDER_KIND.TENANT);
+  return applyProviderKindShape(info.bare, PROVIDER_KIND.NONE);
 }
 
 function resolveProviderCallArg(
