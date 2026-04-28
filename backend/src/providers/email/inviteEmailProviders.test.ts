@@ -65,7 +65,7 @@ describe("SendGridInviteEmailSenderProvider", () => {
     const { SendGridInviteEmailSenderProvider: RealSendGrid } = jest.requireActual("./SendGridInviteEmailSenderProvider.ts") as typeof import("./SendGridInviteEmailSenderProvider.ts");
     const provider = new RealSendGrid({
       apiKey: "sg-token",
-      endpoint: "https://api.sendgrid.com/v3/mail/send/",
+      endpoint: "https://api.sendgrid.com/v3/mail/send",
       timeoutMs: 5000
     });
 

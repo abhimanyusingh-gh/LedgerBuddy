@@ -1,4 +1,4 @@
-import axios from "axios";
+import axios, { type AxiosInstance } from "axios";
 import { simpleParser } from "mailparser";
 import type { EmailIngestionBoundary } from "@/core/boundaries/EmailIngestionBoundary.js";
 import type { IngestedFile } from "@/core/interfaces/IngestionSource.js";
@@ -9,6 +9,7 @@ import { refreshGoogleAccessToken } from "@/sources/email/gmailOAuthClient.js";
 import type { EmailSourceConfig, OAuth2EmailAuthConfig } from "@/sources/email/types.js";
 import { toUUID } from "@/types/uuid.js";
 import { buildXoauth2AuthorizationHeader } from "@/sources/email/xoauth2.js";
+import { MAILHOG_URL_PATHS } from "@/integrations/urls/mailhogUrls.js";
 
 interface WrapperMessage {
   id: string;
@@ -23,8 +24,11 @@ interface WrapperResponse {
 
 export class MailhogOAuthIngestionProvider implements EmailIngestionBoundary {
   private accessTokenCache: { value: string; expiresAtMs: number } | null = null;
+  private readonly http: AxiosInstance;
 
-  constructor(private readonly config: EmailSourceConfig) {}
+  constructor(private readonly config: EmailSourceConfig) {
+    this.http = axios.create({ baseURL: this.config.mailhogApiBaseUrl });
+  }
 
   async fetchNewFiles(lastCheckpoint: string | null): Promise<IngestedFile[]> {
     try {
@@ -45,8 +49,7 @@ export class MailhogOAuthIngestionProvider implements EmailIngestionBoundary {
   private async fetchWithAuth(lastCheckpoint: string | null, forceTokenRefresh: boolean): Promise<IngestedFile[]> {
     const oauth = this.assertOAuthConfig();
     const accessToken = await this.resolveAccessToken(oauth, forceTokenRefresh);
-    const apiBaseUrl = this.config.mailhogApiBaseUrl.replace(/\/+$/, "");
-    const response = await axios.get<WrapperResponse>(`${apiBaseUrl}/messages`, {
+    const response = await this.http.get<WrapperResponse>(MAILHOG_URL_PATHS.messages, {
       params: lastCheckpoint ? { after: lastCheckpoint } : undefined,
       headers: {
         Authorization: buildXoauth2AuthorizationHeader(this.config.username, accessToken)

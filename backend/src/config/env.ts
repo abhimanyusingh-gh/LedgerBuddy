@@ -185,10 +185,16 @@ const envSchema = z.object({
   INVITE_SMTP_USERNAME: z.string().default(""),
   INVITE_SMTP_PASSWORD: z.string().default(""),
   INVITE_SENDGRID_API_KEY: z.string().default(""),
-  INVITE_SENDGRID_ENDPOINT: z.string().default("https://api.sendgrid.com/v3/mail/send"),
+  INVITE_SENDGRID_ENDPOINT: z
+    .string()
+    .default("https://api.sendgrid.com/v3/mail/send")
+    .transform((value) => normalizeUrl(value)),
   INVITE_SENDGRID_TIMEOUT_MS: z.coerce.number().default(15000),
   INVITE_FROM: z.string().default("no-reply@invoice.local"),
-  INVITE_BASE_URL: z.string().default("http://localhost:5177"),
+  INVITE_BASE_URL: z
+    .string()
+    .default("http://localhost:5177")
+    .transform((value) => normalizeUrl(value)),
   MAILBOX_ALERT_SMTP_HOST: z.string().default(""),
   MAILBOX_ALERT_SMTP_PORT: z.coerce.number().default(587),
   MAILBOX_ALERT_SMTP_SECURE: z

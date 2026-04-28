@@ -6,6 +6,7 @@ import { env } from "@/config/env.js";
 import { refreshGoogleAccessToken } from "@/sources/email/gmailOAuthClient.js";
 import { buildXoauth2AuthorizationHeader } from "@/sources/email/xoauth2.js";
 import { DOCUMENT_MIME_TYPE, type DocumentMimeType } from "@/types/mime.js";
+import { MAILHOG_URL_PATHS } from "@/integrations/urls/mailhogUrls.js";
 
 const MAX_ATTACHMENTS_PER_EMAIL = 2;
 
@@ -27,11 +28,12 @@ export class EmailSimulationService {
     const authorizationHeader = buildXoauth2AuthorizationHeader(env.EMAIL_USERNAME ?? "", accessToken);
     const attachments = await collectSampleAttachments(resolveSampleDirectory());
     const batches = chunkAttachments(attachments, MAX_ATTACHMENTS_PER_EMAIL);
+    const mailhogClient = axios.create({ baseURL: env.EMAIL_MAILHOG_API_BASE_URL });
 
     for (let index = 0; index < batches.length; index += 1) {
       const batch = batches[index] ?? [];
-      await axios.post(
-        `${env.EMAIL_MAILHOG_API_BASE_URL}/seed`,
+      await mailhogClient.post(
+        MAILHOG_URL_PATHS.seed,
         {
           from: "billing@example.com",
           to: env.EMAIL_USERNAME,

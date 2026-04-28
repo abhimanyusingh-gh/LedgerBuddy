@@ -273,7 +273,7 @@ function buildExporter(runtimeManifest: RuntimeManifest): AccountingExporter | n
 }
 
 async function assertHttpOcrConfigIsValid(runtimeManifest: RuntimeManifest): Promise<void> {
-  const baseUrl = runtimeManifest.ocr.configuration.baseUrl.replace(/\/+$/, "");
+  const baseUrl = runtimeManifest.ocr.configuration.baseUrl;
   const configuredModel = runtimeManifest.ocr.configuration.model;
   const apiKey = runtimeManifest.ocr.configuration.apiKey.trim();
   try {
@@ -305,7 +305,7 @@ async function assertHttpOcrConfigIsValid(runtimeManifest: RuntimeManifest): Pro
 }
 
 async function assertFieldVerifierConfigIsValid(runtimeManifest: RuntimeManifest): Promise<void> {
-  const baseUrl = runtimeManifest.verifier.http.baseUrl.replace(/\/+$/, "");
+  const baseUrl = runtimeManifest.verifier.http.baseUrl;
   try {
     await assertServiceHealth(baseUrl, buildAuthHeaders(runtimeManifest.verifier.http.apiKey.trim()), VERIFIER_BOOTSTRAP_TIMEOUT_MS, "Field verifier");
   } catch (error) {

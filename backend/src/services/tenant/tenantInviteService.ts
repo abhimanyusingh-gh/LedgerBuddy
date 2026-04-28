@@ -1,5 +1,6 @@
 import { createHash, randomBytes } from "node:crypto";
 import { env } from "@/config/env.js";
+import { inviteAcceptUrl } from "@/integrations/urls/inviteUrls.js";
 import type { InviteEmailSenderBoundary } from "@/core/boundaries/InviteEmailSenderBoundary.js";
 import { TenantInviteModel } from "@/models/integration/TenantInvite.js";
 import { TenantUserRoleModel } from "@/models/core/TenantUserRole.js";
@@ -116,7 +117,7 @@ export class TenantInviteService {
   }
 
   private async sendInviteEmail(input: { email: string; token: string; expiresAt: Date }): Promise<void> {
-    const inviteUrl = `${env.INVITE_BASE_URL.replace(/\/+$/, "")}/invite?token=${encodeURIComponent(input.token)}`;
+    const inviteUrl = inviteAcceptUrl(input.token);
     const expiresAt = input.expiresAt.toISOString();
     const textBody = [
       "You were invited to join a tenant in LedgerBuddy.",

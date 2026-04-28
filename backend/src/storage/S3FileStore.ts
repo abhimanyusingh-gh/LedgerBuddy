@@ -1,6 +1,7 @@
 import { DeleteObjectCommand, GetObjectCommand, ListObjectsV2Command, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import type { FileStore, FileStoreGetResult, FileStoreObjectRef, FileStorePutInput } from "@/core/interfaces/FileStore.js";
+import { buildS3Uri } from "@/integrations/urls/awsUrls.js";
 
 interface S3FileStoreOptions {
   bucket: string;
@@ -135,7 +136,7 @@ export class S3FileStore implements FileStore {
 
     return {
       key,
-      path: `s3://${this.bucket}/${key}`,
+      path: buildS3Uri(this.bucket, key),
       contentType: input.contentType
     };
   }

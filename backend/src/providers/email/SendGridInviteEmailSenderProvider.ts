@@ -14,7 +14,7 @@ export class SendGridInviteEmailSenderProvider implements InviteEmailSenderBound
 
   constructor(config: SendGridInviteEmailSenderProviderConfig) {
     this.apiKey = config.apiKey.trim();
-    this.endpoint = config.endpoint.trim().replace(/\/+$/, "");
+    this.endpoint = config.endpoint;
     this.timeoutMs = config.timeoutMs;
   }
 
