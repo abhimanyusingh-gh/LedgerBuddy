@@ -1,4 +1,4 @@
-import { buildNested } from "@/api/urls/buildNested";
+import { buildClientOrgPathUrl } from "@/api/urls/pathBuilder";
 
 // All compliance endpoints exposed here are realm-scoped (mounted under
 // `clientOrgRouter` in `app.ts`: vendors, GL codes, TCS config, client
@@ -9,21 +9,21 @@ import { buildNested } from "@/api/urls/buildNested";
 // no tenant context — pure global reference data) and the FE callers in
 // `admin.ts` invoke them via the bare path, bypassing the rewriter.
 export const complianceUrls = {
-  vendorsList: (): string => buildNested("/vendors"),
+  vendorsList: (): string => buildClientOrgPathUrl("/vendors"),
   vendorUpdate: (id: string): string =>
-    buildNested(`/vendors/${encodeURIComponent(id)}`),
-  glCodesList: (): string => buildNested("/admin/gl-codes"),
-  glCodesCreate: (): string => buildNested("/admin/gl-codes"),
+    buildClientOrgPathUrl(`/vendors/${encodeURIComponent(id)}`),
+  glCodesList: (): string => buildClientOrgPathUrl("/admin/gl-codes"),
+  glCodesCreate: (): string => buildClientOrgPathUrl("/admin/gl-codes"),
   glCodeUpdate: (code: string): string =>
-    buildNested(`/admin/gl-codes/${encodeURIComponent(code)}`),
+    buildClientOrgPathUrl(`/admin/gl-codes/${encodeURIComponent(code)}`),
   glCodeDelete: (code: string): string =>
-    buildNested(`/admin/gl-codes/${encodeURIComponent(code)}`),
-  glCodesImportCsv: (): string => buildNested("/admin/gl-codes/import-csv"),
-  complianceConfig: (): string => buildNested("/admin/compliance-config"),
-  notificationConfig: (): string => buildNested("/admin/notification-config"),
-  tcsConfig: (): string => buildNested("/admin/tcs-config"),
-  tcsConfigRoles: (): string => buildNested("/admin/tcs-config/roles"),
-  tcsConfigHistory: (): string => buildNested("/admin/tcs-config/history"),
-  approvalWorkflow: (): string => buildNested("/admin/approval-workflow"),
-  approvalLimits: (): string => buildNested("/admin/approval-limits")
+    buildClientOrgPathUrl(`/admin/gl-codes/${encodeURIComponent(code)}`),
+  glCodesImportCsv: (): string => buildClientOrgPathUrl("/admin/gl-codes/import-csv"),
+  complianceConfig: (): string => buildClientOrgPathUrl("/admin/compliance-config"),
+  notificationConfig: (): string => buildClientOrgPathUrl("/admin/notification-config"),
+  tcsConfig: (): string => buildClientOrgPathUrl("/admin/tcs-config"),
+  tcsConfigRoles: (): string => buildClientOrgPathUrl("/admin/tcs-config/roles"),
+  tcsConfigHistory: (): string => buildClientOrgPathUrl("/admin/tcs-config/history"),
+  approvalWorkflow: (): string => buildClientOrgPathUrl("/admin/approval-workflow"),
+  approvalLimits: (): string => buildClientOrgPathUrl("/admin/approval-limits")
 };

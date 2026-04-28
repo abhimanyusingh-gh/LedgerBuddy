@@ -22,8 +22,8 @@ const URL_PROVIDERS_DIR = join(FRONTEND_SRC, "api", "urls");
 const BE_URL_PROVIDERS_DIR = join(BACKEND_SRC, "routes", "urls");
 
 const PROVIDER_BUILDER = {
-  NESTED: "buildNested",
-  TENANT: "buildTenantNested"
+  NESTED: "buildClientOrgPathUrl",
+  TENANT: "buildTenantPathUrl"
 } as const;
 type ProviderBuilder = typeof PROVIDER_BUILDER[keyof typeof PROVIDER_BUILDER];
 
@@ -161,7 +161,7 @@ interface BeUrl {
 // property in those modules so `extractRoutesFromNode` can resolve a
 // `<Identifier>.<property>` PropertyAccessExpression to its literal value.
 // Mirrors the FE provider walker (`buildProviderMethodMap`) one tier down:
-// here the constants are bare strings, not `buildNested(...)` results.
+// here the constants are bare strings, not `buildClientOrgPathUrl(...)` results.
 
 interface BeUrlPathMap {
   values: Map<string, string>;
@@ -244,9 +244,10 @@ function applyProviderKindShape(barePath: string, kind: ProviderKind): string {
 
 // ───────────────────────── Provider method walk ─────────────────────────
 // URL-provider methods (frontend/src/api/urls/*Urls.ts) bury the bare path
-// inside `buildNested(...)` / `buildTenantNested(...)` calls, invisible to the
-// apiClient call-site walker. Pre-extract a {provider.method -> {bare,scope}}
-// map so callers like `invoiceUrls.preview(id)` resolve to a real FE URL.
+// inside `buildClientOrgPathUrl(...)` / `buildTenantPathUrl(...)` calls,
+// invisible to the apiClient call-site walker. Pre-extract a
+// {provider.method -> {bare,scope}} map so callers like `invoiceUrls.preview(id)`
+// resolve to a real FE URL.
 
 interface ProviderMethodInfo {
   bare: string;
@@ -591,15 +592,16 @@ function collectRawFeCalls(file: string, providerMap: ProviderMethodMap): RawFeC
       }
 
       // rewriteToNestedShape(path, ...) / rewriteToTenantShape(path, ...) called
-      // OUTSIDE the URL-provider helpers (i.e., from a feature module that
-      // builds a URL for authenticatedUrl + window.fetch / <img> / EventSource
-      // without going through the apiClient pipeline). `buildNested.ts` is the
-      // canonical wrapper consumed by `*Urls.ts` providers — skip it so
-      // template-literal-arg call sites there don't double-emit.
+      // OUTSIDE the URL-provider helpers — kept as a defensive arm for any
+      // future bypass-route consumer that might hand-build a URL outside the
+      // apiClient pipeline. `pathBuilder.ts` is the canonical wrapper consumed
+      // by `*Urls.ts` providers; the rewriters are private helpers there
+      // post-#228 Sub-PR F, so this branch is currently a no-op until/unless
+      // a consumer re-imports them.
       if (
         ts.isIdentifier(callee) &&
         (callee.text === "rewriteToNestedShape" || callee.text === "rewriteToTenantShape") &&
-        !file.endsWith("/api/urls/buildNested.ts")
+        !file.endsWith("/api/urls/pathBuilder.ts")
       ) {
         const arg0 = node.arguments[0];
         if (arg0) {

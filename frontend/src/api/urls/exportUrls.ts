@@ -1,4 +1,4 @@
-import { buildNested } from "@/api/urls/buildNested";
+import { buildClientOrgPathUrl } from "@/api/urls/pathBuilder";
 
 // Tally export endpoints — realm-scoped (mounted under `clientOrgRouter` in
 // `app.ts` via `createExportRouter`). Per-realm Tally batch generation +
@@ -7,8 +7,8 @@ import { buildNested } from "@/api/urls/buildNested";
 // not exposed here — the FE uses the two-step flow (start -> result blob)
 // only.
 export const exportUrls = {
-  tallyDownloadStart: (): string => buildNested("/exports/tally/download"),
+  tallyDownloadStart: (): string => buildClientOrgPathUrl("/exports/tally/download"),
   tallyDownloadResult: (batchId: string): string =>
-    buildNested(`/exports/tally/download/${encodeURIComponent(batchId)}`),
-  tallyHistory: (): string => buildNested("/exports/tally/history")
+    buildClientOrgPathUrl(`/exports/tally/download/${encodeURIComponent(batchId)}`),
+  tallyHistory: (): string => buildClientOrgPathUrl("/exports/tally/history")
 };
