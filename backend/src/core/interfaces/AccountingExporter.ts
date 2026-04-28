@@ -7,6 +7,9 @@ export interface ExportResultItem {
   success: boolean;
   externalReference?: string;
   error?: string;
+  lineErrorOrdinal?: number;
+  exportVersion?: number;
+  guid?: string;
 }
 
 export interface ExportFileResult {
@@ -17,8 +20,16 @@ export interface ExportFileResult {
   skippedItems: ExportResultItem[];
 }
 
+export interface ExportInvoicesOptions {
+  forceAlter?: boolean;
+}
+
 export interface AccountingExporter {
   readonly system: string;
-  exportInvoices(invoices: InvoiceDocument[], tenantId?: string): Promise<ExportResultItem[]>;
+  exportInvoices(
+    invoices: InvoiceDocument[],
+    tenantId?: string,
+    options?: ExportInvoicesOptions
+  ): Promise<ExportResultItem[]>;
   generateImportFile?(invoices: InvoiceDocument[], tenantId?: string): ExportFileResult | Promise<ExportFileResult>;
 }

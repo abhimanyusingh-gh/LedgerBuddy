@@ -1,7 +1,11 @@
 import { Types } from "mongoose";
 import { createExportRouter } from "@/routes/export/export.ts";
 import { defaultAuth, findHandler, mockRequest, mockResponse } from "@/routes/testHelpers.ts";
-import type { ExportService } from "@/services/export/exportService.ts";
+import {
+  ExportBatchNotFoundError,
+  ExportRetryNoFailuresError,
+  type ExportService
+} from "@/services/export/exportService.ts";
 
 const TEST_CLIENT_ORG_ID = new Types.ObjectId("0123456789abcdef01234567");
 const authWithClientOrg = { authContext: defaultAuth, activeClientOrgId: TEST_CLIENT_ORG_ID };
@@ -31,6 +35,14 @@ function createMockExportService(overrides?: Partial<ExportService>): ExportServ
       page: 1,
       limit: 20,
       total: 0
+    })),
+    retryFailedItems: jest.fn(async () => ({
+      batchId: "batch-1",
+      retriedCount: 1,
+      total: 2,
+      successCount: 2,
+      failureCount: 0,
+      items: []
     })),
     ...overrides
   } as unknown as ExportService;
@@ -194,6 +206,95 @@ describe("export routes", () => {
       const next = jest.fn();
 
       await handler(mockRequest({ ...authWithClientOrg, params: { batchId: "batch-1" } }), res, next);
+
+      expect(next).toHaveBeenCalledWith(thrownError);
+    });
+  });
+
+  describe("POST /exports/tally/batches/:batchId/retry", () => {
+    it("returns 400 when export service is null", async () => {
+      const router = createExportRouter(null);
+      const handler = findHandler(router, "post", "/exports/tally/batches/:batchId/retry");
+      const res = mockResponse();
+
+      await handler(mockRequest({ ...authWithClientOrg, params: { batchId: "b1" }, body: {} }), res, jest.fn());
+
+      expect(res.statusCode).toBe(400);
+    });
+
+    it("returns 404 when batch is not found", async () => {
+      const mockService = createMockExportService({
+        retryFailedItems: jest.fn(async () => { throw new ExportBatchNotFoundError("missing"); })
+      });
+      const router = createExportRouter(mockService);
+      const handler = findHandler(router, "post", "/exports/tally/batches/:batchId/retry");
+      const res = mockResponse();
+
+      await handler(mockRequest({ ...authWithClientOrg, params: { batchId: "missing" }, body: {} }), res, jest.fn());
+
+      expect(res.statusCode).toBe(404);
+    });
+
+    it("returns 409 when batch has no failure items to retry", async () => {
+      const mockService = createMockExportService({
+        retryFailedItems: jest.fn(async () => { throw new ExportRetryNoFailuresError("b1"); })
+      });
+      const router = createExportRouter(mockService);
+      const handler = findHandler(router, "post", "/exports/tally/batches/:batchId/retry");
+      const res = mockResponse();
+
+      await handler(mockRequest({ ...authWithClientOrg, params: { batchId: "b1" }, body: {} }), res, jest.fn());
+
+      expect(res.statusCode).toBe(409);
+    });
+
+    it("delegates invoiceIds + paymentIds filter to service and returns 200 on success", async () => {
+      const retrySpy = jest.fn(async () => ({
+        batchId: "b1",
+        retriedCount: 1,
+        total: 2,
+        successCount: 2,
+        failureCount: 0,
+        items: []
+      }));
+      const mockService = createMockExportService({ retryFailedItems: retrySpy });
+      const router = createExportRouter(mockService);
+      const handler = findHandler(router, "post", "/exports/tally/batches/:batchId/retry");
+      const res = mockResponse();
+
+      await handler(
+        mockRequest({
+          ...authWithClientOrg,
+          params: { batchId: "b1" },
+          body: { invoiceIds: ["inv-1"], paymentIds: ["pay-1"] }
+        }),
+        res,
+        jest.fn()
+      );
+
+      expect(res.statusCode).toBe(200);
+      expect(retrySpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          batchId: "b1",
+          invoiceIds: ["inv-1"],
+          paymentIds: ["pay-1"],
+          tenantId: "tenant-a",
+          clientOrgId: TEST_CLIENT_ORG_ID
+        })
+      );
+    });
+
+    it("calls next with error on unexpected service failure", async () => {
+      const thrownError = new Error("boom");
+      const mockService = createMockExportService({
+        retryFailedItems: jest.fn(async () => { throw thrownError; })
+      });
+      const router = createExportRouter(mockService);
+      const handler = findHandler(router, "post", "/exports/tally/batches/:batchId/retry");
+      const res = mockResponse();
+      const next = jest.fn();
+
+      await handler(mockRequest({ ...authWithClientOrg, params: { batchId: "b1" }, body: {} }), res, next);
 
       expect(next).toHaveBeenCalledWith(thrownError);
     });

@@ -1,7 +1,12 @@
 import { Types } from "mongoose";
-import { ExportService } from "@/services/export/exportService.ts";
-import { ExportBatchModel } from "@/models/invoice/ExportBatch.ts";
+import {
+  ExportBatchNotFoundError,
+  ExportRetryNoFailuresError,
+  ExportService
+} from "@/services/export/exportService.ts";
+import { EXPORT_BATCH_ITEM_STATUS, ExportBatchModel } from "@/models/invoice/ExportBatch.ts";
 import { InvoiceModel } from "@/models/invoice/Invoice.ts";
+import { AuditLogModel } from "@/models/core/AuditLog.ts";
 import type { AccountingExporter } from "@/core/interfaces/AccountingExporter.ts";
 import type { FileStore } from "@/core/interfaces/FileStore.ts";
 import { toUUID } from "@/types/uuid.js";
@@ -256,6 +261,204 @@ describe("ExportService", () => {
 
       expect(result.total).toBe(0);
       expect(result.batchId).toBeUndefined();
+    });
+
+    it("persists per-invoice items[] reflecting per-result success/failure status", async () => {
+      const invoiceA = new Types.ObjectId();
+      const invoiceB = new Types.ObjectId();
+      jest.spyOn(InvoiceModel, "find").mockReturnValue({
+        select: jest.fn().mockResolvedValue([
+          { _id: invoiceA },
+          { _id: invoiceB }
+        ])
+      } as never);
+      jest.spyOn(InvoiceModel, "updateOne").mockResolvedValue({} as never);
+      const createSpy = jest.spyOn(ExportBatchModel, "create").mockResolvedValue({
+        _id: new Types.ObjectId()
+      } as never);
+
+      const exporter = createMockExporter({
+        exportInvoices: jest.fn(async () => [
+          { invoiceId: toUUID(String(invoiceA)), success: true, exportVersion: 1, guid: "guid-a" },
+          {
+            invoiceId: toUUID(String(invoiceB)),
+            success: false,
+            error: "ledger missing",
+            lineErrorOrdinal: 1,
+            exportVersion: 1,
+            guid: "guid-b"
+          }
+        ])
+      });
+
+      const service = new ExportService(exporter);
+      await service.exportApprovedInvoices({
+        requestedBy: "admin@test.com",
+        tenantId: toUUID("tenant-a"),
+        clientOrgId: CLIENT_ORG_ID
+      });
+
+      const created = createSpy.mock.calls[0][0] as { items: Array<Record<string, unknown>> };
+      expect(created.items).toHaveLength(2);
+      expect(created.items[0]).toMatchObject({
+        invoiceId: toUUID(String(invoiceA)),
+        status: EXPORT_BATCH_ITEM_STATUS.SUCCESS,
+        exportVersion: 1,
+        guid: "guid-a"
+      });
+      expect(created.items[1]).toMatchObject({
+        invoiceId: toUUID(String(invoiceB)),
+        status: EXPORT_BATCH_ITEM_STATUS.FAILURE,
+        exportVersion: 1,
+        guid: "guid-b",
+        tallyResponse: expect.objectContaining({
+          lineError: "ledger missing",
+          lineErrorOrdinal: 1
+        })
+      });
+    });
+  });
+
+  describe("retryFailedItems", () => {
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    it("throws ExportBatchNotFoundError when batch is missing", async () => {
+      jest.spyOn(ExportBatchModel, "findOne").mockResolvedValue(null as never);
+      const service = new ExportService(createMockExporter());
+      await expect(service.retryFailedItems({
+        batchId: "missing",
+        requestedBy: "admin@test.com",
+        tenantId: toUUID("tenant-a"),
+        clientOrgId: CLIENT_ORG_ID
+      })).rejects.toBeInstanceOf(ExportBatchNotFoundError);
+    });
+
+    it("throws ExportRetryNoFailuresError when batch has no failures", async () => {
+      jest.spyOn(ExportBatchModel, "findOne").mockResolvedValue({
+        _id: new Types.ObjectId(),
+        items: [{ invoiceId: "i1", status: EXPORT_BATCH_ITEM_STATUS.SUCCESS }],
+        save: jest.fn()
+      } as never);
+      const service = new ExportService(createMockExporter());
+      await expect(service.retryFailedItems({
+        batchId: "b1",
+        requestedBy: "admin@test.com",
+        tenantId: toUUID("tenant-a"),
+        clientOrgId: CLIENT_ORG_ID
+      })).rejects.toBeInstanceOf(ExportRetryNoFailuresError);
+    });
+
+    it("invokes exporter with forceAlter=true and bumps exportVersion in items", async () => {
+      const invoiceA = new Types.ObjectId();
+      const invoiceId = toUUID(String(invoiceA));
+      const setSpy = jest.fn();
+      const saveSpy = jest.fn().mockResolvedValue(undefined);
+      const batchId = new Types.ObjectId();
+      jest.spyOn(ExportBatchModel, "findOne").mockResolvedValue({
+        _id: batchId,
+        items: [
+          {
+            invoiceId,
+            voucherType: "purchase",
+            status: EXPORT_BATCH_ITEM_STATUS.FAILURE,
+            exportVersion: 0,
+            guid: "old-guid",
+            tallyResponse: { lineError: "first failure", lineErrorOrdinal: 0, attempts: [] }
+          }
+        ],
+        set: setSpy,
+        save: saveSpy
+      } as never);
+      jest.spyOn(InvoiceModel, "find").mockReturnValue({
+        select: jest.fn().mockResolvedValue([{ _id: invoiceA }])
+      } as never);
+      jest.spyOn(InvoiceModel, "updateOne").mockResolvedValue({} as never);
+      jest.spyOn(AuditLogModel, "create").mockResolvedValue({} as never);
+
+      const exportInvoicesMock = jest.fn(async () => [
+        { invoiceId, success: true, exportVersion: 1, guid: "new-guid", externalReference: "VCH-1" }
+      ]);
+      const exporter = createMockExporter({ exportInvoices: exportInvoicesMock });
+
+      const service = new ExportService(exporter);
+      const result = await service.retryFailedItems({
+        batchId: String(batchId),
+        requestedBy: "admin@test.com",
+        tenantId: toUUID("tenant-a"),
+        clientOrgId: CLIENT_ORG_ID
+      });
+
+      expect(exportInvoicesMock).toHaveBeenCalledWith(
+        expect.any(Array),
+        toUUID("tenant-a"),
+        { forceAlter: true }
+      );
+      expect(result.successCount).toBe(1);
+      expect(result.failureCount).toBe(0);
+      const itemsUpdate = setSpy.mock.calls.find(([key]) => key === "items")?.[1] as Array<Record<string, unknown>>;
+      expect(itemsUpdate[0]).toMatchObject({
+        status: EXPORT_BATCH_ITEM_STATUS.SUCCESS,
+        exportVersion: 1,
+        guid: "new-guid"
+      });
+    });
+
+    it("preserves prior failure history by appending to attempts[] when retry fails again", async () => {
+      const invoiceA = new Types.ObjectId();
+      const invoiceId = toUUID(String(invoiceA));
+      const setSpy = jest.fn();
+      jest.spyOn(ExportBatchModel, "findOne").mockResolvedValue({
+        _id: new Types.ObjectId(),
+        items: [
+          {
+            invoiceId,
+            voucherType: "purchase",
+            status: EXPORT_BATCH_ITEM_STATUS.FAILURE,
+            exportVersion: 0,
+            guid: "old-guid",
+            tallyResponse: {
+              lineError: "first failure",
+              lineErrorOrdinal: 0,
+              attempts: [{ exportVersion: 0, lineError: "first failure", lineErrorOrdinal: 0, attemptedAt: new Date() }]
+            }
+          }
+        ],
+        set: setSpy,
+        save: jest.fn().mockResolvedValue(undefined)
+      } as never);
+      jest.spyOn(InvoiceModel, "find").mockReturnValue({
+        select: jest.fn().mockResolvedValue([{ _id: invoiceA }])
+      } as never);
+      jest.spyOn(InvoiceModel, "updateOne").mockResolvedValue({} as never);
+      jest.spyOn(AuditLogModel, "create").mockResolvedValue({} as never);
+
+      const exporter = createMockExporter({
+        exportInvoices: jest.fn(async () => [
+          {
+            invoiceId,
+            success: false,
+            error: "second failure",
+            lineErrorOrdinal: 0,
+            exportVersion: 1,
+            guid: "newer-guid"
+          }
+        ])
+      });
+
+      const service = new ExportService(exporter);
+      await service.retryFailedItems({
+        batchId: "b1",
+        requestedBy: "admin@test.com",
+        tenantId: toUUID("tenant-b"),
+        clientOrgId: CLIENT_ORG_ID
+      });
+
+      const itemsUpdate = setSpy.mock.calls.find(([key]) => key === "items")?.[1] as Array<Record<string, unknown>>;
+      const tallyResponse = itemsUpdate[0].tallyResponse as { attempts: unknown[]; lineError: string };
+      expect(tallyResponse.attempts).toHaveLength(2);
+      expect(tallyResponse.lineError).toBe("second failure");
     });
   });
 });

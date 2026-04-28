@@ -1,8 +1,13 @@
 import { Types } from "mongoose";
-import type { AccountingExporter } from "@/core/interfaces/AccountingExporter.js";
+import type { AccountingExporter, ExportResultItem } from "@/core/interfaces/AccountingExporter.js";
 import type { FileStore } from "@/core/interfaces/FileStore.js";
-import { ExportBatchModel } from "@/models/invoice/ExportBatch.js";
+import {
+  EXPORT_BATCH_ITEM_STATUS,
+  EXPORT_BATCH_VOUCHER_TYPE,
+  ExportBatchModel
+} from "@/models/invoice/ExportBatch.js";
 import { InvoiceModel } from "@/models/invoice/Invoice.js";
+import { AuditLogModel } from "@/models/core/AuditLog.js";
 import { logger } from "@/utils/logger.js";
 import { EXPORT_SAVE_CONCURRENCY } from "@/constants.js";
 import { INVOICE_STATUS } from "@/types/invoice.js";
@@ -13,6 +18,65 @@ interface ExportRequest {
   requestedBy: string;
   tenantId: UUID;
   clientOrgId: Types.ObjectId;
+}
+
+interface RetryFailedItemsRequest {
+  batchId: string;
+  invoiceIds?: string[];
+  paymentIds?: string[];
+  requestedBy: string;
+  tenantId: UUID;
+  clientOrgId: Types.ObjectId;
+}
+
+interface ExportBatchItemSnapshot {
+  invoiceId: string;
+  paymentId?: string;
+  voucherType: string;
+  status: string;
+  tallyResponse?: {
+    lineError?: string;
+    lineErrorOrdinal?: number;
+    attempts?: Array<{
+      exportVersion: number;
+      lineError?: string;
+      lineErrorOrdinal?: number;
+      attemptedAt: Date;
+    }>;
+  };
+  exportVersion: number;
+  guid: string;
+  completedAt?: Date;
+}
+
+const tenantRetryQueues = new Map<string, Promise<unknown>>();
+
+function runWithTenantMutex<T>(tenantId: string, work: () => Promise<T>): Promise<T> {
+  const previous = tenantRetryQueues.get(tenantId) ?? Promise.resolve();
+  const settled = previous.then(() => undefined, () => undefined);
+  const next = settled.then(() => work());
+  const tracked = next.then(() => undefined, () => undefined);
+  tenantRetryQueues.set(tenantId, tracked);
+  void tracked.then(() => {
+    if (tenantRetryQueues.get(tenantId) === tracked) {
+      tenantRetryQueues.delete(tenantId);
+    }
+  });
+  return next;
+}
+
+export class ExportBatchNotFoundError extends Error {
+  readonly code = "EXPORT_BATCH_NOT_FOUND";
+  constructor(batchId: string) {
+    super(`Export batch ${batchId} not found.`);
+  }
+}
+
+export class ExportRetryNoFailuresError extends Error {
+  readonly code = "EXPORT_RETRY_NO_FAILURES";
+  constructor(batchId: string) {
+    super(`Export batch ${batchId} has no failure items to retry.`);
+  }
 }
 
 export class ExportService {
@@ -69,6 +133,7 @@ export class ExportService {
 
     const successCount = results.filter((item) => item.success).length;
     const failureCount = results.length - successCount;
+    const items = buildBatchItemsFromResults(results, EXPORT_BATCH_VOUCHER_TYPE.PURCHASE);
 
     const batch = await ExportBatchModel.create({
       tenantId: request.tenantId,
@@ -77,7 +142,8 @@ export class ExportService {
       total: results.length,
       successCount,
       failureCount,
-      requestedBy: request.requestedBy
+      requestedBy: request.requestedBy,
+      items
     });
 
     const resultMap = new Map(results.map((item) => [item.invoiceId, item]));
@@ -282,6 +348,136 @@ export class ExportService {
     };
   }
 
+  async retryFailedItems(request: RetryFailedItemsRequest) {
+    return runWithTenantMutex(request.tenantId, async () => {
+      const batch = await ExportBatchModel.findOne({
+        _id: request.batchId,
+        tenantId: request.tenantId,
+        clientOrgId: request.clientOrgId
+      });
+
+      if (!batch) {
+        throw new ExportBatchNotFoundError(request.batchId);
+      }
+
+      const existingItems: ExportBatchItemSnapshot[] = (batch.items ?? []) as ExportBatchItemSnapshot[];
+      const failureItems = existingItems.filter((item) => item.status === EXPORT_BATCH_ITEM_STATUS.FAILURE);
+
+      const requestedInvoiceIds = new Set(request.invoiceIds ?? []);
+      const requestedPaymentIds = new Set(request.paymentIds ?? []);
+      const hasFilter = requestedInvoiceIds.size > 0 || requestedPaymentIds.size > 0;
+
+      const targetItems = hasFilter
+        ? failureItems.filter((item) =>
+            requestedInvoiceIds.has(item.invoiceId) ||
+            (item.paymentId !== undefined && requestedPaymentIds.has(item.paymentId)))
+        : failureItems;
+
+      if (targetItems.length === 0) {
+        throw new ExportRetryNoFailuresError(request.batchId);
+      }
+
+      const targetInvoiceIds = targetItems
+        .map((item) => item.invoiceId)
+        .filter((id) => Types.ObjectId.isValid(id));
+
+      const invoices = await InvoiceModel.find({
+        _id: { $in: targetInvoiceIds.map((id) => new Types.ObjectId(id)) },
+        tenantId: request.tenantId,
+        clientOrgId: request.clientOrgId
+      }).select({ ocrText: 0 });
+
+      const orderedInvoices = targetItems
+        .map((item) => invoices.find((inv) => toUUID(String(inv._id)) === item.invoiceId))
+        .filter((inv): inv is NonNullable<typeof inv> => inv !== undefined);
+
+      const results = await this.exporter.exportInvoices(orderedInvoices, request.tenantId, { forceAlter: true });
+
+      const resultByInvoiceId = new Map<string, ExportResultItem>(
+        results.map((r) => [String(r.invoiceId), r])
+      );
+      const now = new Date();
+      const nextItems: ExportBatchItemSnapshot[] = existingItems.map((item) => {
+        const result = resultByInvoiceId.get(item.invoiceId);
+        if (!result) return item;
+        return mergeRetryResultIntoItem(item, result, now);
+      });
+
+      const successCount = nextItems.filter((i) => i.status === EXPORT_BATCH_ITEM_STATUS.SUCCESS).length;
+      const failureCountAfter = nextItems.filter((i) => i.status === EXPORT_BATCH_ITEM_STATUS.FAILURE).length;
+
+      batch.set("items", nextItems);
+      batch.set("successCount", successCount);
+      batch.set("failureCount", failureCountAfter);
+      await batch.save();
+
+      const saveResults = await saveBatch(orderedInvoices, EXPORT_SAVE_CONCURRENCY, async (invoice) => {
+        const result = resultByInvoiceId.get(toUUID(String(invoice._id)));
+        if (!result) return;
+        if (result.success) {
+          await InvoiceModel.updateOne(
+            { _id: invoice._id, tenantId: request.tenantId, clientOrgId: request.clientOrgId },
+            {
+              status: INVOICE_STATUS.EXPORTED,
+              export: {
+                system: this.exporter.system,
+                batchId: String(batch._id),
+                exportedAt: now,
+                externalReference: result.externalReference
+              }
+            }
+          );
+        } else {
+          await InvoiceModel.updateOne(
+            { _id: invoice._id, tenantId: request.tenantId, clientOrgId: request.clientOrgId },
+            { $push: { processingIssues: `Export retry failed: ${result.error}` } }
+          );
+        }
+      });
+
+      for (const r of saveResults) {
+        if (r.status === "rejected") {
+          logger.error("export.retry.invoice.save.failed", {
+            error: r.reason instanceof Error ? r.reason.message : String(r.reason)
+          });
+        }
+      }
+
+      AuditLogModel.create({
+        tenantId: request.tenantId,
+        userId: request.requestedBy,
+        entityType: "export",
+        entityId: String(batch._id),
+        action: "export_batch_retry",
+        previousValue: { failureCount: failureItems.length, targetCount: targetItems.length },
+        newValue: { successCount, failureCount: failureCountAfter }
+      }).catch((err) => {
+        logger.error("audit_log.write_failed", {
+          error: String(err),
+          tenantId: request.tenantId,
+          batchId: String(batch._id)
+        });
+      });
+
+      logger.info("export.retry.complete", {
+        targetSystem: this.exporter.system,
+        batchId: String(batch._id),
+        retriedCount: targetItems.length,
+        successCount,
+        failureCount: failureCountAfter
+      });
+
+      return {
+        batchId: String(batch._id),
+        retriedCount: targetItems.length,
+        total: nextItems.length,
+        successCount,
+        failureCount: failureCountAfter,
+        items: results
+      };
+    });
+  }
+
   async downloadExportFile(
     batchId: string,
     tenantId: string,
@@ -299,6 +495,75 @@ export class ExportService {
     const filename = batch.fileKey.split("/").pop() ?? "tally-export.xml";
     return { ...file, filename };
   }
+}
+
+function buildBatchItemsFromResults(
+  results: ExportResultItem[],
+  voucherType: string
+): ExportBatchItemSnapshot[] {
+  const now = new Date();
+  return results.map((result) => {
+    const status = result.success
+      ? EXPORT_BATCH_ITEM_STATUS.SUCCESS
+      : EXPORT_BATCH_ITEM_STATUS.FAILURE;
+    const exportVersion = result.exportVersion ?? 0;
+    const guid = result.guid ?? "";
+    const item: ExportBatchItemSnapshot = {
+      invoiceId: result.invoiceId,
+      voucherType,
+      status,
+      exportVersion,
+      guid,
+      completedAt: now
+    };
+    if (!result.success) {
+      const attempt = {
+        exportVersion,
+        lineError: result.error,
+        lineErrorOrdinal: result.lineErrorOrdinal,
+        attemptedAt: now
+      };
+      item.tallyResponse = {
+        lineError: result.error,
+        lineErrorOrdinal: result.lineErrorOrdinal,
+        attempts: [attempt]
+      };
+    }
+    return item;
+  });
+}
+
+function mergeRetryResultIntoItem(
+  prior: ExportBatchItemSnapshot,
+  result: ExportResultItem,
+  attemptedAt: Date
+): ExportBatchItemSnapshot {
+  const attempts = [...(prior.tallyResponse?.attempts ?? [])];
+  attempts.push({
+    exportVersion: result.exportVersion ?? prior.exportVersion,
+    lineError: result.success ? undefined : result.error,
+    lineErrorOrdinal: result.success ? undefined : result.lineErrorOrdinal,
+    attemptedAt
+  });
+
+  const nextStatus = result.success
+    ? EXPORT_BATCH_ITEM_STATUS.SUCCESS
+    : EXPORT_BATCH_ITEM_STATUS.FAILURE;
+
+  return {
+    ...prior,
+    status: nextStatus,
+    exportVersion: result.exportVersion ?? prior.exportVersion,
+    guid: result.guid ?? prior.guid,
+    completedAt: attemptedAt,
+    tallyResponse: result.success
+      ? { ...prior.tallyResponse, attempts }
+      : {
+          lineError: result.error,
+          lineErrorOrdinal: result.lineErrorOrdinal,
+          attempts
+        }
+  };
 }
 
 async function saveBatch<T>(

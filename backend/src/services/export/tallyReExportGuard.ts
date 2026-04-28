@@ -93,10 +93,13 @@ export async function resolveReExportDecision(params: {
   clientOrgId: string;
   invoiceId: string;
   currentExportVersion: number;
+  forceAlter?: boolean;
 }): Promise<ReExportDecision> {
-  const { clientOrgId, invoiceId, currentExportVersion } = params;
+  const { clientOrgId, invoiceId, currentExportVersion, forceAlter } = params;
   const nextExportVersion = currentExportVersion + 1;
-  const action: TallyAction = currentExportVersion === 0 ? TALLY_ACTION.CREATE : TALLY_ACTION.ALTER;
+  const action: TallyAction = currentExportVersion === 0 && !forceAlter
+    ? TALLY_ACTION.CREATE
+    : TALLY_ACTION.ALTER;
 
   const company = await ClientOrganizationModel.findById(clientOrgId).lean();
 

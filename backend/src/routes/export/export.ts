@@ -1,6 +1,10 @@
 import { getAuth } from "@/types/auth.js";
 import { Router } from "express";
 import type { ExportService } from "@/services/export/exportService.js";
+import {
+  ExportBatchNotFoundError,
+  ExportRetryNoFailuresError
+} from "@/services/export/exportService.js";
 import { requireAuth } from "@/auth/requireAuth.js";
 import { requireCap } from "@/auth/requireCapability.js";
 import { isString } from "@/utils/validation.js";
@@ -87,6 +91,40 @@ export function createExportRouter(exportService: ExportService | null) {
       });
       res.json(result);
     } catch (error) {
+      next(error);
+    }
+  });
+
+  router.post(EXPORT_URL_PATHS.tallyRetryByBatchId, requireCap("canExportToTally"), async (req, res, next) => {
+    try {
+      if (!exportService) {
+        res.status(400).json({
+          message: "Tally exporter is not configured. Provide TALLY_ENDPOINT and TALLY_COMPANY."
+        });
+        return;
+      }
+
+      const invoiceIds = Array.isArray(req.body?.invoiceIds) ? req.body.invoiceIds.filter(isString) : undefined;
+      const paymentIds = Array.isArray(req.body?.paymentIds) ? req.body.paymentIds.filter(isString) : undefined;
+
+      const result = await exportService.retryFailedItems({
+        batchId: req.params.batchId,
+        invoiceIds,
+        paymentIds,
+        requestedBy: getAuth(req).email,
+        tenantId: getAuth(req).tenantId,
+        clientOrgId: req.activeClientOrgId!
+      });
+      res.json(result);
+    } catch (error) {
+      if (error instanceof ExportBatchNotFoundError) {
+        res.status(404).json({ message: error.message });
+        return;
+      }
+      if (error instanceof ExportRetryNoFailuresError) {
+        res.status(409).json({ message: error.message });
+        return;
+      }
       next(error);
     }
   });

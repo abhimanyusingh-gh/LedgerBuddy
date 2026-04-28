@@ -1,5 +1,10 @@
 import axios from "axios";
-import type { AccountingExporter, ExportFileResult, ExportResultItem } from "@/core/interfaces/AccountingExporter.js";
+import type {
+  AccountingExporter,
+  ExportFileResult,
+  ExportInvoicesOptions,
+  ExportResultItem
+} from "@/core/interfaces/AccountingExporter.js";
 import type { InvoiceDocument } from "@/models/invoice/Invoice.js";
 import { logger } from "@/utils/logger.js";
 import { isRecord } from "@/utils/validation.js";
@@ -68,7 +73,11 @@ export class TallyExporter implements AccountingExporter {
     this.config = config;
   }
 
-  async exportInvoices(invoices: InvoiceDocument[], tenantId?: string): Promise<ExportResultItem[]> {
+  async exportInvoices(
+    invoices: InvoiceDocument[],
+    tenantId?: string,
+    options?: ExportInvoicesOptions
+  ): Promise<ExportResultItem[]> {
     const results: ExportResultItem[] = [];
     logger.info("tally.export.batch.start", { totalInvoices: invoices.length });
 
@@ -89,7 +98,8 @@ export class TallyExporter implements AccountingExporter {
       });
     }
 
-    for (const invoice of invoices) {
+    for (let ordinal = 0; ordinal < invoices.length; ordinal++) {
+      const invoice = invoices[ordinal];
       const invoiceId = toUUID(String(invoice._id));
 
       try {
@@ -101,7 +111,7 @@ export class TallyExporter implements AccountingExporter {
               invoiceNumber: invoice.parsed?.invoiceNumber ?? null
             });
           }
-          results.push({ invoiceId, success: false, error: validationError.message });
+          results.push({ invoiceId, success: false, error: validationError.message, lineErrorOrdinal: ordinal });
           continue;
         }
 
@@ -109,7 +119,8 @@ export class TallyExporter implements AccountingExporter {
           ? await resolveReExportDecision({
               clientOrgId: String(invoice.clientOrgId),
               invoiceId,
-              currentExportVersion: invoice.exportVersion ?? 0
+              currentExportVersion: invoice.exportVersion ?? 0,
+              forceAlter: options?.forceAlter
             })
           : undefined;
 
@@ -166,7 +177,10 @@ export class TallyExporter implements AccountingExporter {
           results.push({
             invoiceId,
             success: false,
-            error: detail
+            error: detail,
+            lineErrorOrdinal: ordinal,
+            exportVersion: decision?.nextExportVersion,
+            guid: decision?.guid
           });
           continue;
         }
@@ -182,14 +196,17 @@ export class TallyExporter implements AccountingExporter {
         results.push({
           invoiceId,
           success: true,
-          externalReference: summary.lastVchId ?? `CREATED-${summary.created}`
+          externalReference: summary.lastVchId ?? `CREATED-${summary.created}`,
+          exportVersion: decision?.nextExportVersion,
+          guid: decision?.guid
         });
       } catch (error) {
         logger.error("tally.export.invoice.error", { invoiceId, error: extractTallyError(error) });
         results.push({
           invoiceId,
           success: false,
-          error: extractTallyError(error)
+          error: extractTallyError(error),
+          lineErrorOrdinal: ordinal
         });
       }
     }

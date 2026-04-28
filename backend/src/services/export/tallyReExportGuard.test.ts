@@ -173,6 +173,30 @@ describeHarness("resolveReExportDecision + 2-phase staging (BE-2)", ({ getHarnes
     expect(decision.buyerStateName).toBe("Karnataka");
   });
 
+  it("forceAlter=true upgrades currentExportVersion=0 → ACTION=Alter and still requires F12 verified (#277)", async () => {
+    const clientOrgId = await persistClientOrg({ f12OverwriteByGuidVerified: true, stateName: "Karnataka" });
+    const decision = await resolveReExportDecision({
+      clientOrgId: clientOrgId.toString(),
+      invoiceId: "inv-retry",
+      currentExportVersion: 0,
+      forceAlter: true
+    });
+    expect(decision.action).toBe(TALLY_ACTION.ALTER);
+    expect(decision.nextExportVersion).toBe(1);
+  });
+
+  it("forceAlter=true on unverified F12 throws F12OverwriteNotVerifiedError (#277)", async () => {
+    const clientOrgId = await persistClientOrg({ f12OverwriteByGuidVerified: false });
+    await expect(
+      resolveReExportDecision({
+        clientOrgId: clientOrgId.toString(),
+        invoiceId: "inv-retry-2",
+        currentExportVersion: 0,
+        forceAlter: true
+      })
+    ).rejects.toBeInstanceOf(F12OverwriteNotVerifiedError);
+  });
+
   it("buyerStateName prefers explicit ClientOrganization.stateName over GSTIN-derived", async () => {
     // GSTIN prefix 29 (Karnataka) but stateName explicitly set to Tamil Nadu —
     // explicit value wins.

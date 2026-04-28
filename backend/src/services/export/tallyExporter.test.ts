@@ -269,7 +269,7 @@ describe("TallyExporter.exportInvoices", () => {
     });
 
     const result = await exporter.exportInvoices([invoice]);
-    expect(result).toEqual([
+    expect(result).toMatchObject([
       {
         invoiceId: "inv-1",
         success: false,
@@ -290,7 +290,7 @@ describe("TallyExporter.exportInvoices", () => {
     });
 
     const result = await exporter.exportInvoices([invoice]);
-    expect(result).toEqual([
+    expect(result).toMatchObject([
       {
         invoiceId: "inv-1b",
         success: false,
@@ -318,7 +318,7 @@ describe("TallyExporter.exportInvoices", () => {
     });
 
     const result = await exporter.exportInvoices([invoice]);
-    expect(result).toEqual([
+    expect(result).toMatchObject([
       {
         invoiceId: "inv-2",
         success: true,
@@ -344,7 +344,7 @@ describe("TallyExporter.exportInvoices", () => {
     });
 
     const result = await exporter.exportInvoices([invoice]);
-    expect(result).toEqual([
+    expect(result).toMatchObject([
       {
         invoiceId: "inv-3",
         success: false,
@@ -368,7 +368,7 @@ describe("TallyExporter.exportInvoices", () => {
     });
 
     const result = await exporter.exportInvoices([invoice]);
-    expect(result).toEqual([
+    expect(result).toMatchObject([
       {
         invoiceId: "inv-3c",
         success: false,
@@ -392,7 +392,7 @@ describe("TallyExporter.exportInvoices", () => {
     });
 
     const result = await exporter.exportInvoices([invoice]);
-    expect(result).toEqual([
+    expect(result).toMatchObject([
       {
         invoiceId: "inv-3b",
         success: false,
@@ -424,7 +424,7 @@ describe("TallyExporter.exportInvoices", () => {
 
     const result = await exporter.exportInvoices([invoice]);
 
-    expect(result).toEqual([
+    expect(result).toMatchObject([
       {
         invoiceId: "inv-6",
         success: true,
@@ -453,7 +453,7 @@ describe("TallyExporter.exportInvoices", () => {
     });
 
     const result = await exporter.exportInvoices([invoice]);
-    expect(result).toEqual([
+    expect(result).toMatchObject([
       {
         invoiceId: "inv-6b",
         success: true,
@@ -482,7 +482,7 @@ describe("TallyExporter.exportInvoices", () => {
     });
 
     const result = await exporter.exportInvoices([invoice]);
-    expect(result).toEqual([
+    expect(result).toMatchObject([
       {
         invoiceId: "inv-4",
         success: false,
@@ -506,7 +506,7 @@ describe("TallyExporter.exportInvoices", () => {
     });
 
     const result = await exporter.exportInvoices([invoice]);
-    expect(result).toEqual([
+    expect(result).toMatchObject([
       {
         invoiceId: "inv-5",
         success: false,
@@ -535,7 +535,7 @@ describe("TallyExporter.exportInvoices", () => {
     });
 
     const result = await exporter.exportInvoices([invoice]);
-    expect(result).toEqual([
+    expect(result).toMatchObject([
       {
         invoiceId: "inv-7",
         success: false,
@@ -557,7 +557,7 @@ describe("TallyExporter.exportInvoices", () => {
     });
 
     const result = await exporter.exportInvoices([invoice]);
-    expect(result).toEqual([
+    expect(result).toMatchObject([
       {
         invoiceId: "inv-unknown-vendor",
         success: false,
@@ -580,7 +580,7 @@ describe("TallyExporter.exportInvoices", () => {
     });
 
     const result = await exporter.exportInvoices([invoice]);
-    expect(result).toEqual([
+    expect(result).toMatchObject([
       {
         invoiceId: "inv-objectid",
         success: false,
@@ -605,7 +605,7 @@ describe("TallyExporter.exportInvoices", () => {
     });
 
     const result = await exporter.exportInvoices([invoice]);
-    expect(result).toEqual([
+    expect(result).toMatchObject([
       {
         invoiceId: "inv-8",
         success: false,
@@ -959,7 +959,7 @@ describe("TallyExporter with GST config", () => {
     });
 
     const result = await exporter.exportInvoices([invoice]);
-    expect(result).toEqual([
+    expect(result).toMatchObject([
       { invoiceId: "gst-inv-1", success: true, externalReference: "100" }
     ]);
 
@@ -2087,5 +2087,87 @@ describe("TallyExporter.exportInvoices clearInFlight error logging (#164)", () =
       stagedVersion: 1
     });
     expect(promoteExportVersionMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("TallyExporter ordinal correlation + forceAlter (#277)", () => {
+  beforeEach(() => {
+    axiosPostMock.mockReset();
+    resolveReExportDecisionMock.mockReset();
+    stageInFlightExportVersionMock.mockReset();
+    promoteExportVersionMock.mockReset();
+    clearInFlightExportVersionMock.mockReset();
+    clientOrganizationFindOneMock.mockResolvedValue({});
+  });
+
+  it("populates lineErrorOrdinal matching the invoice's index in deterministic batch order", async () => {
+    const invoices = [
+      createInvoiceStub({
+        _id: "ord-0",
+        parsed: { invoiceNumber: "ORD-0", vendorName: "Vendor", currency: "INR", totalAmountMinor: 1000 }
+      }),
+      createInvoiceStub({
+        _id: "ord-1",
+        parsed: { invoiceNumber: "ORD-1", vendorName: "Vendor", currency: "INR", totalAmountMinor: 1000 }
+      }),
+      createInvoiceStub({
+        _id: "ord-2",
+        parsed: { invoiceNumber: "ORD-2", vendorName: "Vendor", currency: "INR", totalAmountMinor: 1000 }
+      })
+    ];
+
+    resolveReExportDecisionMock.mockImplementation(async (params: { invoiceId: string }) => ({
+      guid: `guid-${params.invoiceId}`,
+      action: "Create",
+      priorExportVersion: 0,
+      nextExportVersion: 1,
+      buyerStateName: null
+    }));
+
+    axiosPostMock.mockImplementation(async (_url: string, _data: string, _config: unknown) => {
+      const callIndex = axiosPostMock.mock.calls.length - 1;
+      if (callIndex === 1) {
+        return { data: makeImportResponse({ status: 0, errors: 1, lineError: "ord-1 failed" }) };
+      }
+      return { data: makeImportResponse({ status: 1, created: 1, lastVchId: `VCH-${callIndex}` }) };
+    });
+
+    const exporter = createExporter();
+    const results = await exporter.exportInvoices(invoices);
+
+    expect(results).toHaveLength(3);
+    expect(results[1]).toMatchObject({
+      invoiceId: "ord-1",
+      success: false,
+      lineErrorOrdinal: 1
+    });
+    expect(results[0]).toMatchObject({ success: true });
+    expect(results[2]).toMatchObject({ success: true });
+  });
+
+  it("forwards forceAlter through resolveReExportDecision and emits ACTION=\"Alter\" when prior version is 0 (retry path)", async () => {
+    resolveReExportDecisionMock.mockResolvedValue({
+      guid: "guid-retry",
+      action: "Alter",
+      priorExportVersion: 0,
+      nextExportVersion: 1,
+      buyerStateName: null
+    });
+    mockAxiosPostResolved(makeImportResponse({ status: 1, created: 0, altered: 1, lastVchId: "VCH-RETRY" }));
+
+    const exporter = createExporter();
+    const invoice = createInvoiceStub({
+      _id: "retry-1",
+      parsed: { invoiceNumber: "RT-1", vendorName: "Vendor", currency: "INR", totalAmountMinor: 5000 }
+    });
+
+    await exporter.exportInvoices([invoice], undefined, { forceAlter: true });
+
+    expect(resolveReExportDecisionMock).toHaveBeenCalledWith(expect.objectContaining({
+      forceAlter: true,
+      currentExportVersion: 0
+    }));
+    const payload = String(axiosPostMock.mock.calls[0]?.[1] ?? "");
+    expect(payload).toContain('ACTION="Alter"');
   });
 });
