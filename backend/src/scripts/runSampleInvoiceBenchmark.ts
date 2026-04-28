@@ -26,10 +26,6 @@ type ExpectedFieldProvenance = {
   blockIndex?: number;
 };
 
-// Documents with fewer than this many OCR blocks are treated as native-text
-// (no raster/vision coordinates). For those, bbox presence is not asserted
-// because LlamaParse does not emit coordinates on native-text paths. Mirrors
-// the heuristic used by the demo-fixture baker gate.
 const NATIVE_TEXT_OCR_BLOCK_THRESHOLD = 5;
 
 type ExpectedLineItemProvenance = {
@@ -160,10 +156,6 @@ function normalizeExpectedFieldProvenance(value: unknown): ExpectedFieldProvenan
   if (Number.isInteger(source.blockIndex) && Number(source.blockIndex) >= 0) {
     result.blockIndex = Number(source.blockIndex);
   }
-  // Presence-only: if the ground-truth mentions a field here at all, we still
-  // want to check the corresponding actual provenance exists (even when neither
-  // `page` nor `blockIndex` is asserted). Returning an empty object lets the
-  // caller express "expected to be present".
   return result;
 }
 
@@ -229,11 +221,6 @@ function compareFieldProvenance(
     });
   }
 
-  // Presence-only bbox assertion: the ground-truth declaring a field under
-  // `fieldProvenance` means we expect the extractor to emit *some* coordinate
-  // data. We intentionally do NOT compare coordinate values here — LlamaParse
-  // shows run-to-run variance that exceeded our previous tolerance. Rendering
-  // correctness is now covered by baked demo fixtures and visual QA.
   if (options.checkBboxPresence && !actual.bbox && !actual.bboxNormalized) {
     mismatches.push({
       file,
@@ -301,8 +288,6 @@ function buildSpecFromResults(results: BenchmarkResult[]): BenchmarkSpec {
         const p: ExpectedFieldProvenance = {};
         if (typeof prov.page === "number") { p.page = prov.page; }
         if (typeof prov.blockIndex === "number") { p.blockIndex = prov.blockIndex; }
-        // Always record the field so presence (and bbox-presence) can be
-        // asserted, even when no page/blockIndex is stored.
         fp[field] = p;
       }
       if (Object.keys(fp).length > 0) {
@@ -333,9 +318,6 @@ async function run(): Promise<void> {
   } else {
     ocrProvider = new DeepSeekOcrProvider({ baseUrl: ocrBaseUrl, timeoutMs: 240_000 });
   }
-  // LlamaParse emits field-level provenance directly; skip the SLM verifier on
-  // that path so the benchmark doesn't require `yarn slm` running on the host.
-  // Deepseek/auto still route through HttpFieldVerifier.
   const fieldVerifier: FieldVerifier = ocrChoice === "llamaparse"
     ? new NoopFieldVerifier()
     : new HttpFieldVerifier({
@@ -373,7 +355,6 @@ async function run(): Promise<void> {
     const mimeType = mimeTypeMap[extname(file).toLowerCase()] ?? DOCUMENT_MIME_TYPE.PDF;
     const extraction = await pipeline.extract({
       tenantId: toUUID("benchmark"),
-      // Benchmark script runs extraction without a client-org context.
       clientOrgId: null,
       sourceKey: file,
       attachmentName: file,
@@ -543,9 +524,6 @@ async function run(): Promise<void> {
       }
     }
 
-    // Native-text documents (e.g. PDFs that came through as plain text, not
-    // rasterized) do not carry bbox coordinates. Skip the bbox-presence check
-    // for those — mirrors the heuristic used by the demo-fixture baker gate.
     const isNativeTextDoc = (actual.ocrBlocks?.length ?? 0) < NATIVE_TEXT_OCR_BLOCK_THRESHOLD;
     const checkBboxPresence = !isNativeTextDoc;
 

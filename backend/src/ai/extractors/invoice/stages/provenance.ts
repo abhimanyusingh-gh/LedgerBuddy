@@ -217,23 +217,6 @@ export function resolveLineItemProvenance(params: {
   return splitAggregateLineItemBboxes(output);
 }
 
-/**
- * When LlamaExtract cites the whole line-items table as a single region for
- * every row (e.g. a markdown-table block that OCR collapses into one bbox),
- * every line item ends up sharing an identical aggregate bbox. That makes the
- * source-viewer crop useless — each row highlights the same whole-table block.
- *
- * Detect the aggregate case by grouping rows that share the same
- * bbox/bboxNormalized tuple, then split the shared y-range into N equal bands
- * so each item gets a distinct row crop in visual order. Fields that were
- * pointing at the aggregate bbox inherit the per-row band, preserving the
- * invariant that field bboxes sit within the row bbox.
- *
- * This is a geometric fallback; it doesn't try to align to actual row y
- * positions (we have no per-row OCR geometry in the aggregate case). The
- * result is approximate but monotonically distinct per item, which is the
- * minimum useful signal for the crop viewer.
- */
 function splitAggregateLineItemBboxes(items: InvoiceLineItemProvenance[]): InvoiceLineItemProvenance[] {
   if (items.length < 2) {
     return items;
@@ -265,7 +248,6 @@ function splitAggregateLineItemBboxes(items: InvoiceLineItemProvenance[]): Invoi
   for (const group of groupsByRowKey.values()) {
     if (group.length < 2) continue;
 
-    // Preserve input order so visually-first row aligns with item index 0.
     group.sort((left, right) => items.indexOf(left) - items.indexOf(right));
 
     const aggregateKey = bboxKey(group[0].row);
@@ -305,12 +287,6 @@ function splitAggregateLineItemBboxes(items: InvoiceLineItemProvenance[]): Invoi
   return items.map((item) => replacements.get(item.index) ?? item);
 }
 
-/**
- * Returns a copy of `prov` with its y-range sliced to [lo, hi] (relative to
- * the original y-range). x-range is preserved. Both `bbox` and
- * `bboxNormalized` are updated when present so downstream renderers pick up
- * whichever coordinate space they prefer.
- */
 function bandProvenance(
   prov: InvoiceFieldProvenance,
   lo: number,

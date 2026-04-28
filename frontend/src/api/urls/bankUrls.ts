@@ -1,13 +1,5 @@
 import { buildClientOrgPathUrl, buildTenantPathUrl } from "@/api/urls/pathBuilder";
 
-// Bank routes split across two scopes:
-//  - Realm-scoped (mounted under `clientOrgRouter`): accounts, statements,
-//    transactions, vendor-gstins, account-names. Use `buildClientOrgPathUrl`.
-//  - Tenant-scoped (mounted under `tenantRouter`): the SSE subscriber for
-//    parse-progress broadcasts (one feed per tenant, no clientOrgId filter).
-//    Use `buildTenantPathUrl`. The consumer constructs an absolute URL by
-//    prepending `apiClient.defaults.baseURL` because EventSource bypasses the
-//    axios interceptor — same shape as `subscribeIngestionSSE` (Sub-PR A).
 export const bankUrls = {
   accountsList: (): string => buildClientOrgPathUrl("/bank/accounts"),
   accountsCreate: (): string => buildClientOrgPathUrl("/bank/accounts"),

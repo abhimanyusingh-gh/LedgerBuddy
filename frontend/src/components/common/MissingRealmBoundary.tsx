@@ -9,16 +9,6 @@ interface MissingRealmBoundaryState {
   caughtPath: string | null;
 }
 
-/**
- * Top-level boundary for `MissingActiveClientOrgError`. The interceptor in
- * `api/client.ts` rejects realm-scoped requests that fire before any active
- * realm is selected (pre-onboarding window, direct axios calls outside of
- * react-query, etc.). When that bubbles up here, render a "select a realm"
- * overlay instead of leaking the error or showing the generic crash UI.
- *
- * TODO(#150 / #152): once the realm switcher and onboarding flow are wired
- * up, prefer redirecting into them rather than showing this overlay.
- */
 export class MissingRealmBoundary extends Component<
   MissingRealmBoundaryProps,
   MissingRealmBoundaryState
@@ -37,7 +27,6 @@ export class MissingRealmBoundary extends Component<
 
   componentDidCatch(error: unknown, info: ErrorInfo): void {
     if (error instanceof MissingActiveClientOrgError) {
-      // Surfaced intentionally — not a crash, but worth logging for ops.
       console.warn(
         "MissingRealmBoundary caught MissingActiveClientOrgError:",
         error.requestPath,

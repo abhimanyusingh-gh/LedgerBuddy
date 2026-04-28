@@ -20,13 +20,6 @@ interface BankPipelineParams {
   uploadedBy: string;
 }
 
-/**
- * The bank pipeline is intentionally simpler than the invoice pipeline. It does
- * NOT use common OCR post-processing steps (CaptureOcrMetadata, PostProcessOcr,
- * BuildTextCandidates, CalibrateConfidence, DetectLanguage) because the bank
- * statement flow delegates OCR + SLM extraction to DocumentProcessingEngine
- * directly.
- */
 export function buildBankPostEnginePipeline(
   params: BankPipelineParams,
 ): ComposablePipeline<BankPdfParseResult> {

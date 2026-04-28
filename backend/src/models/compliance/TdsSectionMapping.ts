@@ -3,12 +3,6 @@ import { validateClientOrgTenantInvariant } from "@/services/auth/tenantScope.js
 
 const tdsSectionMappingSchema = new Schema(
   {
-    /**
-     * Nullable: global default mappings carry `tenantId: null` + `clientOrgId: null`;
-     * client-org-specific overrides carry a concrete tenantId + ObjectId. The
-     * resolver prefers client-org-specific rows over the global
-     * default at match time.
-     */
     tenantId: { type: String, default: null },
     clientOrgId: { type: Schema.Types.ObjectId, ref: "ClientOrganization", default: null },
     glCategory: { type: String, required: true },

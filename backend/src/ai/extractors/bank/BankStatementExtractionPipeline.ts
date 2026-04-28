@@ -198,10 +198,6 @@ export class BankStatementExtractionPipeline {
     const periodFrom = slmOutput.periodFrom ?? undefined;
     const periodTo = slmOutput.periodTo ?? undefined;
 
-    // Bank-statement extraction pipeline is keyed by (tenantId, accountId)
-    // rather than an invoice clientOrgId; the post-engine pipeline steps
-    // do not consult `ctx.input.clientOrgId`, so `null` is the correct
-    // sentinel to satisfy PipelineInput here.
     const pipelineInput = { tenantId, clientOrgId: null, fileName, mimeType, fileBuffer: buffer };
 
     const store = new ContextStore();

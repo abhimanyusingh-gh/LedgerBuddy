@@ -1,13 +1,5 @@
 import { buildClientOrgPathUrl } from "@/api/urls/pathBuilder";
 
-// All compliance endpoints exposed here are realm-scoped (mounted under
-// `clientOrgRouter` in `app.ts`: vendors, GL codes, TCS config, client
-// compliance config, notification config, approval workflow + limits).
-// The unscoped statutory-metadata routes (`/compliance/tds-rates`,
-// `/compliance/tds-sections`, `/compliance/risk-signals`) stay on the legacy
-// `/api` mount: they have no tenantId/clientOrgId in the path (handlers read
-// no tenant context — pure global reference data) and the FE callers in
-// `admin.ts` invoke them via the bare path, bypassing the rewriter.
 export const complianceUrls = {
   vendorsList: (): string => buildClientOrgPathUrl("/vendors"),
   vendorUpdate: (id: string): string =>

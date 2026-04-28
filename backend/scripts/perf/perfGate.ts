@@ -40,9 +40,6 @@ interface PerfGateOutcome {
   implementation: ImplementationStatus;
 }
 
-// Nearest-rank percentile (ceil((p/100)*n) - 1): picks the sample whose
-// rank is the smallest integer >= p% of n. Chosen over linear interpolation
-// because gate budgets are integer-ms and we want an actual observed sample.
 function percentile(sorted: number[], p: number): number {
   if (sorted.length === 0) return 0;
   const rank = Math.min(sorted.length - 1, Math.ceil((p / 100) * sorted.length) - 1);

@@ -32,7 +32,6 @@ async function run() {
     env.OIDC_CLIENT_SECRET
   );
 
-  // Keycloak: create user if not already present (idempotent)
   const exists = await keycloakAdmin.userExists(email);
   if (!exists) {
     await keycloakAdmin.createUser(email, password, false);
@@ -41,7 +40,6 @@ async function run() {
     logger.info("seedPlatformAdmin.keycloak.exists", { email });
   }
 
-  // MongoDB: upsert Platform tenant
   const tenant = await TenantModel.findOneAndUpdate(
     { name: "Platform" },
     { name: "Platform", onboardingStatus: "completed", enabled: true },
@@ -49,7 +47,6 @@ async function run() {
   );
   const tenantId = String(tenant!._id);
 
-  // MongoDB: upsert User
   const user = await UserModel.findOneAndUpdate(
     { email },
     {
@@ -65,7 +62,6 @@ async function run() {
   );
   const userId = String(user!._id);
 
-  // MongoDB: upsert TenantUserRole
   await TenantUserRoleModel.findOneAndUpdate(
     { tenantId, userId },
     { tenantId, userId, role: "PLATFORM_ADMIN" },

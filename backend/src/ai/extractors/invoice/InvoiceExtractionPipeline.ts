@@ -60,11 +60,6 @@ import type { ClientComplianceConfigFields } from "@/models/integration/ClientCo
 
 interface ExtractionPipelineInput {
   tenantId: UUID;
-  /**
-   * Resolved client-org for the invoice being extracted (#156/#159).
-   * `null` only on PENDING_TRIAGE ingestion rows — compliance enrichment
-   * will skip for those. Ingestion callers always pass `file.clientOrgId`.
-   */
   clientOrgId: import("mongoose").Types.ObjectId | string | null;
   sourceKey: string;
   attachmentName: string;

@@ -37,11 +37,6 @@ export function subscribeBankParseSSE(
   onMessage: (event: BankParseProgressEvent) => void,
   onError?: () => void
 ): () => void {
-  // EventSource bypasses the axios interceptor, so the consumer assembles
-  // the absolute URL by prepending `apiClient.defaults.baseURL` to the
-  // tenant-scoped path returned by `bankUrls.parseSse()` (provider produces
-  // `/tenants/:tenantId/bank-statements/parse/sse`). Mirrors the
-  // `subscribeIngestionSSE` pattern from Sub-PR A.
   const url = `${apiClient.defaults.baseURL ?? ""}${bankUrls.parseSse()}`;
   const resolved = new URL(url, window.location.origin);
   const token = getStoredSessionToken();

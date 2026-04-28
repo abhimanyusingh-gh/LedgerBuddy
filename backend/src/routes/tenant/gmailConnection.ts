@@ -8,12 +8,6 @@ import { apiUrl } from "@/config/env.js";
 import { TenantUserRoleModel } from "@/models/core/TenantUserRole.js";
 import { mergeCapabilitiesWithDefaults } from "@/auth/personaDefaults.js";
 
-/**
- * Public Gmail routes — mounted BEFORE the authenticate middleware.
- * These routes handle their own auth internally:
- * - /connect/gmail uses a ?token= query param and resolves context manually
- * - /connect/gmail/callback is an OAuth callback from KC and carries no auth token
- */
 export function createGmailPublicRouter(
   gmailIntegrationService: TenantGmailIntegrationService,
   authService: AuthService
@@ -72,10 +66,6 @@ export function createGmailPublicRouter(
   return router;
 }
 
-/**
- * Protected Gmail routes — mounted AFTER the authenticate middleware.
- * All routes here require a valid session (request.authContext set by authenticate).
- */
 export function createGmailConnectionRouter(gmailIntegrationService: TenantGmailIntegrationService) {
   const router = Router();
 

@@ -99,10 +99,6 @@ export class InvoiceService {
   }
 
   async listInvoices(params: ListInvoicesParams) {
-    // tenant-wide analytics — deferred per #162. The invoice list +
-    // facet counts aggregate across all client-orgs of a tenant for the
-    // dashboard view; per-leaf (tenantId, clientOrgId) filtering lands
-    // with the analytics cut-over.
     const baseQuery: Record<string, unknown> = { tenantId: params.tenantId };
 
     const query: Record<string, unknown> = { ...baseQuery };
@@ -392,7 +388,6 @@ export class InvoiceService {
       confidence: 100
     };
 
-    // Invoice doc carries its own clientOrgId post hierarchy-pivot.
     const invoiceClientOrgId = invoiceObj.clientOrgId as Types.ObjectId | undefined;
     if (invoiceClientOrgId) {
       await retriggerTdsAndTcs(compliance, parsed, tenantId, invoiceClientOrgId, newGlCode, invoiceId);

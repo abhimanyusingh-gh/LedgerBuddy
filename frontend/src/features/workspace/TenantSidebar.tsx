@@ -54,11 +54,6 @@ interface TenantSidebarProps {
   onStandaloneRouteChange: (route: StandaloneHashRoute) => void;
   canViewTenantConfig: boolean;
   canViewConnections: boolean;
-  // null = unknown (no active realm yet — pre-onboarding); 0 = empty queue.
-  // The sidebar hides the badge in BOTH cases (matches the triage badge
-  // hide-at-zero convention) so users do not misread "no realm selected"
-  // as "queue is empty". Prop is required so callers cannot accidentally
-  // collapse the null sentinel via an `undefined` default.
   invoiceActionRequiredCount: number | null;
   triageCount: number;
 }

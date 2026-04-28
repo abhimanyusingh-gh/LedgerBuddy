@@ -48,7 +48,6 @@ export async function fetchAnalyticsOverview(
   scope: "mine" | "all" = "mine",
   clientOrgId?: string | null
 ): Promise<AnalyticsOverview> {
-  // admin analytics: optional clientOrgId, see #162
   const params: Record<string, string> = { from, to, scope };
   if (clientOrgId) params.clientOrgId = clientOrgId;
   return (await apiClient.get<AnalyticsOverview>(analyticsUrls.overview(), { params })).data;

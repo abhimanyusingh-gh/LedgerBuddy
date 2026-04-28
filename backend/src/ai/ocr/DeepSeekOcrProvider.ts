@@ -41,7 +41,6 @@ interface OcrProviderOptions {
   timeoutMs?: number;
   prompt?: string;
   maxTokens?: number;
-  // Maintained for backward compatibility; prompt output is now always transcription-only.
   enforceKeyValuePairs?: boolean;
   httpClient?: OcrHttpClient;
 }

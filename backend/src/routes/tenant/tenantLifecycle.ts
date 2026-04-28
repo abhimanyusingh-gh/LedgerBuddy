@@ -5,10 +5,6 @@ import { getAuth } from "@/types/auth.js";
 import type { TenantAdminService } from "@/services/tenant/tenantAdminService.js";
 import type { TenantInviteService } from "@/services/tenant/tenantInviteService.js";
 
-// Nested-tree mount under `tenantAdminRouter` (already prefixed
-// `/api/tenants/:tenantId/`) — registers the onboarding-complete route at
-// `/onboarding/complete` so the resolved URL is the clean
-// `/api/tenants/:tenantId/onboarding/complete`.
 export function createTenantOnboardingCompleteRouter(tenantAdminService: TenantAdminService) {
   const router = Router();
   router.post(TENANT_URL_PATHS.onboardingComplete, requireCap("canManageUsers"), async (request, response, next) => {
@@ -29,9 +25,6 @@ export function createTenantOnboardingCompleteRouter(tenantAdminService: TenantA
   return router;
 }
 
-// Legacy `/api`-prefixed mount — retains only `/tenant/invites/accept`, the
-// one-time email-link invite acceptance flow that has no nested equivalent
-// (consumed via fetch outside the apiClient pipeline).
 export function createTenantLifecycleRouter(inviteService: TenantInviteService) {
   const router = Router();
 

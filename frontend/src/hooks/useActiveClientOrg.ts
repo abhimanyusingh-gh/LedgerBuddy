@@ -24,7 +24,6 @@ interface UseActiveClientOrgResult {
 }
 
 export function useActiveClientOrg(): UseActiveClientOrgResult {
-  // Subscribe so the component re-renders on store changes; the value itself comes from the URL-aware reader.
   useActiveRealmStore((s) => s.id);
   const activeClientOrgId = readActiveRealmId();
   const setActiveClientOrg = useCallback((id: string | null) => {

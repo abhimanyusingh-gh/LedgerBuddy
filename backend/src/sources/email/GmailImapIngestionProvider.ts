@@ -103,10 +103,6 @@ export class GmailImapIngestionProvider implements EmailIngestionBoundary {
 
           files.push({
             tenantId: this.config.tenantId ?? toUUID("default"),
-            // Per #159: poller-originated files are routed into triage
-            // unless GSTIN match / single-candidate resolves upstream in
-            // the ingestion service (resolution hook lives there so the
-            // provider stays thin). Defer to the ingestion service.
             clientOrgId: null,
             workloadTier: this.config.workloadTier ?? "standard",
             sourceKey: this.config.key,

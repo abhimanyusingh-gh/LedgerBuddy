@@ -104,11 +104,6 @@ export class PlatformAdminService {
       throw new HttpError("Failed to register user in identity provider.", 502, "platform_kc_create_failed");
     }
 
-    // Post hierarchy-pivot: seedDefaultGlCodes now requires a clientOrgId.
-    // Platform admin creates the tenant shell only — GL codes are seeded
-    // once the first ClientOrganization is provisioned in onboarding.
-    // TODO(#156 sub-PR 5): wire GL-code seeding into ClientOrganization
-    // provisioning instead of tenant creation.
 
     return {
       tenantId: String(tenant._id),

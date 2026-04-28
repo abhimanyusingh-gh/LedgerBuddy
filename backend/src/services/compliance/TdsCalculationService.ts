@@ -53,8 +53,6 @@ export class TdsCalculationService {
     }
 
     const effectivePanCategory = panCategory ?? "*";
-    // Tenant-specific overrides first (scoped to the caller's client-org),
-    // then global defaults (tenantId: null + clientOrgId: null rows).
     const queries = [
       { tenantId, clientOrgId, glCategory, panCategory: effectivePanCategory },
       { tenantId, clientOrgId, glCategory, panCategory: "*" },

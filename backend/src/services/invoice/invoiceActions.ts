@@ -3,29 +3,6 @@ import type { UserCapabilities } from "@/auth/personaDefaults.js";
 import { INVOICE_STATUS, type InvoiceStatus } from "@/types/invoice.js";
 import { normalizeTenantRole } from "@/models/core/TenantUserRole.js";
 
-/**
- * Pure, stateless computation of which actions a given actor can perform on a given
- * invoice. Mirrors the authorization the mutation endpoints already enforce, but takes
- * the actor's resolved role + capabilities as input rather than reading the TenantUserRole
- * document — callers should resolve those once per request and reuse.
- *
- * The result is attached to invoice responses as `invoice.actions` so the UI can render
- * action controls without duplicating gating logic or making a second round trip.
- * The server's authorization on the actual mutation endpoints is unchanged; this helper
- * shares logic with that path so visibility and enforcement stay consistent.
- *
- * Rules mirrored:
- * - canApprove / canReject: `canApproveInvoices` capability + invoice is AWAITING_APPROVAL
- *   + workflow-step eligibility (role / persona / userId / capability / any_member).
- * - canEditFields: `canEditInvoiceFields` capability + status !== EXPORTED.
- *   (Mirrors `requireCap("canEditInvoiceFields")` on PATCH /invoices/:id plus the
- *   explicit `status === EXPORTED` check in the handler.)
- * - canDismissRiskSignals: (`canSignOffCompliance` || `canEditInvoiceFields`) +
- *   status !== EXPORTED. Dismissing a risk signal flows through the same PATCH handler
- *   that the `canEditInvoiceFields` capability gates; sign-off users can also dismiss.
- * - canOverrideGlCode: `canOverrideGlCode` capability + status !== EXPORTED.
- * - canOverrideTds: `canOverrideTds` capability + status !== EXPORTED.
- */
 export interface InvoiceActions {
   canApprove: boolean;
   canReject: boolean;

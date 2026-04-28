@@ -7,13 +7,6 @@ const SESSION_TOKEN_KEY = "ledgerbuddy_session_token";
 
 export const apiClient = axios.create({ baseURL: apiBaseUrl });
 
-// Post-#228 Sub-PR E2: every URL passed to `apiClient.<verb>(...)` is
-// already in its final shape — provider modules under `api/urls/*Urls.ts`
-// produce the nested `/tenants/:tenantId[/clientOrgs/:clientOrgId]/...`
-// path up front; bare paths target the deliberately-retained legacy
-// `/api/...` mounts (auth, session, webhooks, health, statutory
-// compliance metadata, plus the 2 mounts pending Sub-PR F). The
-// interceptor's only job is auth-token attachment.
 apiClient.interceptors.request.use((config) => {
   const token = getStoredSessionToken();
   config.headers = config.headers ?? {};

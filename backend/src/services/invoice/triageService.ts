@@ -32,12 +32,6 @@ interface TriageListResult {
 
 const SOURCE_TYPE_EMAIL = "email";
 
-/**
- * Triage list projection: a nullable view of the fields we surface from
- * `Invoice.parsed`. Aligned with `ParsedInvoiceData` but each field is
- * widened to `T | null` because the persisted lean shape may carry
- * explicit nulls for unset values.
- */
 type Nullable<T> = { [K in keyof T]?: T[K] | null };
 type ParsedInvoiceProjection = Nullable<
   Pick<
@@ -72,13 +66,6 @@ function toObjectId(value: string, errorCode: string): Types.ObjectId {
 }
 
 export class TriageService {
-  /**
-   * triage list: documented composite-key exception, see #156 — tenant-scoped only.
-   * The returned rows have `clientOrgId: null` by definition (the polled-ingestion
-   * triage state in which mailbox routing couldn't decide a realm). Filtering
-   * by `tenantId` alone is the documented exception to the otherwise-strict
-   * `{tenantId, clientOrgId}` composite-key access boundary.
-   */
   async list(tenantId: string): Promise<TriageListResult> {
     const filter = { tenantId, status: INVOICE_STATUS.PENDING_TRIAGE } as const;
     const [docs, total] = await Promise.all([

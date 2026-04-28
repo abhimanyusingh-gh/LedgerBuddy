@@ -25,14 +25,14 @@ export function createInvoicePostEnginePipeline(
   );
 
   pipeline
-    .add(new MergeBaselineWithSlmStep())          // Stage 9
-    .add(new RecoverOcrFieldsStep())               // Stage 10
-    .add(new ValidateFieldsStep())                 // Stage 11
-    .add(new ComputeFieldDiagnosticsStep())        // Stage 12
-    .add(new EnrichComplianceStep(deps.complianceEnricher)) // Stage 13
-    .add(new AssessConfidenceStep())               // Stage 14
-    .add(new ResolveProvenanceStep())              // Stage 15
-    .add(new BuildExtractionResultStep());         // Stage 16
+    .add(new MergeBaselineWithSlmStep())          
+    .add(new RecoverOcrFieldsStep())               
+    .add(new ValidateFieldsStep())                 
+    .add(new ComputeFieldDiagnosticsStep())        
+    .add(new EnrichComplianceStep(deps.complianceEnricher)) 
+    .add(new AssessConfidenceStep())               
+    .add(new ResolveProvenanceStep())              
+    .add(new BuildExtractionResultStep());         
 
   return pipeline;
 }

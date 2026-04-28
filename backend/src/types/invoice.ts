@@ -10,21 +10,7 @@ export const INVOICE_STATUS = {
   FAILED_PARSE: "FAILED_PARSE",
   APPROVED: "APPROVED",
   EXPORTED: "EXPORTED",
-  /**
-   * Polled-ingestion triage state (#159): invoice arrived via Gmail
-   * poller / folder-watcher but neither GSTIN match nor single-candidate
-   * resolution could assign a `clientOrgId`. The only status under
-   * which `Invoice.clientOrgId` is permitted to be null — a human
-   * assigns the client-org via triage UI, then transitions status.
-   */
   PENDING_TRIAGE: "PENDING_TRIAGE",
-  /**
-   * Triage-rejected (#179): operator marked the invoice as not actionable
-   * (spam / wrong vendor / not for any client / other). Carries
-   * `clientOrgId: null` because rejection happens before client-org
-   * assignment, so the composite-key invariant treats REJECTED the same
-   * way as PENDING_TRIAGE — see `validateClientOrgTenantInvariant`.
-   */
   REJECTED: "REJECTED",
 } as const;
 

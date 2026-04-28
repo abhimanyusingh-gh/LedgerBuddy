@@ -37,15 +37,6 @@ function detectMimeFromExtension(fileName: string): string | null {
   return null;
 }
 
-/**
- * SSE subscriber endpoint for bank-statement parse progress. Tenant-scoped
- * (no clientOrgId filter — operators see broadcasts from any of their
- * realms), so it's split out from `createBankStatementsRouter` and mounted
- * separately on the legacy `/api` path. The realm-scoped router can then
- * dual-mount (legacy + nested `/api/tenants/:tenantId/clientOrgs/...`)
- * cleanly under the #171 vertical-slice migration without the SSE route
- * tripping the realm-scope middleware.
- */
 export function createBankStatementsParseSseRouter(parseProgress: BankStatementParseProgress) {
   const router = Router();
   router.use(requireAuth);

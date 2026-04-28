@@ -15,9 +15,6 @@ export const ACTION_QUEUE_QUERY_KEY = ["invoices", "action-required"] as const;
 
 interface UseActionRequiredQueueResult {
   groups: ActionQueueGroup[];
-  // null when no realm is active (the hook is disabled and there is no
-  // queue to count); a number otherwise. Consumers must treat null as
-  // "unknown — no realm" rather than collapsing it to 0.
   totalCount: number | null;
   scannedCount: number;
   totalAvailable: number;
@@ -26,11 +23,6 @@ interface UseActionRequiredQueueResult {
   refetch: () => Promise<unknown>;
 }
 
-// Gated on `tenantSetupCompleted` (#193): BE route is mounted behind
-// `requireTenantSetupCompleted` and 403s for mid-setup tenants. When setup
-// is incomplete the hook surfaces the same `null` totalCount sentinel as the
-// no-realm case so consumers (sidebar badge, action trigger) render their
-// existing "unknown" placeholder.
 export function useActionRequiredQueue(): UseActionRequiredQueueResult {
   const { activeClientOrgId } = useActiveClientOrg();
   const tenantSetupCompleted = useTenantSetupCompleted();

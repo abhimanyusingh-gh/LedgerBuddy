@@ -14,21 +14,6 @@ import { PIPELINE_ERROR_CODE } from "@/core/engine/types.js";
 import { logger } from "@/utils/logger.js";
 import { uniqueStrings } from "@/utils/text.js";
 
-/**
- * Statuses whose existing rows are safe for the ingestion pipeline to
- * overwrite via the `upsertFromPending` fallback. These are the
- * automation-owned states (no human edits applied yet) — the pipeline
- * legitimately re-fires when a previous attempt failed mid-flight or
- * the row was created in triage and is still awaiting auto-resolve.
- *
- * Conversely, every status outside this list is "human or downstream
- * has touched this row" — `PARSED`, `NEEDS_REVIEW`, `AWAITING_APPROVAL`,
- * `APPROVED`, `EXPORTED`, `REJECTED`. The fallback must NEVER clobber
- * those: a stray re-fire (e.g. from a regressed checkpoint that
- * re-yields an already-processed object) would silently destroy
- * human-edited fields. See `ingestionService.test.ts` legacy-marker
- * regression for the concrete bug class.
- */
 const UPSERT_OVERWRITE_SAFE_STATUSES: readonly InvoiceStatus[] = [
   INVOICE_STATUS.PENDING,
   INVOICE_STATUS.PENDING_TRIAGE,
@@ -89,10 +74,6 @@ export function buildSuccessData(
     ? String(file.metadata.messageId).trim()
     : undefined;
 
-  // Post hierarchy-pivot: `clientOrgId: null` + `status: PENDING_TRIAGE`
-  // is the only permitted null-client-org combination (#159). If the
-  // source couldn't resolve a client-org, the caller upstream already
-  // set triage; otherwise the normal status path applies.
   const triage = file.clientOrgId === null;
   const effectiveStatus: InvoiceStatus = triage ? INVOICE_STATUS.PENDING_TRIAGE : status;
 
@@ -148,7 +129,6 @@ export function buildFailureData(
 
 export async function upsertFromPending(file: IngestedFile, data: Record<string, unknown>): Promise<void> {
   const { attachmentName: _keep, ...updateData } = data;
-  // Triage-state pending rows carry clientOrgId: null; match on sourceDocumentId alone.
   const matchBase: Record<string, unknown> = { sourceDocumentId: file.sourceDocumentId };
   if (file.clientOrgId) {
     matchBase.clientOrgId = file.clientOrgId;

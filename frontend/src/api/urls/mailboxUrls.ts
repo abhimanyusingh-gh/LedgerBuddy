@@ -1,18 +1,5 @@
 import { buildTenantPathUrl } from "@/api/urls/pathBuilder";
 
-// Mailbox + integration plumbing — all tenant-scoped routes mounted under
-// `tenantAdminRouter` in `app.ts`:
-//   - `/admin/mailboxes` (tenantAdmin router): list/assign/remove integration
-//     mailboxes against tenant users.
-//   - `/admin/integrations`, `/admin/mailbox-assignments` (mailboxAssignments
-//     router): assign integrations to client-orgs.
-//   - `/integrations/gmail`, `/integrations/gmail/connect-url` (gmailConnection
-//     router): OAuth status + connect URL.
-//   - `/admin/notifications/log` (notificationLog router): tenant-wide mailbox
-//     notification audit log.
-//
-// All routes here are tenant-scoped only — no clientOrgId in the URL — so they
-// resolve through `buildTenantPathUrl`.
 export const mailboxUrls = {
   list: (): string => buildTenantPathUrl("/admin/mailboxes"),
   assign: (integrationId: string): string =>

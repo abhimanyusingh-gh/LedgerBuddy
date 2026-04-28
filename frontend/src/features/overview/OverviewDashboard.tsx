@@ -37,7 +37,6 @@ export function OverviewDashboard() {
   const [priorData, setPriorData] = useState<AnalyticsOverview | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // admin analytics: optional clientOrgId, see #162
   const { clientOrgId } = useAdminClientOrgFilter();
 
   useEffect(() => {

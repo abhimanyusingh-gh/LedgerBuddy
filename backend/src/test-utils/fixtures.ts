@@ -1,19 +1,3 @@
-/**
- * Deterministic fixture generator for the accounting-payments test harness.
- *
- * Goals:
- * - Every call with the same `seed` produces the same documents (no
- *   `Date.now()`, no `Math.random()`, no `randomUUID()` outside of a
- *   seeded PRNG).
- * - All money fields land on the `*Minor` integer schema fields used
- *   across the codebase (see `src/models/invoice/Invoice.ts` and
- *   `src/types/invoice.ts` `INVOICE_FIELD_KEY.TOTAL_AMOUNT_MINOR`).
- * - Reuses existing mongoose models — no schema duplication.
- *
- * NOT a replacement for `seedDemoInvoices` / `seedLocalDemoData`. Those
- * seed real demo data tied to a baked OCR fixture set; this file is for
- * synthetic data in unit/integration tests.
- */
 
 import { createHash } from "node:crypto";
 import { Types } from "mongoose";
@@ -24,14 +8,8 @@ import { ClientOrganizationModel } from "@/models/integration/ClientOrganization
 import { INVOICE_STATUS } from "@/types/invoice.js";
 import { ONBOARDING_STATUS, TENANT_MODE } from "@/types/onboarding.js";
 
-/** Pinned wall-clock to keep `receivedAt`, `lastInvoiceDate`, etc. stable. */
 export const FIXTURE_NOW = new Date("2026-04-23T00:00:00.000Z");
 
-/**
- * Tiny LCG PRNG. Seeded so the same `seed` produces the same sequence
- * of vendors / invoices across test runs and across machines. Avoids
- * pulling `seedrandom` / `faker` into devDeps.
- */
 function makeRng(seed: number): () => number {
   let state = seed >>> 0;
   return () => {
@@ -44,19 +22,7 @@ function pickInt(rng: () => number, min: number, max: number): number {
   return Math.floor(rng() * (max - min + 1)) + min;
 }
 
-/**
- * Deterministic ObjectId — uses a 24-char hex string derived from the
- * full tuple key so the same fixture call yields the same `_id`.
- *
- * The caller is responsible for encoding the full tuple (e.g.
- * `invoice:${t}:${v}:${i}`) rather than a single scalar — this avoids
- * collisions at perf scale where a packed `t*1000 + v` or `idx*100 + i`
- * index would alias across distinct (t,v,i) triples.
- */
 function deterministicObjectId(key: string): Types.ObjectId {
-  // SHA-1 → 40 hex chars, use first 24 for a valid ObjectId. The tuple
-  // encoding in `key` is what guarantees uniqueness across the harness
-  // scale (tenants × vendors × invoices).
   const hex = createHash("sha1").update(key).digest("hex").slice(0, 24);
   return new Types.ObjectId(hex);
 }
@@ -89,19 +55,10 @@ interface FixtureInvoice {
 }
 
 interface FixtureOptions {
-  /** Number of tenants (default 1). */
   tenants?: number;
-  /** Vendors per tenant (default 3). */
   vendorsPerTenant?: number;
-  /** Invoices per vendor (default 5). */
   invoicesPerVendor?: number;
-  /** Seed for the deterministic PRNG (default 42). */
   seed?: number;
-  /**
-   * When `true`, persists docs via `mongoose.Model.create`. Requires an
-   * active connection to the harness — see `startMongoHarness()`.
-   * When `false` (default), returns plain objects only.
-   */
   persist?: boolean;
 }
 
@@ -112,19 +69,6 @@ interface FixtureSet {
   invoices: FixtureInvoice[];
 }
 
-/**
- * Build a deterministic fixture tree (tenants → vendors → invoices).
- *
- * Example (in-memory only):
- * ```ts
- * const { tenants, vendors, invoices } = await buildFixtures({ seed: 7 });
- * ```
- *
- * Example (persisted to harness Mongo):
- * ```ts
- * const { tenants } = await buildFixtures({ persist: true });
- * ```
- */
 export async function buildFixtures(
   options: FixtureOptions = {}
 ): Promise<FixtureSet> {
@@ -161,10 +105,6 @@ export async function buildFixtures(
       });
     }
 
-    // Post hierarchy-pivot (#156): every tenant gets a companion
-    // ClientOrganization, and every accounting-leaf row links via
-    // `clientOrgId`. Single-org-per-tenant is the common case for
-    // tests; multi-org coverage goes through `datasetLoader` instead.
     const clientOrg: FixtureClientOrg = {
       _id: deterministicObjectId(`clientOrg:${t}`),
       tenantId: String(tenant._id),
@@ -206,8 +146,6 @@ export async function buildFixtures(
       }
 
       for (let i = 0; i < invoicesPerVendor; i++) {
-        // Integer minor units — the validator on `parsed.totalAmountMinor`
-        // (Invoice.ts) requires `Number.isInteger(value)`.
         const totalAmountMinor = pickInt(rng, 100_00, 5_000_00);
         const invoice: FixtureInvoice = {
           _id: deterministicObjectId(`invoice:${t}:${v}:${i}`),
@@ -249,14 +187,12 @@ export async function buildFixtures(
   return { tenants, clientOrgs, vendors, invoices };
 }
 
-/** Synthetic GSTIN — 15 chars, uppercase alphanumeric. Not Luhn-valid. */
 function synthGstin(rng: () => number): string {
   const stateCode = String(pickInt(rng, 1, 37)).padStart(2, "0");
   const pan = synthPan(rng);
   return `${stateCode}${pan}1Z${pickAlnum(rng)}`;
 }
 
-/** Synthetic PAN — 10-char ABCDE1234F shape. */
 function synthPan(rng: () => number): string {
   const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
   const head = Array.from({ length: 5 }, () =>

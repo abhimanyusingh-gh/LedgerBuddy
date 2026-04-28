@@ -1,31 +1,3 @@
-/**
- * Bake pre-extracted fixtures for the 6 demo-tenant invoices.
- *
- * Runs `InvoiceExtractionPipeline.extract()` (LlamaParse + llama-extract) against
- * each PDF in `dev/sample-invoices/inbox/<name>.pdf`, then writes a structured
- * fixture directory to `dev/sample-invoices/baked/<name-without-ext>/` containing:
- *
- *   - `extraction.json` — the parsed result, OCR blocks, field provenance, line
- *     item provenance, extraction metadata, confidence score/tone, and a map of
- *     per-page preview PNGs (e.g. `{ "1": "preview-page-1.png" }`).
- *   - `preview-page-<N>.png` — the LlamaParse screenshot for each page.
- *
- * Tenant-specific overlay fields (tenantId, status, workflowState, approval,
- * compliance.riskSignals, export, receivedAt) are intentionally stripped — the
- * demo invoice seed applies a scenario overlay on top of the fixture.
- *
- * A quality gate runs after every PDF BEFORE any fixture bytes land on disk. If
- * any one PDF fails any check, the script exits non-zero with a per-PDF failure
- * table and leaves the repo untouched. This catches llama-extract prompt drift
- * loudly (e.g. the `'s Organization` customerName bug surfaced on a live upload).
- *
- * Usage:
- *   LLAMA_PARSE_EXTRACT_ENABLED=true \
- *   LLAMA_CLOUD_API_KEY=... \
- *   ENV=local \
- *   MONGO_URI=mongodb://... \
- *   yarn bake:demo-fixtures
- */
 
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
@@ -73,16 +45,7 @@ interface StagedFixture {
   file: string;
   dirName: string;
   fixture: BakedFixture;
-  /** Decoded preview PNG bytes, keyed by page number as a string. */
   previewBytes: Record<string, Buffer>;
-  /**
-   * True when LlamaParse returned only whole-document OCR blocks (no
-   * token-level layer). Passing demo PDFs emit 67–366 blocks; native-text
-   * PDFs (e.g. FC-Vector_.pdf) emit 2. A heuristic threshold of 5 blocks
-   * distinguishes the two populations with a wide margin. When true, the
-   * bbox-required gate is exempted because per-field bbox emission is
-   * fundamentally impossible for the PDF, not an extraction quality issue.
-   */
   isNativeTextPdf: boolean;
 }
 
@@ -146,20 +109,6 @@ function validateFixture(staged: StagedFixture): QualityFailure[] {
     isNonEmptyString(parsed.customerAddress, 10)
   );
 
-  // `currency` is a document-level inference — llama-extract consistently does
-  // not emit a per-field bbox for it because the glyph ("INR", "₹", "$") tends
-  // to appear in many places per document with no single canonical source
-  // token.
-  //
-  // `totalAmountMinor` is an aggregated computed value on itemized invoices
-  // (line items summed + GST added + discount applied). It typically doesn't
-  // anchor to a single source token the way `invoiceNumber` or `vendorName`
-  // do — per-invoice bbox emission by llama-extract / text-pattern is
-  // inconsistent for aggregates.
-  //
-  // We still require `source` (and therefore presence) for both currency and
-  // totalAmountMinor, but allow their bbox/bboxNormalized to be undefined.
-  // All other key fields must carry a bbox.
   const bboxRequiredFields = ["invoiceNumber", "vendorName", "invoiceDate"] as const;
   const sourceRequiredFields = [...bboxRequiredFields, "currency", "totalAmountMinor"] as const;
 
@@ -185,18 +134,10 @@ function validateFixture(staged: StagedFixture): QualityFailure[] {
     }
   }
 
-  // Native-text PDFs — those where LlamaParse emits only document-level OCR blocks
-  // (typically < 5 blocks total) — cannot anchor fields to bboxes regardless of which
-  // extractor runs (llama-extract or text-pattern fallback), because there's no
-  // token-level OCR layer. This is a fundamental property of the PDF, not an extraction
-  // quality issue. Real-world invoice corpora include native-text PDFs (especially
-  // SaaS/international vendors — Vector, Zoom, etc.), so the demo should handle them
-  // rather than exclude them. The gate still fires if a "normal" scanned PDF drops to
-  // text-pattern without bboxes — that would be a real extraction regression.
   if (!staged.isNativeTextPdf) {
     for (const field of bboxRequiredFields) {
       const entry = fp[field];
-      if (!entry || typeof entry !== "object") continue; // already reported by source loop
+      if (!entry || typeof entry !== "object") continue; 
       const e = entry as { bbox?: unknown; bboxNormalized?: unknown };
       if (e.bbox === undefined && e.bboxNormalized === undefined) {
         failures.push({
@@ -259,10 +200,6 @@ async function bake(): Promise<void> {
   const projectRoot = resolve(backendRoot, "..");
   const inboxDir = join(projectRoot, "dev/sample-invoices/inbox");
   const bakedDir = join(projectRoot, "dev/sample-invoices/baked");
-  // Raw-extraction cache so a gate failure doesn't waste the API call. The
-  // file is always written BEFORE the gate runs so the expensive extraction
-  // is preserved even if the gate rejects the batch. `.local-run/` is
-  // gitignored. A future `--from-cache` replay path is a follow-up.
   const cacheDir = join(backendRoot, ".local-run/bake-cache");
   mkdirSync(cacheDir, { recursive: true });
 
@@ -273,16 +210,8 @@ async function bake(): Promise<void> {
     );
   }
 
-  // Operator override: record gate failures but still write fixtures. Use when
-  // LlamaExtract cannot emit a bbox for a genuinely uncitable field (e.g. a
-  // vendor name that only appears inside a logo/letterhead raster block).
   const skipGate = process.argv.includes("--skip-gate");
 
-  // Operator override: re-bake only a subset of files. Pass `--file X.pdf`
-  // one or more times. Useful after a transient LlamaParse failure on a single
-  // PDF so you don't burn credits re-extracting the rest. Matching files are
-  // still run through the full extract → stage → gate → write pipeline; other
-  // TARGET_PDFS are skipped entirely (no cache replay, no fixture rewrite).
   const fileFilter = new Set<string>();
   for (let i = 0; i < process.argv.length - 1; i++) {
     if (process.argv[i] === "--file") {
@@ -308,7 +237,6 @@ async function bake(): Promise<void> {
   }
 
   const tier = (process.env.LLAMA_PARSE_TIER ?? "agentic") as LlamaParseTier;
-  // Pipeline is only constructed when running live (not in --from-cache replay).
   const pipeline = fromCache
     ? null
     : new InvoiceExtractionPipeline({
@@ -342,10 +270,6 @@ async function bake(): Promise<void> {
     const previewBytes: Record<string, Buffer> = {};
 
     if (fromCache) {
-      // --from-cache replay: load the previously-captured extraction JSON and
-      // sibling preview PNG(s) from backend/.local-run/bake-cache/. No API
-      // calls are made. If either is missing, the baker fails loudly so the
-      // operator knows to run once without --from-cache first.
       const cachedJsonPath = join(cacheDir, `${dirName}.json`);
       const cachedFixture = JSON.parse(readFileSync(cachedJsonPath, "utf-8")) as BakedFixture;
       fixture = cachedFixture;
@@ -358,8 +282,6 @@ async function bake(): Promise<void> {
 
       const extraction = await pipeline!.extract({
         tenantId: toUUID("demo-bake"),
-        // Demo fixture bakery is tenant-wide; compliance enrichment is
-        // a no-op here so triage-mode null clientOrgId is fine.
         clientOrgId: null,
         sourceKey: "demo-bake",
         attachmentName: file,
@@ -369,8 +291,6 @@ async function bake(): Promise<void> {
 
       const parsedRaw = extraction.parseResult.parsed;
       const parsed: Record<string, unknown> = { ...parsedRaw };
-      // Serialize Date -> ISO string so the fixture JSON round-trips cleanly;
-      // the seed converts back to Date when building invoice docs.
       for (const key of ["invoiceDate", "dueDate"] as const) {
         const value = parsed[key];
         if (value instanceof Date) {
@@ -381,7 +301,6 @@ async function bake(): Promise<void> {
       const fieldProvenance = (extraction.extraction?.fieldProvenance ?? {}) as Record<string, unknown>;
       const lineItemProvenance = (extraction.extraction?.lineItemProvenance ?? []) as unknown[];
 
-      // Decode and stage preview bytes per page from the pipeline's data URLs.
       const previewPageImages: Record<string, string> = {};
       for (const image of extraction.ocrPageImages ?? []) {
         const bytes = decodeDataUrl(image.dataUrl);
@@ -420,9 +339,6 @@ async function bake(): Promise<void> {
         previewPageImages
       };
 
-      // Cache the raw extraction (parsed + provenance + meta + preview bytes)
-      // before the gate runs. If the gate fails we still preserve the
-      // API-call output for debugging and for future --from-cache replays.
       try {
         const cachePath = join(cacheDir, `${dirName}.json`);
         writeFileSync(cachePath, `${JSON.stringify(fixture, null, 2)}\n`, "utf-8");
@@ -494,7 +410,6 @@ async function bake(): Promise<void> {
     }
   }
 
-  // All passed (or --skip-gate set) — write fixtures.
   process.stdout.write(
     allFailures.length === 0
       ? "\n=== Quality gate PASSED for all 6 PDFs — writing fixtures\n"

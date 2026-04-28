@@ -29,8 +29,6 @@ export function useScopedQuery<TData, TError = Error>(
   const isInactive = activeClientOrgId === null;
   return useQuery<TData, TError, TData, QueryKey>({
     ...rest,
-    // NIT A: when inactive, drop the query from the cache immediately so devtools
-    // aren't cluttered with `["clientOrg", null, ...]` slots.
     gcTime: isInactive ? 0 : gcTime,
     queryKey: [SCOPED_QUERY_NAMESPACE, activeClientOrgId, ...queryKey],
     queryFn: () => {

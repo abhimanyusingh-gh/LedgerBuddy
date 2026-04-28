@@ -123,10 +123,6 @@ export function TriagePage() {
     return map;
   }, [queue.invoices]);
 
-  // For the GSTIN heuristic the picker needs the full clientOrg gstin, not just
-  // the thin {id, companyName} option. We build a lookup keyed by the first 6
-  // chars of the gstin (state code + first 4 PAN chars) — this is the same
-  // proxy the BE resolveClientOrg uses for partial matches.
   const fullClientOrgsByPrefix = useMemo(
     () => buildClientOrgPrefixMap(adminList.data),
     [adminList.data]

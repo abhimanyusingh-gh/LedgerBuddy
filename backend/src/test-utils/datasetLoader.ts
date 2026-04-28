@@ -1,16 +1,3 @@
-/**
- * Prod-scale sample dataset loader.
- *
- * Loads N tenants × M vendors × K invoices into a harness Mongo for
- * performance benchmarking — notably the INFRA-3 gates: TDS compute
- * p95 < 200ms, payment recording p95 < 500ms (NFR-001/002 in
- * `docs/accounting-payments/IMPLEMENTATION-PLAN-v4.3.md`).
- *
- * `generateDataset({ tenants, vendorsPerTenant, invoicesPerVendor })`
- * streams fixtures via `buildFixtures({ persist: true })` at the
- * caller-specified scale. Uses `insertMany` batching (not `.create`)
- * so large loads finish in seconds.
- */
 
 import { TenantModel } from "@/models/core/Tenant.js";
 import { VendorMasterModel } from "@/models/compliance/VendorMaster.js";
@@ -34,11 +21,6 @@ interface DatasetLoadResult {
   elapsedMs: number;
 }
 
-/**
- * Build + insert a dataset at the requested scale. Uses `insertMany`
- * batches of 500 so a 10k-invoice load completes in a few seconds on
- * a local harness container.
- */
 export async function generateDataset(
   scale: DatasetScale
 ): Promise<DatasetLoadResult> {
@@ -61,9 +43,6 @@ export async function generateDataset(
     { ordered: false }
   );
 
-  // Post hierarchy-pivot (#156): every tenant gets a companion
-  // ClientOrganization — accounting-leaf rows below link through
-  // `clientOrgId`, not `tenantId`.
   await ClientOrganizationModel.insertMany(
     clientOrgs.map((c) => ({
       _id: c._id,

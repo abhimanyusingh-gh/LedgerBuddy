@@ -47,19 +47,6 @@ interface IngestionServiceOptions {
   }) => Promise<void> | void;
   pipeline?: InvoiceExtractionPipeline;
   fileStore?: FileStore;
-  /**
-   * Per-file mailbox-assignment lookup used by the poller-path resolver
-   * (#159). Gmail poller emits files with
-   * `clientOrgId: null`; when this hook is provided the service threads
-   * the matching assignment's `clientOrgIds` through
-   * `resolveClientOrgForIngestion` after extraction (so parsed
-   * `customerGstin` is available). Returning `null` keeps the file in
-   * the PENDING_TRIAGE bucket.
-   *
-   * Resolver-injection by the Gmail-poller adapter is the follow-up;
-   * #181 lands the schema/stamping shape only. Until that adapter wires
-   * this hook, no production caller stamps `sourceMailboxAssignmentId`.
-   */
   mailboxAssignmentResolver?: (file: IngestedFile) => Promise<MailboxAssignmentLike | null>;
 }
 
@@ -197,14 +184,6 @@ export class IngestionService {
           if (newAlert) emittedAlerts.add(newAlert);
           await emitProgress(true, newAlert);
 
-          // Advance the checkpoint regardless of result (CREATED / DUPLICATE
-          // / FAILED). FAILED rows still land in InvoiceModel via
-          // persistFailure -> upsertFromPending, so a re-poll will resolve
-          // them as duplicates by (tenantId, sourceDocumentId) — they are
-          // not silently re-OCR'd. This matches the dedup contract the
-          // deleted filterAlreadyProcessedFiles previously enforced via
-          // a (tenantId, sourceKey, sourceDocumentId) lookup. Skipping the
-          // checkpoint on failure would replay the same file forever.
           if (scopedFile.checkpointValue !== nextMarker) {
             await CheckpointModel.findOneAndUpdate(
               { sourceKey: source.key, tenantId: effectiveTenantId },
@@ -245,20 +224,10 @@ export class IngestionService {
       : undefined;
 
     if (gmailMessageId) {
-      // Gmail message-id is globally unique within a mailbox, so tenantId
-      // alone de-dupes even when the incoming file has clientOrgId: null
-      // (triage) and the existing row had resolved to a specific
-      // clientOrgId. We do not filter by clientOrgId to avoid missing
-      // a dup when the same message is re-polled during mailbox
-      // reassignment.
       const msgDup = await InvoiceModel.findOne({ tenantId: file.tenantId, gmailMessageId }).lean();
       if (msgDup) return { result: INGESTION_FILE_RESULT.DUPLICATE };
     }
 
-    // Pending-lookup and content-duplicate checks stay scoped by
-    // (tenantId, sourceDocumentId) — sourceDocumentId is tenant-unique.
-    // We include clientOrgId when the file already has one, so a
-    // subsequent triage-upgrade re-poll finds its own pending row.
     const pendingFilter: Record<string, unknown> = {
       tenantId: file.tenantId,
       sourceDocumentId: file.sourceDocumentId,
@@ -291,11 +260,6 @@ export class IngestionService {
         mimeType: normalizedMimeType,
       });
 
-      // Per #159: resolve PENDING_TRIAGE files now that we have parsed
-      // customerGstin. Gmail poller emits clientOrgId: null;
-      // when a mailbox-assignment resolver is wired,
-      // run the 3-tier resolver (gstin-match → single-candidate → keep
-      // triage) and upgrade `file.clientOrgId` before persistence.
       if (file.clientOrgId === null && this.mailboxAssignmentResolver) {
         try {
           const assignment = await this.mailboxAssignmentResolver(file);

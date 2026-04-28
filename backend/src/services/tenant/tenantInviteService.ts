@@ -57,7 +57,6 @@ export class TenantInviteService {
       expiresAt
     });
 
-    // Register in Keycloak if not already present; send password setup email
     const alreadyExists = await this.keycloakAdmin.userExists(normalizedEmail);
     if (!alreadyExists) {
       const kcUserId = await this.keycloakAdmin.createUser(normalizedEmail, "", false);

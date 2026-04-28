@@ -65,12 +65,6 @@ export class S3UploadIngestionSource implements IngestionSource {
 
       files.push({
         tenantId: this.tenantId,
-        // Background-polled S3 uploads have no per-object client-org
-        // metadata. The `/jobs/upload` route (which carries an explicit
-        // clientOrgId in the request body) creates the Invoice
-        // synchronously with the verified client-org — it does not
-        // round-trip through this poller. Fall back to triage for the
-        // residual cold-scan path.
         clientOrgId: null,
         workloadTier: this.workloadTier,
         sourceKey: this.key,
@@ -94,7 +88,6 @@ export class S3UploadIngestionSource implements IngestionSource {
     try {
       return await this.fileStore.getObject(key);
     } catch {
-      // Object may have been deleted between list + get; skip gracefully.
       return null;
     }
   }

@@ -18,27 +18,10 @@ interface SeedLocalDemoDataOptions {
   fileStore?: FileStore;
 }
 
-/**
- * Demo `ClientOrganization` for the Mahir / Neelam and Associates CA-firm
- * tenant. Mirrors the customer entity on the baked Sprinto invoice
- * (`INV-FY2526-939`) — Global Innovation Hub Private Limited, Telangana
- * (state-code prefix `36`).
- *
- * Locked decision (#156, 2026-04-24): production tenants do NOT get an
- * auto-created placeholder ClientOrg; they must onboard via the #150 wizard.
- * The demo tenant is the explicit exception so the local stack boots with a
- * fully-wired realm out of the box.
- */
 export const DEMO_CLIENT_ORG_GSTIN = "36AAKCG4810D1ZV";
 const DEMO_CLIENT_ORG_NAME = "Global Innovation Hub Private Limited";
 const DEMO_CLIENT_ORG_STATE = "Telangana";
 
-/**
- * Idempotently seeds the demo tenant's `ClientOrganization`. Reuses the
- * existing doc when a `{ tenantId, gstin }` row already exists. `companyGuid`
- * + `detectedVersion` are deliberately left null at seed time — both are
- * populated post-Tally probe in the live flow.
- */
 export async function seedDemoClientOrganization(
   tenantId: string
 ): Promise<Types.ObjectId> {
@@ -119,7 +102,6 @@ export async function seedLocalDemoData(
       { upsert: true, new: true, setDefaultsOnInsert: true }
     );
 
-    // Seed Keycloak (idempotent: create if missing, always sync password)
     try {
       const existing = await keycloakAdmin.findUserByEmail(user.email);
       if (!existing) {
@@ -138,10 +120,6 @@ export async function seedLocalDemoData(
   await seedTdsRates();
 
   for (const tenant of config.tenants) {
-    // Seed GL codes for every client-org the tenant owns. A tenant that
-    // hasn't completed onboarding may have zero client-orgs — skip
-    // silently in that case; the codes will be seeded when the first
-    // client-org is created.
     const clientOrgs = await ClientOrganizationModel.find(
       { tenantId: tenant.id },
       { _id: 1 }
@@ -156,10 +134,6 @@ export async function seedLocalDemoData(
   if (demoTenant) {
     const mahirUser = await UserModel.findOne({ email: "mahir.n@globalhealthx.co" }).lean();
     if (mahirUser) {
-      // Demo-tenant exception to the "no auto-create ClientOrg" locked
-      // decision — the local stack ships with one realm fully wired so the
-      // baked Sprinto invoice (INV-FY2526-939, customer = Global Innovation
-      // Hub) lands in a coherent {tenantId, clientOrgId} pair.
       const demoClientOrgId = await seedDemoClientOrganization(DEMO_TENANT_ID);
       await seedDefaultGlCodes(DEMO_TENANT_ID, demoClientOrgId);
       await seedDemoTenantConfig(DEMO_TENANT_ID, demoClientOrgId, String(mahirUser._id));

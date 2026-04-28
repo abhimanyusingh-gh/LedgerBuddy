@@ -5,11 +5,6 @@ import type { ClientOrgsAdminService } from "@/services/tenant/clientOrgsAdminSe
 import { isRecord, isString } from "@/utils/validation.js";
 import { HttpError } from "@/errors/HttpError.js";
 
-/**
- * Tenant-scoped — mounts under `tenantAdminRouter` (no `:clientOrgId`
- * segment), since these endpoints are themselves the source of truth
- * the FE realm-switcher reads from.
- */
 export function createClientOrgsRouter(service: ClientOrgsAdminService) {
   const router = Router();
 
@@ -48,9 +43,6 @@ export function createClientOrgsRouter(service: ClientOrgsAdminService) {
       const updated = await service.update({
         tenantId: getAuth(req).tenantId,
         clientOrgId: req.params.id,
-        // GSTIN immutability is enforced inside the service so SDK / job
-        // callers also get the same error contract; we just pass through
-        // to let it raise `client_org_gstin_immutable` on attempted edit.
         gstin: "gstin" in body ? body.gstin : undefined,
         companyName: isString(body.companyName) ? body.companyName : undefined,
         stateName: isString(body.stateName) ? body.stateName : undefined,

@@ -424,16 +424,7 @@ interface TenantAppShellProps {
 
 function TenantAppShell({ activeTab, activeStandaloneRoute, onTabChange, canViewTenantConfig, canViewConnections, topNav, subNav, children }: TenantAppShellProps) {
   const { migration } = useTabHashRouting({ activeTab, onTabChange });
-  // Triage list is the documented composite-key exception (#156): tenant-scoped,
-  // NOT realm-scoped — we read it via plain `useQuery` so realm-switching does
-  // not refetch and the badge stays consistent across realms.
   const { total: triageCount } = useTriageQueue();
-  // Action-Required queue IS realm-scoped (#141): the count partitions by
-  // {tenantId, clientOrgId} and re-fetches on realm switch via `useScopedQuery`.
-  // Same hook drives `<ActionRequiredTrigger>` in the topnav — react-query
-  // dedupes by key so this is a single fetch with two consumers.
-  // The hook returns `null` when no realm is active; the sidebar treats
-  // null as "unknown" (badge hidden), so we forward it as-is.
   const { totalCount: actionRequiredCount } = useActionRequiredQueue();
   const navigateToStandaloneRoute = useCallback((route: StandaloneHashRoute) => {
     window.location.hash = STANDALONE_HASH_PATH[route];

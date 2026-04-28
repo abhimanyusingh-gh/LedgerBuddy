@@ -11,23 +11,7 @@ import { HttpError } from "@/errors/HttpError.js";
 const RECENT_INGESTIONS_DEFAULT_LIMIT = 50;
 const RECENT_INGESTIONS_MAX_LIMIT = 100;
 
-/**
- * Admin CRUD service for `TenantMailboxAssignment` (#174). Manages the
- * post-pivot `clientOrgIds[]` shape introduced in #159 — the legacy
- * `assignedTo` user-mapping field on the same document is owned by
- * `tenantAdminService` and must NOT be touched here. Per #167, every
- * `clientOrgIds` element must belong to the assignment's `tenantId`;
- * we re-check at every write via a single batched `ClientOrganization`
- * lookup even though the FE picker sources from a tenant-scoped
- * endpoint (defence-in-depth — schema only enforces `length >= 1`).
- */
 export class MailboxAssignmentsAdminService {
-  /**
-   * List the tenant's mailbox assignments + their integration polling
-   * status, sorted by integration `emailAddress` ascending. The
-   * polling/status fields are joined from the parent `TenantIntegration`
-   * row so the FE doesn't need a second round-trip.
-   */
   async list(tenantId: string) {
     const assignments = await TenantMailboxAssignmentModel.find({ tenantId }).lean();
     if (assignments.length === 0) return [];
@@ -71,17 +55,6 @@ export class MailboxAssignmentsAdminService {
     return items;
   }
 
-  /**
-   * List the tenant's integrations that are NOT already attached to a
-   * mailbox assignment. Powers the FE Add-mailbox picker (#191) — feeding
-   * a picker the assigned set lets the user pick a duplicate, which the
-   * unique index `(tenantId, integrationId, assignedTo)` then rejects with
-   * a 409 surfaced as a generic error. Pre-filtering at list time keeps
-   * the picker honest. Two-query implementation (fetch tenant integrations
-   * + fetch tenant assignment integrationIds) — sufficient for the
-   * expected per-tenant cardinality (low-tens of integrations); revisit
-   * with an aggregation if cardinality grows materially.
-   */
   async listAvailableIntegrations(tenantId: string) {
     const [integrations, assignments] = await Promise.all([
       TenantIntegrationModel.find({ tenantId })
@@ -124,10 +97,6 @@ export class MailboxAssignmentsAdminService {
         tenantId: input.tenantId,
         integrationId: integrationOid,
         clientOrgIds: validatedIds,
-        // Legacy `assignedTo` field is required by the schema (predates
-        // the #159 pivot). Default to the `ALL` sentinel — the new admin
-        // surface does not steer the user-mapping concern; that lives in
-        // the legacy routes at tenantAdmin.ts.
         assignedTo: input.assignedTo?.trim() || MAILBOX_ASSIGNED_TO.ALL
       });
       return this.serialize(created.toObject(), integration);
@@ -191,18 +160,6 @@ export class MailboxAssignmentsAdminService {
     }
   }
 
-  /**
-   * Recent invoices stamped with this mailbox assignment as their
-   * source (#181). Filters by `tenantId` (defence in depth) +
-   * `sourceMailboxAssignmentId` (precise attribution) + `createdAt`.
-   * Triage invoices stamped with the assignment ID are included;
-   * pre-cutover invoices (no `sourceMailboxAssignmentId`) are not
-   * surfaced — backfill is intentionally out of scope per the issue.
-   *
-   * `limit` is caller-controlled (default 50, capped at 100); the
-   * applied limit is echoed back as `truncatedAt` so the FE can render
-   * "showing first N of total".
-   */
   async recentIngestions(input: {
     tenantId: string;
     assignmentId: string;
@@ -272,12 +229,6 @@ export class MailboxAssignmentsAdminService {
     return Math.min(Math.floor(raw), RECENT_INGESTIONS_MAX_LIMIT);
   }
 
-  /**
-   * Validate that every supplied id is (a) a valid ObjectId, (b) unique
-   * within the array, and (c) owned by the calling tenant. Single
-   * batched `ClientOrganization` lookup — was per-id N+1 in the
-   * original cut.
-   */
   private async validateClientOrgIds(
     tenantId: string,
     clientOrgIds: unknown

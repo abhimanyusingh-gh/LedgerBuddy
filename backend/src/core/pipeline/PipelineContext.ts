@@ -4,13 +4,6 @@ import type { UUID } from "@/types/uuid.js";
 
 export interface PipelineInput {
   tenantId: UUID;
-  /**
-   * Resolved client-org for this extraction (#156/#159). Null only when
-   * the caller is running in PENDING_TRIAGE mode (Gmail/folder poll with
-   * no deterministic resolution). Non-triage extractions MUST carry a
-   * concrete clientOrgId so accounting-leaf queries in the compliance
-   * enricher stay scoped.
-   */
   clientOrgId: Types.ObjectId | string | null;
   fileName: string;
   mimeType: DocumentMimeType;

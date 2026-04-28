@@ -1,10 +1,5 @@
 import { buildTenantPathUrl } from "@/api/urls/pathBuilder";
 
-// Tenant administrative routes — all mounted under `tenantAdminRouter` in
-// `app.ts` (path `/api/tenants/:tenantId/...`). Tenant-scoped only; no
-// clientOrgId in the URL. `tenantAdminRouter` omits
-// `requireTenantSetupCompleted` so onboarding-time calls (e.g.
-// `/onboarding/complete`) work BEFORE setup flips to completed.
 export const tenantUrls = {
   usersList: (): string => buildTenantPathUrl("/admin/users"),
   usersInvite: (): string => buildTenantPathUrl("/admin/users/invite"),

@@ -12,7 +12,6 @@ export function createAnalyticsRouter() {
     try {
       const authContext = getAuth(req);
 
-      // admin analytics — optional clientOrgId per #162; tenant-scoped mount per #222.
       const scope = await resolveOptionalClientOrgId(req);
       if (!scope.valid) {
         res.status(400).json({ error: scope.error, message: scope.message });

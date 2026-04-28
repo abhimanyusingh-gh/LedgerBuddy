@@ -32,10 +32,6 @@ async function run() {
     );
   }
 
-  // Demo-tenant exception (#156, 2026-04-24): the local stack auto-creates the
-  // Global Innovation Hub ClientOrg so the baked Sprinto invoice
-  // INV-FY2526-939 lands in a coherent {tenantId, clientOrgId} pair.
-  // Production tenants still onboard via the #150 wizard.
   const demoClientOrgId = await seedDemoClientOrganization(DEMO_TENANT_ID);
   await seedDefaultGlCodes(DEMO_TENANT_ID, demoClientOrgId);
   console.log(`Demo ClientOrg ready: GSTIN ${DEMO_CLIENT_ORG_GSTIN} → ${demoClientOrgId.toString()}.`);
@@ -43,8 +39,6 @@ async function run() {
   await seedDemoTenantConfig(DEMO_TENANT_ID, demoClientOrgId, String(mahirUser._id));
 
   if (env.LOCAL_DEMO_INVOICES) {
-    // Wire a FileStore so preview PNGs from the baked fixtures land in the
-    // same S3/MinIO bucket the app reads from at /api/invoices/:id/page/:n.
     let fileStore;
     try {
       fileStore = resolveFileStore(loadRuntimeManifest());

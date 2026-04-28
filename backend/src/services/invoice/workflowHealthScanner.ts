@@ -148,8 +148,6 @@ export async function scanWorkflowForTenant(
 
 export async function scanAllWorkflows(): Promise<WorkflowHealthReport> {
   const workflows = await ApprovalWorkflowModel.find({}).lean();
-  // Post hierarchy-pivot: workflows key by `clientOrgId`, tenant is
-  // resolved via `ClientOrganization.tenantId`.
   const clientOrgIds = workflows.map((w) => w.clientOrgId);
   const clientOrgToTenant = await findTenantIdsByClientOrgIds(clientOrgIds);
   const uniqueTenantIds = Array.from(new Set(clientOrgToTenant.values()));

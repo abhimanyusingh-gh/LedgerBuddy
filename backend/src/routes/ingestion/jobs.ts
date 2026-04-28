@@ -111,9 +111,6 @@ export function createJobsRouter(
         return;
       }
 
-      // Post #198 cutover: clientOrgId is supplied by the path
-      // (`/clientOrgs/:clientOrgId/...`) and ownership-validated upstream by
-      // `requirePathClientOrgOwnership`, which stamps `req.activeClientOrgId`.
       const ownedClientOrgId = req.activeClientOrgId;
       if (!ownedClientOrgId) {
         res.status(400).json({ message: "clientOrgId is required in the upload path." });
@@ -219,9 +216,6 @@ export function createJobsRouter(
         return;
       }
 
-      // Post #198 cutover: clientOrgId is supplied by the path
-      // (`/clientOrgs/:clientOrgId/...`) and ownership-validated upstream by
-      // `requirePathClientOrgOwnership`, which stamps `req.activeClientOrgId`.
       const ownedClientOrgId = req.activeClientOrgId;
       if (!ownedClientOrgId) {
         res.status(400).json({ message: "clientOrgId is required in the upload path." });

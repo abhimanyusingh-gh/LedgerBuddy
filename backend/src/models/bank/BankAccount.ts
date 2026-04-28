@@ -13,10 +13,8 @@ const bankAccountSchema = new Schema(
     consentArtefact: { type: String },
     aaAddress: { type: String, required: true },
     displayName: { type: String },
-    // Indian bank account number — length varies per bank, no format validation.
     accountNumber: { type: String, required: true },
     bankName: { type: String, required: true },
-    // Indian IFSC: 4 letters + '0' + 6 alphanumerics (11 chars total).
     ifsc: {
       type: String,
       required: true,

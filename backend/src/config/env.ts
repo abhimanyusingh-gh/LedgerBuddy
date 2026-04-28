@@ -3,10 +3,6 @@ import { z } from "zod";
 
 dotenv.config({ quiet: true });
 
-// Capture whether the operator explicitly set FIELD_VERIFIER_PROVIDER. We need
-// this before zod applies its default so we can auto-coerce to "none" when
-// OCR_PROVIDER=llamaparse (see below) while still respecting an explicit
-// opt-in like FIELD_VERIFIER_PROVIDER=http.
 const rawFieldVerifierProvider = process.env.FIELD_VERIFIER_PROVIDER?.trim();
 
 const APP_ENVIRONMENTS = ["local", "stg", "prod"] as const;
@@ -288,9 +284,6 @@ if ((values.ENV === "stg" || values.ENV === "prod") && values.OIDC_CLIENT_SECRET
   process.exit(1);
 }
 
-// Fail-fast: do not silently fall back to a different OCR provider when the
-// LlamaParse key is missing. This guard fires before any provider is
-// constructed so there is no ambiguity about which pipeline is running.
 if (values.OCR_PROVIDER === "llamaparse" && !values.LLAMA_CLOUD_API_KEY?.trim()) {
   // eslint-disable-next-line no-console
   console.error(
@@ -300,13 +293,6 @@ if (values.OCR_PROVIDER === "llamaparse" && !values.LLAMA_CLOUD_API_KEY?.trim())
   process.exit(1);
 }
 
-// Auto-coerce FIELD_VERIFIER_PROVIDER to "none" when OCR_PROVIDER=llamaparse
-// and the operator has not set it explicitly. LlamaExtract emits field-level
-// provenance (bboxes + confidence) via __extract_provenance__, so the HTTP
-// SLM field verifier is redundant on that pipeline. This makes `yarn docker`
-// work out of the box without also running `yarn slm` on the host.
-// An explicit `FIELD_VERIFIER_PROVIDER=http` is preserved — operators who
-// want the extra SLM verification can still opt in.
 if (values.OCR_PROVIDER === "llamaparse" && !rawFieldVerifierProvider) {
   values.FIELD_VERIFIER_PROVIDER = "none";
   // eslint-disable-next-line no-console

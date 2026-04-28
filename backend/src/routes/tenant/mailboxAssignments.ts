@@ -5,12 +5,6 @@ import type { MailboxAssignmentsAdminService } from "@/services/tenant/mailboxAs
 import { isRecord, isString } from "@/utils/validation.js";
 import { HttpError } from "@/errors/HttpError.js";
 
-/**
- * Admin CRUD for `TenantMailboxAssignment.clientOrgIds[]` (#174).
- * Tenant-scoped admin surface; the legacy `assignedTo` user-mapping
- * routes at `tenantAdmin.ts:90-129` continue to live alongside this
- * router and operate on a different field of the same document.
- */
 export function createMailboxAssignmentsRouter(service: MailboxAssignmentsAdminService) {
   const router = Router();
 

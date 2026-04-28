@@ -19,24 +19,10 @@ import type { ConfidenceTone } from "@/types/confidence.js";
 import type { FileStore } from "@/core/interfaces/FileStore.js";
 import { logger } from "@/utils/logger.js";
 
-/**
- * Demo-seed constants.
- *
- * `DEMO_SOURCE_KEY` doubles as the idempotency marker for invoice docs (every
- * seeded invoice carries `sourceKey: "demo-seed"`) and `DEMO_EXPORT_SYSTEM`
- * serves the same purpose for `ExportBatch` rows. Notification events are
- * tagged via a `reason: "demo-seed:<type>"` prefix.
- */
 const DEMO_SOURCE_KEY = "demo-seed";
 const DEMO_EXPORT_SYSTEM = "demo-seed";
 const DEMO_NOTIFICATION_REASON_PREFIX = "demo-seed:";
 
-/**
- * Filenames of the 6 demo invoices whose fixtures must exist under
- * `dev/sample-invoices/baked/<dir>/extraction.json` for the seed to run.
- * Kept in sync with the `TARGET_PDFS` list in `bakeDemoFixtures.ts` and the
- * scenario rows in `buildScenarioRows` below.
- */
 const DEMO_INVOICE_ATTACHMENT_NAMES = [
   "INV-FY2526-939.pdf",
   "FC-Airtel.pdf",
@@ -89,8 +75,6 @@ async function resolveTenantUserIds(): Promise<{
 }
 
 async function ensureSeedVendors(tenantId: string): Promise<void> {
-  // Confirm the two vendors the risk/export scenarios rely on exist. Other
-  // fixture invoices don't require a pre-seeded VendorMaster row.
   const sprinto = await VendorMasterModel.findOne({
     tenantId,
     vendorFingerprint: "sprinto-technology-private-limited"
@@ -111,13 +95,6 @@ async function ensureSeedVendors(tenantId: string): Promise<void> {
   }
 }
 
-/**
- * Fixture shape as written by `bakeDemoFixtures.ts`. Tenant-specific overlay
- * fields (tenantId, status, workflowState, approval, compliance, export,
- * receivedAt) are NOT part of the fixture — the scenario overlay below adds
- * them. Dates are stored as ISO strings for JSON round-trip fidelity and are
- * converted back to Date on load.
- */
 interface BakedFixture {
   sourceFilename: string;
   mimeType: "application/pdf";
@@ -135,25 +112,7 @@ function fixtureDirFor(attachmentName: string): string {
   return attachmentName.replace(/\.pdf$/i, "").trim();
 }
 
-/**
- * Resolve `dev/sample-invoices/baked/` relative to the repo root regardless
- * of whether the seed is invoked with cwd=backend (yarn seed:demo-tenant),
- * cwd=<repo-root> (orchestration scripts), or via ts-jest (CommonJS).
- *
- * We anchor the path to this source file's on-disk location and walk up to
- * the repo root. Under CommonJS (ts-jest) the Node global `__dirname` is
- * defined; under native ESM (tsx / node --experimental-vm-modules) we fall
- * back to `import.meta.url`. Both yield the same absolute path. Jest can
- * still mock `existsSync`/`readFileSync` against the resulting absolute
- * path because the mock matches on the path suffix.
- */
 function bakedFixturesDir(): string {
-  // Resolve the baked-fixtures directory independently of cwd so the seed
-  // works from the backend directory (yarn seed:demo-tenant) as well as the
-  // repo root (orchestration). Strategy: start from cwd and walk upward
-  // until we find a parent that contains `dev/sample-invoices/baked`; if
-  // none, fall back to `<cwd>/dev/sample-invoices/baked` so the caller gets
-  // a clear "missing fixtures" log pointing at their own tree.
   const target = join("dev", "sample-invoices", "baked");
   let cursor = process.cwd();
   for (let depth = 0; depth < 6; depth++) {
@@ -170,7 +129,6 @@ function loadFixture(attachmentName: string): BakedFixture {
   const dir = fixtureDirFor(attachmentName);
   const fixturePath = join(bakedFixturesDir(), dir, "extraction.json");
   const raw = JSON.parse(readFileSync(fixturePath, "utf-8")) as BakedFixture;
-  // Revive Date fields that live inside parsed.
   for (const key of ["invoiceDate", "dueDate"] as const) {
     const value = raw.parsed[key];
     if (typeof value === "string" && value.trim().length > 0) {
@@ -217,7 +175,6 @@ function buildScenarioRows(params: {
   const safeWorkflowId = workflowId ?? "demo-workflow";
 
   return [
-    // #1 — EXPORTED, full 4-step approval, export.batchId references seeded batch
     {
       attachmentName: "INV-FY2526-939.pdf",
       status: INVOICE_STATUS.EXPORTED,
@@ -248,7 +205,6 @@ function buildScenarioRows(params: {
       }
     },
 
-    // #2 — APPROVED, 1-step workflow finished, no export
     {
       attachmentName: "FC-Airtel.pdf",
       status: INVOICE_STATUS.APPROVED,
@@ -270,9 +226,6 @@ function buildScenarioRows(params: {
       }
     },
 
-    // #3 — AWAITING_APPROVAL at step 2 (compliance sign-off pending;
-    // seed places the invoice at step 2 regardless of the fixture's extracted
-    // amount — workflow rules govern auto-advancement, not placement).
     {
       attachmentName: "FC-Vector_.pdf",
       status: INVOICE_STATUS.AWAITING_APPROVAL,
@@ -287,7 +240,6 @@ function buildScenarioRows(params: {
       }
     },
 
-    // #4 — NEEDS_REVIEW with two risk signals (MSME + above-expected), no workflow state
     {
       attachmentName: "FC-Focus_Bills.pdf",
       status: INVOICE_STATUS.NEEDS_REVIEW,
@@ -312,14 +264,12 @@ function buildScenarioRows(params: {
       ]
     },
 
-    // #5 — PARSED, fresh, nothing pending
     {
       attachmentName: "DV-Robu IN.pdf",
       status: INVOICE_STATUS.PARSED,
       receivedAt: daysAgo(1)
     },
 
-    // #6 — AWAITING_APPROVAL but rejected at step 1
     {
       attachmentName: "FC-G4S Facility_.pdf",
       status: INVOICE_STATUS.AWAITING_APPROVAL,
@@ -354,8 +304,6 @@ async function uploadPreviewsForInvoice(
 
   for (const page of pages) {
     const key = `demo-seed/${sourceDocumentId}/preview-page-${page}.png`;
-    // Overwrite semantics — putObject replaces any prior seeded artifact at
-    // the same key, so re-runs remain idempotent without an explicit delete.
     const bytes = readPreviewBytes(attachmentName, page);
     const ref = await deps.fileStore.putObject({
       key,
@@ -413,12 +361,6 @@ function toInvoiceDoc(
     metadata.previewPageImages = JSON.stringify(previewKeyMap);
   }
 
-  // Mongoose Map keys reject `.` because it collides with path syntax, so
-  // the live ingestion pipeline (see services/ingestion/provenance.ts)
-  // encodes dotted nested field keys (e.g. `gst.cessMinor`) to `__dot__`
-  // before storage. The baked fixture retains the raw dotted keys so the
-  // JSON reads naturally on disk; we apply the same encoding here at seed
-  // time to match ingestion parity.
   const encodeDot = (key: string): string => key.replace(/\./g, "__dot__");
   const encodedFieldProvenance = Object.fromEntries(
     Object.entries(fixture.fieldProvenance).map(([k, v]) => [encodeDot(k), v])
@@ -469,34 +411,6 @@ interface SeedDemoInvoicesOptions {
   fileStore?: FileStore;
 }
 
-/**
- * Seed a deterministic set of demo invoices + 1 export batch + 3 mailbox
- * notification events for the Neelam and Associates demo tenant.
- *
- * Every seeded invoice + the seeded export batch belong to the same
- * `clientOrgId` (Global Innovation Hub Private Limited) — the realm that
- * matches the customer entity on the baked Sprinto invoice. Per the Part-2
- * locked decisions, accounting-leaf docs require both `{tenantId, clientOrgId}`
- * — the demo seed is the only path that auto-creates a ClientOrg, and the
- * caller passes its `_id` here.
- *
- * Parsed invoice content, OCR blocks, field provenance, and preview-page PNGs
- * come from pre-baked fixtures in `dev/sample-invoices/baked/<dir>/`, captured
- * once via `yarn bake:demo-fixtures`. The scenario overlay (status, workflow,
- * approval, risk signals, export) is applied per row.
- *
- * Fixture-absent behavior: if any of the 6 expected `extraction.json` files
- * is missing, this function logs a warning and returns early without throwing
- * and without partially seeding. This keeps the backend boot path healthy on
- * fresh checkouts where baked fixtures haven't been generated yet. Running
- * `yarn bake:demo-fixtures` with `LLAMA_CLOUD_API_KEY` set is a one-time dev
- * step — the generated artifacts are committed and survive between deploys.
- *
- * Idempotent: every insert is preceded by a scoped deleteMany keyed on the
- * demo-seed markers (`sourceKey` for invoices, `system` for export batches,
- * `reason: /^demo-seed:/` for notification events), so re-running leaves the
- * tenant in an identical state. Preview PNGs overwrite on put.
- */
 export async function seedDemoInvoices(
   tenantId: string,
   clientOrgId: Types.ObjectId,
@@ -504,9 +418,6 @@ export async function seedDemoInvoices(
 ): Promise<void> {
   logger.info("demo.seed.invoices.start", { tenantId, clientOrgId: String(clientOrgId) });
 
-  // Precondition: all 6 baked fixtures must exist on disk. If any are missing
-  // we skip silently (with a warning) rather than throw, so the backend can
-  // boot cleanly on fresh checkouts before `yarn bake:demo-fixtures` has run.
   const missing: string[] = [];
   for (const name of DEMO_INVOICE_ATTACHMENT_NAMES) {
     const fixturePath = join(bakedFixturesDir(), fixtureDirFor(name), "extraction.json");

@@ -62,7 +62,6 @@ export function createBankWebhooksRouter(bankService: IBankConnectionService) {
     }
   });
 
-  // TODO: Add rate limiting to webhook endpoints (e.g. express-rate-limit) to prevent abuse (H6)
   router.post("/bank/consent-notify", verifyWebhookSignature, async (req, res) => {
     try {
       await bankService.handleConsentNotify(req.body);

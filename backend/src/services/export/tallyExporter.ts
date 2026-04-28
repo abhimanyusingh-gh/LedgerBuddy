@@ -56,7 +56,6 @@ async function postWithRetry(
       throw error;
     }
   }
-  // Unreachable, but satisfies TypeScript
   throw new Error("postWithRetry: exhausted retries");
 }
 
@@ -77,8 +76,6 @@ export class TallyExporter implements AccountingExporter {
       ? await this.resolveEffectiveConfig(tenantId)
       : this.config;
 
-    // Post-hierarchy-pivot: detected-version logging is per-client-org.
-    // Log at most once per distinct client-org in the batch.
     const loggedClientOrgIds = new Set<string>();
     for (const invoice of invoices) {
       if (!invoice.clientOrgId) continue;
@@ -108,12 +105,6 @@ export class TallyExporter implements AccountingExporter {
           continue;
         }
 
-        // Post-hierarchy-pivot (#156/#158): the voucher GUID is rooted
-        // on `clientOrgId` rather than `tenantId`, so the decision
-        // resolves off the invoice's own `clientOrgId`. Triage-state
-        // invoices (#159) carry `clientOrgId: null` and are filtered
-        // out of export batches upstream; skip re-export decisions for
-        // any residual null case.
         const decision = invoice.clientOrgId
           ? await resolveReExportDecision({
               clientOrgId: String(invoice.clientOrgId),
@@ -265,10 +256,6 @@ export class TallyExporter implements AccountingExporter {
       try {
         inputs.push(buildVoucherInput(config, invoice, invoiceId, resolvedAmount));
       } catch (error) {
-        // Currently the only typed throw from buildVoucherInput is
-        // `MissingVendorStateError`; treat any construction failure as a
-        // skip rather than aborting the whole file so the operator gets a
-        // partial export plus a clear per-invoice diagnostic.
         if (error instanceof MissingVendorStateError) {
           skippedItems.push({ invoiceId, success: false, error: error.message });
           continue;
@@ -332,11 +319,6 @@ function buildVoucherInput(
   const vendorGstin = invoice.parsed?.vendorGstin ?? invoice.parsed?.gst?.gstin ?? null;
   const partyStateName = deriveVendorState(vendorGstin, invoice.parsed?.vendorAddress ?? null);
   if (!partyStateName) {
-    // PLACEOFSUPPLY emission needs a non-null party state to resolve the
-    // same-state vs cross-state decision; emitting an XML voucher without
-    // it would silently ship an invalid Tally import. Fail the invoice at
-    // construction with a typed error so the caller surfaces a clear
-    // diagnostic and the operator can correct the vendor GSTIN/address.
     throw new MissingVendorStateError(invoiceId, invoice.parsed?.vendorName ?? null);
   }
 

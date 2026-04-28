@@ -11,14 +11,6 @@ function wrap(fn: AsyncHandler): AsyncHandler {
   return (req, res, next) => fn(req, res, next).catch(next);
 }
 
-/**
- * Tenant-scoped only: these routes mount under `tenantRouter` (NOT
- * `clientOrgRouter`) because PENDING_TRIAGE invoices carry
- * `clientOrgId: null` (the documented composite-key exception). The FE
- * path dispatcher mirrors this with a tenant-scoped bypass entry for
- * `/invoices/triage` plus suffix bypasses for `/assign-client-org` and
- * `/reject`.
- */
 export function createTriageRouter(service: TriageService) {
   const router = Router();
   router.use(requireAuth);

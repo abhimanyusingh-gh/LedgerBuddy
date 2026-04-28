@@ -41,7 +41,6 @@ const ocrBlockSchema = new Schema(
         message: "ocrBlocks.bboxModel must contain exactly four ordered numeric values in 0-999 range when provided."
       }
     },
-    // legacy — no longer populated (server-side per-block crop baking removed)
     cropPath: { type: String },
     blockType: { type: String }
   },
@@ -145,21 +144,7 @@ const invoiceExportSchema = new Schema(
 
 const invoiceSchema = new Schema(
   {
-    /**
-     * Owning tenant. Always required — the mailbox assignment / upload
-     * route resolves tenant ownership before the invoice is persisted,
-     * even in PENDING_TRIAGE where `clientOrgId` is deferred. Together
-     * with `clientOrgId` it forms the composite access-control key; see
-     * #156 for the invariant contract.
-     */
     tenantId: { type: String, required: true },
-    /**
-     * Owning client-org. Conditionally required (#159): null is only
-     * permitted when `status === PENDING_TRIAGE` — the polled-ingestion
-     * triage state in which a human operator assigns the client-org via
-     * UI before the invoice progresses. Every non-triage path must
-     * resolve a `clientOrgId` up-front.
-     */
     clientOrgId: {
       type: Schema.Types.ObjectId,
       ref: "ClientOrganization",
@@ -441,9 +426,6 @@ invoiceSchema.index(
   },
   {
     unique: true,
-    // Triage-state docs carry `clientOrgId: null` (#159) — exclude them
-    // from the uniqueness constraint; once triage assigns the client-org
-    // the doc re-enters the index naturally.
     partialFilterExpression: { clientOrgId: { $type: "objectId" } }
   }
 );
@@ -458,21 +440,12 @@ invoiceSchema.index({ clientOrgId: 1, createdAt: 1 });
 invoiceSchema.index({ clientOrgId: 1, "approval.approvedAt": 1 });
 invoiceSchema.index({ clientOrgId: 1, "export.exportedAt": 1 });
 invoiceSchema.index({ clientOrgId: 1, "parsed.vendorName": 1, status: 1 });
-// Reconciliation candidate fetch: filter by client-org, status, amount range.
 invoiceSchema.index({ clientOrgId: 1, status: 1, "parsed.totalAmountMinor": 1 });
-// Sparse GSTIN-filtered index for reconciliation.
 invoiceSchema.index({ clientOrgId: 1, "parsed.gst.gstin": 1 }, { sparse: true });
-// Triage queue index — scans the triage bucket per tenant via the
-// mailbox assignment's own `tenantId`; this index supports "all triage
-// invoices across my client-orgs" by status alone.
 invoiceSchema.index(
   { status: 1, createdAt: 1 },
   { partialFilterExpression: { status: INVOICE_STATUS.PENDING_TRIAGE } }
 );
-// Recent-ingestions report (#181) filters by (tenantId,
-// sourceMailboxAssignmentId, createdAt) with no clientOrgId predicate;
-// keep the leading keys aligned with the query so the planner picks
-// IXSCAN. Partial-filter restricts the index to stamped rows only.
 invoiceSchema.index(
   { tenantId: 1, sourceMailboxAssignmentId: 1, createdAt: -1 },
   { partialFilterExpression: { sourceMailboxAssignmentId: { $type: "objectId" } } }

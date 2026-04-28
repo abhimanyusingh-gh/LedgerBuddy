@@ -5,11 +5,6 @@ import { TALLY_ACTION, type TallyAction } from "@/services/export/tallyExporter/
 import { deriveVendorState } from "@/constants/gstinStateCodes.js";
 
 interface VoucherGuidInputs {
-  /**
-   * Opaque client-org ObjectId string (#158). Rooted on `clientOrgId`
-   * (not `tenantId`) so the voucher GUID remains stable across any
-   * GSTIN re-registration on the `ClientOrganization` document.
-   */
   clientOrgId: string;
   invoiceId: string;
   exportVersion: number;
@@ -33,15 +28,6 @@ export class F12OverwriteNotVerifiedError extends Error {
   }
 }
 
-/**
- * Thrown when `ClientOrganizationModel.findById(clientOrgId)` returns `null` during
- * re-export resolution. This is a data-integrity violation: the Invoice pre-save
- * invariant hook prevents creation of an Invoice with an unresolvable `clientOrgId`,
- * so hitting this path means a `ClientOrganization` was deleted out from under a
- * surviving Invoice (i.e. a delete that escaped FK checks). We surface it loudly
- * rather than silently no-op'ing PLACEOFSUPPLY emission so the orphan reference
- * gets repaired upstream.
- */
 export class ClientOrganizationNotFoundError extends Error {
   readonly code = "TALLY_CLIENT_ORG_NOT_FOUND";
   constructor(readonly clientOrgId: string) {
@@ -53,15 +39,6 @@ export class ClientOrganizationNotFoundError extends Error {
   }
 }
 
-/**
- * Thrown by `buildVoucherInput` when neither the vendor's GSTIN nor address
- * yields a derivable party state via `deriveVendorState`. PLACEOFSUPPLY
- * emission requires a non-null party state to compute the same-state vs
- * cross-state decision; emitting an XML voucher without it produces an
- * invalid Tally import. Surface the failure at construction so the invoice
- * is marked failed with a clear diagnostic instead of silently shipping a
- * malformed document downstream.
- */
 export class MissingVendorStateError extends Error {
   readonly code = "TALLY_MISSING_VENDOR_STATE";
   constructor(readonly invoiceId: string, readonly vendorName: string | null) {
@@ -124,11 +101,6 @@ export async function resolveReExportDecision(params: {
   const company = await ClientOrganizationModel.findById(clientOrgId).lean();
 
   if (!company) {
-    // Data-integrity violation: the Invoice pre-save invariant hook prevents
-    // creation of an Invoice whose clientOrgId does not resolve, so a null here
-    // means the ClientOrganization was deleted out from under a surviving
-    // Invoice (a delete that escaped FK checks). Throw rather than silently
-    // no-op'ing PLACEOFSUPPLY so the orphan reference is surfaced upstream.
     throw new ClientOrganizationNotFoundError(clientOrgId);
   }
 
@@ -136,11 +108,6 @@ export async function resolveReExportDecision(params: {
     throw new F12OverwriteNotVerifiedError(clientOrgId);
   }
 
-  // Buyer state precedence: explicit ClientOrganization.stateName wins;
-  // otherwise derive from ClientOrganization.gstin (always present + format-validated
-  // post-pivot, so derivation almost always succeeds). The org row is guaranteed
-  // present here (null was rejected above), so this either resolves a state name
-  // or returns null only on the rare unassigned-prefix path.
   const buyerStateName = company.stateName ?? deriveVendorState(company.gstin ?? null, null);
 
   return {

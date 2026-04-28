@@ -20,40 +20,9 @@ import { ClientExportConfigModel } from "@/models/integration/ClientExportConfig
 import { TenantMailboxAssignmentModel } from "@/models/integration/TenantMailboxAssignment.js";
 import { TdsSectionMappingModel } from "@/models/compliance/TdsSectionMapping.js";
 
-/**
- * Shape of a single accounting-leaf model whose rows reference a
- * `ClientOrganization`. The hard-delete dependency check at
- * `ClientOrgsAdminService.deleteOrArchive` iterates this registry and
- * counts dependents per model — every required-`clientOrgId` model in
- * the codebase MUST be listed here so deletes don't silently orphan
- * rows that would later violate `validateClientOrgTenantInvariant`.
- *
- * NON-REQUIRED `clientOrgId` MODELS (e.g. `TdsSectionMapping`) ALSO
- * belong in this registry whenever per-org override rows can exist —
- * `find({ clientOrgId: <oid> })` only matches concrete-id rows and
- * leaves the global-default (`clientOrgId: null`) rows untouched, so
- * the count + soft-archive flow is exactly right for those overrides.
- * Such entries are tracked in `NON_REQUIRED_REGISTERED_MODELS` below
- * and the drift test verifies that the schema's `clientOrgId` path
- * stays non-required (so we don't silently downgrade a hard contract).
- *
- * Drift is enforced by the registry test in
- * `clientOrgsAdminService.test.ts`, which dynamically loads every
- * model file under `backend/src/models/**` before introspecting
- * `mongoose.modelNames()` and fails when a schema declares
- * `clientOrgId` (or `clientOrgIds`) as required but is absent from
- * this registry.
- */
 type ClientOrgDependentEntry = {
-  /** Stable label exposed to FE via the linked-counts breakdown. */
   label: string;
-  /** Mongoose model whose rows are scoped by `tenantId` + `clientOrgId`. */
   model: Model<unknown>;
-  /**
-   * Build the counter filter. Most leaves use `{ tenantId, clientOrgId }`,
-   * but `TenantMailboxAssignment` stores the reference under the
-   * `clientOrgIds[]` array (post-#159 multi-candidate shape).
-   */
   buildFilter: (input: { tenantId: string; clientOrgId: Types.ObjectId }) => Record<string, unknown>;
 };
 
@@ -93,12 +62,6 @@ export const CLIENT_ORG_DEPENDENT_MODELS: ReadonlyArray<ClientOrgDependentEntry>
   }
 ] as const;
 
-/**
- * Models registered above whose `clientOrgId` (or `clientOrgIds`) path
- * is intentionally NON-required. Listed explicitly so the drift test
- * can assert the schema didn't silently flip to required without us
- * noticing — and so a reviewer sees "yes, this is on purpose."
- */
 export const NON_REQUIRED_REGISTERED_MODELS: ReadonlyArray<string> = [
   TdsSectionMappingModel.modelName
 ] as const;
@@ -107,11 +70,6 @@ type ClientOrgDependentLabel = (typeof CLIENT_ORG_DEPENDENT_MODELS)[number]["lab
 
 type ClientOrgLinkedCounts = Record<ClientOrgDependentLabel, number>;
 
-/**
- * Run one tenant-scoped count per registered dependent. Returns the
- * per-label breakdown plus the summed total — caller decides between
- * hard-delete (total === 0) and soft-archive (total > 0).
- */
 export async function countClientOrgDependents(input: {
   tenantId: string;
   clientOrgId: Types.ObjectId;

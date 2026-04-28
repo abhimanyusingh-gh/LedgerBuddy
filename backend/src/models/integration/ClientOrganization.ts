@@ -1,11 +1,7 @@
 import { Schema, model, type InferSchemaType } from "mongoose";
 import { GSTIN_FORMAT } from "@/constants/indianCompliance.js";
 
-/**
- * Consumed via `jest.requireActual(...).TALLY_VERSION` in tally test mocks
- * (knip can't see through requireActual — keep @public tag).
- * @public
- */
+/** @public */
 export const TALLY_VERSION = {
   ERP9: "erp9",
   Prime: "prime",
@@ -33,17 +29,6 @@ const clientOrganizationSchema = new Schema(
       required: false,
       default: null
     },
-    /**
-     * Soft-archive marker (#174). Set by the admin DELETE route when a
-     * client-org cannot be hard-deleted because dependent accounting-leaf
-     * documents (Invoice, VendorMaster, BankAccount, …) still reference
-     * its `_id`. While `archivedAt` is non-null the org is read-only —
-     * it must not be the target of new accounting writes nor a candidate
-     * in any new TenantMailboxAssignment. Enforcement lives in the admin
-     * service layer (`clientOrgsAdminService.assertWritable`); it is NOT
-     * a hard schema invariant because back-fill workflows (e.g. retro
-     * imports) may still need to write under an archived org via tooling.
-     */
     archivedAt: { type: Date, default: null }
   },
   { timestamps: true }

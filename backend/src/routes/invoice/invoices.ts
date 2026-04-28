@@ -103,8 +103,6 @@ export function createInvoiceRouter(
       from: fromDate ?? undefined, to: toDate ?? undefined, approvedBy, sortBy, sortDir
     });
 
-    // Attach per-invoice action claims so the UI can render approve/reject controls
-    // without duplicating gating logic. Workflow config is fetched once per request.
     const actionActor: InvoiceActionActor = { userId: authContext.userId, role: authContext.role, capabilities };
     const workflowConfig = await workflowService.getWorkflowConfig(authContext.tenantId);
     const items = Array.isArray(response.items) ? (response.items as Array<Record<string, unknown>>) : [];
@@ -178,10 +176,6 @@ export function createInvoiceRouter(
             const glName = typeof req.body.glName === "string" && req.body.glName.trim() ? req.body.glName.trim() : req.body.glCode;
             const glService = new GlCodeSuggestionService();
             const fingerprint = invoice.metadata?.get("vendorFingerprint");
-            // Post hierarchy-pivot: compliance services are scoped per
-            // client-org. Use the invoice's own clientOrgId — it was
-            // validated on ingestion and (after sub-PR 4 lands) will also
-            // be cross-checked against req.activeClientOrgId.
             const invoiceClientOrgId = (invoice as unknown as { clientOrgId?: Types.ObjectId }).clientOrgId;
             if (fingerprint && invoiceClientOrgId) {
               await glService.recordUsage(authContext.tenantId, invoiceClientOrgId, fingerprint, req.body.glCode, glName);

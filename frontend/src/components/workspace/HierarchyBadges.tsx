@@ -11,9 +11,6 @@ interface TenantBadgeProps {
 }
 
 export function TenantBadge({ tenantName }: TenantBadgeProps) {
-  // NIT B: when the tenant name is missing/whitespace, render an explicit
-  // "Unknown tenant" placeholder so the data-quality issue surfaces instead
-  // of being masked by a single em-dash.
   const label = tenantName.trim().length > 0 ? tenantName : "Unknown tenant";
   return (
     <span
@@ -31,12 +28,7 @@ export function TenantBadge({ tenantName }: TenantBadgeProps) {
 }
 
 interface ActiveRealmBadgeProps {
-  /** Tenant's known ClientOrganization rows. Undefined = still loading. */
   clientOrgs?: ClientOrgOption[];
-  /**
-   * Invoked when the user clicks the "Select a client" CTA. The realm switcher
-   * (#152) and onboarding (#150) wire this up; for now it's a noop fallback.
-   */
   onOpenSwitcher?: () => void;
 }
 
@@ -49,11 +41,6 @@ export function ActiveRealmBadge({ clientOrgs, onOpenSwitcher }: ActiveRealmBadg
     return match?.companyName ?? null;
   }, [activeClientOrgId, clientOrgs]);
 
-  // Stale-id stuck-state: a persisted activeClientOrgId may point at a
-  // ClientOrganization that has since been deleted/revoked. Once the list
-  // has loaded and we can confirm there is no match, clear the stale id so
-  // every realm-scoped request stops 400ing and the user falls through to
-  // the "Select a client" CTA.
   useEffect(() => {
     if (activeClientOrgId === null) return;
     if (!clientOrgs) return;
@@ -64,15 +51,11 @@ export function ActiveRealmBadge({ clientOrgs, onOpenSwitcher }: ActiveRealmBadg
   }, [activeClientOrgId, clientOrgs, setActiveClientOrg]);
 
   if (activeClientOrgId === null) {
-    // Until #152 wires the realm switcher, the CTA is a no-op. Render it
-    // as a disabled button (aria-disabled, no click handler) so the user
-    // gets accurate affordance instead of a silent dead button.
     const switcherReady = typeof onOpenSwitcher === "function";
     return (
       <button
         type="button"
         className="workspace-hierarchy-badge workspace-hierarchy-badge-realm-empty"
-        // TODO(#152): open realm switcher; fall through to onboarding (#150) when no orgs exist.
         onClick={switcherReady ? onOpenSwitcher : undefined}
         disabled={!switcherReady}
         aria-disabled={!switcherReady}

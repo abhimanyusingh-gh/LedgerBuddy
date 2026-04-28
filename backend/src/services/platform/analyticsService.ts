@@ -40,7 +40,6 @@ const AGG_OPTIONS = { allowDiskUse: true };
 
 interface GetOverviewOptions {
   approverId?: string;
-  // admin analytics: optional clientOrgId, see #162
   clientOrgId?: Types.ObjectId | null;
 }
 
@@ -52,10 +51,6 @@ export async function getOverview(
 ): Promise<AnalyticsOverview> {
   const { approverId, clientOrgId } = options;
   const approverFilter = approverId ? { "approval.userId": approverId } : {};
-  // admin analytics: optional clientOrgId, see #162
-  // When clientOrgId is provided we scope to {tenantId, clientOrgId} (composite key);
-  // when absent we aggregate across all realms for the tenant — the documented exemption
-  // to the composite-key invariant for the admin analytics surface only.
   const scopeFilter: Record<string, unknown> = clientOrgId ? { tenantId, clientOrgId } : { tenantId };
 
   const [kpiResult, dailyApprovalsResult, dailyIngestionResult, dailyExportsResult, statusResult, vendorsApprovedResult, vendorsPendingResult] =

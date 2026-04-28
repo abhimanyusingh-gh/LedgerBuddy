@@ -77,9 +77,6 @@ export class MailhogOAuthIngestionProvider implements EmailIngestionBoundary {
 
         files.push({
           tenantId: this.config.tenantId ?? toUUID("default"),
-          // Per #159: poller-originated files enter the ingestion service's
-          // resolver (GSTIN match → single-candidate → triage) — provider
-          // defaults to triage fallback.
           clientOrgId: null,
           workloadTier: this.config.workloadTier ?? "standard",
           sourceKey: this.config.key,

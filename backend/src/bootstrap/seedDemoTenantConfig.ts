@@ -370,13 +370,6 @@ async function seedApprovalWorkflow(
   );
 }
 
-/**
- * Seed configuration-only state for the demo tenant (Neelam and Associates).
- *
- * Caller must supply `clientOrgId` of the tenant's primary ClientOrganization —
- * per locked decision, no placeholder ClientOrg is auto-created. The tenant
- * must onboard at least one ClientOrg before this seed runs.
- */
 export async function seedDemoTenantConfig(
   tenantId: string,
   clientOrgId: Types.ObjectId,

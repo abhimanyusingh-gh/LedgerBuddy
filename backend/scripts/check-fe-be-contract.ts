@@ -1,13 +1,3 @@
-/**
- * Static FE↔BE contract-diff CI gate (replaces the deleted
- * `check-realm-scoped-paths.sh`). Walks every `apiClient.<method>(...)` call
- * in the FE plus every `router.<method>(...)` definition in the BE, then
- * cross-checks: every FE-callable URL must have a BE handler at the same
- * URL + method. Drift errors fail CI; orphan BE routes (no FE caller) are
- * informational warnings only.
- *
- * Run: `yarn workspace ledgerbuddy-backend run check:contract`.
- */
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -38,13 +28,6 @@ const HTTP_METHOD = {
 type HttpMethod = typeof HTTP_METHOD[keyof typeof HTTP_METHOD];
 const METHOD_NAMES: ReadonlySet<string> = new Set(Object.values(HTTP_METHOD).map((m) => m.toLowerCase()));
 
-// Two URL-construction shapes the FE provider modules emit. NESTED →
-// `/api/tenants/:tenantId/clientOrgs/:clientOrgId/...`, TENANT →
-// `/api/tenants/:tenantId/...` (no clientOrgs segment). Bare paths (FE
-// callers that pass a literal directly to `apiClient.<verb>(...)`) are
-// resolved as `/api${bare}` — auth, session, webhooks, health, statutory
-// compliance metadata, and the deliberately-retained legacy `/api/...`
-// mounts.
 const PROVIDER_KIND = {
   NESTED: "nested",
   TENANT: "tenant",
@@ -55,88 +38,43 @@ type ProviderKind = typeof PROVIDER_KIND[keyof typeof PROVIDER_KIND];
 const TENANT_PARAM_PLACEHOLDER = ":tenantId";
 const CLIENT_ORG_PARAM_PLACEHOLDER = ":clientOrgId";
 
-/**
- * Call sites whose path arg cannot be resolved statically. Adding a file:line
- * here is a deliberate acknowledgment that the contract gate cannot verify
- * the URL — the call site must be exercised via e2e/manual coverage.
- */
 const UNANALYZABLE_FE_CALL_SITES: ReadonlySet<string> = new Set<string>([
   // Currently empty — every FE apiClient call site uses a literal or template
   // literal whose static prefix the walker can resolve.
 ]);
 
-/**
- * Routes the BE intentionally serves with no FE axios caller. Each entry
- * justifies WHY a non-FE caller exists; this list keeps the orphan-BE
- * warning from drowning meaningful signal in known-intentional noise. Match
- * format: `<METHOD> <normalized-url>` — see the diff loop for normalization
- * (`:tenantId` / `:clientOrgId` are preserved; all other path-params
- * collapse to `:id`).
- */
 const KNOWN_ORPHAN_BE_ROUTES: ReadonlySet<string> = new Set<string>([
-  // Liveness/readiness probes — consumed by k8s, not the FE.
   "GET /health",
   "GET /health/ready",
-  // OAuth flows + token refresh — browser redirects + interceptor calls
-  // that bypass the apiClient walker (auth.ts uses fetch / location.href).
   "GET /api/auth/login",
   "GET /api/auth/callback",
   "POST /api/auth/refresh",
-  // Browser-redirect Gmail OAuth start + provider callback.
   "GET /api/connect/gmail",
   "GET /api/connect/gmail/callback",
-  // Bank webhooks consumed by external AA / FI providers.
   "GET /api/bank/aa-callback",
   "GET /api/bank/mock-callback",
   "POST /api/bank/consent-notify",
   "POST /api/bank/fi-notify",
-  // One-time email-link tenant invite acceptance.
   "POST /api/tenant/invites/accept",
-  // Platform-admin operational dashboards — no FE surface yet.
   "GET /api/admin/workflow-health",
-  // tdsRates per-section update — admin-only, no FE UI yet.
   "PUT /api/compliance/tds-rates/:id",
-  // Per-realm gmail polling-config update — admin-only, surface tracked
-  // separately from the FE GmailConnection panel.
   "PUT /api/tenants/:tenantId/integrations/gmail/:id/polling",
-  // Legacy CSV bank-statement upload — kept until FE migration.
   "POST /api/tenants/:tenantId/clientOrgs/:clientOrgId/bank-statements/upload-csv",
-  // Legacy direct-trigger Tally export (FE uses /exports/tally/download
-  // which produces a downloadable file). Kept for parity with the older
-  // export-then-download two-step flow.
   "POST /api/tenants/:tenantId/clientOrgs/:clientOrgId/exports/tally",
-  // CSV exports — admin-only, no FE UI yet.
   "POST /api/tenants/:tenantId/clientOrgs/:clientOrgId/exports/csv",
-  // Per-invoice manual compliance retrigger — admin debug surface, not
-  // wired into FE.
   "POST /api/tenants/:tenantId/clientOrgs/:clientOrgId/invoices/:id/retrigger-compliance",
-  // Per-realm export-config get/patch — surfaced via tenant admin UX that
-  // currently writes via the parent tenant tally-export-config endpoint;
-  // realm-scoped variant kept for the planned per-realm override flow.
   "GET /api/tenants/:tenantId/clientOrgs/:clientOrgId/export-config",
   "PATCH /api/tenants/:tenantId/clientOrgs/:clientOrgId/export-config",
-  // Email-simulate test hook — only invoked from e2e + integration tests.
-  // jobsRouter dual-mounts under tenantRouter AND clientOrgRouter, so the
-  // hook surfaces under both URL trees.
   "POST /api/tenants/:tenantId/jobs/ingest/email-simulate",
   "POST /api/tenants/:tenantId/clientOrgs/:clientOrgId/jobs/ingest/email-simulate",
-  // jobsRouter dual-mounts on tenantRouter AND clientOrgRouter (see app.ts);
-  // FE classifier sends `/jobs/upload` to the realm-scoped mount and
-  // `/jobs/ingest{,/status,/sse,/pause}` to the tenant-scoped mount, so the
-  // OTHER mount is intentionally never hit by the FE.
   "POST /api/tenants/:tenantId/jobs/upload",
   "POST /api/tenants/:tenantId/jobs/upload/by-keys",
   "GET /api/tenants/:tenantId/clientOrgs/:clientOrgId/jobs/ingest/status",
   "GET /api/tenants/:tenantId/clientOrgs/:clientOrgId/jobs/ingest/sse",
   "POST /api/tenants/:tenantId/clientOrgs/:clientOrgId/jobs/ingest",
   "POST /api/tenants/:tenantId/clientOrgs/:clientOrgId/jobs/ingest/pause",
-  // Vendor detail GET — FE uses bulk list + patch only; per-id fetch surface
-  // not yet wired into the vendors UI.
   "GET /api/tenants/:tenantId/clientOrgs/:clientOrgId/vendors/:id",
-  // action-required dashboard — backend ready; FE surface tracked separately.
   "GET /api/tenants/:tenantId/clientOrgs/:clientOrgId/invoices/action-required",
-  // viewer-scope GET/PUT — admin-only management of per-user invoice
-  // visibility scoping; FE management surface tracked separately.
   "GET /api/tenants/:tenantId/admin/users/:id/viewer-scope",
   "PUT /api/tenants/:tenantId/admin/users/:id/viewer-scope"
 ]);
@@ -233,11 +171,6 @@ function applyProviderKindShape(barePath: string, kind: ProviderKind): string {
   return `/api${normalized}`;
 }
 
-// URL-provider methods (frontend/src/api/urls/*Urls.ts) bury the bare path
-// inside `buildClientOrgPathUrl(...)` / `buildTenantPathUrl(...)` calls,
-// invisible to the apiClient call-site walker. Pre-extract a
-// {provider.method -> {bare,scope}} map so callers like `invoiceUrls.preview(id)`
-// resolve to a real FE URL.
 
 interface ProviderMethodInfo {
   bare: string;
@@ -341,10 +274,6 @@ function providerInfoToFullUrl(info: ProviderMethodInfo): string {
   return applyProviderKindShape(info.bare, kind);
 }
 
-// `apiClient.<verb>(invoiceUrls.list())` — detect when arg0 is itself a
-// `<providerName>.<methodName>(...)` CallExpression. The outer apiClient
-// branch uses this to emit with the real HTTP verb; the inner provider-call
-// visit then skips itself (apiClient-parented) to avoid double-emission.
 function resolveProviderCallArg(
   arg: ts.Expression,
   providerMap: ProviderMethodMap
@@ -408,7 +337,6 @@ function buildModuleConstants(source: ts.SourceFile): Map<string, string> {
       if (ts.isStringLiteral(init) || ts.isNoSubstitutionTemplateLiteral(init)) {
         out.set(node.name.text, init.text);
       } else if (ts.isTemplateExpression(init)) {
-        // Best-effort: emit `:param` placeholders for each interpolation.
         let val = init.head.text;
         for (const span of init.templateSpans) {
           val += ":param";
@@ -460,21 +388,11 @@ function resolveExprToString(node: ts.Expression, ctx: ResolveContext): string |
   return null;
 }
 
-/**
- * Replace concrete dynamic segments emitted as `:param` with `:id` to
- * normalize against BE definitions which use named params.
- */
 function normalizeDynamicSegments(path: string): string {
-  // Replace `/:param/` (and trailing) inserted by template walker with a
-  // canonical `:id`. We then ALSO normalize all `:<name>` segments to `:id`
-  // for matching purposes (BE may name it `:invoiceId`, FE template just
-  // injects a dynamic value).
   return path.replace(/:[A-Za-z_][A-Za-z0-9_]*/g, ":id");
 }
 
 function preserveScopeParams(path: string): string {
-  // Keep the outer `/:tenantId` and `/:clientOrgId` from the rewriter; only
-  // normalize segments AFTER those scope prefixes.
   const tenantMatch = path.match(/^(\/api\/tenants\/:tenantId(?:\/clientOrgs\/:clientOrgId)?)(.*)$/);
   if (!tenantMatch) {
     return normalizeDynamicSegments(path);
@@ -504,7 +422,6 @@ function collectRawFeCalls(file: string, providerMap: ProviderMethodMap): RawFeC
     if (ts.isCallExpression(node)) {
       const callee = node.expression;
 
-      // apiClient.<method>(path, ...)
       if (
         ts.isPropertyAccessExpression(callee) &&
         ts.isIdentifier(callee.expression) &&
@@ -515,9 +432,6 @@ function collectRawFeCalls(file: string, providerMap: ProviderMethodMap): RawFeC
         const method = callee.name.text.toUpperCase() as HttpMethod;
         const arg0 = node.arguments[0];
         if (arg0) {
-          // Provider call as apiClient arg — `apiClient.post(invoiceUrls.x())`.
-          // Resolve via providerMap and emit with the real HTTP verb; the
-          // inner provider-call visit will skip itself (parent-aware).
           const providerInfo = resolveProviderCallArg(arg0, providerMap);
           if (providerInfo) {
             calls.push({
@@ -549,11 +463,6 @@ function collectRawFeCalls(file: string, providerMap: ProviderMethodMap): RawFeC
         }
       }
 
-      // <providerName>.<methodName>(...) call NOT wrapped in an apiClient
-      // call — bypass-route consumers only (<img>, EventSource,
-      // authenticatedUrl). The apiClient-arg case is handled in the
-      // apiClient branch via resolveProviderCallArg with the real HTTP verb;
-      // here we emit a synthetic GET. Skip provider modules themselves.
       if (
         !isProviderModule &&
         ts.isPropertyAccessExpression(callee) &&
@@ -579,13 +488,6 @@ function collectRawFeCalls(file: string, providerMap: ProviderMethodMap): RawFeC
         }
       }
 
-      // rewriteToNestedShape(path, ...) / rewriteToTenantShape(path, ...) called
-      // OUTSIDE the URL-provider helpers — kept as a defensive arm for any
-      // future bypass-route consumer that might hand-build a URL outside the
-      // apiClient pipeline. `pathBuilder.ts` is the canonical wrapper consumed
-      // by `*Urls.ts` providers; the rewriters are private helpers there
-      // post-#228 Sub-PR F, so this branch is currently a no-op until/unless
-      // a consumer re-imports them.
       if (
         ts.isIdentifier(callee) &&
         (callee.text === "rewriteToNestedShape" || callee.text === "rewriteToTenantShape") &&
@@ -613,9 +515,6 @@ function collectRawFeCalls(file: string, providerMap: ProviderMethodMap): RawFeC
   }
   visit(source);
 
-  // Detect EventSource bypass URLs: scan the module for template literals
-  // whose head contains `apiClient.defaults.baseURL` — extract the literal
-  // suffix as the bare path.
   function visitEventSourceTemplates(node: ts.Node) {
     if (ts.isTemplateExpression(node)) {
       const head = node.head.text;
@@ -631,16 +530,12 @@ function collectRawFeCalls(file: string, providerMap: ProviderMethodMap): RawFeC
       });
       if (isApiBaseUrlTemplate && head === "" && node.templateSpans.length >= 1) {
         const firstSpan = node.templateSpans[0]!;
-        // Suffix can be either the literal AFTER the baseURL span, OR a
-        // call to rewriteToTenantShape(...) whose first arg is the bare path.
         const isRewriterSpan =
           ts.isCallExpression(firstSpan.expression) &&
           ts.isIdentifier(firstSpan.expression.expression) &&
           (firstSpan.expression.expression.text === "rewriteToTenantShape" ||
             firstSpan.expression.expression.text === "rewriteToNestedShape");
         if (!isRewriterSpan && firstSpan.literal.text.startsWith("/")) {
-          // Pattern: `${apiClient.defaults.baseURL ?? ""}/bank-statements/parse/sse`
-          // Use the literal suffix as the bare path. Method = GET (EventSource).
           const bare = firstSpan.literal.text;
           const { line, character } = source.getLineAndCharacterOfPosition(node.getStart());
           calls.push({
@@ -659,12 +554,6 @@ function collectRawFeCalls(file: string, providerMap: ProviderMethodMap): RawFeC
   return calls;
 }
 
-// Post-INFRA-3 (#228 Sub-PR E2): every FE bare-path apiClient caller is
-// `NONE`-kind (auth, session, webhooks, health, statutory compliance
-// metadata, the 2 legacy mounts retained for Sub-PR F). Realm-scoped and
-// tenant-scoped routes go through `*Urls.ts` providers, which set
-// `fullUrlOverride` directly. The classifier was retired with the
-// interceptor rewriter in this sub-PR.
 function walkFrontend(): FeUrl[] {
   const providerMap = buildProviderMethodMap();
   const files = listTsFiles(FRONTEND_SRC);
@@ -696,10 +585,8 @@ interface RouterFactoryRef {
 
 interface BeWalkResult {
   factoryRefs: RouterFactoryRef[];
-  /** Top-level Routers exported from app.ts (e.g. `healthRouter`). */
-  topLevelRouters: Map<string, string>; // varName -> mountPath
-  /** Sub-router var assignments: e.g. `const tenantRouter = express.Router()`, then `app.use("/api/tenants/:tenantId", ..., tenantRouter)`. */
-  subRouterMounts: Map<string, string>; // varName -> mountPath
+  topLevelRouters: Map<string, string>; 
+  subRouterMounts: Map<string, string>; 
   subRouterUsages: Array<{ parentVar: string; childVar: string; subPath: string | null; factoryName: string | null }>;
 }
 
@@ -710,7 +597,6 @@ function walkAppTs(): BeWalkResult {
   const subRouterMounts = new Map<string, string>();
   const subRouterUsages: BeWalkResult["subRouterUsages"] = [];
 
-  // Track sub-router var declarations so we can resolve `clientOrgRouter.use(...)`.
   const subRouterVars = new Set<string>();
   function visitDecls(node: ts.Node) {
     if (
@@ -730,10 +616,7 @@ function walkAppTs(): BeWalkResult {
   }
   visitDecls(source);
 
-  // Also: `const jobsRouter = createJobsRouter(...)` — these are router instances
-  // returned from a factory; track varName -> factoryName so a later
-  // tenantRouter.use(jobsRouter) resolves correctly.
-  const factoryInstanceVars = new Map<string, string>(); // varName -> factoryName
+  const factoryInstanceVars = new Map<string, string>(); 
   function visitFactoryInstances(node: ts.Node) {
     if (
       ts.isVariableDeclaration(node) &&
@@ -759,7 +642,6 @@ function walkAppTs(): BeWalkResult {
       const callerExpr = node.expression.expression;
       const callerName = ts.isIdentifier(callerExpr) ? callerExpr.text : null;
 
-      // First arg may be a string mount path or a router/middleware.
       let mountPath: string | null = null;
       let argIdx = 0;
       const arg0 = node.arguments[0];
@@ -768,9 +650,6 @@ function walkAppTs(): BeWalkResult {
         argIdx = 1;
       }
 
-      // Walk the remaining args. For each arg, see if it's a Router-shaped
-      // value: a `createXRouter(...)` call, an identifier that names a known
-      // sub-router var, or an identifier that names a factory-instance var.
       for (let i = argIdx; i < node.arguments.length; i += 1) {
         const arg = node.arguments[i]!;
 
@@ -787,11 +666,9 @@ function walkAppTs(): BeWalkResult {
           }
         } else if (ts.isIdentifier(arg)) {
           if (subRouterVars.has(arg.text)) {
-            // Mounting a sub-router: record the mount path.
             if (callerName === "app" && mountPath !== null) {
               subRouterMounts.set(arg.text, mountPath);
             } else if (callerName !== null && subRouterVars.has(callerName)) {
-              // tenantRouter.use("/clientOrgs/:clientOrgId", ..., clientOrgRouter)
               subRouterUsages.push({
                 parentVar: callerName,
                 childVar: arg.text,
@@ -812,7 +689,6 @@ function walkAppTs(): BeWalkResult {
               });
             }
           } else if (arg.text === "healthRouter") {
-            // healthRouter is the only directly imported Router instance.
             if (callerName === "app" && mountPath !== null) {
               topLevelRouters.set("healthRouter", mountPath);
             }
@@ -828,7 +704,6 @@ function walkAppTs(): BeWalkResult {
 }
 
 function findRouterFactorySource(factoryName: string): string | null {
-  // Walk backend/src/routes for an exported function with this name.
   const routesDir = join(BACKEND_SRC, "routes");
   const files = listBackendTsFiles(routesDir);
   for (const file of files) {
@@ -837,19 +712,12 @@ function findRouterFactorySource(factoryName: string): string | null {
       return file;
     }
   }
-  // healthRouter lives in routes/auth/health.ts.
   if (factoryName === "healthRouter") {
     return join(routesDir, "auth", "health.ts");
   }
   return null;
 }
 
-/**
- * Locate the factory function body and walk only its router defs. Multiple
- * factories may share a single file (e.g. createGmailPublicRouter +
- * createGmailConnectionRouter in tenant/gmailConnection.ts), so we cannot
- * walk the entire file.
- */
 function findFactoryFunctionNode(file: string, factoryName: string): { source: ts.SourceFile; fn: ts.FunctionDeclaration } | null {
   const source = ts.createSourceFile(file, readFileSync(file, "utf8"), ts.ScriptTarget.ES2022, true);
   let found: ts.FunctionDeclaration | null = null;
@@ -907,10 +775,6 @@ function extractRoutesFromNode(rootNode: ts.Node, beUrlMap: BeUrlPathMap, fileLa
         ts.isIdentifier(arg0.name) &&
         beUrlMap.knownObjects.has(arg0.expression.text)
       ) {
-        // Receiver matches a known *Urls.ts `as const` constants object —
-        // fail-loud if the property doesn't resolve. Other PropertyAccess
-        // arg shapes (e.g., `invoiceMap.get(t.someId)` inside a handler
-        // body) are silently ignored, matching pre-refactor behavior.
         const key = `${arg0.expression.text}.${arg0.name.text}`;
         const resolved = beUrlMap.values.get(key);
         if (resolved === undefined) {
@@ -936,8 +800,6 @@ function extractRouterRoutes(file: string, beUrlMap: BeUrlPathMap): RouteDef[] {
 function extractFactoryRoutes(file: string, factoryName: string, beUrlMap: BeUrlPathMap): RouteDef[] {
   const located = findFactoryFunctionNode(file, factoryName);
   if (located) return extractRoutesFromNode(located.fn, beUrlMap, `${relative(REPO_ROOT, file)} (${factoryName})`);
-  // Fall back to whole-file extraction for files with no matching factory
-  // (shouldn't happen post-walker, but keep the safety net).
   return extractRouterRoutes(file, beUrlMap);
 }
 
@@ -952,7 +814,6 @@ function walkBackend(): BeUrl[] {
   const beUrlMap = buildBeUrlPathMap();
   const out: BeUrl[] = [];
 
-  // Top-level routers (healthRouter — single Router instance, walk full file).
   for (const [varName, mountPath] of app.topLevelRouters) {
     const file = findRouterFactorySource(varName);
     if (!file) continue;
@@ -961,7 +822,6 @@ function walkBackend(): BeUrl[] {
     }
   }
 
-  // Direct factory mounts on app (e.g., createAuthRouter).
   for (const ref of app.factoryRefs) {
     const file = findRouterFactorySource(ref.factoryName);
     if (!file) continue;
@@ -970,18 +830,14 @@ function walkBackend(): BeUrl[] {
     }
   }
 
-  // Sub-router tree. Build mount paths recursively.
   function resolveMountPath(varName: string): string {
     return app.subRouterMounts.get(varName) ?? "";
   }
 
-  // First, sub-router-of-sub-router relationships (e.g. clientOrgRouter
-  // mounted under tenantRouter at "/clientOrgs/:clientOrgId").
   const subRouterFullMount = new Map<string, string>();
   for (const [varName, mount] of app.subRouterMounts) {
     subRouterFullMount.set(varName, mount);
   }
-  // Resolve nested sub-router mounts.
   for (const usage of app.subRouterUsages) {
     if (usage.childVar && !subRouterFullMount.has(usage.childVar)) {
       const parentMount = subRouterFullMount.get(usage.parentVar) ?? resolveMountPath(usage.parentVar);
@@ -990,7 +846,6 @@ function walkBackend(): BeUrl[] {
     }
   }
 
-  // Now process router-factory usages on sub-routers.
   for (const usage of app.subRouterUsages) {
     if (!usage.factoryName) continue;
     const parentMount =
@@ -1015,7 +870,6 @@ function main(): void {
   const feUrls = walkFrontend();
   const beUrlsRaw = walkBackend();
 
-  // Dedupe BE.
   const beByKey = new Map<string, BeUrl>();
   for (const b of beUrlsRaw) {
     const norm = normalizeBeUrl(b.url);
@@ -1023,7 +877,6 @@ function main(): void {
     if (!beByKey.has(key)) beByKey.set(key, { method: b.method, url: norm, source: b.source });
   }
 
-  // Match FE → BE.
   const errors: string[] = [];
   let matched = 0;
   for (const fe of feUrls) {
@@ -1032,7 +885,6 @@ function main(): void {
       matched += 1;
       continue;
     }
-    // Method-mismatch detection: any BE entry with same path?
     const sameUrl: BeUrl[] = [];
     for (const be of beByKey.values()) {
       if (be.url === fe.resolvedUrl) sameUrl.push(be);
@@ -1049,7 +901,6 @@ function main(): void {
     }
   }
 
-  // Orphan BE warnings.
   const feKeys = new Set(feUrls.map((f) => `${f.method} ${f.resolvedUrl}`));
   const orphans: string[] = [];
   for (const be of beByKey.values()) {
@@ -1059,7 +910,6 @@ function main(): void {
     orphans.push(`WARN: ${be.source} ${be.method} ${be.url} — no FE caller`);
   }
 
-  // Print report.
   const totalFe = feUrls.length;
   const totalBe = beByKey.size;
   if (errors.length > 0) {

@@ -19,12 +19,12 @@ export function buildInvoiceAfterOcrPipeline(
   params: AfterOcrPipelineParams,
 ): ComposablePipeline<void> {
   return new ComposablePipeline<void>(() => undefined)
-    .add(new CaptureOcrMetadataStep())                            // Stage 1
-    .add(new PostProcessOcrStep())                                // Stage 2
-    .add(new BuildTextCandidatesStep()) // Stage 3
-    .add(new CalibrateConfidenceStep())                           // Stage 4
-    .add(new DetectLanguageStep())                                // Stage 5
-    .add(new CheckExtractFieldsGateStep()) // Gate
-    .add(new BaselineTextParseStep(params.template))              // Stage 6
-    .add(new AugmentPromptBuilderStep(params.definition));        // Stage 7
+    .add(new CaptureOcrMetadataStep())                            
+    .add(new PostProcessOcrStep())                                
+    .add(new BuildTextCandidatesStep()) 
+    .add(new CalibrateConfidenceStep())                           
+    .add(new DetectLanguageStep())                                
+    .add(new CheckExtractFieldsGateStep()) 
+    .add(new BaselineTextParseStep(params.template))              
+    .add(new AugmentPromptBuilderStep(params.definition));        
 }

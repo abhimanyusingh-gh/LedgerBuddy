@@ -6,16 +6,6 @@ import {
 } from "@/api/triage";
 import { useTenantSetupCompleted } from "@/hooks/useTenantSetupCompleted";
 
-// The triage queue is the ONE accounting-leaf list that legitimately filters by
-// `tenantId` WITHOUT `clientOrgId` — these invoices have `clientOrgId: null`
-// because the mailbox couldn't decide which realm they belong to. Documented
-// exception per #156. We deliberately use plain `useQuery` (NOT `useScopedQuery`)
-// so the request fires regardless of which (if any) realm is active.
-//
-// Gated on `tenantSetupCompleted` (#193): the BE route is mounted behind
-// `requireTenantSetupCompleted`, so firing this for a mid-setup tenant just
-// produces 403 noise. When setup is not complete the hook reports its empty
-// no-data state.
 interface UseTriageQueueResult {
   invoices: TriageInvoice[];
   total: number;

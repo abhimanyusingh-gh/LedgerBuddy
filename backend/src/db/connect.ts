@@ -79,8 +79,6 @@ async function doConnect(options: ConnectOptions) {
         let totalSkipped = 0;
         for (const tenant of tenants) {
           const tenantId = String(tenant._id);
-          // Post hierarchy-pivot: seedDefaultGlCodes is scoped per
-          // client-org. A tenant may have 0..N client-orgs; loop over all.
           const clientOrgIds = await findClientOrgIdsForTenant(tenantId);
           for (const clientOrgId of clientOrgIds) {
             const existingCount = await GlCodeMasterModel.countDocuments({
