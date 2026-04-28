@@ -3,7 +3,7 @@ import { InvoiceStatuses, INVOICE_STATUS, GL_CODE_SOURCE, TriageRejectReasons } 
 import { ConfidenceTones } from "@/types/confidence.js";
 import { WorkloadTiers } from "@/types/tenant.js";
 import { validateClientOrgTenantInvariant } from "@/services/auth/tenantScope.js";
-import { computeActionSeverityFields, type ClassifierInput } from "@/services/invoice/actionClassifier.js";
+import { applyActionSeveritySchemaDoc } from "./invoice.actionSeverity.js";
 
 const ocrBlockSchema = new Schema(
   {
@@ -417,10 +417,9 @@ invoiceSchema.pre("save", async function () {
     this.clientOrgId,
     this.status
   );
-  const fields = computeActionSeverityFields(this.toObject() as ClassifierInput);
-  this.set("actionReason", fields.actionReason);
-  this.set("actionSeverity", fields.actionSeverity);
 });
+
+applyActionSeveritySchemaDoc(invoiceSchema);
 
 invoiceSchema.index(
   {
@@ -456,70 +455,6 @@ invoiceSchema.index(
   { tenantId: 1, sourceMailboxAssignmentId: 1, createdAt: -1 },
   { partialFilterExpression: { sourceMailboxAssignmentId: { $type: "objectId" } } }
 );
-invoiceSchema.index(
-  { tenantId: 1, actionSeverity: -1, createdAt: -1, _id: -1 },
-  { partialFilterExpression: { actionSeverity: { $type: "number" } } }
-);
-
-const CLASSIFICATION_FIELD_PATHS = [
-  "status",
-  "parsed",
-  "parsed.currency",
-  "parsed.customerGstin",
-  "export",
-  "export.error",
-  "compliance",
-  "compliance.riskSignals"
-];
-
-function updateTouchesClassification(update: unknown): boolean {
-  if (update === null || typeof update !== "object") return false;
-  const u = update as Record<string, unknown>;
-  for (const op of ["$set", "$unset", "$setOnInsert", "$push", "$pull", "$addToSet"] as const) {
-    const opVal = u[op];
-    if (opVal && typeof opVal === "object") {
-      const keys = Object.keys(opVal as Record<string, unknown>);
-      for (const key of keys) {
-        for (const path of CLASSIFICATION_FIELD_PATHS) {
-          if (key === path || key.startsWith(`${path}.`)) return true;
-        }
-      }
-    }
-  }
-  for (const path of CLASSIFICATION_FIELD_PATHS) {
-    if (Object.prototype.hasOwnProperty.call(u, path)) return true;
-  }
-  return false;
-}
-
-const QUERY_UPDATE_OPS = ["findOneAndUpdate", "updateOne", "updateMany"] as const;
-
-for (const op of QUERY_UPDATE_OPS) {
-  invoiceSchema.post(op, async function () {
-    const update = this.getUpdate();
-    if (!updateTouchesClassification(update)) return;
-    const filter = this.getFilter();
-    const InvoiceModelRef = this.model;
-    const docs = await InvoiceModelRef.find(filter).select({
-      status: 1,
-      parsed: 1,
-      export: 1,
-      compliance: 1,
-      actionReason: 1,
-      actionSeverity: 1
-    }).lean();
-    for (const doc of docs) {
-      const fields = computeActionSeverityFields(doc as unknown as ClassifierInput);
-      const stale = (doc as { actionReason?: unknown }).actionReason !== fields.actionReason
-        || (doc as { actionSeverity?: unknown }).actionSeverity !== fields.actionSeverity;
-      if (!stale) continue;
-      await InvoiceModelRef.updateOne(
-        { _id: (doc as { _id: unknown })._id },
-        { $set: { actionReason: fields.actionReason, actionSeverity: fields.actionSeverity } }
-      );
-    }
-  });
-}
 
 type Invoice = InferSchemaType<typeof invoiceSchema>;
 export type InvoiceDocument = HydratedDocument<Invoice>;

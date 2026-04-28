@@ -180,7 +180,7 @@ describeHarness("fetchActionRequired (mongo aggregation)", ({ getHarness }) => {
       if ((overrides as { parsed?: unknown }).parsed) {
         merged.parsed = { ...base.parsed, ...(overrides as { parsed: Record<string, unknown> }).parsed };
       }
-      const fields = computeActionSeverityFields(merged as ClassifierInput);
+      const fields = computeActionSeverityFields(merged as unknown as ClassifierInput);
       merged.actionReason = fields.actionReason;
       merged.actionSeverity = fields.actionSeverity;
       await InvoiceModel.collection.insertOne(merged);
@@ -201,7 +201,7 @@ describeHarness("fetchActionRequired (mongo aggregation)", ({ getHarness }) => {
       status: INVOICE_STATUS.FAILED_OCR,
       parsed: { currency: "INR", customerGstin: "", vendorName: "Leak vendor", totalAmountMinor: 99 }
     };
-    const leakFields = computeActionSeverityFields(leakDoc as ClassifierInput);
+    const leakFields = computeActionSeverityFields(leakDoc as unknown as ClassifierInput);
     leakDoc.actionReason = leakFields.actionReason;
     leakDoc.actionSeverity = leakFields.actionSeverity;
     await InvoiceModel.collection.insertOne(leakDoc);
@@ -302,7 +302,7 @@ describeHarness("fetchActionRequired (mongo aggregation)", ({ getHarness }) => {
         status: INVOICE_STATUS.FAILED_OCR,
         parsed: { currency: "INR", customerGstin: "27AAAAA0000A1Z5", vendorName: `tie-${i}`, totalAmountMinor: 10_000 }
       };
-      const fields = computeActionSeverityFields(tieDoc as ClassifierInput);
+      const fields = computeActionSeverityFields(tieDoc as unknown as ClassifierInput);
       tieDoc.actionReason = fields.actionReason;
       tieDoc.actionSeverity = fields.actionSeverity;
       await InvoiceModel.collection.insertOne(tieDoc);
