@@ -99,7 +99,7 @@ export async function createApp(prebuiltDependencies?: Awaited<ReturnType<typeof
   app.use(
     "/api",
     requireNonPlatformAdmin,
-    createTenantLifecycleRouter(dependencies.tenantAdminService, dependencies.tenantInviteService)
+    createTenantLifecycleRouter(dependencies.tenantInviteService)
   );
   // Unscoped compliance metadata + tds-rates — deliberately retained on the
   // legacy `/api` mount. These routes have no tenantId/clientOrgId in the URL
@@ -204,32 +204,20 @@ export async function createApp(prebuiltDependencies?: Awaited<ReturnType<typeof
   tenantAdminRouter.use(createNotificationLogRouter());
   // `/onboarding/complete` runs DURING tenant setup (admin clicks "complete
   // onboarding" before `requires_tenant_setup` flips to false), so it sits on
-  // `tenantAdminRouter` (omits `requireTenantSetupCompleted`), mirroring the
-  // legacy `/api/tenant/onboarding/complete` mount above. The nested factory
-  // registers the route as `/onboarding/complete` (not `/tenant/onboarding/...`)
-  // so the resolved URL is `/api/tenants/:tenantId/onboarding/complete` — no
-  // double `tenant` segment. Sub-PR F drops the legacy mount once zero callers
-  // remain.
+  // `tenantAdminRouter` (omits `requireTenantSetupCompleted`). Resolved URL is
+  // `/api/tenants/:tenantId/onboarding/complete`.
   tenantAdminRouter.use(createTenantOnboardingCompleteRouter(dependencies.tenantAdminService));
 
   // Bank domain — realm-scoped routers (accounts + statements) mount under
   // `clientOrgRouter`. The shared `BankStatementParseProgress` instance is
   // passed into both the realm-scoped router (for upload broadcasts) and the
-  // standalone SSE router (for subscribers) so events flow end-to-end.
-  // The SSE subscriber endpoint is tenant-scoped (no clientOrgId filter): it
-  // dual-mounts on the legacy `/api` path AND on `tenantRouter` so the FE
-  // can construct the URL via `bankUrls.parseSse()` while EventSource still
-  // bypasses the axios interceptor. Sub-PR F drops the legacy mount once
-  // zero callers remain.
+  // tenant-scoped SSE subscriber router (for clients) so events flow
+  // end-to-end. The SSE subscriber is tenant-scoped (no clientOrgId filter):
+  // FE consumes it via `bankUrls.parseSse()` and EventSource bypasses the
+  // axios interceptor.
   const bankParseProgress = new BankStatementParseProgress();
   clientOrgRouter.use(createBankAccountsRouter(dependencies.bankService));
   clientOrgRouter.use(createBankStatementsRouter(dependencies.fileStore, dependencies.ocrProvider, dependencies.fieldVerifier, bankParseProgress));
-  app.use(
-    "/api",
-    requireNonPlatformAdmin,
-    requireTenantSetupCompleted,
-    createBankStatementsParseSseRouter(bankParseProgress)
-  );
   tenantRouter.use(createBankStatementsParseSseRouter(bankParseProgress));
 
   app.use((error: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {

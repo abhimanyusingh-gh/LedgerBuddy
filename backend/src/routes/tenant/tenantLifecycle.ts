@@ -1,17 +1,21 @@
-import { getAuth } from "@/types/auth.js";
-import { Router, type RequestHandler } from "express";
+import { Router } from "express";
 import { requireCap } from "@/auth/requireCapability.js";
 import { TENANT_URL_PATHS } from "@/routes/urls/tenantUrls.js";
+import { getAuth } from "@/types/auth.js";
 import type { TenantAdminService } from "@/services/tenant/tenantAdminService.js";
 import type { TenantInviteService } from "@/services/tenant/tenantInviteService.js";
 
-function buildOnboardingCompleteHandler(tenantAdminService: TenantAdminService): RequestHandler {
-  return async (request, response, next) => {
+// Nested-tree mount under `tenantAdminRouter` (already prefixed
+// `/api/tenants/:tenantId/`) — registers the onboarding-complete route at
+// `/onboarding/complete` so the resolved URL is the clean
+// `/api/tenants/:tenantId/onboarding/complete`.
+export function createTenantOnboardingCompleteRouter(tenantAdminService: TenantAdminService) {
+  const router = Router();
+  router.post(TENANT_URL_PATHS.onboardingCompleteNested, requireCap("canManageUsers"), async (request, response, next) => {
     try {
       const context = getAuth(request);
       const tenantName = typeof request.body?.tenantName === "string" ? request.body.tenantName : "";
       const adminEmail = typeof request.body?.adminEmail === "string" ? request.body.adminEmail : context.email;
-
       await tenantAdminService.completeOnboarding({
         tenantId: context.tenantId,
         tenantName,
@@ -21,27 +25,15 @@ function buildOnboardingCompleteHandler(tenantAdminService: TenantAdminService):
     } catch (error) {
       next(error);
     }
-  };
-}
-
-// Nested-tree mount under `tenantAdminRouter` (already prefixed
-// `/api/tenants/:tenantId/`) — registers JUST the onboarding-complete route at
-// `/onboarding/complete` so the resolved URL is the clean
-// `/api/tenants/:tenantId/onboarding/complete` (no double `tenant`).
-export function createTenantOnboardingCompleteRouter(tenantAdminService: TenantAdminService) {
-  const router = Router();
-  router.post(TENANT_URL_PATHS.onboardingCompleteNested, requireCap("canManageUsers"), buildOnboardingCompleteHandler(tenantAdminService));
+  });
   return router;
 }
 
-// Legacy `/api`-prefixed mount — keeps the historical
-// `/api/tenant/onboarding/complete` shape AND the
-// `/api/tenant/invites/accept` route. Sub-PR F drops this once zero callers
-// remain on the legacy onboarding URL.
-export function createTenantLifecycleRouter(tenantAdminService: TenantAdminService, inviteService: TenantInviteService) {
+// Legacy `/api`-prefixed mount — retains only `/tenant/invites/accept`, the
+// one-time email-link invite acceptance flow that has no nested equivalent
+// (consumed via fetch outside the apiClient pipeline).
+export function createTenantLifecycleRouter(inviteService: TenantInviteService) {
   const router = Router();
-
-  router.post(TENANT_URL_PATHS.onboardingCompleteLegacy, requireCap("canManageUsers"), buildOnboardingCompleteHandler(tenantAdminService));
 
   router.post(TENANT_URL_PATHS.inviteAccept, async (request, response, next) => {
     try {
