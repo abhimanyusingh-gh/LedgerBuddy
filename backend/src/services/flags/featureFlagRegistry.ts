@@ -21,15 +21,7 @@ export const FEATURE_FLAG_REGISTRY = {
       "Emit the full per-dependency health payload in the logger output when the /health endpoint is hit. Canary consumer for INFRA-2.",
     defaultEnabled: false,
     targeting: []
-  },
-  "tds.cumulativeEnabled": {
-    description:
-      "Gate the TDS cumulative threshold tracking pipeline (TdsVendorLedger model + service). Off in prod until Phase 1 sign-off (#255).",
-    defaultEnabled: false,
-    targeting: []
   }
 } as const satisfies Record<string, FeatureFlagDefinition>;
-
-export const TDS_CUMULATIVE_ENABLED_FLAG = "tds.cumulativeEnabled" satisfies FeatureFlagName;
 
 export type FeatureFlagName = keyof typeof FEATURE_FLAG_REGISTRY;

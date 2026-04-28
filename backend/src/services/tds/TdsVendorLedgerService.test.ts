@@ -1,28 +1,12 @@
 import { describeHarness } from "@/test-utils";
 import { TdsVendorLedgerModel } from "@/models/compliance/TdsVendorLedger.js";
 import { TdsVendorLedgerService } from "@/services/tds/TdsVendorLedgerService.js";
-import { FeatureFlagEvaluator, type FeatureFlagOverrideStore } from "@/services/flags/featureFlagEvaluator.js";
-import {
-  FEATURE_FLAG_REGISTRY,
-  TDS_CUMULATIVE_ENABLED_FLAG
-} from "@/services/flags/featureFlagRegistry.js";
 
 const TENANT = "tenant-tds-1";
 const VENDOR = "vendor-fingerprint-acme";
 const FY = "2026-27";
 const SECTION = "194C";
 const APRIL_15_IST = new Date("2026-04-15T05:30:00+05:30");
-
-function makeNoopStore(): FeatureFlagOverrideStore {
-  return {
-    async findOverride() {
-      return null;
-    },
-    async findOverrides() {
-      return {};
-    }
-  };
-}
 
 describeHarness("TdsVendorLedgerService", ({ getHarness }) => {
   let service: TdsVendorLedgerService;
@@ -228,31 +212,4 @@ describeHarness("TdsVendorLedgerService", ({ getHarness }) => {
     });
   });
 
-  describe("TDS_CUMULATIVE_ENABLED feature flag", () => {
-    it("is registered, defaults off, and gates recordTdsToLedger callers", async () => {
-      const evaluator = new FeatureFlagEvaluator({
-        registry: FEATURE_FLAG_REGISTRY,
-        overrideStore: makeNoopStore()
-      });
-      const enabled = await evaluator.isEnabled(TDS_CUMULATIVE_ENABLED_FLAG, { tenantId: TENANT });
-      expect(enabled).toBe(false);
-
-      const guardedRecord = async () => {
-        if (!(await evaluator.isEnabled(TDS_CUMULATIVE_ENABLED_FLAG, { tenantId: TENANT }))) {
-          return null;
-        }
-        return service.recordTdsToLedger({
-          tenantId: TENANT, vendorFingerprint: VENDOR, financialYear: FY, section: SECTION,
-          invoiceId: "inv-flagged", invoiceDate: APRIL_15_IST,
-          taxableAmountMinor: 1000_00, tdsAmountMinor: 10_00,
-          rateSource: "rateTable", thresholdCrossed: false
-        });
-      };
-
-      const result = await guardedRecord();
-      expect(result).toBeNull();
-      const docs = await TdsVendorLedgerModel.countDocuments({});
-      expect(docs).toBe(0);
-    });
-  });
 });
