@@ -1,23 +1,17 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect } from "react";
+import { useUserPrefsStore, THEME_MODE, type ThemeMode } from "@/stores/userPrefsStore";
 
-type Theme = "light" | "dark";
-
-function getSystemTheme(): Theme {
-  if (typeof window === "undefined") return "light";
-  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-}
-
-function getStoredTheme(): Theme | null {
-  try {
-    const stored = localStorage.getItem("ledgerbuddy:theme");
-    return stored === "light" || stored === "dark" ? stored : null;
-  } catch {
-    return null;
-  }
+function getSystemTheme(): ThemeMode {
+  if (typeof window === "undefined") return THEME_MODE.LIGHT;
+  return window.matchMedia("(prefers-color-scheme: dark)").matches
+    ? THEME_MODE.DARK
+    : THEME_MODE.LIGHT;
 }
 
 export function useTheme() {
-  const [theme, setThemeState] = useState<Theme>(() => getStoredTheme() ?? getSystemTheme());
+  const storedMode = useUserPrefsStore((state) => state.theme.mode);
+  const setTheme = useUserPrefsStore((state) => state.setTheme);
+  const theme: ThemeMode = storedMode ?? getSystemTheme();
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
@@ -26,8 +20,11 @@ export function useTheme() {
   useEffect(() => {
     const mq = window.matchMedia("(prefers-color-scheme: dark)");
     const handler = () => {
-      if (!getStoredTheme()) {
-        setThemeState(mq.matches ? "dark" : "light");
+      if (useUserPrefsStore.getState().theme.mode === null) {
+        document.documentElement.setAttribute(
+          "data-theme",
+          mq.matches ? THEME_MODE.DARK : THEME_MODE.LIGHT
+        );
       }
     };
     mq.addEventListener("change", handler);
@@ -35,12 +32,9 @@ export function useTheme() {
   }, []);
 
   const toggleTheme = useCallback(() => {
-    setThemeState((current) => {
-      const next = current === "light" ? "dark" : "light";
-      localStorage.setItem("ledgerbuddy:theme", next);
-      return next;
-    });
-  }, []);
+    const current = useUserPrefsStore.getState().theme.mode ?? getSystemTheme();
+    setTheme(current === THEME_MODE.LIGHT ? THEME_MODE.DARK : THEME_MODE.LIGHT);
+  }, [setTheme]);
 
   return { theme, toggleTheme };
 }

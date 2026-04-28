@@ -1,16 +1,5 @@
 import { useMemo, useRef, useState, type DragEvent } from "react";
-
-function readOrder(storageKey: string): string[] | null {
-  try {
-    const raw = localStorage.getItem(storageKey);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed) || !parsed.every((item) => typeof item === "string")) return null;
-    return parsed;
-  } catch {
-    return null;
-  }
-}
+import { useUserPrefsStore } from "@/stores/userPrefsStore";
 
 function reconcileOrder(saved: string[] | null, defaultOrder: string[]): string[] {
   if (!saved) return defaultOrder;
@@ -24,8 +13,13 @@ function reconcileOrder(saved: string[] | null, defaultOrder: string[]): string[
 }
 
 export function useReorderableSections(storageKey: string, defaultOrder: string[]) {
+  const persistedOrder = useUserPrefsStore(
+    (state) => state.sectionOrder.orderByKey[storageKey] ?? null
+  );
+  const setSectionOrder = useUserPrefsStore((state) => state.setSectionOrder);
+
   const [order, setOrder] = useState<string[]>(() =>
-    reconcileOrder(readOrder(storageKey), defaultOrder)
+    reconcileOrder(persistedOrder, defaultOrder)
   );
 
   const draggingIdRef = useRef<string | null>(null);
@@ -65,10 +59,7 @@ export function useReorderableSections(storageKey: string, defaultOrder: string[
             const next = prev.filter((id) => id !== sourceId);
             const insertAt = next.indexOf(sectionId);
             next.splice(insertAt === -1 ? next.length : insertAt, 0, sourceId);
-            try {
-              localStorage.setItem(storageKey, JSON.stringify(next));
-            } catch {
-            }
+            setSectionOrder(storageKey, next);
             return next;
           });
 
@@ -82,7 +73,7 @@ export function useReorderableSections(storageKey: string, defaultOrder: string[
           draggingIdRef.current = null;
         },
       }),
-    [storageKey]
+    [storageKey, setSectionOrder]
   );
 
   return { order, dragHandlers, dragOverId, draggingId };

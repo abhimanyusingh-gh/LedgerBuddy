@@ -5,18 +5,11 @@ import {
   mergeSelectedIds,
   removeSelectedIds
 } from "@/lib/common/selection";
+import { useUserPrefsStore, SORT_DIRECTION } from "@/stores/userPrefsStore";
 
-export const SORT_DIRECTION = {
-  ASC: "asc",
-  DESC: "desc"
-} as const;
+export { SORT_DIRECTION };
 
 type SortDirection = (typeof SORT_DIRECTION)[keyof typeof SORT_DIRECTION];
-
-const STORAGE_KEY = {
-  SORT_COLUMN: "ledgerbuddy:sort-col",
-  SORT_DIRECTION: "ledgerbuddy:sort-dir"
-} as const;
 
 interface UseInvoiceTableStateOptions {
   initialPageSize?: number;
@@ -46,12 +39,6 @@ interface UseInvoiceTableStateResult {
   toggleRiskSignalsExpanded: (invoiceId: string) => void;
 }
 
-function readStoredSortDirection(): SortDirection {
-  return localStorage.getItem(STORAGE_KEY.SORT_DIRECTION) === SORT_DIRECTION.DESC
-    ? SORT_DIRECTION.DESC
-    : SORT_DIRECTION.ASC;
-}
-
 export function useInvoiceTableState(
   options: UseInvoiceTableStateOptions = {}
 ): UseInvoiceTableStateResult {
@@ -61,25 +48,24 @@ export function useInvoiceTableState(
   const [pageSize, setPageSize] = useState(initialPageSize);
   const [totalInvoices, setTotalInvoices] = useState(0);
 
-  const [sortColumn, setSortColumnRaw] = useState<string | null>(
-    () => localStorage.getItem(STORAGE_KEY.SORT_COLUMN)
-  );
-  const [sortDirection, setSortDirectionRaw] = useState<SortDirection>(readStoredSortDirection);
+  const sortColumn = useUserPrefsStore((state) => state.invoiceView.sortColumn);
+  const sortDirection = useUserPrefsStore((state) => state.invoiceView.sortDirection);
+  const setInvoiceView = useUserPrefsStore((state) => state.setInvoiceView);
 
-  const setSortColumn = useCallback((column: string) => {
-    setSortColumnRaw(column);
-    localStorage.setItem(STORAGE_KEY.SORT_COLUMN, column);
-  }, []);
+  const setSortColumn = useCallback(
+    (column: string) => {
+      setInvoiceView({ sortColumn: column });
+    },
+    [setInvoiceView]
+  );
 
   const setSortDirection = useCallback(
     (value: SortDirection | ((prev: SortDirection) => SortDirection)) => {
-      setSortDirectionRaw((prev) => {
-        const next = typeof value === "function" ? value(prev) : value;
-        localStorage.setItem(STORAGE_KEY.SORT_DIRECTION, next);
-        return next;
-      });
+      const prev = useUserPrefsStore.getState().invoiceView.sortDirection;
+      const next = typeof value === "function" ? value(prev) : value;
+      setInvoiceView({ sortDirection: next });
     },
-    []
+    [setInvoiceView]
   );
 
   const [selectedIds, setSelectedIds] = useState<string[]>([]);

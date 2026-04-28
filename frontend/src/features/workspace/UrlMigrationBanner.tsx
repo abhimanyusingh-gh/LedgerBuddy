@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useUserPrefsStore } from "@/stores/userPrefsStore";
 
 const STORAGE_PREFIX = "ledgerbuddy:url-migration-dismissed:";
 const DISMISSAL_TTL_MS = 30 * 24 * 60 * 60 * 1000;
@@ -8,46 +9,27 @@ interface UrlMigrationBannerProps {
   newPath: string;
 }
 
-interface DismissalRecord {
-  dismissed: boolean;
-  timestamp: number;
-}
-
 function storageKey(oldPath: string, newPath: string): string {
   return `${STORAGE_PREFIX}${oldPath}->${newPath}`;
 }
 
 export function readDismissal(key: string, now: number = Date.now()): boolean {
-  try {
-    const raw = window.localStorage.getItem(key);
-    if (!raw) {
-      return false;
-    }
-    const record = JSON.parse(raw) as Partial<DismissalRecord>;
-    if (!record || record.dismissed !== true || typeof record.timestamp !== "number") {
-      return false;
-    }
-    if (now - record.timestamp > DISMISSAL_TTL_MS) {
-      try {
-        window.localStorage.removeItem(key);
-      } catch {
-        /* noop */
-      }
-      return false;
-    }
-    return true;
-  } catch {
+  const record = useUserPrefsStore.getState().urlMigration.dismissalsByKey[key];
+  if (!record || record.dismissed !== true) {
     return false;
   }
+  if (now - record.timestamp > DISMISSAL_TTL_MS) {
+    useUserPrefsStore.getState().setUrlMigrationDismissal(key, null);
+    return false;
+  }
+  return true;
 }
 
 export function writeDismissal(key: string, now: number = Date.now()): void {
-  try {
-    const record: DismissalRecord = { dismissed: true, timestamp: now };
-    window.localStorage.setItem(key, JSON.stringify(record));
-  } catch {
-    /* noop */
-  }
+  useUserPrefsStore.getState().setUrlMigrationDismissal(key, {
+    dismissed: true,
+    timestamp: now
+  });
 }
 
 export function UrlMigrationBanner({ oldPath, newPath }: UrlMigrationBannerProps) {

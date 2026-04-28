@@ -3,20 +3,23 @@ import { getUserFacingErrorMessage } from "@/lib/common/apiError";
 import { useTenantWorkspaceConnections } from "@/hooks/useTenantWorkspaceConnections";
 import { useTenantWorkspacePlatform } from "@/hooks/useTenantWorkspacePlatform";
 import { useTenantWorkspaceSession } from "@/hooks/useTenantWorkspaceSession";
+import { useUserPrefsStore, TENANT_VIEW_TAB } from "@/stores/userPrefsStore";
 import type { TenantViewTab } from "@/types";
 
 interface UseTenantWorkspaceOptions {
   addToast: (type: "success" | "error" | "info", message: string) => void;
 }
 
+const VALID_TABS: TenantViewTab[] = Object.values(TENANT_VIEW_TAB);
+
 export function useTenantWorkspace({ addToast }: UseTenantWorkspaceOptions) {
   const [error, setError] = useState<string | null>(null);
   const [navCounts, setNavCounts] = useState({ total: 0, approved: 0, pending: 0, failed: 0 });
-  const [activeTab, setActiveTabRaw] = useState(() => {
-    const stored = localStorage.getItem("ledgerbuddy:active-tab");
-    const valid: TenantViewTab[] = ["overview", "dashboard", "config", "exports", "statements", "connections"];
-    return stored && valid.includes(stored as TenantViewTab) ? (stored as TenantViewTab) : "overview";
-  });
+  const storedActiveTab = useUserPrefsStore((state) => state.tenantWorkspace.activeTab);
+  const setActiveTabPref = useUserPrefsStore((state) => state.setTenantWorkspaceTab);
+  const activeTab: TenantViewTab = VALID_TABS.includes(storedActiveTab as TenantViewTab)
+    ? (storedActiveTab as TenantViewTab)
+    : TENANT_VIEW_TAB.OVERVIEW;
 
   const guarded = useCallback(async (fn: () => Promise<void>, fallbackMsg: string) => {
     try {
@@ -26,10 +29,12 @@ export function useTenantWorkspace({ addToast }: UseTenantWorkspaceOptions) {
     }
   }, []);
 
-  const setActiveTab = useCallback((tab: TenantViewTab) => {
-    setActiveTabRaw(tab);
-    localStorage.setItem("ledgerbuddy:active-tab", tab);
-  }, []);
+  const setActiveTab = useCallback(
+    (tab: TenantViewTab) => {
+      setActiveTabPref(tab);
+    },
+    [setActiveTabPref]
+  );
 
   const session = useTenantWorkspaceSession({ guarded, setError });
   const connections = useTenantWorkspaceConnections({

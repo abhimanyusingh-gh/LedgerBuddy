@@ -3,6 +3,8 @@
  */
 import { renderHook, act } from "@testing-library/react";
 import { useInvoiceTableState, SORT_DIRECTION } from "@/hooks/useInvoiceTableState";
+import { useUserPrefsStore } from "@/stores/userPrefsStore";
+import { resetStores } from "@/test-utils/resetStores";
 import type { Invoice } from "@/types";
 
 function makeInvoice(overrides: Pick<Invoice, "_id" | "status">): Invoice {
@@ -11,6 +13,7 @@ function makeInvoice(overrides: Pick<Invoice, "_id" | "status">): Invoice {
 
 beforeEach(() => {
   localStorage.clear();
+  resetStores();
 });
 
 describe("useInvoiceTableState", () => {
@@ -24,13 +27,13 @@ describe("useInvoiceTableState", () => {
     expect(result.current.sortDirection).toBe(SORT_DIRECTION.ASC);
   });
 
-  it("persists sort column and direction to localStorage", () => {
+  it("persists sort column and direction via the userPrefs store", () => {
     const { result } = renderHook(() => useInvoiceTableState());
 
     act(() => {
       result.current.setSortColumn("total");
     });
-    expect(localStorage.getItem("ledgerbuddy:sort-col")).toBe("total");
+    expect(useUserPrefsStore.getState().invoiceView.sortColumn).toBe("total");
     expect(result.current.sortColumn).toBe("total");
 
     act(() => {
@@ -38,13 +41,14 @@ describe("useInvoiceTableState", () => {
         prev === SORT_DIRECTION.ASC ? SORT_DIRECTION.DESC : SORT_DIRECTION.ASC
       );
     });
-    expect(localStorage.getItem("ledgerbuddy:sort-dir")).toBe(SORT_DIRECTION.DESC);
+    expect(useUserPrefsStore.getState().invoiceView.sortDirection).toBe(SORT_DIRECTION.DESC);
     expect(result.current.sortDirection).toBe(SORT_DIRECTION.DESC);
   });
 
-  it("rehydrates sort state from localStorage on mount", () => {
-    localStorage.setItem("ledgerbuddy:sort-col", "invoiceDate");
-    localStorage.setItem("ledgerbuddy:sort-dir", "desc");
+  it("rehydrates sort state from the userPrefs store on mount", () => {
+    useUserPrefsStore
+      .getState()
+      .setInvoiceView({ sortColumn: "invoiceDate", sortDirection: SORT_DIRECTION.DESC });
 
     const { result } = renderHook(() => useInvoiceTableState());
 

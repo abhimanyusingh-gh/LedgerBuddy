@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useUserPrefsStore } from "@/stores/userPrefsStore";
 
 const ZOOM_MIN = 1;
 const ZOOM_MAX = 5;
@@ -20,10 +21,10 @@ interface InvoicePreviewProps {
 export function InvoicePreview({ imageUrl, alt, boundingBox, persistKey }: InvoicePreviewProps) {
   const [zoom, setZoom] = useState(() => {
     if (!persistKey) return 1;
-    try {
-      const stored = localStorage.getItem(`ledgerbuddy:zoom:${persistKey}`);
-      return stored ? Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, Number(stored))) : 1;
-    } catch { return 1; }
+    const stored = useUserPrefsStore.getState().invoicePreview.zoomByKey[persistKey];
+    return typeof stored === "number"
+      ? Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, stored))
+      : 1;
   });
   const [dragging, setDragging] = useState(false);
   const [imageError, setImageError] = useState(false);
@@ -36,7 +37,7 @@ export function InvoicePreview({ imageUrl, alt, boundingBox, persistKey }: Invoi
 
   useEffect(() => {
     if (persistKey) {
-      try { localStorage.setItem(`ledgerbuddy:zoom:${persistKey}`, String(zoom)); } catch {}
+      useUserPrefsStore.getState().setInvoicePreviewZoom(persistKey, zoom);
     }
   }, [zoom, persistKey]);
 

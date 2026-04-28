@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import type { IngestionJobStatus } from "@/types";
+import { useUserPrefsStore } from "@/stores/userPrefsStore";
 
 interface IngestionProgressCardProps {
   status: IngestionJobStatus | null;
@@ -23,18 +24,13 @@ function initOverlay(el: HTMLDivElement) {
   let ox = 0;
   let oy = 0;
 
-  const saved = localStorage.getItem("ledgerbuddy:ingestion-pos");
+  const saved = useUserPrefsStore.getState().ingestionOverlay.position;
   if (saved) {
-    try {
-      const p = JSON.parse(saved);
-      if (typeof p.x === "number" && typeof p.y === "number") {
-        el.style.left = `${Math.max(0, Math.min(p.x, window.innerWidth - el.offsetWidth))}px`;
-        el.style.top = `${Math.max(0, Math.min(p.y, window.innerHeight - el.offsetHeight))}px`;
-        el.style.right = "auto";
-        el.style.bottom = "auto";
-        el.style.transform = "none";
-      }
-    } catch {}
+    el.style.left = `${Math.max(0, Math.min(saved.x, window.innerWidth - el.offsetWidth))}px`;
+    el.style.top = `${Math.max(0, Math.min(saved.y, window.innerHeight - el.offsetHeight))}px`;
+    el.style.right = "auto";
+    el.style.bottom = "auto";
+    el.style.transform = "none";
   }
 
   el.addEventListener("pointerdown", (e) => {
@@ -67,7 +63,10 @@ function initOverlay(el: HTMLDivElement) {
     el.style.cursor = "grab";
     el.style.transition = "";
     const rect = el.getBoundingClientRect();
-    localStorage.setItem("ledgerbuddy:ingestion-pos", JSON.stringify({ x: Math.round(rect.left), y: Math.round(rect.top) }));
+    useUserPrefsStore.getState().setIngestionOverlayPosition({
+      x: Math.round(rect.left),
+      y: Math.round(rect.top)
+    });
   });
 }
 

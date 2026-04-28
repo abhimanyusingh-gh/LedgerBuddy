@@ -4,6 +4,8 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import { UrlMigrationBanner, readDismissal, writeDismissal } from "@/features/workspace/UrlMigrationBanner";
+import { useUserPrefsStore } from "@/stores/userPrefsStore";
+import { resetStores } from "@/test-utils/resetStores";
 
 const KEY = "ledgerbuddy:url-migration-dismissed:?tab=dashboard->#/invoices";
 
@@ -19,6 +21,7 @@ function renderWithMainLandmark(ui: React.ReactElement) {
 describe("UrlMigrationBanner", () => {
   beforeEach(() => {
     window.localStorage.clear();
+    resetStores();
     jest.useRealTimers();
   });
 
@@ -28,16 +31,15 @@ describe("UrlMigrationBanner", () => {
     expect(screen.getByText("#/invoices")).toBeInTheDocument();
   });
 
-  it("dismisses on click and persists dismissal as a TTL record in localStorage", () => {
+  it("dismisses on click and persists dismissal in the userPrefs store", () => {
     render(<UrlMigrationBanner oldPath="?tab=dashboard" newPath="#/invoices" />);
     fireEvent.click(screen.getByRole("button", { name: /dismiss url migration/i }));
     expect(screen.queryByRole("status")).toBeNull();
 
-    const raw = window.localStorage.getItem(KEY);
-    expect(raw).not.toBeNull();
-    const parsed = JSON.parse(raw as string);
-    expect(parsed.dismissed).toBe(true);
-    expect(typeof parsed.timestamp).toBe("number");
+    const record = useUserPrefsStore.getState().urlMigration.dismissalsByKey[KEY];
+    expect(record).toBeDefined();
+    expect(record.dismissed).toBe(true);
+    expect(typeof record.timestamp).toBe("number");
   });
 
   it("stays hidden across re-mounts while the TTL is valid", () => {
@@ -51,9 +53,9 @@ describe("UrlMigrationBanner", () => {
 
   it("re-fires the banner after 30-day TTL expires", () => {
     const olderThanTtl = Date.now() - (31 * 24 * 60 * 60 * 1000);
-    window.localStorage.setItem(
+    useUserPrefsStore.getState().setUrlMigrationDismissal(
       "ledgerbuddy:url-migration-dismissed:?tab=exports->#/exports",
-      JSON.stringify({ dismissed: true, timestamp: olderThanTtl })
+      { dismissed: true, timestamp: olderThanTtl }
     );
 
     render(<UrlMigrationBanner oldPath="?tab=exports" newPath="#/exports" />);
@@ -94,9 +96,8 @@ describe("UrlMigrationBanner", () => {
       expect(readDismissal("k", now + 31 * 24 * 60 * 60 * 1000)).toBe(false);
     });
 
-    it("ignores malformed records", () => {
-      window.localStorage.setItem("k", "not-json");
-      expect(readDismissal("k")).toBe(false);
+    it("ignores absent records (no malformed crash)", () => {
+      expect(readDismissal("missing-key-2")).toBe(false);
     });
   });
 });

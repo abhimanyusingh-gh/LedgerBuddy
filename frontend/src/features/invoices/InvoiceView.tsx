@@ -42,6 +42,7 @@ import {
 } from "@/lib/invoice/invoiceView";
 import { useInvoiceDetail } from "@/hooks/useInvoiceDetail";
 import { useInvoiceTableState } from "@/hooks/useInvoiceTableState";
+import { useUserPrefsStore, type TableDensity } from "@/stores/userPrefsStore";
 import { useInvoiceFilters, DATE_VALIDATION_ERROR } from "@/hooks/useInvoiceFilters";
 import { getUserFacingErrorMessage, isAuthenticationError } from "@/lib/common/apiError";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
@@ -163,10 +164,11 @@ export function InvoiceView({
   const [activeId, setActiveId] = useState<string | null>(null);
   const [popupInvoiceId, setPopupInvoiceId] = useState<string | null>(null);
   const [detailsPanelVisible, setDetailsPanelVisible] = useState(false);
-  const [listPanelPercent, setListPanelPercent] = useState(() => {
-    const stored = localStorage.getItem("ledgerbuddy:panel-split");
-    return stored ? Number(stored) : 58;
-  });
+  const persistedPanelSplit = useUserPrefsStore((state) => state.invoiceView.panelSplitPercent);
+  const persistedTableDensity = useUserPrefsStore((state) => state.invoiceView.tableDensity);
+  const persistedColumnWidths = useUserPrefsStore((state) => state.invoiceView.columnWidths);
+  const setInvoiceViewPref = useUserPrefsStore((state) => state.setInvoiceView);
+  const [listPanelPercent, setListPanelPercent] = useState(() => persistedPanelSplit);
   const contentRef = useRef<HTMLElement>(null);
   const [ingestionStatus, setIngestionStatus] = useState<IngestionJobStatus | null>(null);
   const [ingestionFading, setIngestionFading] = useState(false);
@@ -174,18 +176,21 @@ export function InvoiceView({
   const [editListValue, setEditListValue] = useState("");
   const [glCodeEditingInvoiceId, setGlCodeEditingInvoiceId] = useState<string | null>(null);
   const [showShortcutsHelp, setShowShortcutsHelp] = useState(false);
-  const [tableDensity, setTableDensity] = useState<"compact" | "comfortable" | "spacious">(() => {
-    const stored = localStorage.getItem("ledgerbuddy:table-density");
-    return stored === "compact" || stored === "spacious" ? stored : "comfortable";
-  });
+  const tableDensity: TableDensity = persistedTableDensity;
+  const setTableDensity = useCallback(
+    (density: TableDensity) => setInvoiceViewPref({ tableDensity: density }),
+    [setInvoiceViewPref]
+  );
   const [tenantGlCodes, setTenantGlCodes] = useState<GlCode[]>([]);
   const [tenantTdsRates, setTenantTdsRates] = useState<TdsRate[]>([]);
-  const [columnWidths, setColumnWidths] = useState<Record<string, number>>(() => {
-    try {
-      const stored = localStorage.getItem("ledgerbuddy:col-widths");
-      return stored ? JSON.parse(stored) : {};
-    } catch { return {}; }
-  });
+  const columnWidths: Record<string, number> = persistedColumnWidths;
+  const setColumnWidths = useCallback(
+    (updater: (prev: Record<string, number>) => Record<string, number>) => {
+      const prev = useUserPrefsStore.getState().invoiceView.columnWidths;
+      setInvoiceViewPref({ columnWidths: updater(prev) });
+    },
+    [setInvoiceViewPref]
+  );
   const [sectionExpanded, setSectionExpanded] = useState<Record<string, boolean>>({
     popupExtractedFields: true,
     activeExtractedFields: true
@@ -561,11 +566,7 @@ export function InvoiceView({
     document.body.style.userSelect = "none";
     const onMove = (ev: MouseEvent) => {
       const newWidth = Math.max(60, startWidth + ev.clientX - startX);
-      setColumnWidths((prev) => {
-        const next = { ...prev, [colKey]: newWidth };
-        localStorage.setItem("ledgerbuddy:col-widths", JSON.stringify(next));
-        return next;
-      });
+      setColumnWidths((prev) => ({ ...prev, [colKey]: newWidth }));
     };
     const onUp = () => {
       document.body.style.cursor = "";
@@ -575,7 +576,7 @@ export function InvoiceView({
     };
     document.addEventListener("mousemove", onMove);
     document.addEventListener("mouseup", onUp);
-  }, []);
+  }, [setColumnWidths]);
 
   const handleDividerMouseDown = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
@@ -597,11 +598,11 @@ export function InvoiceView({
       document.body.style.userSelect = "";
       document.removeEventListener("mousemove", onMove);
       document.removeEventListener("mouseup", onUp);
-      localStorage.setItem("ledgerbuddy:panel-split", String(listPanelPercent));
+      setInvoiceViewPref({ panelSplitPercent: listPanelPercent });
     };
     document.addEventListener("mousemove", onMove);
     document.addEventListener("mouseup", onUp);
-  }, [listPanelPercent]);
+  }, [listPanelPercent, setInvoiceViewPref]);
 
   async function loadInvoices() {
     setLoading(true);
@@ -1227,7 +1228,6 @@ export function InvoiceView({
         tableDensity={tableDensity}
         onTableDensityChange={(density) => {
           setTableDensity(density);
-          localStorage.setItem("ledgerbuddy:table-density", density);
         }}
         uploadInputRef={uploadInputRef}
         onUploadButtonClick={() => uploadInputRef.current?.click()}

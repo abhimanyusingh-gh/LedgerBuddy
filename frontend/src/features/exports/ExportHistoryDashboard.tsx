@@ -1,7 +1,13 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { fetchExportHistory, downloadTallyXmlFile } from "@/api";
 import type { ExportBatchSummary } from "@/types";
 import { EmptyState } from "@/components/common/EmptyState";
+import {
+  useUserPrefsStore,
+  EXPORT_SORT_KEY,
+  SORT_DIRECTION,
+  type ExportSortKey
+} from "@/stores/userPrefsStore";
 
 function formatName(value?: string): string {
   if (!value) return "-";
@@ -10,31 +16,20 @@ function formatName(value?: string): string {
   return value.slice(0, at).replace(/[._-]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-function loadStored<T>(key: string, fallback: T): T {
-  try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; } catch { return fallback; }
-}
-
-function persist(key: string, value: unknown) { localStorage.setItem(key, JSON.stringify(value)); }
-
-type SortKey = "date" | "total" | "success" | "failed" | "requestedBy";
-
 export function ExportHistoryDashboard() {
   const [items, setItems] = useState<ExportBatchSummary[]>([]);
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(() => loadStored("ledgerbuddy:export-page-size", 20));
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
-  const [dateFrom, setDateFrom] = useState(() => loadStored("ledgerbuddy:export-from", ""));
-  const [dateTo, setDateTo] = useState(() => loadStored("ledgerbuddy:export-to", ""));
-  const [sortKey, setSortKey] = useState<SortKey>(() => loadStored("ledgerbuddy:export-sort-key", "date"));
-  const [sortDir, setSortDir] = useState<"asc" | "desc">(() => loadStored("ledgerbuddy:export-sort-dir", "desc"));
+
+  const pageSize = useUserPrefsStore((state) => state.exportHistory.pageSize);
+  const dateFrom = useUserPrefsStore((state) => state.exportHistory.dateFrom);
+  const dateTo = useUserPrefsStore((state) => state.exportHistory.dateTo);
+  const sortKey = useUserPrefsStore((state) => state.exportHistory.sortKey);
+  const sortDir = useUserPrefsStore((state) => state.exportHistory.sortDirection);
+  const setExportHistory = useUserPrefsStore((state) => state.setExportHistory);
 
   useEffect(() => { void loadHistory(); }, [page, pageSize]);
-  useEffect(() => { persist("ledgerbuddy:export-from", dateFrom); }, [dateFrom]);
-  useEffect(() => { persist("ledgerbuddy:export-to", dateTo); }, [dateTo]);
-  useEffect(() => { persist("ledgerbuddy:export-page-size", pageSize); }, [pageSize]);
-  useEffect(() => { persist("ledgerbuddy:export-sort-key", sortKey); }, [sortKey]);
-  useEffect(() => { persist("ledgerbuddy:export-sort-dir", sortDir); }, [sortDir]);
 
   async function loadHistory() {
     setLoading(true);
@@ -56,30 +51,40 @@ export function ExportHistoryDashboard() {
     } catch {}
   }
 
-  function toggleSort(key: SortKey) {
-    if (sortKey === key) { setSortDir((d) => d === "asc" ? "desc" : "asc"); }
-    else { setSortKey(key); setSortDir("asc"); }
+  function toggleSort(key: ExportSortKey) {
+    if (sortKey === key) {
+      setExportHistory({
+        sortDirection: sortDir === SORT_DIRECTION.ASC ? SORT_DIRECTION.DESC : SORT_DIRECTION.ASC
+      });
+    } else {
+      setExportHistory({ sortKey: key, sortDirection: SORT_DIRECTION.ASC });
+    }
   }
 
   let displayed = items;
   if (dateFrom) { const from = new Date(dateFrom); displayed = displayed.filter((b) => new Date(b.createdAt) >= from); }
   if (dateTo) { const to = new Date(dateTo); to.setHours(23, 59, 59, 999); displayed = displayed.filter((b) => new Date(b.createdAt) <= to); }
 
-  const dir = sortDir === "asc" ? 1 : -1;
+  const dir: number = sortDir === SORT_DIRECTION.ASC ? 1 : -1;
   displayed = [...displayed].sort((a, b) => {
     switch (sortKey) {
-      case "date": return (new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()) * dir;
-      case "total": return (a.total - b.total) * dir;
-      case "success": return (a.successCount - b.successCount) * dir;
-      case "failed": return (a.failureCount - b.failureCount) * dir;
-      case "requestedBy": return a.requestedBy.localeCompare(b.requestedBy) * dir;
+      case EXPORT_SORT_KEY.DATE: return (new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()) * dir;
+      case EXPORT_SORT_KEY.TOTAL: return (a.total - b.total) * dir;
+      case EXPORT_SORT_KEY.SUCCESS: return (a.successCount - b.successCount) * dir;
+      case EXPORT_SORT_KEY.FAILED: return (a.failureCount - b.failureCount) * dir;
+      case EXPORT_SORT_KEY.REQUESTED_BY: return a.requestedBy.localeCompare(b.requestedBy) * dir;
       default: return 0;
     }
   });
 
   const totalPages = Math.ceil(total / pageSize);
   const hasFilters = dateFrom !== "" || dateTo !== "";
-  const sortIcon = (key: SortKey) => sortKey === key ? (sortDir === "asc" ? " \u25B2" : " \u25BC") : "";
+  const sortIcon = (key: ExportSortKey) =>
+    sortKey === key ? (sortDir === SORT_DIRECTION.ASC ? " ▲" : " ▼") : "";
+
+  const setDateFrom = (value: string) => setExportHistory({ dateFrom: value });
+  const setDateTo = (value: string) => setExportHistory({ dateTo: value });
+  const setPageSize = (value: number) => setExportHistory({ pageSize: value });
 
   return (
     <section className="export-history-section">
@@ -114,11 +119,11 @@ export function ExportHistoryDashboard() {
             <table className="export-history-table">
               <thead>
                 <tr>
-                  <th className="sortable-th" onClick={() => toggleSort("date")}>Date{sortIcon("date")}</th>
-                  <th className="sortable-th" onClick={() => toggleSort("total")}>Total{sortIcon("total")}</th>
-                  <th className="sortable-th" onClick={() => toggleSort("success")}>Success{sortIcon("success")}</th>
-                  <th className="sortable-th" onClick={() => toggleSort("failed")}>Failed{sortIcon("failed")}</th>
-                  <th className="sortable-th" onClick={() => toggleSort("requestedBy")}>Requested By{sortIcon("requestedBy")}</th>
+                  <th className="sortable-th" onClick={() => toggleSort(EXPORT_SORT_KEY.DATE)}>Date{sortIcon(EXPORT_SORT_KEY.DATE)}</th>
+                  <th className="sortable-th" onClick={() => toggleSort(EXPORT_SORT_KEY.TOTAL)}>Total{sortIcon(EXPORT_SORT_KEY.TOTAL)}</th>
+                  <th className="sortable-th" onClick={() => toggleSort(EXPORT_SORT_KEY.SUCCESS)}>Success{sortIcon(EXPORT_SORT_KEY.SUCCESS)}</th>
+                  <th className="sortable-th" onClick={() => toggleSort(EXPORT_SORT_KEY.FAILED)}>Failed{sortIcon(EXPORT_SORT_KEY.FAILED)}</th>
+                  <th className="sortable-th" onClick={() => toggleSort(EXPORT_SORT_KEY.REQUESTED_BY)}>Requested By{sortIcon(EXPORT_SORT_KEY.REQUESTED_BY)}</th>
                   <th>Download</th>
                 </tr>
               </thead>
