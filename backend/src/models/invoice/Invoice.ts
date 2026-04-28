@@ -3,12 +3,12 @@ import { InvoiceStatuses, INVOICE_STATUS, GL_CODE_SOURCE, TriageRejectReasons } 
 import { ConfidenceTones } from "@/types/confidence.js";
 import { WorkloadTiers } from "@/types/tenant.js";
 import { validateClientOrgTenantInvariant } from "@/services/auth/tenantScope.js";
-import { applyActionSeveritySchemaDoc } from "./invoice.actionSeverity.js";
-import { ocrBlockSchema } from "./invoice.ocrBlock.js";
+import { applyActionSeveritySchemaDoc } from "@/models/invoice/invoice.actionSeverity.js";
+import { ocrBlockSchema } from "@/models/invoice/invoice.ocrBlock.js";
 import {
   extractionFieldProvenanceSchema,
   extractionLineItemProvenanceSchema
-} from "./invoice.extractionProvenance.js";
+} from "@/models/invoice/invoice.extractionProvenance.js";
 
 const workflowStepResultSchema = new Schema(
   {
