@@ -7,9 +7,11 @@ import {
   ACTION_REASON,
   ACTION_REASON_SEVERITY,
   classifyActionReason,
+  computeActionSeverityFields,
   emptyReasonCounts,
   fetchActionRequired,
-  type ActionReason
+  type ActionReason,
+  type ClassifierInput
 } from "./actionRequired.ts";
 
 describe("ACTION_REASON enum stability (drift guard)", () => {
@@ -174,14 +176,17 @@ describeHarness("fetchActionRequired (mongo aggregation)", ({ getHarness }) => {
         status: INVOICE_STATUS.PARSED,
         parsed: { currency: "INR", customerGstin: "27AAAAA0000A1Z5", vendorName: `${key} vendor`, totalAmountMinor: 10_000 }
       };
-      const merged = { ...base, ...overrides };
+      const merged = { ...base, ...overrides } as Record<string, unknown>;
       if ((overrides as { parsed?: unknown }).parsed) {
         merged.parsed = { ...base.parsed, ...(overrides as { parsed: Record<string, unknown> }).parsed };
       }
-      await InvoiceModel.collection.insertOne(merged as unknown as Record<string, unknown>);
+      const fields = computeActionSeverityFields(merged as unknown as ClassifierInput);
+      merged.actionReason = fields.actionReason;
+      merged.actionSeverity = fields.actionSeverity;
+      await InvoiceModel.collection.insertOne(merged);
     }
 
-    await InvoiceModel.collection.insertOne({
+    const leakDoc: Record<string, unknown> = {
       _id: new Types.ObjectId(),
       tenantId: otherTenantId,
       workloadTier: "standard",
@@ -195,7 +200,11 @@ describeHarness("fetchActionRequired (mongo aggregation)", ({ getHarness }) => {
       updatedAt: new Date(),
       status: INVOICE_STATUS.FAILED_OCR,
       parsed: { currency: "INR", customerGstin: "", vendorName: "Leak vendor", totalAmountMinor: 99 }
-    });
+    };
+    const leakFields = computeActionSeverityFields(leakDoc as unknown as ClassifierInput);
+    leakDoc.actionReason = leakFields.actionReason;
+    leakDoc.actionSeverity = leakFields.actionSeverity;
+    await InvoiceModel.collection.insertOne(leakDoc);
 
     return ids;
   }
@@ -278,7 +287,7 @@ describeHarness("fetchActionRequired (mongo aggregation)", ({ getHarness }) => {
     for (let i = 0; i < 5; i++) {
       const _id = new Types.ObjectId();
       tieIds.push(_id);
-      await InvoiceModel.collection.insertOne({
+      const tieDoc: Record<string, unknown> = {
         _id,
         tenantId,
         workloadTier: "standard",
@@ -292,7 +301,11 @@ describeHarness("fetchActionRequired (mongo aggregation)", ({ getHarness }) => {
         updatedAt: tieCreatedAt,
         status: INVOICE_STATUS.FAILED_OCR,
         parsed: { currency: "INR", customerGstin: "27AAAAA0000A1Z5", vendorName: `tie-${i}`, totalAmountMinor: 10_000 }
-      } as unknown as Record<string, unknown>);
+      };
+      const fields = computeActionSeverityFields(tieDoc as unknown as ClassifierInput);
+      tieDoc.actionReason = fields.actionReason;
+      tieDoc.actionSeverity = fields.actionSeverity;
+      await InvoiceModel.collection.insertOne(tieDoc);
     }
 
     const page1 = await fetchActionRequired({ tenantId, limit: 2, cursor: null });
