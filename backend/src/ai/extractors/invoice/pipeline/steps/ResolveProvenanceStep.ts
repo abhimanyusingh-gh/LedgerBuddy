@@ -9,10 +9,6 @@ import {
 } from "@/ai/extractors/invoice/stages/provenance.js";
 import { POST_ENGINE_CTX } from "@/ai/extractors/invoice/pipeline/postEngineContextKeys.js";
 
-/**
- * Stage 15: Resolves line-item provenance via OCR block matching, collects
- * line-item confidence, and merges classification with compliance TDS section.
- */
 export class ResolveProvenanceStep implements PipelineStep {
   readonly name = "resolve-provenance";
 

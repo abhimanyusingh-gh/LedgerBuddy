@@ -6,10 +6,9 @@ import { isRecord, isString } from "@/utils/validation.js";
 import { HttpError } from "@/errors/HttpError.js";
 
 /**
- * Admin CRUD for `ClientOrganization` (#174). Tenant-scoped — mounts
- * under `tenantAdminRouter` (no `:clientOrgId` segment), since these
- * endpoints are themselves the source of truth the FE realm-switcher
- * reads from.
+ * Tenant-scoped — mounts under `tenantAdminRouter` (no `:clientOrgId`
+ * segment), since these endpoints are themselves the source of truth
+ * the FE realm-switcher reads from.
  */
 export function createClientOrgsRouter(service: ClientOrgsAdminService) {
   const router = Router();

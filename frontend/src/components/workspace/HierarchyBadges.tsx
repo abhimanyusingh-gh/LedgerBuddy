@@ -10,11 +10,6 @@ interface TenantBadgeProps {
   tenantName: string;
 }
 
-/**
- * Displays the CA firm (tenant) name in the topbar.
- * Always visible for any authenticated user — anchors the upper level
- * of the {tenantId, clientOrgId} composite-key hierarchy.
- */
 export function TenantBadge({ tenantName }: TenantBadgeProps) {
   // NIT B: when the tenant name is missing/whitespace, render an explicit
   // "Unknown tenant" placeholder so the data-quality issue surfaces instead
@@ -45,11 +40,6 @@ interface ActiveRealmBadgeProps {
   onOpenSwitcher?: () => void;
 }
 
-/**
- * Displays the active client realm (ClientOrganization.companyName) in the topbar.
- * When no realm is selected, renders a CTA button that opens the switcher
- * (TODO: wire to realm switcher in #152, fall through to onboarding #150 if empty).
- */
 export function ActiveRealmBadge({ clientOrgs, onOpenSwitcher }: ActiveRealmBadgeProps) {
   const { activeClientOrgId, setActiveClientOrg } = useActiveClientOrg();
 

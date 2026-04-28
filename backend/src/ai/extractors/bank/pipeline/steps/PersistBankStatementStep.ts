@@ -6,10 +6,6 @@ import { logger } from "@/utils/logger.js";
 import type { ParsedTransaction } from "@/ai/extractors/bank/pipeline/steps/NormalizeTransactionsStep.js";
 import { BANK_CTX } from "@/ai/extractors/bank/pipeline/contextKeys.js";
 
-/**
- * Persists the bank statement and its transactions to MongoDB.
- * Creates a BankStatement document and bulk-inserts BankTransaction documents.
- */
 export class PersistBankStatementStep implements PipelineStep {
   readonly name = "persist-bank-statement";
 

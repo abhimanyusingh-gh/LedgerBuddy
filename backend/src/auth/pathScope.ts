@@ -21,10 +21,6 @@ declare module "express-serve-static-core" {
  * every realm-scoped route mounts under the nested tree.
  */
 
-/**
- * Assert the path-supplied `:tenantId` matches the authenticated tenant.
- * Returns 403 on mismatch (authenticated as tenant A but URL targets tenant B).
- */
 export function requireMatchingTenantIdParam(
   req: Request,
   res: Response,

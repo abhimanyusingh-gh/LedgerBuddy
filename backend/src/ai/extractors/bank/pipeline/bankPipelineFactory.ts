@@ -21,24 +21,11 @@ interface BankPipelineParams {
 }
 
 /**
- * Builds the composable pipeline for post-engine bank statement processing.
- *
- * Prerequisites in the context store (set by the caller after running
- * DocumentProcessingEngine):
- * - BANK_CTX.SLM_OUTPUT: SlmBankStatementOutput
- * - BANK_CTX.WARNINGS: string[]
- * - BANK_CTX.BANK_NAME, ACCOUNT_NUMBER, ACCOUNT_HOLDER, PERIOD_FROM, PERIOD_TO
- *
  * The bank pipeline is intentionally simpler than the invoice pipeline. It does
  * NOT use common OCR post-processing steps (CaptureOcrMetadata, PostProcessOcr,
  * BuildTextCandidates, CalibrateConfidence, DetectLanguage) because the bank
  * statement flow delegates OCR + SLM extraction to DocumentProcessingEngine
  * directly.
- *
- * Pipeline stages:
- * 1. NormalizeTransactionsStep  - validate & normalize SLM transaction output
- * 2. DeduplicateTransactionsStep - fingerprint-based dedup against DB
- * 3. PersistBankStatementStep    - save statement & transactions to MongoDB
  */
 export function buildBankPostEnginePipeline(
   params: BankPipelineParams,

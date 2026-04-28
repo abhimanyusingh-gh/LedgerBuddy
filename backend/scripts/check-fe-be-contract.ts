@@ -154,15 +154,6 @@ interface BeUrl {
   source: string;
 }
 
-// ───────────────────────── BE URL-path map (resolves `as const` refs) ─────────────────────────
-// BE registration sites import path constants from `routes/urls/*Urls.ts`
-// (e.g. `TENANT_URL_PATHS.onboardingCompleteNested`) instead of inlining
-// string literals. The walker pre-builds a map of every `as const` object
-// property in those modules so `extractRoutesFromNode` can resolve a
-// `<Identifier>.<property>` PropertyAccessExpression to its literal value.
-// Mirrors the FE provider walker (`buildProviderMethodMap`) one tier down:
-// here the constants are bare strings, not `buildClientOrgPathUrl(...)` results.
-
 interface BeUrlPathMap {
   values: Map<string, string>;
   knownObjects: Set<string>;
@@ -242,7 +233,6 @@ function applyProviderKindShape(barePath: string, kind: ProviderKind): string {
   return `/api${normalized}`;
 }
 
-// ───────────────────────── Provider method walk ─────────────────────────
 // URL-provider methods (frontend/src/api/urls/*Urls.ts) bury the bare path
 // inside `buildClientOrgPathUrl(...)` / `buildTenantPathUrl(...)` calls,
 // invisible to the apiClient call-site walker. Pre-extract a
@@ -382,8 +372,6 @@ function isApiClientCallParent(node: ts.Node): boolean {
     METHOD_NAMES.has(callee.name.text)
   );
 }
-
-// ───────────────────────── FE walker ─────────────────────────
 
 function listTsFiles(dir: string, out: string[] = []): string[] {
   for (const entry of readdirSync(dir)) {
@@ -695,8 +683,6 @@ function walkFrontend(): FeUrl[] {
   }
   return Array.from(seen.values());
 }
-
-// ───────────────────────── BE walker ─────────────────────────
 
 interface MountInfo {
   routerVar: string;
@@ -1020,8 +1006,6 @@ function walkBackend(): BeUrl[] {
 
   return out;
 }
-
-// ───────────────────────── Diff + report ─────────────────────────
 
 function normalizeBeUrl(url: string): string {
   return preserveScopeParams(url);

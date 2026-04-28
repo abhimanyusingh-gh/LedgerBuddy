@@ -165,7 +165,6 @@ export class BankStatementExtractionPipeline {
     onProgress?.({ type: "start", fileName });
     onProgress?.({ type: "progress", stage: "text-extraction", transactionsSoFar: 0 });
 
-    // Stage 1: Run DocumentProcessingEngine (handles OCR/native text + SLM)
     const definition = new BankStatementDocumentDefinition();
     const engine = new DocumentProcessingEngine<SlmBankStatementOutput>(
       definition,
@@ -190,7 +189,6 @@ export class BankStatementExtractionPipeline {
 
     onProgress?.({ type: "progress", stage: "validation", transactionsSoFar: 0 });
 
-    // Stage 2: Run composed post-engine pipeline (normalize, dedup, persist)
     const slmOutput = engineResult.output;
     const warnings: string[] = [...engineResult.processingIssues];
 

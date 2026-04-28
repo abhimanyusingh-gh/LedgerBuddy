@@ -7,14 +7,11 @@ import { logger } from "@/utils/logger.js";
 import { POST_ENGINE_CTX } from "@/ai/extractors/invoice/pipeline/postEngineContextKeys.js";
 
 /**
- * Stage 13: Enriches the parsed data with compliance information (TDS, PAN, risk signals).
- * Only executes if a ComplianceEnricher was provided. Mirrors `runCompliance()` in the pipeline.
- *
- * Post-#156/#159: `clientOrgId` is carried on `PipelineInput` by the
- * ingestion path (sub-PR 4). PENDING_TRIAGE invoices skip compliance
- * enrichment entirely — the pipeline caller should not invoke this step
- * for triage rows. When clientOrgId is absent here it's a logic bug;
- * we log and skip rather than fan out across tenant client-orgs.
+ * `clientOrgId` is carried on `PipelineInput` by the ingestion path.
+ * PENDING_TRIAGE invoices skip compliance enrichment entirely — the
+ * pipeline caller should not invoke this step for triage rows. When
+ * clientOrgId is absent here it's a logic bug; we log and skip rather
+ * than fan out across tenant client-orgs.
  */
 export class EnrichComplianceStep implements PipelineStep {
   readonly name = "enrich-compliance";

@@ -4,11 +4,6 @@ import { BankTransactionModel } from "@/models/bank/BankTransaction.js";
 import type { ParsedTransaction } from "@/ai/extractors/bank/pipeline/steps/NormalizeTransactionsStep.js";
 import { BANK_CTX } from "@/ai/extractors/bank/pipeline/contextKeys.js";
 
-/**
- * Fingerprint-based deduplication of parsed transactions against existing
- * database records. Prevents re-importing transactions that were already
- * uploaded in a previous statement.
- */
 export class DeduplicateTransactionsStep implements PipelineStep {
   readonly name = "deduplicate-transactions";
 

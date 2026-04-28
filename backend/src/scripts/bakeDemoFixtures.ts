@@ -40,9 +40,6 @@ import type { LlamaParseTier } from "@/core/runtimeManifest.js";
 import { DOCUMENT_MIME_TYPE } from "@/types/mime.js";
 import { toUUID } from "@/types/uuid.js";
 
-/* ----------------------------------------------------------- target PDFs */
-
-/** Ordered list of PDFs to bake. */
 const TARGET_PDFS = [
   "INV-FY2526-939.pdf",
   "FC-Airtel.pdf",
@@ -51,8 +48,6 @@ const TARGET_PDFS = [
   "DV-Robu IN.pdf",
   "FC-G4S Facility_.pdf"
 ] as const;
-
-/* ----------------------------------------------------------- types */
 
 interface QualityFailure {
   file: string;
@@ -90,8 +85,6 @@ interface StagedFixture {
    */
   isNativeTextPdf: boolean;
 }
-
-/* ----------------------------------------------------------- quality gate */
 
 function isNonEmptyString(value: unknown, minLength = 1): value is string {
   return typeof value === "string" && value.trim().length >= minLength;
@@ -238,8 +231,6 @@ function validateFixture(staged: StagedFixture): QualityFailure[] {
 
   return failures;
 }
-
-/* ----------------------------------------------------------- runner */
 
 function truncate(value: unknown, limit = 60): string {
   if (value === undefined || value === null) return "<undefined>";

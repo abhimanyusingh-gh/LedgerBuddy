@@ -120,8 +120,6 @@ export async function generateDataset(
   };
 }
 
-// --- internals ---
-
 async function insertInBatches<TDoc, TOut>(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   model: { insertMany: (docs: TOut[], opts?: { ordered?: boolean }) => Promise<unknown> },

@@ -111,8 +111,6 @@ async function ensureSeedVendors(tenantId: string): Promise<void> {
   }
 }
 
-/* -------------------------------------------------------- fixture loader */
-
 /**
  * Fixture shape as written by `bakeDemoFixtures.ts`. Tenant-specific overlay
  * fields (tenantId, status, workflowState, approval, compliance, export,
@@ -187,8 +185,6 @@ function readPreviewBytes(attachmentName: string, page: string): Buffer {
   const pngPath = join(bakedFixturesDir(), dir, `preview-page-${page}.png`);
   return readFileSync(pngPath);
 }
-
-/* -------------------------------------------------------- scenario overlay */
 
 type InvoiceSeedRiskSignal = Omit<ComplianceRiskSignal, "resolvedBy" | "resolvedAt">;
 
@@ -340,8 +336,6 @@ function buildScenarioRows(params: {
   ];
 }
 
-/* -------------------------------------------------------- preview upload */
-
 interface PreviewUploadDeps {
   fileStore?: FileStore;
 }
@@ -374,8 +368,6 @@ async function uploadPreviewsForInvoice(
 
   return previewKeyMap;
 }
-
-/* -------------------------------------------------------- invoice builder */
 
 interface SeedRecord {
   tenantId: string;
@@ -472,8 +464,6 @@ function toInvoiceDoc(
 
   return doc;
 }
-
-/* -------------------------------------------------------- entrypoint */
 
 interface SeedDemoInvoicesOptions {
   fileStore?: FileStore;

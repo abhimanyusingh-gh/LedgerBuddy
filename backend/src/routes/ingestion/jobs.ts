@@ -29,11 +29,6 @@ function matchesMagicBytes(filename: string, buffer: Buffer): boolean {
   return true;
 }
 
-/**
- * Tenant-scoped ingestion job orchestration: status / SSE / start / pause /
- * email-simulate. Mounted under `/api/tenants/:tenantId/...` — the parent
- * router validates the path tenantId against the authenticated tenant.
- */
 export function createJobsRouter(
   ingestionService: IngestionService,
   emailSimulationService?: EmailSimulationService,

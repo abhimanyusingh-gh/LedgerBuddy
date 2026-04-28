@@ -22,10 +22,6 @@ const OCR_RECOVERY_STRATEGY_SOURCE: Record<OcrRecoveryStrategy, ExtractionSource
   receipt_statement: EXTRACTION_SOURCE.SLM_RECEIPT_STATEMENT,
 };
 
-/**
- * Stage 10: Recovers header fields, GST summary, totals, and line items from OCR blocks.
- * Equivalent to the private `recoverOcrFields()` in InvoiceExtractionPipeline.
- */
 export class RecoverOcrFieldsStep implements PipelineStep {
   readonly name = "recover-ocr-fields";
 
