@@ -1,23 +1,40 @@
 @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap");
 @import url("https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght@100..700&display=swap");
 
 :root {
   --bg-main: #f6f6f8;
   --bg-panel: #ffffff;
+  --bg-sunken: #eef0f4;
+  --bg-overlay: rgba(15, 23, 42, 0.45);
   --ink: #0f172a;
   --ink-soft: #64748b;
+  --ink-muted: #94a3b8;
   --accent: #1152d4;
   --accent-2: #1d4ed8;
+  --accent-soft-bg: rgba(17, 82, 212, 0.10);
+  --accent-soft-bg-hover: #dbe4ff;
   --warn: #e11d48;
+  --warn-soft-bg: rgba(225, 29, 72, 0.10);
+  --amber: #f59e0b;
+  --amber-soft-bg: rgba(245, 158, 11, 0.15);
+  --emerald: #15803d;
+  --emerald-soft-bg: #dcfce7;
   --line: #e2e8f0;
+  --line-soft: #eef2f6;
   --shadow: 0 1px 1px rgba(15, 23, 42, 0.04);
   --status-approved: #22c55e;
   --status-exported: #1152d4;
   --status-parsed: #f59e0b;
   --status-needs-review: #e11d48;
+  --status-awaiting-approval: #8b5cf6;
   --status-pending: #94a3b8;
   --status-failed-ocr: #ef4444;
   --status-failed-parse: #f97316;
+
+  --severity-info: #1152d4;
+  --severity-warning: #f59e0b;
+  --severity-critical: #e11d48;
 
   --sp-1: 0.25rem;
   --sp-2: 0.5rem;
@@ -26,13 +43,40 @@
   --sp-5: 1.25rem;
   --sp-6: 1.5rem;
   --sp-8: 2rem;
+  --sp-10: 2.5rem;
+  --sp-12: 3rem;
 
   --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.06);
   --shadow-md: 0 4px 12px rgba(15, 23, 42, 0.08);
   --shadow-lg: 0 8px 24px rgba(15, 23, 42, 0.12);
+  --shadow-focus: 0 0 0 3px rgba(17, 82, 212, 0.18);
   --radius-sm: 0.375rem;
   --radius-md: 0.625rem;
   --radius-lg: 1rem;
+  --radius-pill: 999px;
+
+  --row-h-compact: 32px;
+  --row-h-comfortable: 44px;
+
+  --font-sans: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --font-icon: "Material Symbols Outlined";
+
+  --fs-xxs: 0.6875rem;
+  --fs-xs: 0.75rem;
+  --fs-sm: 0.82rem;
+  --fs-md: 0.9rem;
+  --fs-base: 1rem;
+  --fs-lg: 1.15rem;
+  --fs-xl: 1.4rem;
+  --fs-2xl: 1.75rem;
+  --fs-3xl: 2.25rem;
+
+  --lh-tight: 1.2;
+  --lh-snug: 1.35;
+  --lh-normal: 1.5;
+
+  --num-features: "tnum" 1, "lnum" 1, "calt" 0;
 
   --chart-blue: #3b82f6;
   --chart-emerald: #10b981;
@@ -57,16 +101,31 @@
 [data-theme="dark"] {
   --bg-main: #0f172a;
   --bg-panel: #1e293b;
+  --bg-sunken: #0b1120;
+  --bg-overlay: rgba(0, 0, 0, 0.55);
   --ink: #f1f5f9;
   --ink-soft: #94a3b8;
+  --ink-muted: #64748b;
   --accent: #3b82f6;
   --accent-2: #2563eb;
+  --accent-soft-bg: rgba(59, 130, 246, 0.18);
+  --accent-soft-bg-hover: rgba(59, 130, 246, 0.28);
   --warn: #f43f5e;
+  --warn-soft-bg: rgba(244, 63, 94, 0.18);
+  --amber: #fbbf24;
+  --amber-soft-bg: rgba(251, 191, 36, 0.18);
+  --emerald: #34d399;
+  --emerald-soft-bg: rgba(52, 211, 153, 0.18);
   --line: #334155;
+  --line-soft: #1f2a3d;
+  --severity-info: #60a5fa;
+  --severity-warning: #fbbf24;
+  --severity-critical: #fb7185;
   --shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
   --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.25);
   --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.35);
   --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.4);
+  --shadow-focus: 0 0 0 3px rgba(59, 130, 246, 0.30);
   --chart-blue: #60a5fa;
   --chart-emerald: #34d399;
   --chart-amber: #fbbf24;
@@ -204,6 +263,75 @@
 
 [data-theme="dark"] .overview-date-bar input[type="date"],
 [data-theme="dark"] .toolbar-date-input { background: #0f172a; border-color: var(--line); color: var(--ink); color-scheme: dark; }
+
+.lb-h1 {
+  font: 700 var(--fs-xl)/var(--lh-tight) var(--font-sans);
+  margin: 0 0 var(--sp-3);
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+.lb-h2 {
+  font: 700 var(--fs-lg)/var(--lh-snug) var(--font-sans);
+  margin: 0 0 var(--sp-2);
+  letter-spacing: -0.005em;
+  color: var(--ink);
+}
+.lb-h3 {
+  font: 600 var(--fs-md)/var(--lh-snug) var(--font-sans);
+  margin: 0 0 var(--sp-2);
+  color: var(--ink);
+}
+.lb-eyebrow {
+  font: 800 var(--fs-xxs)/1 var(--font-sans);
+  text-transform: uppercase;
+  letter-spacing: 0.10em;
+  color: var(--ink-soft);
+}
+.lb-body {
+  font: 400 var(--fs-sm)/var(--lh-normal) var(--font-sans);
+  color: var(--ink);
+}
+.lb-body-lg {
+  font-size: var(--fs-md);
+}
+.lb-caption {
+  font: 500 var(--fs-xs)/var(--lh-snug) var(--font-sans);
+  color: var(--ink-soft);
+}
+.lb-mono {
+  font-family: var(--font-mono);
+  font-feature-settings: var(--num-features);
+}
+.lb-num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums lining-nums;
+  font-feature-settings: var(--num-features);
+}
+.lb-amount {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.lb-kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  padding: 1px 5px;
+  font: 600 var(--fs-xxs)/1 var(--font-mono);
+  background: var(--bg-sunken);
+  color: var(--ink-soft);
+  border: 1px solid var(--line);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+}
+
+:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+  border-radius: var(--radius-sm);
+}
 
 * {
   box-sizing: border-box;

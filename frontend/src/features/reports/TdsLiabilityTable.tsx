@@ -164,9 +164,9 @@ export function TdsLiabilityTable({ rows, isFiltered, onClearFilters, onSelectVe
                 )}
               </td>
               <td>{row.section}</td>
-              <td>{fmtInr(row.cumulativeBaseMinor)}</td>
-              <td>{fmtInr(row.cumulativeTdsMinor)}</td>
-              <td>{row.invoiceCount}</td>
+              <td className="lb-num">{fmtInr(row.cumulativeBaseMinor)}</td>
+              <td className="lb-num">{fmtInr(row.cumulativeTdsMinor)}</td>
+              <td className="lb-num">{row.invoiceCount}</td>
               <td>
                 {crossed ? (
                   <Badge tone="danger" size="sm" icon="warning" title={`Threshold crossed on ${row.thresholdCrossedAt ?? ""}`}>
