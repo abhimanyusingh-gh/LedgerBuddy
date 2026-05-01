@@ -18,7 +18,10 @@
 <script type="text/babel">
 function App() {
   const [state, setState] = React.useState("signin");
-  return <Login state={state} onSetState={setState} onAuthenticated={() => alert("Authenticated — in-app this navigates to the dashboard.")} showStatePicker />;
+  return <Login state={state} onSetState={setState} onAuthenticated={(role) => {
+    if (role === "platform") { window.location.href = "PlatformAdmin.html"; return; }
+    window.location.href = "index.html";
+  }} showStatePicker />;
 }
 ReactDOM.createRoot(document.getElementById("root")).render(<App />);
 </script>

@@ -21,7 +21,7 @@ The user directive (2026-05-01) is **"I want the design to be precisely this"** 
 | Q3 | InvoiceView snapshot | **YES** — a small `W3-7-pre` PR adds snapshot integration tests against current `InvoiceView` before the W3-7 decomposition. Captures behavior so the decomposition has a regression guard. |
 | Q4 | `GlCodeDropdown` | **DELETE + dual-rebind in W2-1** — remove `frontend/src/components/compliance/GlCodeDropdown.tsx`; both InvoiceDetail and TenantConfig consume `<Combobox />` directly. No thin wrapper. File budget: still ≤20 for W2-1. |
 | Q5 | Bundle-size headroom | **Track per-PR bundle delta in PR body**. The W4 revert of the `+100 KiB` headroom is **CONDITIONAL** on cumulative net delta after W3 being negative; otherwise the headroom stays. |
-| Q6 | Platform admin | **OUT OF SCOPE** confirmed — no Pass 2 work this overhaul. |
+| Q6 | Platform admin | **IN SCOPE** (re-scoped 2026-05-01 after user provided platform admin designs in v2 bundle). Covered by new W3-13. |
 
 ## Surface inventory
 
@@ -49,13 +49,14 @@ Bundle reference column = path inside `docs/design/system/ui_kits/app/` unless n
 | TDS Dashboard | `TdsDashboard.jsx` | Section-wise TDS aggregations. |
 | Client Orgs | `ClientOrgs.jsx` + `NewClientOrgModal.jsx` | List + create modal. |
 | Payments | `Payments.jsx` + `RecordPaymentModal.jsx` | Phase 3 surface. |
+| Platform admin | `PlatformAdmin.jsx` + `PlatformAdmin.html` + `PlatformAdmin.css` + `PlatformAdminApp.jsx` + `PlatformAdminParts1.jsx` + `PlatformAdminParts2.jsx` | Platform-admin shell with separate HTML/CSS scaffold (similar to Login). Phase 0-2 surfaces under `frontend/src/features/platform-admin/`: PlatformAdminTopNav, PlatformActivityMonitor, PlatformOnboardSection, PlatformUsageOverviewSection, PlatformAnalyticsDashboard, PlatformSection. |
 | New Tally connection | `NewTallyModal.jsx` | Connection-creation modal. |
 | TDS bank mapping | `TdsBankMapModal.jsx` | Settings-scoped modal. |
 | Team member | `TeamMemberModal.jsx` | Invite + role assignment modal. |
 
 Shared primitives in the bundle: `DataTable.jsx`, `DateRange.jsx`, `data.jsx` (fixtures), `app.css` (shell styles).
 
-## Wave plan (17 PRs total)
+## Wave plan (19 PRs total)
 
 ### Wave 1 — Token + DS foundation (1 PR)
 
@@ -83,7 +84,7 @@ Shared primitives in the bundle: `DataTable.jsx`, `DateRange.jsx`, `data.jsx` (f
 - `DateRange.jsx` → DS primitive.
 - Status badge taxonomy (`docs/design/system/preview/status_badges.html`) baked into the DS `<StatusBadge>` component.
 
-### Wave 3 — Surface Pass-2 (12 PRs)
+### Wave 3 — Surface Pass-2 (13 PRs)
 
 > Each Wave-3 PR is a Pass 2 design PR per `feedback_fe_functional_design_split.md`. File budget ≤20. Bundle delta in PR body.
 
@@ -113,6 +114,8 @@ Shared primitives in the bundle: `DataTable.jsx`, `DateRange.jsx`, `data.jsx` (f
 **W3-10 — Mailboxes refresh** — bundle: `Mailboxes.jsx`.
 
 **W3-11 — Client Orgs refresh** — bundles: `ClientOrgs.jsx` + `NewClientOrgModal.jsx`.
+
+**W3-13 — Platform admin Pass 2** — bundle: `PlatformAdmin.{jsx,html,css}` + `PlatformAdminApp.jsx` + `PlatformAdminParts{1,2}.jsx`. Scope: `frontend/src/features/platform-admin/{PlatformAdminTopNav,PlatformActivityMonitor,PlatformOnboardSection,PlatformUsageOverviewSection,PlatformAnalyticsDashboard,PlatformSection}.tsx`. Bundle ships standalone HTML/CSS shell similar to Login — translate Parts1/Parts2 into our typed React; consume DS primitives from W1+W2; preserve existing routing + auth gating; no functional changes.
 
 > Tenant Config, Payments, and TeamMemberModal map to phase-aligned surfaces; their Pass 2 work lands inside the relevant phase issue (not a standalone W3 PR).
 
@@ -146,9 +149,9 @@ Shared primitives in the bundle: `DataTable.jsx`, `DateRange.jsx`, `data.jsx` (f
 |---|---|
 | W1 | 1 |
 | W2 | 3 |
-| W3 | 12 (W3-1 … W3-8 + W3-7-pre + W3-9 + W3-10 + W3-11) |
+| W3 | 13 (W3-1 … W3-8 + W3-7-pre + W3-9 + W3-10 + W3-11 + W3-13) |
 | W4 | 2 (W4-1 conditional, W4-2 mandatory) |
-| **Total** | **18** |
+| **Total** | **19** |
 
 Average files/PR: each ≤20 per `feedback_pr_workflow.md`. W3-7-pre, W4-1, and W4-2 are deliberately small (≤5-10 files each).
 

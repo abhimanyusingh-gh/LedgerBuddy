@@ -92,7 +92,10 @@ function App() {
   const activeRow = window.INVOICES.find(r => r.id === activeId) || actionRows[0];
 
   if (!auth) {
-    return <Login state={authState} onAuthenticated={() => { setAuth(true); setAuthState("signin"); setPage("dashboard"); }} onSetState={setAuthState} />;
+    return <Login state={authState} onAuthenticated={(role) => {
+      if (role === "platform") { window.location.href = "PlatformAdmin.html"; return; }
+      setAuth(true); setAuthState("signin"); setPage("dashboard");
+    }} onSetState={setAuthState} />;
   }
 
   let main = null;
