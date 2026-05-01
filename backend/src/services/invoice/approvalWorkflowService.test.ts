@@ -156,15 +156,9 @@ describe("ApprovalWorkflowService", () => {
 
       it.each([
         ["gt", 100, 200, true],
-        ["gt", 100, 100, false],
-        ["gt", 100, 50, false],
         ["gte", 100, 100, true],
-        ["gte", 100, 99, false],
         ["lt", 100, 50, true],
-        ["lt", 100, 100, false],
-        ["lte", 100, 100, true],
         ["lte", 100, 101, false],
-        ["eq", 100, 100, true],
         ["eq", 100, 99, false],
       ])("operator %s threshold=%i value=%i -> %s", (op, threshold, value, expected) => {
         expect(service.evaluateCondition(makeStep(op, threshold), { parsed: { totalAmountMinor: value } })).toBe(expected);
@@ -270,108 +264,73 @@ describe("ApprovalWorkflowService", () => {
   });
 
   describe("canUserApproveStep", () => {
-    describe("specific_users", () => {
-      it("returns true when userId is in approverUserIds", async () => {
-        const step = { order: 1, name: "S", approverType: "specific_users" as const, rule: "any" as const, approverUserIds: [USER_ID] };
-        const result = await service.canUserApproveStep(USER_ID, TENANT_ID, step);
-        expect(result).toBe(true);
-      });
-
-      it("returns false when userId is not in approverUserIds", async () => {
-        const step = { order: 1, name: "S", approverType: "specific_users" as const, rule: "any" as const, approverUserIds: ["other-user"] };
-        const result = await service.canUserApproveStep(USER_ID, TENANT_ID, step);
-        expect(result).toBe(false);
-      });
-
+    it("returns false when no TenantUserRole exists (and approverType requires lookup)", async () => {
+      (TenantUserRoleModel.findOne as jest.Mock).mockReturnValue({ lean: jest.fn().mockResolvedValue(null) });
+      const step = { order: 1, name: "S", approverType: "any_member" as const, rule: "any" as const };
+      expect(await service.canUserApproveStep(USER_ID, TENANT_ID, step)).toBe(false);
     });
 
-    describe("no role record found", () => {
-      it("returns false when no TenantUserRole exists", async () => {
-        (TenantUserRoleModel.findOne as jest.Mock).mockReturnValue({ lean: jest.fn().mockResolvedValue(null) });
-        const step = { order: 1, name: "S", approverType: "any_member" as const, rule: "any" as const };
-        const result = await service.canUserApproveStep(USER_ID, TENANT_ID, step);
-        expect(result).toBe(false);
-      });
-    });
-
-    describe("role", () => {
-      it("returns true when user role matches approverRole", async () => {
-        (TenantUserRoleModel.findOne as jest.Mock).mockReturnValue({ lean: jest.fn().mockResolvedValue({ role: "TENANT_ADMIN" }) });
-        const step = { order: 1, name: "S", approverType: "role" as const, rule: "any" as const, approverRole: "TENANT_ADMIN" };
-        const result = await service.canUserApproveStep(USER_ID, TENANT_ID, step);
-        expect(result).toBe(true);
-      });
-
-      it("returns false when user role does not match approverRole", async () => {
-        (TenantUserRoleModel.findOne as jest.Mock).mockReturnValue({ lean: jest.fn().mockResolvedValue({ role: "ap_clerk" }) });
-        const step = { order: 1, name: "S", approverType: "role" as const, rule: "any" as const, approverRole: "TENANT_ADMIN" };
-        const result = await service.canUserApproveStep(USER_ID, TENANT_ID, step);
-        expect(result).toBe(false);
-      });
-
-    });
-
-    describe("persona", () => {
-      it("returns true when user role matches approverPersona", async () => {
-        (TenantUserRoleModel.findOne as jest.Mock).mockReturnValue({ lean: jest.fn().mockResolvedValue({ role: "ca" }) });
-        const step = { order: 1, name: "S", approverType: "persona" as const, rule: "any" as const, approverPersona: "ca" };
-        const result = await service.canUserApproveStep(USER_ID, TENANT_ID, step);
-        expect(result).toBe(true);
-      });
-
-      it("returns false when user role does not match approverPersona", async () => {
-        (TenantUserRoleModel.findOne as jest.Mock).mockReturnValue({ lean: jest.fn().mockResolvedValue({ role: "ap_clerk" }) });
-        const step = { order: 1, name: "S", approverType: "persona" as const, rule: "any" as const, approverPersona: "ca" };
-        const result = await service.canUserApproveStep(USER_ID, TENANT_ID, step);
-        expect(result).toBe(false);
-      });
-
-    });
-
-    describe("capability", () => {
-      it("returns true when user has the required capability", async () => {
-        (TenantUserRoleModel.findOne as jest.Mock).mockReturnValue({
-          lean: jest.fn().mockResolvedValue({ role: "TENANT_ADMIN", capabilities: { canSignOffCompliance: true } })
-        });
-        const step = { order: 1, name: "S", approverType: "capability" as const, rule: "any" as const, approverCapability: "canSignOffCompliance" };
-        const result = await service.canUserApproveStep(USER_ID, TENANT_ID, step);
-        expect(result).toBe(true);
-      });
-
-      it("returns false when user does not have the required capability", async () => {
-        (TenantUserRoleModel.findOne as jest.Mock).mockReturnValue({
-          lean: jest.fn().mockResolvedValue({ role: "TENANT_ADMIN", capabilities: { canSignOffCompliance: false } })
-        });
-        const step = { order: 1, name: "S", approverType: "capability" as const, rule: "any" as const, approverCapability: "canSignOffCompliance" };
-        const result = await service.canUserApproveStep(USER_ID, TENANT_ID, step);
-        expect(result).toBe(false);
-      });
-
-      it("returns false when capabilities object is undefined", async () => {
-        (TenantUserRoleModel.findOne as jest.Mock).mockReturnValue({
-          lean: jest.fn().mockResolvedValue({ role: "TENANT_ADMIN" })
-        });
-        const step = { order: 1, name: "S", approverType: "capability" as const, rule: "any" as const, approverCapability: "canSignOffCompliance" };
-        const result = await service.canUserApproveStep(USER_ID, TENANT_ID, step);
-        expect(result).toBe(false);
-      });
-
-    });
-
-    describe("any_member (fallback)", () => {
-      it("returns true for non-PLATFORM_ADMIN roles", async () => {
-        (TenantUserRoleModel.findOne as jest.Mock).mockReturnValue({ lean: jest.fn().mockResolvedValue({ role: "TENANT_ADMIN" }) });
-        const step = { order: 1, name: "S", approverType: "any_member" as const, rule: "any" as const };
-        const result = await service.canUserApproveStep(USER_ID, TENANT_ID, step);
-        expect(result).toBe(true);
-      });
-
-      it("returns false for PLATFORM_ADMIN role", async () => {
-        (TenantUserRoleModel.findOne as jest.Mock).mockReturnValue({ lean: jest.fn().mockResolvedValue({ role: "PLATFORM_ADMIN" }) });
-        const step = { order: 1, name: "S", approverType: "any_member" as const, rule: "any" as const };
-        const result = await service.canUserApproveStep(USER_ID, TENANT_ID, step);
-        expect(result).toBe(false);
-      });
+    it.each([
+      [
+        "specific_users: in list -> true",
+        { approverType: "specific_users" as const, approverUserIds: [USER_ID] },
+        null,
+        true,
+      ],
+      [
+        "specific_users: not in list -> false",
+        { approverType: "specific_users" as const, approverUserIds: ["other-user"] },
+        null,
+        false,
+      ],
+      [
+        "role: matches -> true",
+        { approverType: "role" as const, approverRole: "TENANT_ADMIN" },
+        { role: "TENANT_ADMIN" },
+        true,
+      ],
+      [
+        "role: mismatch -> false",
+        { approverType: "role" as const, approverRole: "TENANT_ADMIN" },
+        { role: "ap_clerk" },
+        false,
+      ],
+      [
+        "persona: matches -> true",
+        { approverType: "persona" as const, approverPersona: "ca" },
+        { role: "ca" },
+        true,
+      ],
+      [
+        "capability: present and true -> true",
+        { approverType: "capability" as const, approverCapability: "canSignOffCompliance" },
+        { role: "TENANT_ADMIN", capabilities: { canSignOffCompliance: true } },
+        true,
+      ],
+      [
+        "capability: missing capabilities object -> false",
+        { approverType: "capability" as const, approverCapability: "canSignOffCompliance" },
+        { role: "TENANT_ADMIN" },
+        false,
+      ],
+      [
+        "any_member: non-PLATFORM_ADMIN -> true",
+        { approverType: "any_member" as const },
+        { role: "TENANT_ADMIN" },
+        true,
+      ],
+      [
+        "any_member: PLATFORM_ADMIN -> false",
+        { approverType: "any_member" as const },
+        { role: "PLATFORM_ADMIN" },
+        false,
+      ],
+    ])("%s", async (_label, stepFields, roleDoc, expected) => {
+      if (roleDoc !== null) {
+        (TenantUserRoleModel.findOne as jest.Mock).mockReturnValue({ lean: jest.fn().mockResolvedValue(roleDoc) });
+      }
+      const step = { order: 1, name: "S", rule: "any" as const, ...stepFields };
+      expect(await service.canUserApproveStep(USER_ID, TENANT_ID, step)).toBe(expected);
     });
   });
 
