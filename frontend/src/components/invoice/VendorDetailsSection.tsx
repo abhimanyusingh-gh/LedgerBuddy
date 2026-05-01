@@ -43,7 +43,7 @@ function PanBadge({ pan, gstin }: { pan: string | null | undefined; gstin: strin
 }
 
 function NotExtractedLabel() {
-  return <span className="muted" style={{ fontSize: "0.85rem" }}>Not extracted</span>;
+  return <span className="invoice-details-not-extracted">Not extracted</span>;
 }
 
 function FieldRow({ label, children }: { label: string; children: React.ReactNode }) {
@@ -75,7 +75,7 @@ export function VendorDetailsSection({ invoice, expanded, onToggle }: VendorDeta
         <div className="details-body">
           {vendorName && (
             <FieldRow label="Vendor Name">
-              <span className="muted" style={{ fontSize: "0.85rem" }}>Shown in key fields above</span>
+              <span className="invoice-details-text-muted">Shown in key fields above</span>
             </FieldRow>
           )}
           <FieldRow label="PAN">
@@ -100,7 +100,7 @@ export function VendorDetailsSection({ invoice, expanded, onToggle }: VendorDeta
           </FieldRow>
           <FieldRow label="Address">
             {vendorAddress ? (
-              <span style={{ whiteSpace: "pre-line", fontSize: "0.85rem" }}>{vendorAddress}</span>
+              <span className="invoice-details-address">{vendorAddress}</span>
             ) : (
               <NotExtractedLabel />
             )}

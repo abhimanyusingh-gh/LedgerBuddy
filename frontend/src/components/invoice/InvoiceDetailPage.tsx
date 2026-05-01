@@ -24,18 +24,18 @@ export function InvoiceDetailPage({ invoiceId }: InvoiceDetailPageProps) {
 
   if (loading && !invoice) {
     return (
-      <div style={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "60vh" }}>
-        <p className="muted" style={{ fontSize: "1rem" }}>Loading invoice details...</p>
+      <div className="invoice-detail-page-loading">
+        <p className="muted">Loading invoice details...</p>
       </div>
     );
   }
 
   if (!invoice) {
     return (
-      <div style={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "60vh" }}>
-        <div style={{ textAlign: "center" }}>
-          <span className="material-symbols-outlined" style={{ fontSize: "3rem", color: "var(--ink-soft)" }}>error_outline</span>
-          <p style={{ marginTop: "0.5rem", fontSize: "1rem" }}>Invoice not found or access denied.</p>
+      <div className="invoice-detail-page-empty">
+        <div className="invoice-detail-page-empty-inner">
+          <span className="material-symbols-outlined invoice-detail-page-empty-icon">error_outline</span>
+          <p className="invoice-detail-page-empty-text">Invoice not found or access denied.</p>
         </div>
       </div>
     );
@@ -48,15 +48,15 @@ export function InvoiceDetailPage({ invoiceId }: InvoiceDetailPageProps) {
   const resolvePreviewUrl = (page: number) => invoiceUrls.preview(invoice._id, page);
 
   return (
-    <div style={{ maxWidth: "60rem", margin: "0 auto", padding: "1.5rem 1rem" }}>
-      <div className="editor-card" style={{ marginBottom: "1rem" }}>
+    <div className="invoice-detail-page">
+      <div className="editor-card">
         <div className="editor-header">
-          <h2 style={{ margin: 0, fontSize: "1.1rem" }}>
+          <h2>
             {invoice.parsed?.invoiceNumber ?? "Invoice"} - {invoice.parsed?.vendorName ?? "Unknown Vendor"}
           </h2>
           <span className="bank-status-badge bank-status-active">{invoice.status}</span>
         </div>
-        <div className="detail-grid" style={{ marginTop: "0.75rem" }}>
+        <div className="detail-grid">
           <p><span>Status</span><strong>{invoice.status}</strong></p>
           <p><span>Received</span>{new Date(invoice.receivedAt).toLocaleString()}</p>
           <p><span>Confidence</span><ConfidenceBadge score={invoice.confidenceScore} tone={invoice.confidenceTone} /></p>
@@ -69,14 +69,13 @@ export function InvoiceDetailPage({ invoiceId }: InvoiceDetailPageProps) {
         </div>
       </div>
 
-      <div className="editor-card" style={{ marginBottom: "1rem" }}>
+      <div className="editor-card">
         <div
-          className="editor-header"
-          style={{ cursor: "pointer" }}
+          className="editor-header invoice-detail-page-section-toggle"
           onClick={() => setSourceExpanded((v) => !v)}
         >
-          <h3 style={{ margin: 0, display: "flex", alignItems: "center", gap: "0.5rem" }}>
-            <span className="material-symbols-outlined" style={{ fontSize: "1.1rem" }}>{sourceExpanded ? "expand_more" : "chevron_right"}</span>
+          <h3 className="invoice-detail-page-section-title">
+            <span className="material-symbols-outlined invoice-detail-page-section-icon">{sourceExpanded ? "expand_more" : "chevron_right"}</span>
             Source Preview
           </h3>
         </div>
@@ -88,14 +87,13 @@ export function InvoiceDetailPage({ invoiceId }: InvoiceDetailPageProps) {
         ) : null}
       </div>
 
-      <div className="editor-card" style={{ marginBottom: "1rem" }}>
+      <div className="editor-card">
         <div
-          className="editor-header"
-          style={{ cursor: "pointer" }}
+          className="editor-header invoice-detail-page-section-toggle"
           onClick={() => setFieldsExpanded((v) => !v)}
         >
-          <h3 style={{ margin: 0, display: "flex", alignItems: "center", gap: "0.5rem" }}>
-            <span className="material-symbols-outlined" style={{ fontSize: "1.1rem" }}>{fieldsExpanded ? "expand_more" : "chevron_right"}</span>
+          <h3 className="invoice-detail-page-section-title">
+            <span className="material-symbols-outlined invoice-detail-page-section-icon">{fieldsExpanded ? "expand_more" : "chevron_right"}</span>
             Extracted Fields
           </h3>
         </div>
@@ -109,14 +107,13 @@ export function InvoiceDetailPage({ invoiceId }: InvoiceDetailPageProps) {
       </div>
 
       {invoice.parsed?.lineItems && invoice.parsed.lineItems.length > 0 ? (
-        <div className="editor-card" style={{ marginBottom: "1rem" }}>
+        <div className="editor-card">
           <div
-            className="editor-header"
-            style={{ cursor: "pointer" }}
+            className="editor-header invoice-detail-page-section-toggle"
             onClick={() => setLineItemsExpanded((v) => !v)}
           >
-            <h3 style={{ margin: 0, display: "flex", alignItems: "center", gap: "0.5rem" }}>
-              <span className="material-symbols-outlined" style={{ fontSize: "1.1rem" }}>{lineItemsExpanded ? "expand_more" : "chevron_right"}</span>
+            <h3 className="invoice-detail-page-section-title">
+              <span className="material-symbols-outlined invoice-detail-page-section-icon">{lineItemsExpanded ? "expand_more" : "chevron_right"}</span>
               Line Items ({invoice.parsed.lineItems.length})
             </h3>
           </div>
@@ -124,7 +121,7 @@ export function InvoiceDetailPage({ invoiceId }: InvoiceDetailPageProps) {
         </div>
       ) : null}
 
-      <div className="editor-card" style={{ marginBottom: "1rem" }}>
+      <div className="editor-card">
         <CompliancePanel
           invoice={invoice}
           glCodes={[]}
