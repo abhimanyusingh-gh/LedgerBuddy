@@ -13,6 +13,8 @@ import { resolveClientComplianceConfig, resolveFreemailConfig } from "@/services
 import { PanValidationService } from "@/services/compliance/PanValidationService.js";
 import { VendorMasterService } from "@/services/compliance/VendorMasterService.js";
 import { TdsCalculationService } from "@/services/compliance/TdsCalculationService.js";
+import { TdsVendorLedgerService } from "@/services/tds/TdsVendorLedgerService.js";
+import { runTdsOrchestrator } from "@/services/compliance/tdsOrchestrator.js";
 import { GlCodeSuggestionService } from "@/services/compliance/GlCodeSuggestionService.js";
 import { GlCodeMasterModel } from "@/models/compliance/GlCodeMaster.js";
 import { IrnValidationService } from "@/services/compliance/IrnValidationService.js";
@@ -24,6 +26,7 @@ interface ComplianceEnrichmentDeps {
   panValidation: PanValidationService;
   vendorMaster: VendorMasterService;
   tdsCalculation: TdsCalculationService;
+  tdsVendorLedger: TdsVendorLedgerService;
   glCodeSuggestion: GlCodeSuggestionService;
   irnValidation: IrnValidationService;
   msmeTracking: MsmeTrackingService;
@@ -35,6 +38,7 @@ export class ComplianceEnrichmentService implements ComplianceEnricher {
   private readonly panValidation: PanValidationService;
   private readonly vendorMaster: VendorMasterService;
   private readonly tdsCalculation: TdsCalculationService;
+  private readonly tdsVendorLedger: TdsVendorLedgerService;
   private readonly glCodeSuggestion: GlCodeSuggestionService;
   private readonly irnValidation: IrnValidationService;
   private readonly msmeTracking: MsmeTrackingService;
@@ -45,6 +49,7 @@ export class ComplianceEnrichmentService implements ComplianceEnricher {
     this.panValidation = deps.panValidation;
     this.vendorMaster = deps.vendorMaster;
     this.tdsCalculation = deps.tdsCalculation;
+    this.tdsVendorLedger = deps.tdsVendorLedger;
     this.glCodeSuggestion = deps.glCodeSuggestion;
     this.irnValidation = deps.irnValidation;
     this.msmeTracking = deps.msmeTracking;
@@ -77,7 +82,7 @@ export class ComplianceEnrichmentService implements ComplianceEnricher {
     await this.enrichGlCode(invoice, config, tenantId, clientOrgId, vendorFingerprint, context, result, processingIssues);
     await this.enrichCostCenter(tenantId, clientOrgId, vendorFingerprint, result, processingIssues);
     await this.enrichTcs(invoice, tenantId, clientOrgId, result);
-    await this.enrichTds(invoice, config, tenantId, clientOrgId, vendorFingerprint, result, riskSignals, processingIssues);
+    await this.enrichTds(invoice, config, tenantId, clientOrgId, vendorFingerprint, context, result, riskSignals, processingIssues);
     this.enrichIrn(invoice, config, result, riskSignals, processingIssues);
     await this.enrichMsme(invoice, config, tenantId, clientOrgId, vendorFingerprint, result, riskSignals, processingIssues);
     await this.enrichEmailSender(tenantId, clientOrgId, vendorFingerprint, context, riskSignals, processingIssues);
@@ -239,22 +244,31 @@ export class ComplianceEnrichmentService implements ComplianceEnricher {
     tenantId: string,
     clientOrgId: Types.ObjectId,
     vendorFingerprint: string,
+    context: ComplianceEnrichContext | undefined,
     result: ComplianceResult,
     riskSignals: ComplianceRiskSignal[],
     processingIssues: string[]
   ): Promise<void> {
     try {
-      if (config.tdsEnabled !== false && config.autoDetectTds !== false) {
-        const glCode = result.glCode?.code ?? null;
-        let glCategory: string | null = null;
-        if (glCode) {
-          const glDoc = await GlCodeMasterModel.findOne({ tenantId, clientOrgId, code: glCode, isActive: true }).lean();
-          glCategory = glDoc?.category ?? result.glCode?.name ?? null;
-        }
-        const tdsResult = await this.tdsCalculation.computeTds(invoice, tenantId, clientOrgId, glCategory);
-        result.tds = tdsResult.tds;
-        riskSignals.push(...tdsResult.riskSignals);
+      if (config.tdsEnabled === false || config.autoDetectTds === false) return;
+
+      const glCode = result.glCode?.code ?? null;
+      let glCategory: string | null = null;
+      if (glCode) {
+        const glDoc = await GlCodeMasterModel.findOne({ tenantId, clientOrgId, code: glCode, isActive: true }).lean();
+        glCategory = glDoc?.category ?? result.glCode?.name ?? null;
       }
+
+      const tdsResult = await runTdsOrchestrator({
+        tdsCalculation: this.tdsCalculation,
+        tdsVendorLedger: this.tdsVendorLedger,
+        invoice, glCategory, tenantId, clientOrgId, vendorFingerprint,
+        invoiceId: context?.currentInvoiceId,
+        dryRun: context?.dryRun ?? false
+      });
+      if (!tdsResult) return;
+      result.tds = tdsResult.tds;
+      riskSignals.push(...tdsResult.riskSignals);
     } catch (error) {
       processingIssues.push(`Compliance: TDS calculation failed — ${error instanceof Error ? error.message : String(error)}`);
       logger.warn("compliance.tds.calculation.failed", {

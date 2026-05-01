@@ -21,6 +21,14 @@ export const tdsVendorLedgerEntrySchema = new Schema(
       }
     },
     rateSource: { type: String, required: true },
+    rateBps: {
+      type: Number,
+      default: 0,
+      validate: {
+        validator: Number.isInteger,
+        message: "entries.rateBps must be an integer."
+      }
+    },
     quarter: {
       type: String,
       enum: ["Q1", "Q2", "Q3", "Q4"],

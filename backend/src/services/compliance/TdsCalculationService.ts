@@ -3,10 +3,13 @@ import { PAN_FORMAT, derivePanCategory } from "@/constants/indianCompliance.js";
 import { TdsRateTableModel } from "@/models/compliance/TdsRateTable.js";
 import { TdsSectionMappingModel } from "@/models/compliance/TdsSectionMapping.js";
 import { resolveTdsRatesConfig } from "@/services/compliance/clientConfigResolver.js";
-import type { ComplianceTdsResult, ComplianceRiskSignal, ParsedInvoiceData } from "@/types/invoice.js";
-import { TDS_CONFIDENCE, type TdsConfidence } from "@/types/invoice.js";
+import type { ComplianceTdsResult, ComplianceRiskSignal, ParsedInvoiceData, TdsRateSource } from "@/types/invoice.js";
+import { TDS_CONFIDENCE, TDS_RATE_SOURCE, TDS_SOURCE, type TdsConfidence } from "@/types/invoice.js";
 import { createRiskSignal } from "@/services/compliance/riskSignalFactory.js";
 import { RISK_SIGNAL_CODE } from "@/types/riskSignals.js";
+import { determineFY, determineQuarter, type TdsQuarter } from "@/services/tds/fiscalYearUtils.js";
+
+const NO_PAN_PENALTY_RATE_BPS = 2000;
 
 interface TdsDetectionResult {
   section: string | null;
@@ -17,11 +20,48 @@ interface TdsRateLookup {
   rateBps: number;
   thresholdSingleMinor: number;
   thresholdAnnualMinor: number;
+  source: "tenant" | "rateTable";
 }
 
-interface TdsCalculationResult {
+export interface TdsLowerDeductionCert {
+  certificateNumber: string;
+  section: string;
+  applicableRateBps: number;
+  validFrom: Date;
+  validTo: Date;
+  financialYear: string;
+  maxAmountMinor: number;
+  exhaustedAt?: Date | null;
+}
+
+interface TdsCumulativeInput {
+  cumulativeBaseMinor: number;
+  cumulativeTdsMinor: number;
+  entries?: Array<{ rateBps: number }>;
+}
+
+export interface TdsLedgerDelta {
+  taxableAmountMinor: number;
+  tdsAmountMinor: number;
+  rateBps: number;
+  rateSource: TdsRateSource;
+  thresholdJustCrossed: boolean;
+}
+
+export interface TdsCalculationResult {
   tds: ComplianceTdsResult;
   riskSignals: ComplianceRiskSignal[];
+  ledgerDelta: TdsLedgerDelta;
+}
+
+interface ComputeTdsInput {
+  invoice: ParsedInvoiceData;
+  glCategory: string | null;
+  rateLookup: TdsRateLookup | null;
+  detection: TdsDetectionResult;
+  cumulative: TdsCumulativeInput | null;
+  vendorCert?: TdsLowerDeductionCert | null;
+  now?: Date;
 }
 
 interface PanCategoryRates {
@@ -31,9 +71,166 @@ interface PanCategoryRates {
 }
 
 function selectRateByPanCategory(panCategory: string | null, rates: PanCategoryRates): number {
-  if (!panCategory) return rates.noPan;
+  if (!panCategory) return rates.individual;
   if (panCategory === "C") return rates.company;
   return rates.individual;
+}
+
+function emptyDelta(rateBps = 0, rateSource: TdsRateSource = TDS_RATE_SOURCE.STANDARD): TdsLedgerDelta {
+  return { taxableAmountMinor: 0, tdsAmountMinor: 0, rateBps, rateSource, thresholdJustCrossed: false };
+}
+
+function emptyTds(
+  section: string | null,
+  confidence: TdsConfidence,
+  rateBps: number | null = null,
+  rateSource: TdsRateSource | null = null
+): ComplianceTdsResult {
+  return {
+    section,
+    rate: rateBps,
+    rateBps,
+    rateSource,
+    amountMinor: null,
+    taxableBaseMinor: null,
+    netPayableMinor: null,
+    source: TDS_SOURCE.AUTO,
+    confidence,
+    quarter: null
+  };
+}
+
+function totalGstMinor(gst: NonNullable<ParsedInvoiceData["gst"]>): number {
+  return (gst.cgstMinor ?? 0) + (gst.sgstMinor ?? 0) + (gst.igstMinor ?? 0) + (gst.cessMinor ?? 0);
+}
+
+function isGstShownSeparately(gst: NonNullable<ParsedInvoiceData["gst"]>): boolean {
+  return (
+    (gst.cgstMinor != null && gst.cgstMinor > 0) ||
+    (gst.sgstMinor != null && gst.sgstMinor > 0) ||
+    (gst.igstMinor != null && gst.igstMinor > 0)
+  );
+}
+
+function resolveEffectiveRate(args: {
+  panValid: boolean;
+  pan: string | null | undefined;
+  rateLookup: TdsRateLookup;
+  vendorCert: TdsLowerDeductionCert | null | undefined;
+  cumulativeBaseMinor: number;
+  invoiceFy: string;
+  now: Date;
+}): { effectiveRateBps: number; rateSource: TdsRateSource; certApplied: boolean } {
+  const { panValid, pan, rateLookup, vendorCert, cumulativeBaseMinor, invoiceFy, now } = args;
+
+  if (vendorCert
+    && vendorCert.validFrom.getTime() <= now.getTime()
+    && vendorCert.validTo.getTime() >= now.getTime()
+    && vendorCert.financialYear === invoiceFy
+    && !vendorCert.exhaustedAt
+    && cumulativeBaseMinor < vendorCert.maxAmountMinor
+  ) {
+    return {
+      effectiveRateBps: vendorCert.applicableRateBps,
+      rateSource: TDS_RATE_SOURCE.SECTION_197,
+      certApplied: true
+    };
+  }
+
+  if (!pan || !panValid) {
+    const effectiveRateBps = Math.max(NO_PAN_PENALTY_RATE_BPS, rateLookup.rateBps * 2);
+    return {
+      effectiveRateBps,
+      rateSource: TDS_RATE_SOURCE.NO_PAN_206AA,
+      certApplied: false
+    };
+  }
+
+  return {
+    effectiveRateBps: rateLookup.rateBps,
+    rateSource: rateLookup.source === "tenant" ? TDS_RATE_SOURCE.TENANT_OVERRIDE : TDS_RATE_SOURCE.STANDARD,
+    certApplied: false
+  };
+}
+
+interface ThresholdComputationArgs {
+  taxableAmount: number;
+  totalAmount: number;
+  effectiveRateBps: number;
+  rateLookup: TdsRateLookup;
+  cumulative: TdsCumulativeInput | null;
+  section: string;
+}
+
+interface ThresholdComputation {
+  tdsAmountMinor: number;
+  netPayableMinor: number;
+  thresholdJustCrossed: boolean;
+  signals: ComplianceRiskSignal[];
+}
+
+function computeThresholdAndTds(args: ThresholdComputationArgs): ThresholdComputation {
+  const { taxableAmount, totalAmount, effectiveRateBps, rateLookup, cumulative, section } = args;
+  const previousCumulative = cumulative?.cumulativeBaseMinor ?? 0;
+  const previousTdsDeducted = cumulative?.cumulativeTdsMinor ?? 0;
+  const newCumulative = previousCumulative + taxableAmount;
+  const annualThreshold = rateLookup.thresholdAnnualMinor;
+  const signals: ComplianceRiskSignal[] = [];
+
+  if (annualThreshold > 0 && newCumulative <= annualThreshold) {
+    signals.push(createRiskSignal(
+      RISK_SIGNAL_CODE.TDS_BELOW_ANNUAL_THRESHOLD,
+      "compliance",
+      "info",
+      `Cumulative ${newCumulative / 100} INR at or below annual threshold ${annualThreshold / 100} INR for section ${section}. No TDS deducted.`,
+      0
+    ));
+    return { tdsAmountMinor: 0, netPayableMinor: totalAmount, thresholdJustCrossed: false, signals };
+  }
+
+  if (annualThreshold > 0 && previousCumulative <= annualThreshold && newCumulative > annualThreshold) {
+    const grossTds = Math.round(newCumulative * effectiveRateBps / 10000);
+    const tdsAmountMinor = grossTds - previousTdsDeducted;
+    const netPayableMinor = totalAmount - tdsAmountMinor;
+    signals.push(createRiskSignal(
+      RISK_SIGNAL_CODE.TDS_ANNUAL_THRESHOLD_CROSSED,
+      "compliance",
+      "warning",
+      `Annual threshold (${annualThreshold / 100} INR) crossed for section ${section}. Catch-up TDS ${tdsAmountMinor / 100} INR.`,
+      3
+    ));
+
+    if (cumulative?.entries && cumulative.entries.length > 0) {
+      const historicalRates = new Set(cumulative.entries.map(e => e.rateBps));
+      const variance = historicalRates.size > 1
+        || (historicalRates.size === 1 && !historicalRates.has(effectiveRateBps));
+      if (variance) {
+        signals.push(createRiskSignal(
+          RISK_SIGNAL_CODE.TDS_CATCHUP_RATE_VARIANCE,
+          "compliance",
+          "warning",
+          `Catch-up uses current rate ${effectiveRateBps / 100}% but historical entries used different rates.`,
+          6
+        ));
+      }
+    }
+    return { tdsAmountMinor, netPayableMinor, thresholdJustCrossed: true, signals };
+  }
+
+  if (rateLookup.thresholdSingleMinor > 0 && taxableAmount < rateLookup.thresholdSingleMinor) {
+    signals.push(createRiskSignal(
+      RISK_SIGNAL_CODE.TDS_BELOW_THRESHOLD,
+      "compliance",
+      "info",
+      `Invoice amount below single-transaction TDS threshold for section ${section}.`,
+      0
+    ));
+    return { tdsAmountMinor: 0, netPayableMinor: totalAmount, thresholdJustCrossed: false, signals };
+  }
+
+  const tdsAmountMinor = Math.round(taxableAmount * effectiveRateBps / 10000);
+  const netPayableMinor = totalAmount - tdsAmountMinor;
+  return { tdsAmountMinor, netPayableMinor, thresholdJustCrossed: false, signals };
 }
 
 export class TdsCalculationService {
@@ -94,7 +291,8 @@ export class TdsCalculationService {
               individual: entry.rateIndividual
             }),
             thresholdSingleMinor: entry.threshold,
-            thresholdAnnualMinor: 0
+            thresholdAnnualMinor: 0,
+            source: "tenant"
           };
         }
       }
@@ -115,7 +313,8 @@ export class TdsCalculationService {
         individual: rate.rateIndividualBps
       }),
       thresholdSingleMinor: rate.thresholdSingleMinor,
-      thresholdAnnualMinor: rate.thresholdAnnualMinor
+      thresholdAnnualMinor: rate.thresholdAnnualMinor,
+      source: "rateTable"
     };
   }
 
@@ -130,35 +329,36 @@ export class TdsCalculationService {
   }
 
   determineTaxableAmount(invoice: ParsedInvoiceData): number {
-    if (invoice.gst?.subtotalMinor && invoice.gst.subtotalMinor > 0) {
-      return invoice.gst.subtotalMinor;
+    const totalAmount = invoice.totalAmountMinor ?? 0;
+    const gst = invoice.gst;
+    if (!gst) return totalAmount;
+
+    if (isGstShownSeparately(gst)) {
+      const totalGst = totalGstMinor(gst);
+      const taxableBase = gst.subtotalMinor && gst.subtotalMinor > 0
+        ? gst.subtotalMinor
+        : totalAmount - totalGst;
+      return Math.max(taxableBase, 0);
     }
-    return invoice.totalAmountMinor ?? 0;
+
+    if (gst.subtotalMinor && gst.subtotalMinor > 0) {
+      return gst.subtotalMinor;
+    }
+    return totalAmount;
   }
 
-  async computeTds(
-    invoice: ParsedInvoiceData,
-    tenantId: string,
-    clientOrgId: Types.ObjectId,
-    glCategory: string | null
-  ): Promise<TdsCalculationResult> {
+  computeTds(input: ComputeTdsInput): TdsCalculationResult {
+    const { invoice, glCategory, rateLookup, detection, cumulative, vendorCert, now } = input;
+    const evaluatedNow = now ?? new Date();
     const riskSignals: ComplianceRiskSignal[] = [];
     const panCategory = this.getPanCategory(invoice.pan);
     const panValid = invoice.pan ? PAN_FORMAT.test(invoice.pan.toUpperCase()) : false;
 
-    const detection = await this.detectSection(panCategory, glCategory, tenantId, clientOrgId);
-
     if (!detection.section) {
       return {
-        tds: {
-          section: null,
-          rate: null,
-          amountMinor: null,
-          netPayableMinor: null,
-          source: "auto",
-          confidence: TDS_CONFIDENCE.LOW
-        },
-        riskSignals
+        tds: emptyTds(null, TDS_CONFIDENCE.LOW),
+        riskSignals,
+        ledgerDelta: emptyDelta()
       };
     }
 
@@ -167,95 +367,112 @@ export class TdsCalculationService {
         RISK_SIGNAL_CODE.TDS_SECTION_AMBIGUOUS,
         "compliance",
         "warning",
-        `Multiple TDS sections could apply for category "${glCategory}" — please verify section ${detection.section}.`,
+        `Multiple TDS sections could apply for category "${glCategory}" — verify section ${detection.section}.`,
         4
       ));
     }
 
-    const rateLookup = await this.lookupRate(detection.section, panCategory, tenantId, clientOrgId);
     if (!rateLookup) {
       return {
-        tds: {
-          section: detection.section,
-          rate: null,
-          amountMinor: null,
-          netPayableMinor: null,
-          source: "auto",
-          confidence: detection.confidence
-        },
-        riskSignals
+        tds: emptyTds(detection.section, detection.confidence),
+        riskSignals,
+        ledgerDelta: emptyDelta()
       };
-    }
-
-    if (!panValid && invoice.pan !== undefined && invoice.pan !== null) {
-      riskSignals.push(createRiskSignal(
-        RISK_SIGNAL_CODE.TDS_NO_PAN_PENALTY_RATE,
-        "compliance",
-        "critical",
-        `No valid PAN — TDS at 20% penalty rate (Section 206AA) applies instead of ${rateLookup.rateBps / 100}%.`,
-        10
-      ));
-    } else if (!invoice.pan) {
-      riskSignals.push(createRiskSignal(
-        RISK_SIGNAL_CODE.TDS_NO_PAN_PENALTY_RATE,
-        "compliance",
-        "critical",
-        "No PAN available — TDS at 20% penalty rate (Section 206AA) applies.",
-        10
-      ));
     }
 
     const taxableAmount = this.determineTaxableAmount(invoice);
     const totalAmount = invoice.totalAmountMinor ?? taxableAmount;
 
+    const invoiceDate = invoice.invoiceDate ?? evaluatedNow;
+    const invoiceFy = determineFY(invoiceDate);
+    const quarter: TdsQuarter = determineQuarter(invoiceDate);
+
+    const previousCumulative = cumulative?.cumulativeBaseMinor ?? 0;
+    const { effectiveRateBps, rateSource, certApplied } = resolveEffectiveRate({
+      panValid,
+      pan: invoice.pan,
+      rateLookup,
+      vendorCert,
+      cumulativeBaseMinor: previousCumulative,
+      invoiceFy,
+      now: evaluatedNow
+    });
+
+    if (certApplied) {
+      riskSignals.push(createRiskSignal(
+        RISK_SIGNAL_CODE.TDS_SECTION_197_APPLIED,
+        "compliance",
+        "info",
+        `Section 197 certificate applied for section ${detection.section} at ${effectiveRateBps / 100}%.`,
+        0
+      ));
+    }
+
+    if (rateSource === TDS_RATE_SOURCE.NO_PAN_206AA) {
+      const message = invoice.pan
+        ? `No valid PAN — TDS at penalty rate ${effectiveRateBps / 100}% (Section 206AA) instead of ${rateLookup.rateBps / 100}%.`
+        : `No PAN available — TDS at penalty rate ${effectiveRateBps / 100}% (Section 206AA).`;
+      riskSignals.push(createRiskSignal(
+        RISK_SIGNAL_CODE.TDS_NO_PAN_PENALTY_RATE,
+        "compliance",
+        "critical",
+        message,
+        10
+      ));
+    }
+
     if (taxableAmount <= 0) {
       return {
         tds: {
-          section: detection.section,
-          rate: rateLookup.rateBps,
-          amountMinor: null,
-          netPayableMinor: null,
-          source: "auto",
-          confidence: detection.confidence
+          ...emptyTds(detection.section, detection.confidence, effectiveRateBps, rateSource)
         },
-        riskSignals
+        riskSignals,
+        ledgerDelta: emptyDelta(effectiveRateBps, rateSource)
       };
     }
 
-    if (rateLookup.thresholdSingleMinor > 0 && taxableAmount < rateLookup.thresholdSingleMinor) {
+    const threshold = computeThresholdAndTds({
+      taxableAmount,
+      totalAmount,
+      effectiveRateBps,
+      rateLookup,
+      cumulative,
+      section: detection.section
+    });
+    riskSignals.push(...threshold.signals);
+
+    const currentFy = determineFY(evaluatedNow);
+    if (invoiceFy !== currentFy) {
       riskSignals.push(createRiskSignal(
-        RISK_SIGNAL_CODE.TDS_BELOW_THRESHOLD,
+        RISK_SIGNAL_CODE.TDS_BACKDATED_THRESHOLD_ADJUSTMENT,
         "compliance",
-        "info",
-        `Invoice amount below single-transaction TDS threshold for section ${detection.section}.`,
-        0
+        "warning",
+        `Backdated invoice (FY ${invoiceFy}) processed in current FY (${currentFy}).`,
+        5
       ));
-
-      return {
-        tds: {
-          section: detection.section,
-          rate: rateLookup.rateBps,
-          amountMinor: 0,
-          netPayableMinor: totalAmount,
-          source: "auto",
-          confidence: detection.confidence
-        },
-        riskSignals
-      };
     }
-
-    const { tdsAmountMinor, netPayableMinor } = this.calculate(taxableAmount, rateLookup.rateBps, totalAmount);
 
     return {
       tds: {
         section: detection.section,
-        rate: rateLookup.rateBps,
-        amountMinor: tdsAmountMinor,
-        netPayableMinor,
-        source: "auto",
-        confidence: detection.confidence
+        rate: effectiveRateBps,
+        rateBps: effectiveRateBps,
+        rateSource,
+        amountMinor: threshold.tdsAmountMinor,
+        taxableBaseMinor: taxableAmount,
+        netPayableMinor: threshold.netPayableMinor,
+        source: TDS_SOURCE.AUTO,
+        confidence: detection.confidence,
+        quarter
       },
-      riskSignals
+      riskSignals,
+      ledgerDelta: {
+        taxableAmountMinor: taxableAmount,
+        tdsAmountMinor: threshold.tdsAmountMinor,
+        rateBps: effectiveRateBps,
+        rateSource,
+        thresholdJustCrossed: threshold.thresholdJustCrossed
+      }
     };
   }
 }

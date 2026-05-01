@@ -35,7 +35,7 @@ export const MINOR_FIELD_REGISTRY: readonly CollectionValidatorSpec[] = [
       },
       {
         prefix: "compliance.tds",
-        fields: ["amountMinor", "netPayableMinor"],
+        fields: ["amountMinor", "netPayableMinor", "taxableBaseMinor"],
         nullable: true
       },
       {

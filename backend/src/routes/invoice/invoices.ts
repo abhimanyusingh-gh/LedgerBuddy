@@ -185,7 +185,7 @@ export function createInvoiceRouter(
 
             const parsed = invoice.toObject().parsed ?? {};
             if (invoiceClientOrgId) {
-              await retriggerTdsAndTcs(compliance, parsed, authContext.tenantId, invoiceClientOrgId, req.body.glCode, req.params.id);
+              await retriggerTdsAndTcs(compliance, parsed, authContext.tenantId, invoiceClientOrgId, req.body.glCode, req.params.id, fingerprint);
             }
           }
         }

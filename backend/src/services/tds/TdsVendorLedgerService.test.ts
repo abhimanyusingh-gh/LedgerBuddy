@@ -28,7 +28,8 @@ describeHarness("TdsVendorLedgerService", ({ getHarness }) => {
         cumulativeTdsMinor: 0,
         invoiceCount: 0,
         thresholdCrossedAt: null,
-        quarter: null
+        quarter: null,
+        entries: []
       });
     });
 

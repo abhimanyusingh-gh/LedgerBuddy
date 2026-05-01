@@ -42,6 +42,7 @@ import { ComplianceEnrichmentService } from "@/services/compliance/ComplianceEnr
 import { PanValidationService } from "@/services/compliance/PanValidationService.js";
 import { VendorMasterService } from "@/services/compliance/VendorMasterService.js";
 import { TdsCalculationService } from "@/services/compliance/TdsCalculationService.js";
+import { TdsVendorLedgerService } from "@/services/tds/TdsVendorLedgerService.js";
 import { GlCodeSuggestionService } from "@/services/compliance/GlCodeSuggestionService.js";
 import { IrnValidationService } from "@/services/compliance/IrnValidationService.js";
 import { MsmeTrackingService } from "@/services/compliance/MsmeTrackingService.js";
@@ -120,6 +121,7 @@ async function buildExtractionPipeline(manifest: RuntimeManifest, learningStore:
     panValidation: new PanValidationService(),
     vendorMaster: new VendorMasterService(),
     tdsCalculation: new TdsCalculationService(),
+    tdsVendorLedger: new TdsVendorLedgerService(),
     glCodeSuggestion: new GlCodeSuggestionService(),
     irnValidation: new IrnValidationService(),
     msmeTracking: new MsmeTrackingService(),

@@ -202,10 +202,18 @@ const invoiceSchema = new Schema(
           type: new Schema({
             section: { type: String, default: null },
             rate: { type: Number, default: null },
+            rateBps: { type: Number, default: null },
+            rateSource: {
+              type: String,
+              enum: ["section-197", "206aa-no-pan", "tenant-override", "standard", null],
+              default: null
+            },
             amountMinor: { type: Number, default: null },
+            taxableBaseMinor: { type: Number, default: null },
             netPayableMinor: { type: Number, default: null },
             source: { type: String, enum: ["auto", "manual"], default: "auto" },
-            confidence: { type: String, enum: ["high", "medium", "low"], default: "low" }
+            confidence: { type: String, enum: ["high", "medium", "low"], default: "low" },
+            quarter: { type: String, enum: ["Q1", "Q2", "Q3", "Q4", null], default: null }
           }, { _id: false }),
           default: undefined
         },

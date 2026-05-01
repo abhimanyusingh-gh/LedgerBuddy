@@ -129,6 +129,15 @@ export const TDS_CONFIDENCE = {
 
 export type TdsConfidence = (typeof TDS_CONFIDENCE)[keyof typeof TDS_CONFIDENCE];
 
+export const TDS_RATE_SOURCE = {
+  SECTION_197: "section-197",
+  NO_PAN_206AA: "206aa-no-pan",
+  TENANT_OVERRIDE: "tenant-override",
+  STANDARD: "standard",
+} as const;
+
+export type TdsRateSource = (typeof TDS_RATE_SOURCE)[keyof typeof TDS_RATE_SOURCE];
+
 export const GL_CODE_SOURCE = {
   VENDOR_DEFAULT: "vendor-default",
   DESCRIPTION_MATCH: "description-match",
@@ -282,10 +291,14 @@ export interface CompliancePanResult {
 export interface ComplianceTdsResult {
   section: string | null;
   rate: number | null;
+  rateBps: number | null;
+  rateSource: TdsRateSource | null;
   amountMinor: number | null;
+  taxableBaseMinor: number | null;
   netPayableMinor: number | null;
   source: TdsSource;
   confidence: TdsConfidence;
+  quarter: "Q1" | "Q2" | "Q3" | "Q4" | null;
 }
 
 export interface ComplianceGlCodeResult {

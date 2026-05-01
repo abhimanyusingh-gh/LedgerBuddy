@@ -22,6 +22,7 @@ export interface ComplianceEnrichContext {
   contentHash?: string;
   slmGlCategory?: string;
   currentInvoiceId?: string;
+  dryRun?: boolean;
 }
 
 export interface ComplianceEnricher {

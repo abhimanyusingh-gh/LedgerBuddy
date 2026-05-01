@@ -13,6 +13,8 @@ import type { ApprovalWorkflowService } from "@/services/invoice/approvalWorkflo
 import { buildCorrectionHint, type ExtractionLearningStore } from "@/ai/extractors/invoice/learning/extractionLearningStore.js";
 import type { ExtractionMappingService } from "@/ai/extractors/invoice/learning/extractionMappingService.js";
 import { TdsCalculationService } from "@/services/compliance/TdsCalculationService.js";
+import { TdsVendorLedgerService } from "@/services/tds/TdsVendorLedgerService.js";
+import { runTdsOrchestrator } from "@/services/compliance/tdsOrchestrator.js";
 import { GlCodeMasterModel } from "@/models/compliance/GlCodeMaster.js";
 import { ClientTcsConfigModel } from "@/models/integration/ClientTcsConfig.js";
 import {
@@ -390,7 +392,11 @@ export class InvoiceService {
 
     const invoiceClientOrgId = invoiceObj.clientOrgId as Types.ObjectId | undefined;
     if (invoiceClientOrgId) {
-      await retriggerTdsAndTcs(compliance, parsed, tenantId, invoiceClientOrgId, newGlCode, invoiceId);
+      const metadata = invoice.metadata;
+      const vendorFingerprint = metadata && typeof (metadata as { get?: (k: string) => unknown }).get === "function"
+        ? (metadata as { get: (k: string) => unknown }).get("vendorFingerprint") as string | undefined
+        : undefined;
+      await retriggerTdsAndTcs(compliance, parsed, tenantId, invoiceClientOrgId, newGlCode, invoiceId, vendorFingerprint);
     } else {
       logger.warn("compliance.retrigger.skipped.no_client_org", { invoiceId, tenantId });
     }
@@ -544,18 +550,33 @@ export async function retriggerTdsAndTcs(
   tenantId: UUID,
   clientOrgId: Types.ObjectId,
   glCode: string,
-  invoiceId: string
+  invoiceId: string,
+  vendorFingerprint?: string
 ): Promise<void> {
   const tdsService = new TdsCalculationService();
+  const tdsLedger = new TdsVendorLedgerService();
   try {
     const glDoc = await GlCodeMasterModel.findOne({ tenantId, clientOrgId, code: glCode, isActive: true }).lean();
     const glCategory = glDoc?.category ?? glCode;
-    const tdsResult = await tdsService.computeTds(parsed, tenantId, clientOrgId, glCategory);
-    compliance.tds = tdsResult.tds;
+    const fingerprint = vendorFingerprint ?? invoiceId;
+    const tdsResult = await runTdsOrchestrator({
+      tdsCalculation: tdsService,
+      tdsVendorLedger: tdsLedger,
+      invoice: parsed,
+      glCategory,
+      tenantId,
+      clientOrgId,
+      vendorFingerprint: fingerprint,
+      invoiceId,
+      dryRun: false
+    });
+    if (tdsResult) {
+      compliance.tds = tdsResult.tds;
 
-    const existingSignals = (compliance.riskSignals as ComplianceRiskSignal[]) ?? [];
-    const nonTdsSignals = existingSignals.filter(s => !s.code.startsWith("TDS_"));
-    compliance.riskSignals = [...nonTdsSignals, ...tdsResult.riskSignals];
+      const existingSignals = (compliance.riskSignals as ComplianceRiskSignal[]) ?? [];
+      const nonTdsSignals = existingSignals.filter(s => !s.code.startsWith("TDS_"));
+      compliance.riskSignals = [...nonTdsSignals, ...tdsResult.riskSignals];
+    }
   } catch (error) {
     logger.warn("compliance.retrigger.tds.failed", {
       invoiceId, tenantId,

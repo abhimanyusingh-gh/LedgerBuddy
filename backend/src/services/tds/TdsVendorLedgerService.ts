@@ -1,5 +1,6 @@
 import { TdsVendorLedgerModel, type TdsVendorLedger } from "@/models/compliance/TdsVendorLedger.js";
 import { determineQuarter, type TdsQuarter } from "@/services/tds/fiscalYearUtils.js";
+import type { TdsRateSource } from "@/types/invoice.js";
 
 interface TdsCumulativeView {
   cumulativeBaseMinor: number;
@@ -7,6 +8,7 @@ interface TdsCumulativeView {
   invoiceCount: number;
   thresholdCrossedAt: Date | null;
   quarter: TdsQuarter | null;
+  entries: Array<{ rateBps: number }>;
 }
 
 const ZERO_VIEW: TdsCumulativeView = {
@@ -14,7 +16,8 @@ const ZERO_VIEW: TdsCumulativeView = {
   cumulativeTdsMinor: 0,
   invoiceCount: 0,
   thresholdCrossedAt: null,
-  quarter: null
+  quarter: null,
+  entries: []
 };
 
 interface RecordTdsToLedgerInput {
@@ -26,7 +29,8 @@ interface RecordTdsToLedgerInput {
   invoiceDate: Date;
   taxableAmountMinor: number;
   tdsAmountMinor: number;
-  rateSource: string;
+  rateBps?: number;
+  rateSource: TdsRateSource | string;
   thresholdCrossed: boolean;
   recordedAt?: Date;
 }
@@ -59,6 +63,8 @@ export class TdsVendorLedgerService {
   async recordTdsToLedger(input: RecordTdsToLedgerInput): Promise<TdsCumulativeView> {
     assertInteger("taxableAmountMinor", input.taxableAmountMinor);
     assertInteger("tdsAmountMinor", input.tdsAmountMinor);
+    const rateBps = input.rateBps ?? 0;
+    assertInteger("rateBps", rateBps);
 
     const recordedAt = input.recordedAt ?? new Date();
     const quarter = determineQuarter(input.invoiceDate);
@@ -99,6 +105,7 @@ export class TdsVendorLedgerService {
             invoiceDate: input.invoiceDate,
             taxableAmountMinor: input.taxableAmountMinor,
             tdsAmountMinor: input.tdsAmountMinor,
+            rateBps,
             rateSource: input.rateSource,
             quarter,
             recordedAt
@@ -115,11 +122,13 @@ export class TdsVendorLedgerService {
 }
 
 function toView(doc: TdsVendorLedger): TdsCumulativeView {
+  const rawEntries = (doc.entries as Array<{ rateBps?: number }> | undefined) ?? [];
   return {
     cumulativeBaseMinor: doc.cumulativeBaseMinor as number,
     cumulativeTdsMinor: doc.cumulativeTdsMinor as number,
     invoiceCount: doc.invoiceCount as number,
     thresholdCrossedAt: doc.thresholdCrossedAt ?? null,
-    quarter: (doc.quarter as TdsQuarter | null) ?? null
+    quarter: (doc.quarter as TdsQuarter | null) ?? null,
+    entries: rawEntries.map(e => ({ rateBps: e.rateBps ?? 0 }))
   };
 }
