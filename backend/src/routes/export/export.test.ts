@@ -74,7 +74,8 @@ describe("export routes", () => {
               requestedBy: "admin@test.com",
               hasFile: true,
               createdAt: new Date("2026-03-01"),
-              updatedAt: new Date("2026-03-01")
+              updatedAt: new Date("2026-03-01"),
+              items: []
             }
           ],
           page: 1,
