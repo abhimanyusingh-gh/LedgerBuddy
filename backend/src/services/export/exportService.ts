@@ -340,7 +340,22 @@ export class ExportService {
         requestedBy: item.requestedBy,
         hasFile: Boolean(item.fileKey),
         createdAt: item.createdAt,
-        updatedAt: item.updatedAt
+        updatedAt: item.updatedAt,
+        items: ((item as { items?: ExportBatchItemSnapshot[] }).items ?? []).map((entry) => ({
+          invoiceId: entry.invoiceId,
+          paymentId: entry.paymentId,
+          voucherType: entry.voucherType,
+          status: entry.status,
+          exportVersion: entry.exportVersion,
+          guid: entry.guid,
+          completedAt: entry.completedAt,
+          tallyResponse: entry.tallyResponse
+            ? {
+                lineError: entry.tallyResponse.lineError,
+                lineErrorOrdinal: entry.tallyResponse.lineErrorOrdinal
+              }
+            : undefined
+        }))
       })),
       page: params.page,
       limit: params.limit,

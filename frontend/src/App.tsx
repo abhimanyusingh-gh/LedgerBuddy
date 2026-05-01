@@ -360,7 +360,7 @@ export function App() {
           />
         )}
 
-        {!standaloneRoute && activeTab === "exports" && <ExportHistoryDashboard />}
+        {!standaloneRoute && activeTab === "exports" && <ExportHistoryDashboard addToast={addToast} />}
 
         {!standaloneRoute && activeTab === "config" && canViewConfig && (
           <TenantConfigTab

@@ -2,7 +2,7 @@ import { apiClient, safeNum, stripNulls } from "@/api/client";
 import { invoiceUrls } from "@/api/urls/invoiceUrls";
 import { ingestionUrls } from "@/api/urls/ingestionUrls";
 import { exportUrls } from "@/api/urls/exportUrls";
-import type { Invoice, InvoiceListResponse, TallyFileExportResponse, ExportHistoryResponse } from "@/types";
+import type { Invoice, InvoiceListResponse, TallyFileExportResponse, ExportHistoryResponse, RetryExportFailuresResponse } from "@/types";
 
 interface UpdateInvoiceParsedPayload {
   parsed: Partial<{
@@ -101,6 +101,10 @@ export async function fetchExportHistory(page = 1, limit = 20): Promise<ExportHi
     items: Array.isArray(data.items) ? data.items : [],
     page: safeNum(data.page, 1), limit: safeNum(data.limit, 20), total: safeNum(data.total, 0)
   };
+}
+
+export async function retryExportFailures(batchId: string): Promise<RetryExportFailuresResponse> {
+  return (await apiClient.post<RetryExportFailuresResponse>(exportUrls.tallyRetryByBatchId(batchId), {})).data;
 }
 
 export async function updateInvoiceParsedFields(invoiceId: string, payload: UpdateInvoiceParsedPayload) {

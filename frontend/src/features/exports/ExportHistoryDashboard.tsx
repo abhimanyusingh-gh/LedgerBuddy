@@ -1,13 +1,19 @@
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { fetchExportHistory, downloadTallyXmlFile } from "@/api";
 import type { ExportBatchSummary } from "@/types";
 import { EmptyState } from "@/components/common/EmptyState";
+import { ExportBatchItemsList } from "@/features/exports/ExportBatchItemsList";
+import { ExportBatchRetryButton } from "@/features/exports/ExportBatchRetryButton";
 import {
   useUserPrefsStore,
   EXPORT_SORT_KEY,
   SORT_DIRECTION,
   type ExportSortKey
 } from "@/stores/userPrefsStore";
+
+interface ExportHistoryDashboardProps {
+  addToast?: (type: "success" | "error" | "info", message: string, duration?: number) => void;
+}
 
 function formatName(value?: string): string {
   if (!value) return "-";
@@ -16,11 +22,12 @@ function formatName(value?: string): string {
   return value.slice(0, at).replace(/[._-]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-export function ExportHistoryDashboard() {
+export function ExportHistoryDashboard({ addToast }: ExportHistoryDashboardProps = {}) {
   const [items, setItems] = useState<ExportBatchSummary[]>([]);
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [expandedBatchId, setExpandedBatchId] = useState<string | null>(null);
 
   const pageSize = useUserPrefsStore((state) => state.exportHistory.pageSize);
   const dateFrom = useUserPrefsStore((state) => state.exportHistory.dateFrom);
@@ -59,6 +66,19 @@ export function ExportHistoryDashboard() {
     } else {
       setExportHistory({ sortKey: key, sortDirection: SORT_DIRECTION.ASC });
     }
+  }
+
+  function toggleExpand(batchId: string) {
+    setExpandedBatchId((current) => (current === batchId ? null : batchId));
+  }
+
+  async function handleRetried() {
+    addToast?.("success", "Retry submitted. Refreshing batch...");
+    await loadHistory();
+  }
+
+  function handleRetryError(message: string) {
+    addToast?.("error", message);
   }
 
   let displayed = items;
@@ -119,29 +139,67 @@ export function ExportHistoryDashboard() {
             <table className="export-history-table">
               <thead>
                 <tr>
+                  <th></th>
                   <th className="sortable-th" onClick={() => toggleSort(EXPORT_SORT_KEY.DATE)}>Date{sortIcon(EXPORT_SORT_KEY.DATE)}</th>
                   <th className="sortable-th" onClick={() => toggleSort(EXPORT_SORT_KEY.TOTAL)}>Total{sortIcon(EXPORT_SORT_KEY.TOTAL)}</th>
                   <th className="sortable-th" onClick={() => toggleSort(EXPORT_SORT_KEY.SUCCESS)}>Success{sortIcon(EXPORT_SORT_KEY.SUCCESS)}</th>
                   <th className="sortable-th" onClick={() => toggleSort(EXPORT_SORT_KEY.FAILED)}>Failed{sortIcon(EXPORT_SORT_KEY.FAILED)}</th>
                   <th className="sortable-th" onClick={() => toggleSort(EXPORT_SORT_KEY.REQUESTED_BY)}>Requested By{sortIcon(EXPORT_SORT_KEY.REQUESTED_BY)}</th>
-                  <th>Download</th>
+                  <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {displayed.map((batch) => (
-                  <tr key={batch.batchId}>
-                    <td>{new Date(batch.createdAt).toLocaleString()}</td>
-                    <td>{batch.total}</td>
-                    <td>{batch.successCount}</td>
-                    <td>{batch.failureCount}</td>
-                    <td title={batch.requestedBy}>{formatName(batch.requestedBy)}</td>
-                    <td>
-                      {batch.hasFile ? (
-                        <button type="button" className="app-button app-button-secondary app-button-sm" onClick={() => void handleDownload(batch.batchId)}>Download</button>
-                      ) : <span style={{ color: "var(--ink-soft)" }}>—</span>}
-                    </td>
-                  </tr>
-                ))}
+                {displayed.map((batch) => {
+                  const expanded = expandedBatchId === batch.batchId;
+                  const failureItems = (batch.items ?? []).filter((it) => it.status === "failure");
+                  const canRetry = failureItems.length > 0;
+                  return (
+                    <Fragment key={batch.batchId}>
+                      <tr>
+                        <td>
+                          <button
+                            type="button"
+                            className="app-button app-button-secondary app-button-sm export-batch-expand-toggle"
+                            onClick={() => toggleExpand(batch.batchId)}
+                            aria-expanded={expanded}
+                            aria-label={expanded ? "Hide batch items" : "Show batch items"}
+                          >
+                            <span className="material-symbols-outlined">
+                              {expanded ? "expand_less" : "expand_more"}
+                            </span>
+                          </button>
+                        </td>
+                        <td>{new Date(batch.createdAt).toLocaleString()}</td>
+                        <td>{batch.total}</td>
+                        <td>{batch.successCount}</td>
+                        <td>{batch.failureCount}</td>
+                        <td title={batch.requestedBy}>{formatName(batch.requestedBy)}</td>
+                        <td>
+                          <div className="export-history-actions">
+                            {batch.hasFile ? (
+                              <button type="button" className="app-button app-button-secondary app-button-sm" onClick={() => void handleDownload(batch.batchId)}>Download</button>
+                            ) : null}
+                            {canRetry ? (
+                              <ExportBatchRetryButton
+                                batchId={batch.batchId}
+                                onRetried={() => void handleRetried()}
+                                onError={handleRetryError}
+                              />
+                            ) : null}
+                            {!batch.hasFile && !canRetry ? <span className="export-history-actions-empty">—</span> : null}
+                          </div>
+                        </td>
+                      </tr>
+                      {expanded ? (
+                        <tr className="export-batch-items-tr">
+                          <td colSpan={7}>
+                            <ExportBatchItemsList items={batch.items ?? []} />
+                          </td>
+                        </tr>
+                      ) : null}
+                    </Fragment>
+                  );
+                })}
               </tbody>
             </table>
           </div>

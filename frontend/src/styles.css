@@ -2987,6 +2987,69 @@ pre {
   font-size: 0.8rem;
 }
 
+.export-history-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  align-items: center;
+}
+
+.export-history-actions-empty {
+  color: var(--ink-soft);
+}
+
+.export-batch-expand-toggle {
+  padding: 0.15rem 0.35rem;
+  line-height: 1;
+}
+
+.export-batch-expand-toggle .material-symbols-outlined {
+  font-size: 1.05rem;
+  vertical-align: middle;
+}
+
+.export-batch-items-tr td {
+  background: var(--bg-main);
+  padding: 0.5rem 0.85rem;
+}
+
+.export-batch-items-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.export-batch-items-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.82rem;
+}
+
+.export-batch-items-id {
+  font-family: var(--font-mono, monospace);
+  color: var(--ink-soft);
+  max-width: 18rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.export-batch-items-error {
+  color: var(--color-badge-invalid-fg, var(--ink-soft));
+  font-size: 0.78rem;
+}
+
+.export-batch-items-empty {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--ink-soft);
+}
+
 @media (max-width: 980px) {
   body {
     overflow: auto;

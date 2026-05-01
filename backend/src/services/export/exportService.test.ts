@@ -104,6 +104,90 @@ describe("ExportService", () => {
       expect(result.total).toBe(1);
     });
 
+    it("surfaces items[] with status / lineError / lineErrorOrdinal so the FE can render per-invoice failure rows", async () => {
+      const batchId = new Types.ObjectId();
+      const mockBatch = {
+        _id: batchId,
+        tenantId: toUUID("tenant-a"),
+        system: "tally",
+        total: 2,
+        successCount: 1,
+        failureCount: 1,
+        requestedBy: "admin@test.com",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        items: [
+          {
+            invoiceId: "inv-success",
+            voucherType: "purchase",
+            status: EXPORT_BATCH_ITEM_STATUS.SUCCESS,
+            exportVersion: 0,
+            guid: "guid-1"
+          },
+          {
+            invoiceId: "inv-failure",
+            voucherType: "purchase",
+            status: EXPORT_BATCH_ITEM_STATUS.FAILURE,
+            exportVersion: 1,
+            guid: "guid-2",
+            tallyResponse: { lineError: "vendor not found", lineErrorOrdinal: 1 }
+          }
+        ]
+      };
+
+      jest.spyOn(ExportBatchModel, "find").mockReturnValue({
+        sort: jest.fn().mockReturnThis(),
+        skip: jest.fn().mockReturnThis(),
+        limit: jest.fn().mockReturnThis(),
+        lean: jest.fn().mockResolvedValue([mockBatch])
+      } as never);
+      jest.spyOn(ExportBatchModel, "countDocuments").mockResolvedValue(1 as never);
+
+      const service = new ExportService(createMockExporter());
+      const result = await service.listExportHistory({ tenantId: toUUID("tenant-a"), clientOrgId: CLIENT_ORG_ID, page: 1, limit: 20 });
+
+      expect(result.items[0].items).toHaveLength(2);
+      expect(result.items[0].items?.[0]).toEqual(
+        expect.objectContaining({
+          invoiceId: "inv-success",
+          status: EXPORT_BATCH_ITEM_STATUS.SUCCESS
+        })
+      );
+      expect(result.items[0].items?.[1]).toEqual(
+        expect.objectContaining({
+          invoiceId: "inv-failure",
+          status: EXPORT_BATCH_ITEM_STATUS.FAILURE,
+          tallyResponse: { lineError: "vendor not found", lineErrorOrdinal: 1 }
+        })
+      );
+    });
+
+    it("defaults items[] to empty when the batch has no items field (legacy rows)", async () => {
+      const mockBatch = {
+        _id: new Types.ObjectId(),
+        tenantId: toUUID("tenant-a"),
+        system: "tally",
+        total: 0,
+        successCount: 0,
+        failureCount: 0,
+        requestedBy: "admin@test.com",
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+      jest.spyOn(ExportBatchModel, "find").mockReturnValue({
+        sort: jest.fn().mockReturnThis(),
+        skip: jest.fn().mockReturnThis(),
+        limit: jest.fn().mockReturnThis(),
+        lean: jest.fn().mockResolvedValue([mockBatch])
+      } as never);
+      jest.spyOn(ExportBatchModel, "countDocuments").mockResolvedValue(1 as never);
+
+      const service = new ExportService(createMockExporter());
+      const result = await service.listExportHistory({ tenantId: toUUID("tenant-a"), clientOrgId: CLIENT_ORG_ID, page: 1, limit: 20 });
+
+      expect(result.items[0].items).toEqual([]);
+    });
+
     it("sets hasFile to false when fileKey is absent", async () => {
       const batchId = new Types.ObjectId();
       const mockBatch = {

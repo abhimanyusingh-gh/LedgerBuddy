@@ -471,6 +471,28 @@ export interface TallyFileExportResponse {
   skippedItems: Array<{ invoiceId: string; success: boolean; externalReference?: string; error?: string }>;
 }
 
+export const EXPORT_BATCH_ITEM_STATUS = {
+  PENDING: "pending",
+  SUCCESS: "success",
+  FAILURE: "failure"
+} as const;
+
+export type ExportBatchItemStatus = (typeof EXPORT_BATCH_ITEM_STATUS)[keyof typeof EXPORT_BATCH_ITEM_STATUS];
+
+export interface ExportBatchItem {
+  invoiceId: string;
+  paymentId?: string;
+  voucherType: string;
+  status: ExportBatchItemStatus;
+  exportVersion: number;
+  guid: string;
+  completedAt?: string;
+  tallyResponse?: {
+    lineError?: string;
+    lineErrorOrdinal?: number;
+  };
+}
+
 export interface ExportBatchSummary {
   batchId: string;
   system: string;
@@ -481,6 +503,7 @@ export interface ExportBatchSummary {
   hasFile: boolean;
   createdAt: string;
   updatedAt: string;
+  items?: ExportBatchItem[];
 }
 
 export interface ExportHistoryResponse {
@@ -488,6 +511,14 @@ export interface ExportHistoryResponse {
   page: number;
   limit: number;
   total: number;
+}
+
+export interface RetryExportFailuresResponse {
+  batchId: string;
+  retriedCount: number;
+  total: number;
+  successCount: number;
+  failureCount: number;
 }
 
 export interface IngestionJobStatus {
