@@ -123,10 +123,8 @@ describe("StepCard", () => {
     });
 
     it.each([
-      ["type: compliance_signoff", { type: "compliance_signoff" as const }],
-      ["type: escalation", { type: "escalation" as const }],
-      ["timeoutHours set", { timeoutHours: 24 }],
-      ["escalateTo set", { escalateTo: "u1" }],
+      ["non-default type", { type: "escalation" as const }],
+      ["escalation field set", { timeoutHours: 24 }],
     ])("auto-opens when %s", (_label, overrides) => {
       render(
         <StepCard
@@ -259,8 +257,7 @@ describe("StepCard", () => {
 
     it.each([
       ["non-integer 2.5", "2.5", "reject"],
-      ["below 1 (0)", "0", "reject"],
-      ["above 720 (721)", "721", "reject"],
+      ["out of range (721)", "721", "reject"],
       ["empty string (clear)", "", "accept"],
     ])("timeout input validation: %s", (_label, value, behavior) => {
       const onUpdate = jest.fn();

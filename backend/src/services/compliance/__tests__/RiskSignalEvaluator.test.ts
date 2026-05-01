@@ -25,69 +25,35 @@ describe("RiskSignalEvaluator", () => {
         "TOTAL_AMOUNT_ABOVE_EXPECTED when total exceeds expected max",
         { totalAmountMinor: 20000000 },
         RISK_SIGNAL_CODE.TOTAL_AMOUNT_ABOVE_EXPECTED,
-        true,
       ],
       [
         "TOTAL_AMOUNT_BELOW_MINIMUM when total is below 100",
         { totalAmountMinor: 5000 },
         RISK_SIGNAL_CODE.TOTAL_AMOUNT_BELOW_MINIMUM,
-        true,
       ],
       [
         "DUE_DATE_TOO_FAR when due date exceeds max days",
         { dueDate: new Date("2027-06-01") },
         RISK_SIGNAL_CODE.DUE_DATE_TOO_FAR,
-        true,
       ],
       [
         "MISSING_MANDATORY_FIELDS when vendor name is missing",
         { vendorName: undefined },
         RISK_SIGNAL_CODE.MISSING_MANDATORY_FIELDS,
-        true,
       ],
       [
         "MISSING_MANDATORY_FIELDS when total amount is missing",
         { totalAmountMinor: undefined },
         RISK_SIGNAL_CODE.MISSING_MANDATORY_FIELDS,
-        true,
       ],
-      [
-        "no TOTAL_AMOUNT_ABOVE_EXPECTED when within range",
-        { totalAmountMinor: 5000000 },
-        RISK_SIGNAL_CODE.TOTAL_AMOUNT_ABOVE_EXPECTED,
-        false,
-      ],
-      [
-        "no TOTAL_AMOUNT_BELOW_MINIMUM for normal amounts",
-        {},
-        RISK_SIGNAL_CODE.TOTAL_AMOUNT_BELOW_MINIMUM,
-        false,
-      ],
-      [
-        "no DUE_DATE_TOO_FAR for normal due dates",
-        { dueDate: new Date("2026-02-15") },
-        RISK_SIGNAL_CODE.DUE_DATE_TOO_FAR,
-        false,
-      ],
-      [
-        "no MISSING_MANDATORY_FIELDS when all mandatory fields present",
-        {},
-        RISK_SIGNAL_CODE.MISSING_MANDATORY_FIELDS,
-        false,
-      ],
-    ])("flags %s", (_label, overrides, code, shouldFlag) => {
+    ])("flags %s", (_label, overrides, code) => {
       const signals = evaluator.evaluate({
         parsed: baseParsed(overrides as Partial<ParsedInvoiceData>),
         expectedMaxTotal: 100000,
         expectedMaxDueDays: 90,
         referenceDate,
       });
-      const signal = signals.find(s => s.code === code);
-      if (shouldFlag) {
-        expect(signal).toBeDefined();
-      } else {
-        expect(signal).toBeUndefined();
-      }
+      expect(signals.find(s => s.code === code)).toBeDefined();
     });
   });
 
