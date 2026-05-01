@@ -17,6 +17,7 @@ import { NoopFieldVerifier } from "@/ai/verifiers/NoopFieldVerifier.js";
 import { TallyExporter } from "@/services/export/tallyExporter.js";
 import { TenantAdminService } from "@/services/tenant/tenantAdminService.js";
 import { TriageService } from "@/services/invoice/triageService.js";
+import { VendorMasterService } from "@/services/compliance/VendorMasterService.js";
 import { ClientOrganizationModel } from "@/models/integration/ClientOrganization.js";
 import { ONBOARDING_STATUS } from "@/types/onboarding.js";
 import { toUUID, type UUID } from "@/types/uuid.js";
@@ -102,6 +103,7 @@ export async function createIntegrationApp(overrides: AuthOverrides = {}): Promi
     approvalWorkflowService,
     triageService: new TriageService(),
     auditLogService: { record: jest.fn().mockResolvedValue(undefined), retryDeadLetters: jest.fn() } as never,
+    vendorMasterService: new VendorMasterService(),
     ocrProvider,
     fieldVerifier: new NoopFieldVerifier()
   });

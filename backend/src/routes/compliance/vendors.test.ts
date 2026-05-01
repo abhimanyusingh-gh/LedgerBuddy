@@ -2,6 +2,8 @@ import { createVendorsRouter } from "@/routes/compliance/vendors.ts";
 import { defaultAuth, findHandler, mockRequest, mockResponse } from "@/routes/testHelpers.ts";
 import { VendorMasterModel } from "@/models/compliance/VendorMaster.ts";
 import { InvoiceModel } from "@/models/invoice/Invoice.ts";
+import { VendorMasterService } from "@/services/compliance/VendorMasterService.ts";
+import type { AuditLogService } from "@/services/core/AuditLogService.ts";
 
 jest.mock("../../models/compliance/VendorMaster.ts");
 jest.mock("../../models/invoice/Invoice.ts");
@@ -25,6 +27,12 @@ jest.mock("../../models/integration/ClientComplianceConfig.ts", () => ({
 describe("vendors routes", () => {
   beforeEach(() => jest.clearAllMocks());
 
+  function buildRouter() {
+    const vendorMasterService = new VendorMasterService();
+    const auditLogService = { record: jest.fn().mockResolvedValue(undefined) } as unknown as AuditLogService;
+    return createVendorsRouter(vendorMasterService, auditLogService);
+  }
+
   describe("PATCH /vendors/:id", () => {
     function setupVendorMock(vendor: Record<string, unknown> | null) {
       const saveFn = jest.fn().mockResolvedValue(undefined);
@@ -41,7 +49,7 @@ describe("vendors routes", () => {
 
     it("returns 404 when vendor does not exist", async () => {
       setupVendorMock(null);
-      const router = createVendorsRouter();
+      const router = buildRouter();
       const handler = findHandler(router, "patch", "/vendors/:id");
       const req = mockRequest({
         authContext: defaultAuth,
@@ -67,7 +75,7 @@ describe("vendors routes", () => {
         select: jest.fn().mockResolvedValue([])
       });
 
-      const router = createVendorsRouter();
+      const router = buildRouter();
       const handler = findHandler(router, "patch", "/vendors/:id");
       const req = mockRequest({
         authContext: defaultAuth,
@@ -87,7 +95,7 @@ describe("vendors routes", () => {
       const vendor = { _id: "v1", tenantId: "tenant-a", vendorFingerprint: "fp-1", msme: {} };
       setupVendorMock(vendor);
 
-      const router = createVendorsRouter();
+      const router = buildRouter();
       const handler = findHandler(router, "patch", "/vendors/:id");
       const req = mockRequest({
         authContext: defaultAuth,
@@ -106,7 +114,7 @@ describe("vendors routes", () => {
       const vendor = { _id: "v1", tenantId: "tenant-a", vendorFingerprint: "fp-1", msme: {} };
       setupVendorMock(vendor);
 
-      const router = createVendorsRouter();
+      const router = buildRouter();
       const handler = findHandler(router, "patch", "/vendors/:id");
       const req = mockRequest({
         authContext: defaultAuth,
@@ -124,7 +132,7 @@ describe("vendors routes", () => {
       const vendor = { _id: "v1", tenantId: "tenant-a", vendorFingerprint: "fp-1", msme: {} };
       setupVendorMock(vendor);
 
-      const router = createVendorsRouter();
+      const router = buildRouter();
       const handler = findHandler(router, "patch", "/vendors/:id");
       const req = mockRequest({
         authContext: defaultAuth,
@@ -150,7 +158,7 @@ describe("vendors routes", () => {
         select: jest.fn().mockResolvedValue([])
       });
 
-      const router = createVendorsRouter();
+      const router = buildRouter();
       const handler = findHandler(router, "patch", "/vendors/:id");
       const req = mockRequest({
         authContext: defaultAuth,
@@ -182,7 +190,7 @@ describe("vendors routes", () => {
       });
       (InvoiceModel.bulkWrite as jest.Mock).mockResolvedValue({});
 
-      const router = createVendorsRouter();
+      const router = buildRouter();
       const handler = findHandler(router, "patch", "/vendors/:id");
       const req = mockRequest({
         authContext: defaultAuth,
@@ -220,7 +228,7 @@ describe("vendors routes", () => {
       });
       (InvoiceModel.bulkWrite as jest.Mock).mockResolvedValue({});
 
-      const router = createVendorsRouter();
+      const router = buildRouter();
       const handler = findHandler(router, "patch", "/vendors/:id");
       const req = mockRequest({
         authContext: defaultAuth,
@@ -236,6 +244,115 @@ describe("vendors routes", () => {
       const deadline = bulkOps[0].updateOne.update.$set["compliance.msme.paymentDeadline"];
       const expectedDeadline = new Date(invoiceDate.getTime() + 45 * 86400000);
       expect(deadline.getTime()).toBe(expectedDeadline.getTime());
+    });
+  });
+
+  describe("POST /vendors/:id/cert", () => {
+    it("returns 400 when certificateNumber is missing", async () => {
+      const router = buildRouter();
+      const handler = findHandler(router, "post", "/vendors/:id/cert");
+      const req = mockRequest({
+        authContext: defaultAuth,
+        params: { id: "v1" },
+        body: { validFrom: "2026-04-01", validTo: "2027-03-31", maxAmountMinor: 1000, applicableRateBps: 500 }
+      });
+      const res = mockResponse();
+
+      await handler(req, res, jest.fn());
+
+      expect(res.statusCode).toBe(400);
+      expect((res.jsonBody as Record<string, string>).message).toContain("certificateNumber");
+    });
+
+    it("returns 400 when validTo precedes validFrom", async () => {
+      (VendorMasterModel.findOne as jest.Mock).mockReturnValue({
+        lean: jest.fn().mockResolvedValue({ _id: "v1", lowerDeductionCert: null })
+      });
+
+      const router = buildRouter();
+      const handler = findHandler(router, "post", "/vendors/:id/cert");
+      const req = mockRequest({
+        authContext: defaultAuth,
+        params: { id: "v1" },
+        body: {
+          certificateNumber: "CERT-A",
+          validFrom: "2026-04-01",
+          validTo: "2026-03-31",
+          maxAmountMinor: 1000,
+          applicableRateBps: 500
+        }
+      });
+      const res = mockResponse();
+
+      await handler(req, res, jest.fn());
+
+      expect(res.statusCode).toBe(400);
+      expect((res.jsonBody as Record<string, string>).message).toContain("validTo");
+    });
+
+    it("returns 400 when applicableRateBps exceeds 10000", async () => {
+      const router = buildRouter();
+      const handler = findHandler(router, "post", "/vendors/:id/cert");
+      const req = mockRequest({
+        authContext: defaultAuth,
+        params: { id: "v1" },
+        body: {
+          certificateNumber: "CERT-A",
+          validFrom: "2026-04-01",
+          validTo: "2027-03-31",
+          maxAmountMinor: 1000,
+          applicableRateBps: 99999
+        }
+      });
+      const res = mockResponse();
+
+      await handler(req, res, jest.fn());
+
+      expect(res.statusCode).toBe(400);
+      expect((res.jsonBody as Record<string, string>).message).toContain("applicableRateBps");
+    });
+
+    it("returns 404 when vendor does not exist", async () => {
+      (VendorMasterModel.findOne as jest.Mock).mockReturnValue({
+        lean: jest.fn().mockResolvedValue(null)
+      });
+
+      const router = buildRouter();
+      const handler = findHandler(router, "post", "/vendors/:id/cert");
+      const req = mockRequest({
+        authContext: defaultAuth,
+        params: { id: "missing" },
+        body: {
+          certificateNumber: "CERT-A",
+          validFrom: "2026-04-01",
+          validTo: "2027-03-31",
+          maxAmountMinor: 1000,
+          applicableRateBps: 500
+        }
+      });
+      const res = mockResponse();
+
+      await handler(req, res, jest.fn());
+
+      expect(res.statusCode).toBe(404);
+    });
+  });
+
+  describe("POST /vendors/:id/merge", () => {
+    it("returns 400 when sourceVendorId is missing", async () => {
+      const router = buildRouter();
+      const handler = findHandler(router, "post", "/vendors/:id/merge");
+      const req = mockRequest({
+        authContext: defaultAuth,
+        params: { id: "v-target" },
+        body: {}
+      });
+      const res = mockResponse();
+
+      await handler(req, res, jest.fn());
+
+      expect(res.statusCode).toBe(400);
+      expect((res.jsonBody as Record<string, string>).message).toContain("sourceVendorId");
     });
   });
 });

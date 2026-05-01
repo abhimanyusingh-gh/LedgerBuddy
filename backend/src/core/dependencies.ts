@@ -75,6 +75,7 @@ interface Dependencies {
   approvalWorkflowService: ApprovalWorkflowService;
   triageService: TriageService;
   auditLogService: AuditLogService;
+  vendorMasterService: VendorMasterService;
   ocrProvider: OcrProvider;
   fieldVerifier: FieldVerifier;
 }
@@ -114,12 +115,17 @@ function buildAuthServices(manifest: RuntimeManifest) {
   };
 }
 
-async function buildExtractionPipeline(manifest: RuntimeManifest, learningStore: MongoExtractionLearningStore, mappingService: ExtractionMappingService) {
+async function buildExtractionPipeline(
+  manifest: RuntimeManifest,
+  learningStore: MongoExtractionLearningStore,
+  mappingService: ExtractionMappingService,
+  vendorMasterService: VendorMasterService
+) {
   const ocrProvider = await resolveOcrProvider(manifest);
   const fieldVerifier = await resolveFieldVerifier(manifest);
   const complianceEnricher = new ComplianceEnrichmentService({
     panValidation: new PanValidationService(),
-    vendorMaster: new VendorMasterService(),
+    vendorMaster: vendorMasterService,
     tdsCalculation: new TdsCalculationService(),
     tdsVendorLedger: new TdsVendorLedgerService(),
     glCodeSuggestion: new GlCodeSuggestionService(),
@@ -157,7 +163,8 @@ export async function buildDependencies(): Promise<Dependencies> {
   const auth = buildAuthServices(manifest);
   const learningStore = new MongoExtractionLearningStore();
   const mappingService = new ExtractionMappingService();
-  const extraction = await buildExtractionPipeline(manifest, learningStore, mappingService);
+  const vendorMasterService = new VendorMasterService();
+  const extraction = await buildExtractionPipeline(manifest, learningStore, mappingService, vendorMasterService);
   const storage = buildStorageAndExport(manifest);
 
   const notificationService = new MailboxNotificationService(auth.inviteEmailSender);
@@ -186,6 +193,7 @@ export async function buildDependencies(): Promise<Dependencies> {
     approvalWorkflowService,
     triageService: new TriageService(),
     auditLogService,
+    vendorMasterService,
     ocrProvider: extraction.ocrProvider,
     fieldVerifier: extraction.fieldVerifier
   };

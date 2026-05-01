@@ -1,7 +1,8 @@
 export const VENDOR_STATUS = {
   ACTIVE: "active",
   INACTIVE: "inactive",
-  BLOCKED: "blocked"
+  BLOCKED: "blocked",
+  MERGED: "merged"
 } as const;
 
 export type VendorStatus = (typeof VENDOR_STATUS)[keyof typeof VENDOR_STATUS];
@@ -44,3 +45,13 @@ export const MSME_CLASSIFICATION = {
 export type MsmeClassification = (typeof MSME_CLASSIFICATION)[keyof typeof MSME_CLASSIFICATION];
 
 export const MsmeClassifications = Object.values(MSME_CLASSIFICATION);
+
+export const VENDOR_AUDIT_ACTION = {
+  CREATED: "vendor_created",
+  UPDATED: "vendor_updated",
+  DELETED: "vendor_deleted",
+  STATUS_CHANGED: "vendor_status_changed",
+  CERT_UPLOADED: "vendor_cert_uploaded",
+  MERGED: "vendor_merged"
+} as const;
+
