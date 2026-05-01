@@ -37,4 +37,9 @@ describe("features/workspace/tabHashConfig — standalone hash routes", () => {
     expect(readStandaloneHashRoute("#/vendors")).toBe("vendors");
     expect(readStandaloneHashRoute("#/vendors?q=acme&status=active")).toBe("vendors");
   });
+
+  it("matches the vendor detail hash and is distinguished from the list", () => {
+    expect(readStandaloneHashRoute("#/vendors/65a000000000000000000001")).toBe("vendorDetail");
+    expect(readStandaloneHashRoute("#/vendors/65a000000000000000000001?tab=tds")).toBe("vendorDetail");
+  });
 });

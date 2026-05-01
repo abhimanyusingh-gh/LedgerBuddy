@@ -2,8 +2,14 @@ import { buildClientOrgPathUrl } from "@/api/urls/pathBuilder";
 
 export const complianceUrls = {
   vendorsList: (): string => buildClientOrgPathUrl("/vendors"),
+  vendorById: (id: string): string =>
+    buildClientOrgPathUrl(`/vendors/${encodeURIComponent(id)}`),
   vendorUpdate: (id: string): string =>
     buildClientOrgPathUrl(`/vendors/${encodeURIComponent(id)}`),
+  vendorSection197Cert: (id: string): string =>
+    buildClientOrgPathUrl(`/vendors/${encodeURIComponent(id)}/cert`),
+  vendorMerge: (id: string): string =>
+    buildClientOrgPathUrl(`/vendors/${encodeURIComponent(id)}/merge`),
   glCodesList: (): string => buildClientOrgPathUrl("/admin/gl-codes"),
   glCodesCreate: (): string => buildClientOrgPathUrl("/admin/gl-codes"),
   glCodeUpdate: (code: string): string =>

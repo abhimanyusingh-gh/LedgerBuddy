@@ -70,3 +70,62 @@ export interface VendorListResponse {
   limit: number;
   total: number;
 }
+
+export interface VendorSection197Cert {
+  certificateNumber: string;
+  validFrom: string;
+  validTo: string;
+  maxAmountMinor: number;
+  applicableRateBps: number;
+}
+
+export interface VendorMsmeDetail {
+  udyamNumber: string | null;
+  classification: string | null;
+  verifiedAt: string | null;
+  agreedPaymentDays: number | null;
+}
+
+export interface VendorDetail {
+  _id: VendorId;
+  vendorFingerprint: string;
+  name: string;
+  pan: string | null;
+  gstin: string | null;
+  vendorStatus: VendorStatus;
+  defaultGlCode: string | null;
+  defaultTdsSection: string | null;
+  tallyLedgerName: string | null;
+  tallyLedgerGroup: string | null;
+  stateCode: string | null;
+  stateName: string | null;
+  msme: VendorMsmeDetail | null;
+  lowerDeductionCert: VendorSection197Cert | null;
+  invoiceCount: number;
+  lastInvoiceDate: string | null;
+}
+
+export const VENDOR_DETAIL_SUB_TAB = {
+  INVOICES: "invoices",
+  TDS: "tds",
+  CERT197: "cert197"
+} as const;
+
+export type VendorDetailSubTab = (typeof VENDOR_DETAIL_SUB_TAB)[keyof typeof VENDOR_DETAIL_SUB_TAB];
+
+export const VENDOR_DETAIL_SUB_TABS: readonly VendorDetailSubTab[] = Object.values(VENDOR_DETAIL_SUB_TAB);
+
+export interface Section197CertInput {
+  certificateNumber: string;
+  validFrom: string;
+  validTo: string;
+  maxAmountMinor: number;
+  applicableRateBps: number;
+}
+
+export interface VendorMergeResult {
+  targetVendorId: VendorId;
+  sourceVendorId: VendorId;
+  ledgersConsolidated: number;
+  invoicesRepointed: number;
+}

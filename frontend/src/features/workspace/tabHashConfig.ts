@@ -23,13 +23,18 @@ export const STANDALONE_HASH_PATH = {
   triage: "#/triage",
   mailboxes: "#/mailboxes",
   reportsTds: "#/reports/tds",
-  vendors: "#/vendors"
+  vendors: "#/vendors",
+  vendorDetail: "#/vendors/"
 } as const;
 
 export type StandaloneHashRoute = keyof typeof STANDALONE_HASH_PATH;
 
 export function readStandaloneHashRoute(hash: string): StandaloneHashRoute | null {
+  if (hash.startsWith(STANDALONE_HASH_PATH.vendorDetail) && hash.length > STANDALONE_HASH_PATH.vendorDetail.length) {
+    return "vendorDetail";
+  }
   for (const [route, path] of Object.entries(STANDALONE_HASH_PATH)) {
+    if (route === "vendorDetail") continue;
     if (hash === path) return route as StandaloneHashRoute;
     if (hash.startsWith(`${path}?`)) return route as StandaloneHashRoute;
   }

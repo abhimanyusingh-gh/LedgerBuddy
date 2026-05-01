@@ -46,3 +46,17 @@ export function fyOptions(reference: Date, count: number): string[] {
   }
   return out;
 }
+
+const IST_DATE_FORMATTER = new Intl.DateTimeFormat("en-GB", {
+  timeZone: IST_TIME_ZONE,
+  year: "numeric",
+  month: "short",
+  day: "2-digit"
+});
+
+export function formatIstDate(value: string | null | undefined): string {
+  if (!value) return "—";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "—";
+  return IST_DATE_FORMATTER.format(date);
+}

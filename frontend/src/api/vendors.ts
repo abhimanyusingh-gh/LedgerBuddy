@@ -3,7 +3,11 @@ import { complianceUrls } from "@/api/urls/complianceUrls";
 import {
   VENDOR_SORT_DIRECTION,
   VENDOR_SORT_FIELD,
+  type Section197CertInput,
+  type VendorDetail,
+  type VendorId,
   type VendorListResponse,
+  type VendorMergeResult,
   type VendorSortDirection,
   type VendorSortField,
   type VendorStatus
@@ -54,6 +58,21 @@ function triBool(value: boolean | null | undefined): string | undefined {
   if (value === true) return TRI_BOOL_PARAM.TRUE;
   if (value === false) return TRI_BOOL_PARAM.FALSE;
   return undefined;
+}
+
+export async function fetchVendorDetail(id: VendorId): Promise<VendorDetail> {
+  const response = await apiClient.get<VendorDetail>(complianceUrls.vendorById(id));
+  return response.data;
+}
+
+export async function uploadVendorSection197Cert(id: VendorId, payload: Section197CertInput): Promise<VendorDetail> {
+  const response = await apiClient.post<VendorDetail>(complianceUrls.vendorSection197Cert(id), payload);
+  return response.data;
+}
+
+export async function mergeVendor(targetId: VendorId, sourceVendorId: VendorId): Promise<VendorMergeResult> {
+  const response = await apiClient.post<VendorMergeResult>(complianceUrls.vendorMerge(targetId), { sourceVendorId });
+  return response.data;
 }
 
 export async function fetchVendorList(params: FetchVendorListParams): Promise<VendorListResponse> {

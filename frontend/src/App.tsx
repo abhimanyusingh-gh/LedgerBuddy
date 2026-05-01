@@ -30,7 +30,11 @@ const TdsDashboardPage = lazy(() =>
 const VendorListPage = lazy(() =>
   import("@/features/vendors/VendorListPage").then((m) => ({ default: m.VendorListPage }))
 );
+const VendorDetailPage = lazy(() =>
+  import("@/features/vendors/VendorDetailPage").then((m) => ({ default: m.VendorDetailPage }))
+);
 import { readStandaloneHashRoute, STANDALONE_HASH_PATH, type StandaloneHashRoute } from "@/features/workspace/tabHashConfig";
+import { parseVendorDetailHash } from "@/features/vendors/vendorDetailHashState";
 import { useTriageQueue } from "@/hooks/useTriageQueue";
 import { useActionRequiredQueue } from "@/hooks/useActionRequiredQueue";
 import { useToast } from "@/hooks/useToast";
@@ -359,6 +363,8 @@ export function App() {
           </Suspense>
         )}
 
+        {standaloneRoute === "vendorDetail" && <VendorDetailRoute />}
+
         {!standaloneRoute && activeTab === "overview" && <OverviewDashboard />}
 
         {!standaloneRoute && activeTab === "dashboard" && (
@@ -438,6 +444,23 @@ interface TenantAppShellProps {
   topNav: ReactNode;
   subNav: ReactNode;
   children: ReactNode;
+}
+
+function VendorDetailRoute() {
+  const [route, setRoute] = useState(() =>
+    typeof window === "undefined" ? null : parseVendorDetailHash(window.location.hash)
+  );
+  useEffect(() => {
+    const handler = () => setRoute(parseVendorDetailHash(window.location.hash));
+    window.addEventListener("hashchange", handler);
+    return () => window.removeEventListener("hashchange", handler);
+  }, []);
+  if (!route) return null;
+  return (
+    <Suspense fallback={<div role="status" aria-busy="true">Loading vendor…</div>}>
+      <VendorDetailPage vendorId={route.vendorId} />
+    </Suspense>
+  );
 }
 
 function TenantAppShell({ activeTab, activeStandaloneRoute, onTabChange, canViewTenantConfig, canViewConnections, topNav, subNav, children }: TenantAppShellProps) {
