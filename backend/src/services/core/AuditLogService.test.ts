@@ -1,18 +1,10 @@
-jest.mock("../../models/core/AuditLog.js", () => ({
-  AuditLogModel: { create: jest.fn() },
-  AUDIT_ENTITY_TYPE: {
-    TDS_MANUAL_OVERRIDE: "tds_manual_override",
-    GL_OVERRIDE: "gl_override",
-    VENDOR: "vendor",
-    CONFIG: "config",
-    INVOICE: "invoice",
-    PAYMENT: "payment",
-    BANK_TRANSACTION: "bank_transaction",
-    RECONCILIATION: "reconciliation",
-    EXPORT: "export",
-    APPROVAL: "approval"
-  }
-}));
+jest.mock("../../models/core/AuditLog.js", () => {
+  const { AUDIT_ENTITY_TYPE_MOCK } = jest.requireActual("../../test-utils/auditLogMocks.js");
+  return {
+    AuditLogModel: { create: jest.fn() },
+    AUDIT_ENTITY_TYPE: AUDIT_ENTITY_TYPE_MOCK
+  };
+});
 
 jest.mock("../../models/core/AuditLogDeadLetter.js", () => ({
   AuditLogDeadLetterModel: {
@@ -200,12 +192,12 @@ describe("AuditLogService.retryDeadLetters backoff", () => {
   });
 });
 
-describe("AuditLogService chaos: primary operation succeeds even if audit fails", () => {
+describe("AuditLogService fire-and-forget contract: primary operation succeeds even if audit fails", () => {
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
-  it("simulates a TDS-override flow where AuditLog write fails but business op completes", async () => {
+  it("does not block a TDS-override flow when AuditLog write fails (fire-and-forget contract)", async () => {
     (AuditLogModel.create as jest.Mock).mockRejectedValueOnce(new Error("mongo write timeout"));
     (AuditLogDeadLetterModel.create as jest.Mock).mockResolvedValueOnce({});
     const service = new AuditLogService();

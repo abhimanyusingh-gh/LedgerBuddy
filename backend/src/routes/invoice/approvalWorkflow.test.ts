@@ -14,27 +14,20 @@ jest.mock("../../models/core/TenantUserRole.js", () => {
 jest.mock("../../auth/personaDefaults.js", () => ({
   getRoleDefaults: jest.fn(() => ({ approvalLimitMinor: null }))
 }));
-jest.mock("../../models/core/AuditLog.js", () => ({
-  AuditLogModel: { create: jest.fn().mockResolvedValue({}) },
-  AUDIT_ENTITY_TYPE: {
-    TDS_MANUAL_OVERRIDE: "tds_manual_override",
-    GL_OVERRIDE: "gl_override",
-    VENDOR: "vendor",
-    CONFIG: "config",
-    INVOICE: "invoice",
-    PAYMENT: "payment",
-    BANK_TRANSACTION: "bank_transaction",
-    RECONCILIATION: "reconciliation",
-    EXPORT: "export",
-    APPROVAL: "approval"
-  }
-}));
+jest.mock("../../models/core/AuditLog.js", () => {
+  const { AUDIT_ENTITY_TYPE_MOCK } = jest.requireActual("../../test-utils/auditLogMocks.js");
+  return {
+    AuditLogModel: { create: jest.fn().mockResolvedValue({}) },
+    AUDIT_ENTITY_TYPE: AUDIT_ENTITY_TYPE_MOCK
+  };
+});
 jest.mock("../../utils/logger.js", () => ({
   logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() }
 }));
 
 import { createApprovalWorkflowRouter, validateStepCondition } from "@/routes/invoice/approvalWorkflow.js";
 import { findHandler, defaultAuth, mockRequest, mockResponse } from "@/routes/testHelpers.js";
+import { makeAuditLogServiceMock } from "@/test-utils/auditLogMocks.js";
 
 describe("validateStepCondition", () => {
   it.each([
@@ -150,9 +143,7 @@ describe("PUT /admin/approval-workflow condition validation", () => {
     })
   };
 
-  const auditLogStub = {
-    record: jest.fn().mockResolvedValue(undefined)
-  };
+  const auditLogStub = makeAuditLogServiceMock();
 
   let handler: Function;
 

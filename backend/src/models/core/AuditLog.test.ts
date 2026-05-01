@@ -1,4 +1,7 @@
+import { execSync } from "child_process";
+import path from "path";
 import { AuditLogModel, AUDIT_ENTITY_TYPE } from "@/models/core/AuditLog.js";
+import { AUDIT_ENTITY_TYPE_MOCK } from "@/test-utils/auditLogMocks.js";
 
 describe("AuditLog schema", () => {
   it("does not declare timestamps (timestamp field is canonical per C-006)", () => {
@@ -38,6 +41,20 @@ describe("AuditLog schema", () => {
   it("constrains entityType to the named enum values", () => {
     const enumValues = (AuditLogModel.schema.paths.entityType as unknown as { enumValues: string[] }).enumValues;
     expect(enumValues).toEqual(expect.arrayContaining(Object.values(AUDIT_ENTITY_TYPE)));
+  });
+
+  it("AUDIT_ENTITY_TYPE_MOCK in test-utils stays in sync with the production enum", () => {
+    expect(AUDIT_ENTITY_TYPE_MOCK).toEqual(AUDIT_ENTITY_TYPE);
+  });
+
+  it("AuditLogModel exposes no mutating operations in production code (C-006 enforcement)", () => {
+    const backendSrc = path.resolve(__dirname, "../..");
+    const pattern = "AuditLogModel\\.(update|findOneAndUpdate|delete|deleteOne|deleteMany|replaceOne|findOneAndReplace|findOneAndDelete|bulkWrite|findByIdAndUpdate|findByIdAndDelete)";
+    const result = execSync(
+      `grep -rEn --include='*.ts' --exclude='*.test.ts' "${pattern}" "${backendSrc}" || true`,
+      { encoding: "utf8" }
+    );
+    expect(result.trim()).toBe("");
   });
 
 });
