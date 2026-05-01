@@ -124,7 +124,7 @@ export function InvoiceDetailPanel({
   }
 
   return (
-    <section className="panel detail-panel">
+    <section className="panel detail-panel invoice-detail-panel">
       <div className="panel-title">
         <h2>Invoice Details</h2>
         <button
@@ -204,7 +204,7 @@ export function InvoiceDetailPanel({
             </div>
           ) : null}
           {invoice.actions?.canApprove || invoice.actions?.canReject ? (
-            <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap", marginBottom: "1rem" }}>
+            <div className="invoice-detail-actions">
               {invoice.actions?.canApprove ? (
                 <button
                   type="button"
@@ -217,8 +217,7 @@ export function InvoiceDetailPanel({
               {invoice.actions?.canReject ? (
                 <button
                   type="button"
-                  className="app-button app-button-destructive"
-                  style={{ background: "var(--warn)", borderColor: "var(--warn)" }}
+                  className="app-button app-button-danger"
                   onClick={() => onWorkflowRejectSingle(invoice._id)}
                 >
                   Reject Current Step

@@ -63,7 +63,7 @@ export function InvoicePopup({
       <section
         ref={popupRef}
         tabIndex={-1}
-        className="popup-card"
+        className="popup-card invoice-detail-popup"
         role="dialog"
         aria-modal="true"
         aria-label={`Invoice file details for ${invoice.attachmentName}`}

@@ -23,7 +23,7 @@ function GstinBadge({ value }: { value: string | null | undefined }) {
 }
 
 function NotExtractedLabel() {
-  return <span className="muted" style={{ fontSize: "0.85rem" }}>Not extracted</span>;
+  return <span className="invoice-details-not-extracted">Not extracted</span>;
 }
 
 function FieldRow({ label, children }: { label: string; children: React.ReactNode }) {
@@ -68,22 +68,12 @@ export function CustomerDetailsSection({ invoice, expanded, onToggle, tenantGsti
             <div
               role="alert"
               data-testid="customer-gstin-missing-alert"
-              style={{
-                borderLeft: "3px solid var(--warn, #f59e0b)",
-                background: "rgba(245, 158, 11, 0.08)",
-                padding: "0.55rem 0.75rem",
-                borderRadius: "0.375rem",
-                display: "flex",
-                gap: "0.55rem",
-                alignItems: "flex-start",
-                fontSize: "0.82rem",
-                lineHeight: 1.4,
-              }}
+              className="invoice-detail-customer-alert"
             >
-              <span aria-hidden="true" style={{ fontSize: "1rem", lineHeight: 1 }}>&#9888;</span>
+              <span aria-hidden="true" className="invoice-detail-customer-alert-icon">&#9888;</span>
               <div>
-                <div style={{ fontWeight: 600, marginBottom: "0.15rem" }}>Customer GSTIN missing</div>
-                <div style={{ color: "var(--ink-soft, #4b5563)" }}>
+                <div className="invoice-detail-customer-alert-title">Customer GSTIN missing</div>
+                <div className="invoice-detail-customer-alert-body">
                   Input tax credit (ITC) claims may be blocked without the customer's GSTIN. Request the missing GSTIN from the vendor or finance team before exporting this invoice to Tally.
                 </div>
               </div>
@@ -91,7 +81,7 @@ export function CustomerDetailsSection({ invoice, expanded, onToggle, tenantGsti
           )}
           <FieldRow label="Name">
             {customerName ? (
-              <span style={{ fontSize: "0.85rem" }}>{customerName}</span>
+              <span className="invoice-details-text">{customerName}</span>
             ) : (
               <NotExtractedLabel />
             )}
@@ -113,7 +103,7 @@ export function CustomerDetailsSection({ invoice, expanded, onToggle, tenantGsti
           </FieldRow>
           <FieldRow label="Address">
             {customerAddress ? (
-              <span style={{ whiteSpace: "pre-line", fontSize: "0.85rem" }}>{customerAddress}</span>
+              <span className="invoice-details-address">{customerAddress}</span>
             ) : (
               <NotExtractedLabel />
             )}

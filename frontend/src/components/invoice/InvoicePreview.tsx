@@ -95,7 +95,7 @@ export function InvoicePreview({ imageUrl, alt, boundingBox, persistKey }: Invoi
     <div className="source-preview-wrap">
       <div className="invoice-preview-toolbar">
         <button type="button" className="app-button app-button-secondary app-button-sm" onClick={() => setZoom((z) => Math.max(ZOOM_MIN, z - 0.25))}>-</button>
-        <span style={{ fontSize: "0.8rem", fontWeight: 600, minWidth: "3rem", textAlign: "center" }}>{Math.round(zoom * 100)}%</span>
+        <span className="invoice-preview-zoom-label">{Math.round(zoom * 100)}%</span>
         <button type="button" className="app-button app-button-secondary app-button-sm" onClick={() => setZoom((z) => Math.min(ZOOM_MAX, z + 0.25))}>+</button>
         <button type="button" className="app-button app-button-secondary app-button-sm" onClick={() => setZoom(1)}>Reset</button>
       </div>
