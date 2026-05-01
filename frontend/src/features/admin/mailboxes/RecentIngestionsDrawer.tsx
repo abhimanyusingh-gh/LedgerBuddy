@@ -75,7 +75,7 @@ export function RecentIngestionsDrawer({
         data-testid="recent-ingestions-drawer"
         data-view={view}
       >
-        <p className="recent-ingestions-drawer-subtitle">
+        <p className="recent-ingestions-drawer-subtitle lb-mono">
           {mailboxEmail ?? "(unknown mailbox)"}
         </p>
 
@@ -184,7 +184,10 @@ function RecentIngestionRow({
         {clientOrgName ? (
           <span className="recent-ingestions-drawer-row-org">{clientOrgName}</span>
         ) : null}
-        <time className="recent-ingestions-drawer-row-time" dateTime={ingestedAt ?? undefined}>
+        <time
+          className="recent-ingestions-drawer-row-time lb-mono"
+          dateTime={ingestedAt ?? undefined}
+        >
           {ingestedAtLabel}
         </time>
       </div>

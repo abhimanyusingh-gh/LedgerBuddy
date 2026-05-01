@@ -166,9 +166,9 @@ export function MailboxesPage() {
       aria-busy={view === MAILBOXES_PAGE_VIEW.Loading || undefined}
     >
       <header className="mailboxes-page-header">
-        <div>
-          <h1>Mailboxes</h1>
-          <p>
+        <div className="mailboxes-page-header-text">
+          <h1 className="lb-h1">Mailboxes</h1>
+          <p className="lb-caption">
             Map each connected Gmail mailbox to one or more Client Organizations.
             Polled invoices auto-route by GSTIN; ambiguous matches land in Triage.
           </p>

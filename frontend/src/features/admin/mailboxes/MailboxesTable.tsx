@@ -77,7 +77,9 @@ export function MailboxesTable({
           return (
             <tr key={item._id} data-testid="mailboxes-table-row">
               <td>
-                <strong>{item.email ?? "(unknown mailbox)"}</strong>
+                <strong className="mailboxes-table-email lb-mono">
+                  {item.email ?? "(unknown mailbox)"}
+                </strong>
               </td>
               <td>
                 <div
@@ -106,14 +108,16 @@ export function MailboxesTable({
                   onViewRecent ? (
                     <button
                       type="button"
-                      className="mailboxes-table-count-link"
+                      className="mailboxes-table-count-link lb-num"
                       onClick={() => onViewRecent(item)}
                       data-testid={`mailboxes-table-count-${item._id}`}
                     >
                       {ingestionCount}
                     </button>
                   ) : (
-                    <span data-testid={`mailboxes-table-count-${item._id}`}>{ingestionCount}</span>
+                    <span className="lb-num" data-testid={`mailboxes-table-count-${item._id}`}>
+                      {ingestionCount}
+                    </span>
                   )
                 ) : ingestionCount === null ? (
                   onRetryCount ? (
