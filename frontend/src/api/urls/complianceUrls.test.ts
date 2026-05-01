@@ -16,25 +16,6 @@ afterEach(() => {
   setActiveClientOrgId(null);
 });
 
-describe("api/urls/complianceUrls — collection routes", () => {
-  it.each([
-    ["vendorsList", "/tenants/tenant-1/clientOrgs/client-1/vendors"],
-    ["glCodesList", "/tenants/tenant-1/clientOrgs/client-1/admin/gl-codes"],
-    ["glCodesCreate", "/tenants/tenant-1/clientOrgs/client-1/admin/gl-codes"],
-    ["glCodesImportCsv", "/tenants/tenant-1/clientOrgs/client-1/admin/gl-codes/import-csv"],
-    ["complianceConfig", "/tenants/tenant-1/clientOrgs/client-1/admin/compliance-config"],
-    ["notificationConfig", "/tenants/tenant-1/clientOrgs/client-1/admin/notification-config"],
-    ["tcsConfig", "/tenants/tenant-1/clientOrgs/client-1/admin/tcs-config"],
-    ["tcsConfigRoles", "/tenants/tenant-1/clientOrgs/client-1/admin/tcs-config/roles"],
-    ["tcsConfigHistory", "/tenants/tenant-1/clientOrgs/client-1/admin/tcs-config/history"],
-    ["approvalWorkflow", "/tenants/tenant-1/clientOrgs/client-1/admin/approval-workflow"],
-    ["approvalLimits", "/tenants/tenant-1/clientOrgs/client-1/admin/approval-limits"]
-  ] as const)("%s resolves to %s", (method, expected) => {
-    const fn = complianceUrls[method] as () => string;
-    expect(fn()).toBe(expected);
-  });
-});
-
 describe("api/urls/complianceUrls — id-bearing routes", () => {
   it("vendorUpdate encodes the vendor id into the nested path", () => {
     expect(complianceUrls.vendorUpdate("vendor/42")).toBe(

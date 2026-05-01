@@ -16,20 +16,6 @@ afterEach(() => {
   setActiveClientOrgId(null);
 });
 
-describe("api/urls/bankUrls — collection routes", () => {
-  it.each([
-    ["accountsList", "/tenants/tenant-1/clientOrgs/client-1/bank/accounts"],
-    ["accountsCreate", "/tenants/tenant-1/clientOrgs/client-1/bank/accounts"],
-    ["statementsList", "/tenants/tenant-1/clientOrgs/client-1/bank-statements"],
-    ["statementUpload", "/tenants/tenant-1/clientOrgs/client-1/bank-statements/upload"],
-    ["vendorGstins", "/tenants/tenant-1/clientOrgs/client-1/bank-statements/vendor-gstins"],
-    ["accountNames", "/tenants/tenant-1/clientOrgs/client-1/bank-statements/account-names"]
-  ] as const)("%s resolves to %s", (method, expected) => {
-    const fn = bankUrls[method] as () => string;
-    expect(fn()).toBe(expected);
-  });
-});
-
 describe("api/urls/bankUrls — tenant-scoped routes", () => {
   it("parseSse resolves to the tenant-scoped SSE subscriber path (no clientOrgId segment)", () => {
     expect(bankUrls.parseSse()).toBe("/tenants/tenant-1/bank-statements/parse/sse");

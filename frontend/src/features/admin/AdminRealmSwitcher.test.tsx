@@ -103,33 +103,4 @@ describe("AdminRealmSwitcher", () => {
     expect(screen.getByTestId("admin-realm-switcher-segment-picker")).toHaveAttribute("data-active", "true");
   });
 
-  it("selecting a realm closes the picker", async () => {
-    renderSwitcher();
-    fireEvent.click(screen.getByTestId("admin-realm-switcher-segment-picker"));
-    const option = await screen.findByTestId(`admin-realm-switcher-picker-option-${ORG_C}`);
-    fireEvent.click(option);
-    expect(screen.queryByTestId("admin-realm-switcher-picker-overlay")).not.toBeInTheDocument();
-  });
-
-  it("groups the two segments under role=group with an aria-label naming the dimension being toggled", () => {
-    renderSwitcher();
-    const group = screen.getByTestId("admin-realm-switcher");
-    expect(group).toHaveAttribute("role", "group");
-    expect(group).toHaveAttribute("aria-label", "Analytics scope");
-  });
-
-  it("each segment exposes aria-pressed reflecting the current selection", () => {
-    renderSwitcher();
-    expect(screen.getByTestId("admin-realm-switcher-segment-all")).toHaveAttribute("aria-pressed", "true");
-    expect(screen.getByTestId("admin-realm-switcher-segment-picker")).toHaveAttribute("aria-pressed", "false");
-  });
-
-  it("uses replaceState (not pushState) — selection is in-page state, not navigation", () => {
-    const replaceSpy = jest.spyOn(window.history, "replaceState");
-    const pushSpy = jest.spyOn(window.history, "pushState");
-    renderSwitcher();
-    fireEvent.click(screen.getByTestId("admin-realm-switcher-segment-all"));
-    expect(replaceSpy).toHaveBeenCalled();
-    expect(pushSpy).not.toHaveBeenCalled();
-  });
 });

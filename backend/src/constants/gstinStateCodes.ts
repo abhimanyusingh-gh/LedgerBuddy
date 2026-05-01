@@ -1,6 +1,6 @@
 import { GSTIN_FORMAT } from "@/constants/indianCompliance.js";
 
-export const GSTIN_STATE_CODES = {
+const GSTIN_STATE_CODES = {
   "01": "Jammu and Kashmir",
   "02": "Himachal Pradesh",
   "03": "Punjab",

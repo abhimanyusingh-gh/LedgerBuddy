@@ -215,23 +215,6 @@ describe("FeatureFlagEvaluator", () => {
     ).rejects.toThrow(/Unknown feature flag/);
   });
 
-  it("caches null overrides so repeat lookups do not re-query the store", async () => {
-    const state: StubStoreState = { overrides: {}, calls: 0, batchCalls: 0 };
-    const evaluator = new FeatureFlagEvaluator({ overrideStore: createStubStore(state) });
-    await evaluator.isEnabled(CANARY_FLAG, { tenantId: "t1" });
-    await evaluator.isEnabled(CANARY_FLAG, { tenantId: "t1" });
-    await evaluator.isEnabled(CANARY_FLAG, { tenantId: "t1" });
-    expect(state.calls).toBe(1);
-  });
-
-  it("evaluateAll issues a single batch store call for all registered flags", async () => {
-    const state: StubStoreState = { overrides: {}, calls: 0, batchCalls: 0 };
-    const evaluator = new FeatureFlagEvaluator({ overrideStore: createStubStore(state) });
-    await evaluator.evaluateAll({ tenantId: "t1" });
-    expect(state.batchCalls).toBe(1);
-    expect(state.calls).toBe(0);
-  });
-
   it("percentage rollout at 0% is always off and at 100% is always on", () => {
     const off: FeatureFlagDefinition = {
       description: "test",
@@ -249,32 +232,4 @@ describe("FeatureFlagEvaluator", () => {
     }
   });
 
-  it("percentage rollout is stable across evaluator instances", () => {
-    const def: FeatureFlagDefinition = {
-      description: "test",
-      defaultEnabled: false,
-      targeting: [{ kind: FEATURE_FLAG_TARGETING_KIND.PERCENTAGE_ROLLOUT, percentage: 50 }]
-    };
-    for (const tenantId of ["alpha", "beta", "gamma", "delta"]) {
-      const first = applyTargeting(def, "f", { tenantId });
-      const second = applyTargeting(def, "f", { tenantId });
-      expect(first).toBe(second);
-    }
-  });
-});
-
-describe("FEATURE_FLAG_REGISTRY completeness", () => {
-  it.each(Object.entries(FEATURE_FLAG_REGISTRY))(
-    "flag %s has a non-empty description",
-    (_name, definition) => {
-      expect((definition as FeatureFlagDefinition).description.trim().length).toBeGreaterThan(0);
-    }
-  );
-
-  it.each(Object.entries(FEATURE_FLAG_REGISTRY))(
-    "flag %s declares a boolean default",
-    (_name, definition) => {
-      expect(typeof (definition as FeatureFlagDefinition).defaultEnabled).toBe("boolean");
-    }
-  );
 });

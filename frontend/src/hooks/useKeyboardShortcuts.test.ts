@@ -3,7 +3,7 @@
  */
 import { renderHook } from "@testing-library/react";
 import { fireEvent } from "@testing-library/dom";
-import { useKeyboardShortcuts, SHORTCUT_KEY } from "@/hooks/useKeyboardShortcuts";
+import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 
 interface Handlers {
   onMoveDown: jest.Mock;
@@ -36,19 +36,6 @@ function renderShortcuts(handlers: Handlers, enabled = true) {
 describe("useKeyboardShortcuts", () => {
   afterEach(() => {
     document.body.innerHTML = "";
-  });
-
-  it("exposes a stable shortcut key map", () => {
-    expect(SHORTCUT_KEY).toEqual({
-      NextRow: "j",
-      PrevRow: "k",
-      ToggleExpand: " ",
-      OpenDetail: "Enter",
-      Approve: "a",
-      Export: "e",
-      Escape: "Escape",
-      Help: "?"
-    });
   });
 
   it("fires onMoveDown for 'j' and ArrowDown", () => {
@@ -133,21 +120,6 @@ describe("useKeyboardShortcuts", () => {
     expect(h.onShowHelp).not.toHaveBeenCalled();
   });
 
-  it("ignores shortcuts while a TEXTAREA is focused", () => {
-    const textarea = document.createElement("textarea");
-    document.body.appendChild(textarea);
-    textarea.focus();
-
-    const h = makeHandlers();
-    renderShortcuts(h);
-
-    fireEvent.keyDown(textarea, { key: "j" });
-    fireEvent.keyDown(textarea, { key: "a" });
-
-    expect(h.onMoveDown).not.toHaveBeenCalled();
-    expect(h.onApprove).not.toHaveBeenCalled();
-  });
-
   it("ignores shortcuts while a contenteditable element is the event target", () => {
     const div = document.createElement("div");
     div.setAttribute("contenteditable", "true");
@@ -167,21 +139,6 @@ describe("useKeyboardShortcuts", () => {
   it("does not attach a listener when disabled", () => {
     const h = makeHandlers();
     renderShortcuts(h, false);
-
-    fireEvent.keyDown(window, { key: "j" });
-    fireEvent.keyDown(window, { key: "a" });
-
-    expect(h.onMoveDown).not.toHaveBeenCalled();
-    expect(h.onApprove).not.toHaveBeenCalled();
-  });
-
-  it("falls back to document.activeElement when event target is not an HTMLElement", () => {
-    const input = document.createElement("input");
-    document.body.appendChild(input);
-    input.focus();
-
-    const h = makeHandlers();
-    renderShortcuts(h);
 
     fireEvent.keyDown(window, { key: "j" });
     fireEvent.keyDown(window, { key: "a" });

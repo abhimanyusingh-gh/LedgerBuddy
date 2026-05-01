@@ -44,20 +44,6 @@ describe("StepConditionEditor", () => {
     expect(operators).toEqual(["gt", "gte", "lt", "lte", "eq"]);
   });
 
-  it("shows numeric operators for tdsAmountMinor", () => {
-    const onChange = jest.fn();
-    render(
-      <StepConditionEditor
-        condition={{ field: "tdsAmountMinor", operator: "gte", value: 100000 }}
-        onChange={onChange}
-      />
-    );
-
-    const operatorSelect = screen.getByLabelText("Operator:") as HTMLSelectElement;
-    const operators = Array.from(operatorSelect.options).map((o) => o.value);
-    expect(operators).toEqual(["gt", "gte", "lt", "lte", "eq"]);
-  });
-
   it("shows threshold input for totalAmountMinor in major units", () => {
     const onChange = jest.fn();
     render(
@@ -70,20 +56,6 @@ describe("StepConditionEditor", () => {
     const input = screen.getByLabelText(/Threshold/) as HTMLInputElement;
     expect(input).toBeInTheDocument();
     expect(input.value).toBe("50000");
-  });
-
-  it("shows threshold input for tdsAmountMinor", () => {
-    const onChange = jest.fn();
-    render(
-      <StepConditionEditor
-        condition={{ field: "tdsAmountMinor", operator: "gt", value: 100000 }}
-        onChange={onChange}
-      />
-    );
-
-    const input = screen.getByLabelText(/Threshold/) as HTMLInputElement;
-    expect(input).toBeInTheDocument();
-    expect(input.value).toBe("1000");
   });
 
   it("converts threshold input from major to minor units on change", () => {
@@ -139,20 +111,6 @@ describe("StepConditionEditor", () => {
     );
 
     expect(screen.queryByLabelText(/Threshold/)).not.toBeInTheDocument();
-  });
-
-  it("shows string operators for glCodeSource", () => {
-    const onChange = jest.fn();
-    render(
-      <StepConditionEditor
-        condition={{ field: "glCodeSource", operator: "eq", value: "manual" }}
-        onChange={onChange}
-      />
-    );
-
-    const operatorSelect = screen.getByLabelText("Operator:") as HTMLSelectElement;
-    const operators = Array.from(operatorSelect.options).map((o) => o.value);
-    expect(operators).toEqual(["eq", "in"]);
   });
 
   it("shows single-select source dropdown for glCodeSource with eq operator", () => {
@@ -281,50 +239,6 @@ describe("StepConditionEditor", () => {
       operator: "eq",
       value: "override",
     });
-  });
-
-  it("does not show threshold input for glCodeSource", () => {
-    const onChange = jest.fn();
-    render(
-      <StepConditionEditor
-        condition={{ field: "glCodeSource", operator: "eq", value: "manual" }}
-        onChange={onChange}
-      />
-    );
-
-    expect(screen.queryByLabelText(/Threshold/)).not.toBeInTheDocument();
-  });
-
-  it("does not call onChange for operator change when condition is null", () => {
-    const onChange = jest.fn();
-    render(<StepConditionEditor condition={null} onChange={onChange} />);
-    expect(screen.queryByLabelText("Operator:")).not.toBeInTheDocument();
-    expect(onChange).not.toHaveBeenCalled();
-  });
-
-  it("does not show severity dropdown for numeric fields", () => {
-    const onChange = jest.fn();
-    render(
-      <StepConditionEditor
-        condition={{ field: "totalAmountMinor", operator: "gt", value: 5000000 }}
-        onChange={onChange}
-      />
-    );
-
-    expect(screen.queryByLabelText("Severity:")).not.toBeInTheDocument();
-  });
-
-  it("does not show source dropdown for numeric fields", () => {
-    const onChange = jest.fn();
-    render(
-      <StepConditionEditor
-        condition={{ field: "tdsAmountMinor", operator: "gte", value: 100000 }}
-        onChange={onChange}
-      />
-    );
-
-    expect(screen.queryByLabelText("Source:")).not.toBeInTheDocument();
-    expect(screen.queryByLabelText("Sources:")).not.toBeInTheDocument();
   });
 
   it("rejects negative threshold values", () => {

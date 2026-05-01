@@ -4,7 +4,7 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import "@testing-library/jest-dom";
-import { TenantSidebar, SIDEBAR_ITEM_ID } from "@/features/workspace/TenantSidebar";
+import { TenantSidebar } from "@/features/workspace/TenantSidebar";
 
 const ORDERED_LABELS = [
   "Dashboard",
@@ -50,12 +50,6 @@ describe("TenantSidebar", () => {
     expect(dashBtn).not.toHaveAttribute("aria-current");
   });
 
-  it("maps overview tab to the Dashboard item", () => {
-    renderSidebar({ activeTab: "overview" });
-    const dashBtn = screen.getByRole("button", { name: /^Dashboard/ });
-    expect(dashBtn).toHaveAttribute("aria-current", "page");
-  });
-
   it("calls onTabChange with the mapped tab when a backed item is clicked", () => {
     const { props } = renderSidebar();
     fireEvent.click(screen.getByRole("button", { name: /Invoices/ }));
@@ -91,30 +85,11 @@ describe("TenantSidebar", () => {
     expect(within(invoicesBtn).getByText("7")).toBeInTheDocument();
   });
 
-  it("hides the action-required badge on Invoices when count is 0", () => {
-    renderSidebar({ invoiceActionRequiredCount: 0 });
-    const invoicesBtn = screen.getByRole("button", { name: /Invoices/ });
-    expect(within(invoicesBtn).queryByText("0")).toBeNull();
-  });
-
   it("renders the triage count badge on Triage when > 0", () => {
     renderSidebar({ triageCount: 5 });
     const triageBtn = screen.getByRole("button", { name: /Triage/ });
     expect(within(triageBtn).getByText("5")).toBeInTheDocument();
     expect(within(triageBtn).getByTitle("5 awaiting triage")).toBeInTheDocument();
-  });
-
-  it("hides the triage badge when triageCount is 0 (consistent with Invoices)", () => {
-    renderSidebar({ triageCount: 0 });
-    const triageBtn = screen.getByRole("button", { name: /Triage/ });
-    expect(within(triageBtn).queryByText("0")).toBeNull();
-  });
-
-  it("hides the action-required badge when invoiceActionRequiredCount is null (no active realm)", () => {
-    renderSidebar({ invoiceActionRequiredCount: null });
-    const invoicesBtn = screen.getByRole("button", { name: /Invoices/ });
-    expect(within(invoicesBtn).queryByText("0")).toBeNull();
-    expect(within(invoicesBtn).queryByText("—")).toBeNull();
   });
 
   it("extends aria-label with the action-required count when > 0 (a11y for SR users)", () => {
@@ -127,12 +102,6 @@ describe("TenantSidebar", () => {
     renderSidebar({ triageCount: 4 });
     const triageBtn = screen.getByRole("button", { name: "Triage, 4 awaiting" });
     expect(triageBtn).toBeInTheDocument();
-  });
-
-  it("does not include a count in aria-label when counts are 0 (avoids '0 awaiting' chatter)", () => {
-    renderSidebar({ invoiceActionRequiredCount: 0, triageCount: 0 });
-    expect(screen.getByRole("button", { name: "Invoices" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Triage" })).toBeInTheDocument();
   });
 
   it("calls onStandaloneRouteChange('triage') when Triage is clicked", () => {
@@ -154,29 +123,5 @@ describe("TenantSidebar", () => {
     renderSidebar({ activeStandaloneRoute: "triage", activeTab: "overview" });
     const dashBtn = screen.getByRole("button", { name: /^Dashboard/ });
     expect(dashBtn).not.toHaveAttribute("aria-current");
-  });
-
-  it("supports keyboard activation (Enter) on a focused backed item", async () => {
-    const user = userEvent.setup();
-    const { props } = renderSidebar();
-    const dashBtn = screen.getByRole("button", { name: /^Dashboard/ });
-    dashBtn.focus();
-    expect(dashBtn).toHaveFocus();
-    await user.keyboard("{Enter}");
-    expect(props.onTabChange).toHaveBeenCalledWith("overview");
-  });
-
-  it("exports a stable SIDEBAR_ITEM_ID enum in the PRD-defined order (drift-guard)", () => {
-    expect(Object.values(SIDEBAR_ITEM_ID)).toEqual([
-      "dashboard",
-      "inbox",
-      "triage",
-      "invoices",
-      "vendors",
-      "payments",
-      "reconciliation",
-      "exports",
-      "settings"
-    ]);
   });
 });

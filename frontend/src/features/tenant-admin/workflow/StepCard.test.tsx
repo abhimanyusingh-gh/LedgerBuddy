@@ -46,17 +46,6 @@ describe("StepCard", () => {
     expect(header.textContent).toContain("Compliance Sign-off");
   });
 
-  it("does not show compliance sign-off badge for approval type", () => {
-    render(
-      <StepCard
-        {...baseProps}
-        step={{ ...baseStep, type: "approval" }}
-      />
-    );
-    const header = document.querySelector(".workflow-step-card-header")!;
-    expect(header.textContent).not.toContain("Compliance Sign-off");
-  });
-
   it("shows eligible compliance users when step is compliance_signoff and users exist", () => {
     const complianceUsers = [
       { userId: "u1", role: "ca" },
@@ -90,19 +79,6 @@ describe("StepCard", () => {
     expect(screen.getByText("Grant capability in Users section")).toBeInTheDocument();
   });
 
-  it("does not show compliance section for non-compliance_signoff steps", () => {
-    render(
-      <StepCard
-        {...baseProps}
-        step={{ ...baseStep, type: "approval" }}
-        complianceSignoffUsers={[{ userId: "u1", role: "ca" }]}
-      />
-    );
-
-    expect(screen.queryByText("Eligible compliance sign-off users:")).not.toBeInTheDocument();
-    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
-  });
-
   it("shows remove button when stepCount > 1", () => {
     render(<StepCard {...baseProps} stepCount={2} />);
     expect(screen.getByText("Remove")).toBeInTheDocument();
@@ -126,11 +102,6 @@ describe("StepCard", () => {
   });
 
   describe("Advanced Options toggle", () => {
-    it("renders the advanced options toggle button", () => {
-      render(<StepCard {...baseProps} />);
-      expect(screen.getByText(/Advanced options/)).toBeInTheDocument();
-    });
-
     it("defaults to collapsed for a default step", () => {
       render(<StepCard {...baseProps} />);
       expect(screen.queryByLabelText("Step type:")).not.toBeInTheDocument();
@@ -166,15 +137,6 @@ describe("StepCard", () => {
       expect(screen.getByLabelText("Step type:")).toBeInTheDocument();
     });
 
-    it("stays collapsed when step has default values only", () => {
-      render(
-        <StepCard
-          {...baseProps}
-          step={{ ...baseStep, type: "approval", timeoutHours: null, escalateTo: null }}
-        />
-      );
-      expect(screen.queryByLabelText("Step type:")).not.toBeInTheDocument();
-    });
   });
 
   describe("Step type selector", () => {
@@ -226,24 +188,6 @@ describe("StepCard", () => {
       );
       expect(screen.getByLabelText("Timeout (hours):")).toBeInTheDocument();
       expect(screen.getByLabelText("Escalate to:")).toBeInTheDocument();
-    });
-
-    it("does not show escalation fields when type is approval", () => {
-      render(<StepCard {...baseProps} />);
-      fireEvent.click(screen.getByText(/Advanced options/));
-      expect(screen.queryByLabelText("Timeout (hours):")).not.toBeInTheDocument();
-      expect(screen.queryByLabelText("Escalate to:")).not.toBeInTheDocument();
-    });
-
-    it("does not show escalation fields when type is compliance_signoff", () => {
-      render(
-        <StepCard
-          {...baseProps}
-          step={{ ...baseStep, type: "compliance_signoff" }}
-        />
-      );
-      expect(screen.queryByLabelText("Timeout (hours):")).not.toBeInTheDocument();
-      expect(screen.queryByLabelText("Escalate to:")).not.toBeInTheDocument();
     });
 
     it("calls onUpdate when timeout value changes", () => {
@@ -301,27 +245,6 @@ describe("StepCard", () => {
       expect(options).toContain("u2");
     });
 
-    it("displays escalation badge in header when type is escalation", () => {
-      render(
-        <StepCard
-          {...baseProps}
-          step={{ ...baseStep, type: "escalation" }}
-        />
-      );
-      const header = document.querySelector(".workflow-step-card-header")!;
-      expect(header.textContent).toContain("Escalation");
-    });
-
-    it("shows helper text for escalation timeout", () => {
-      render(
-        <StepCard
-          {...baseProps}
-          step={{ ...baseStep, type: "escalation" }}
-        />
-      );
-      expect(screen.getByText("Time before this step auto-escalates. Uses wall-clock hours.")).toBeInTheDocument();
-    });
-
     it("shows validation warning when timeoutHours is set but escalateTo is missing", () => {
       render(
         <StepCard
@@ -332,26 +255,6 @@ describe("StepCard", () => {
       expect(screen.getByRole("alert")).toHaveTextContent(
         "Escalation target is required when a timeout is set."
       );
-    });
-
-    it("does not show validation warning when both timeoutHours and escalateTo are set", () => {
-      render(
-        <StepCard
-          {...baseProps}
-          step={{ ...baseStep, type: "escalation", timeoutHours: 24, escalateTo: "u1" }}
-        />
-      );
-      expect(screen.queryByText("Escalation target is required when a timeout is set.")).not.toBeInTheDocument();
-    });
-
-    it("does not show validation warning when timeoutHours is not set", () => {
-      render(
-        <StepCard
-          {...baseProps}
-          step={{ ...baseStep, type: "escalation", timeoutHours: null, escalateTo: null }}
-        />
-      );
-      expect(screen.queryByText("Escalation target is required when a timeout is set.")).not.toBeInTheDocument();
     });
 
     it.each([

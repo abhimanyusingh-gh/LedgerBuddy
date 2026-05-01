@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 
-export const SHORTCUT_KEY = {
+const SHORTCUT_KEY = {
   NextRow: "j",
   PrevRow: "k",
   ToggleExpand: " ",

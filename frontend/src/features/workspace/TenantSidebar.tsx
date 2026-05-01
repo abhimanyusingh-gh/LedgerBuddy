@@ -2,7 +2,7 @@ import type { TenantViewTab } from "@/types";
 import { Badge } from "@/components/ds/Badge";
 import type { StandaloneHashRoute } from "@/features/workspace/tabHashConfig";
 
-export const SIDEBAR_ITEM_ID = {
+const SIDEBAR_ITEM_ID = {
   Dashboard: "dashboard",
   Inbox: "inbox",
   Triage: "triage",

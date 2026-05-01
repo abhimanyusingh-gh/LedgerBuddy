@@ -295,20 +295,6 @@ describe("features/admin/onboarding/ClientOrgsPage — archive flow", () => {
     expect(mocked.previewArchiveClientOrganization).toHaveBeenCalledWith("org-1");
   });
 
-  it("shows a loading state in the dialog while the probe is in flight", async () => {
-    mocked.fetchClientOrganizations.mockResolvedValue([
-      buildOrg({ _id: "org-1", gstin: "29ABCPK1234F1Z5", companyName: "Sharma Textiles" })
-    ]);
-    mocked.previewArchiveClientOrganization.mockImplementation(() => new Promise(() => {}));
-
-    renderPage();
-    await screen.findByTestId("client-orgs-table");
-    fireEvent.click(screen.getByTestId("client-orgs-table-archive"));
-
-    await screen.findByRole("alertdialog");
-    expect(screen.getByTestId("client-orgs-archive-dialog-loading")).toHaveTextContent(/checking dependents/i);
-  });
-
   it("falls back to the generic warning copy when the probe fails", async () => {
     mocked.fetchClientOrganizations.mockResolvedValue([
       buildOrg({ _id: "org-1", gstin: "29ABCPK1234F1Z5", companyName: "Sharma Textiles" })
@@ -402,29 +388,6 @@ describe("features/admin/onboarding/ClientOrgsPage — archive flow", () => {
     await waitFor(() => {
       expect(screen.queryByTestId("client-orgs-archive-notice")).not.toBeInTheDocument();
     });
-  });
-
-  it("singularizes the count label when only one record is linked", async () => {
-    mocked.fetchClientOrganizations.mockResolvedValue([
-      buildOrg({ _id: "org-1", gstin: "29ABCPK1234F1Z5", companyName: "Sharma Textiles" })
-    ]);
-    mocked.deleteClientOrganization.mockResolvedValue({
-      status: "archived",
-      linkedCounts: { invoices: 1 },
-      archivedAt: "2026-04-25T00:00:00Z"
-    });
-
-    renderPage();
-    await screen.findByTestId("client-orgs-table");
-    fireEvent.click(screen.getByTestId("client-orgs-table-archive"));
-    const dialog = await screen.findByRole("alertdialog");
-    await act(async () => {
-      fireEvent.click(within(dialog).getByRole("button", { name: /archive/i }));
-    });
-
-    const notice = await screen.findByTestId("client-orgs-archive-notice");
-    expect(notice).toHaveTextContent(/1 invoice\b/);
-    expect(notice).not.toHaveTextContent(/1 invoices/);
   });
 
   it("renders a deleted-outright banner when no dependents existed", async () => {

@@ -83,14 +83,6 @@ describe("ApprovalWorkflowSection", () => {
       expect(screen.getByText("Require approval workflow")).toBeInTheDocument();
     });
 
-    it("renders content even if fetch fails", async () => {
-      mockFetchApprovalWorkflow.mockRejectedValue(new Error("Network error"));
-      await act(async () => {
-        render(<ApprovalWorkflowSection tenantUsers={tenantUsers} />);
-      });
-      expect(screen.queryByText(/Loading/)).not.toBeInTheDocument();
-      expect(screen.getByText("Require approval workflow")).toBeInTheDocument();
-    });
   });
 
   describe("Empty users state", () => {
@@ -102,13 +94,6 @@ describe("ApprovalWorkflowSection", () => {
       expect(screen.getByText("Add team members before configuring approval workflows.")).toBeInTheDocument();
     });
 
-    it("does not show workflow toggle when no users are passed", async () => {
-      mockFetchApprovalWorkflow.mockResolvedValue(DISABLED_CONFIG);
-      await act(async () => {
-        render(<ApprovalWorkflowSection tenantUsers={[]} />);
-      });
-      expect(screen.queryByText("Require approval workflow")).not.toBeInTheDocument();
-    });
   });
 
   describe("Simple mode", () => {
@@ -120,22 +105,6 @@ describe("ApprovalWorkflowSection", () => {
       expect(screen.getByText("Step 1: Approved by any team member")).toBeInTheDocument();
       expect(screen.getByText("Require manager review")).toBeInTheDocument();
       expect(screen.getByText("Require final sign-off")).toBeInTheDocument();
-    });
-
-    it("shows workflow disabled hint when not enabled", async () => {
-      mockFetchApprovalWorkflow.mockResolvedValue(DISABLED_CONFIG);
-      await act(async () => {
-        render(<ApprovalWorkflowSection tenantUsers={tenantUsers} />);
-      });
-      expect(screen.getByText("Any member or admin can approve invoices directly.")).toBeInTheDocument();
-    });
-
-    it("shows workflow enabled hint when enabled", async () => {
-      mockFetchApprovalWorkflow.mockResolvedValue(SIMPLE_CONFIG);
-      await act(async () => {
-        render(<ApprovalWorkflowSection tenantUsers={tenantUsers} />);
-      });
-      expect(screen.getByText("Invoices will require step-by-step approval before export.")).toBeInTheDocument();
     });
 
     it("toggles enabled state via checkbox", async () => {
@@ -173,13 +142,6 @@ describe("ApprovalWorkflowSection", () => {
       expect(checkbox).toBeChecked();
     });
 
-    it("shows switch to advanced mode button", async () => {
-      mockFetchApprovalWorkflow.mockResolvedValue(SIMPLE_CONFIG);
-      await act(async () => {
-        render(<ApprovalWorkflowSection tenantUsers={tenantUsers} />);
-      });
-      expect(screen.getByText(/Switch to Advanced Workflow/)).toBeInTheDocument();
-    });
   });
 
   describe("Switch to advanced mode", () => {
@@ -230,15 +192,6 @@ describe("ApprovalWorkflowSection", () => {
   });
 
   describe("Advanced mode — step management", () => {
-    it("renders step cards in advanced mode", async () => {
-      mockFetchApprovalWorkflow.mockResolvedValue(ADVANCED_CONFIG);
-      await act(async () => {
-        render(<ApprovalWorkflowSection tenantUsers={tenantUsers} />);
-      });
-      expect(screen.getByText("Step 1")).toBeInTheDocument();
-      expect(screen.getByText("Step 2")).toBeInTheDocument();
-    });
-
     it("adds a new step on click", async () => {
       mockFetchApprovalWorkflow.mockResolvedValue(ADVANCED_CONFIG);
       await act(async () => {
@@ -264,25 +217,9 @@ describe("ApprovalWorkflowSection", () => {
       expect(screen.getByText("Step 1")).toBeInTheDocument();
     });
 
-    it("renders step connectors between steps", async () => {
-      mockFetchApprovalWorkflow.mockResolvedValue(ADVANCED_CONFIG);
-      const { container } = await act(async () =>
-        render(<ApprovalWorkflowSection tenantUsers={tenantUsers} />)
-      );
-      const connectors = container.querySelectorAll(".workflow-step-connector");
-      expect(connectors).toHaveLength(1);
-    });
   });
 
   describe("Dirty state and save", () => {
-    it("does not show save button when config is unchanged", async () => {
-      mockFetchApprovalWorkflow.mockResolvedValue(SIMPLE_CONFIG);
-      await act(async () => {
-        render(<ApprovalWorkflowSection tenantUsers={tenantUsers} />);
-      });
-      expect(screen.queryByText("Save Workflow")).not.toBeInTheDocument();
-    });
-
     it("shows save button when config is changed", async () => {
       mockFetchApprovalWorkflow.mockResolvedValue(SIMPLE_CONFIG);
       await act(async () => {

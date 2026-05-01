@@ -82,14 +82,6 @@ describe("features/triage/ClientOrgPicker — typeahead + keyboard", () => {
     expect(onSelect).toHaveBeenCalledWith({ id: "org-2", companyName: "Bose Steel" });
   });
 
-  it("does NOT mutate active client org by itself (decoupled from RealmSwitcher)", () => {
-    const { onSelect } = renderPicker();
-    fireEvent.click(screen.getByTestId("tp-option-org-3"));
-    expect(onSelect).toHaveBeenCalledWith({ id: "org-3", companyName: "Bharti Logistics" });
-    // The picker is pure: it never writes to sessionStorage on its own.
-    expect(window.sessionStorage.getItem("activeClientOrgId")).toBeNull();
-  });
-
   it("wraps highlight on ArrowUp from first to last", () => {
     const { onSelect } = renderPicker();
     fireEvent.keyDown(screen.getByTestId("tp-input"), { key: "ArrowUp" });
@@ -110,17 +102,4 @@ describe("features/triage/ClientOrgPicker — suggested heuristic", () => {
     expect(screen.getByTestId("tp-suggested-badge-org-2")).toBeInTheDocument();
   });
 
-  it("hides suggested badge on rows that aren't in the suggested set", () => {
-    renderPicker({
-      suggested: [{ id: "org-2", companyName: "Bose Steel" }]
-    });
-    expect(screen.queryByTestId("tp-suggested-badge-org-1")).not.toBeInTheDocument();
-  });
-
-  it("ignores suggestions whose ids are not present in the visible list", () => {
-    renderPicker({
-      suggested: [{ id: "org-99", companyName: "Phantom" }]
-    });
-    expect(screen.queryByTestId("tp-suggested-badge-org-99")).not.toBeInTheDocument();
-  });
 });

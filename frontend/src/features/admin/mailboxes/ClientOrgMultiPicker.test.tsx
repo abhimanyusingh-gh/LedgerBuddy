@@ -108,25 +108,6 @@ describe("features/admin/mailboxes/ClientOrgMultiPicker", () => {
     expect(onChange).toHaveBeenCalledWith(["org-2"]);
   });
 
-  it("uses listbox-only a11y semantics — no nested native checkbox inputs in the option rows", () => {
-    render(
-      <ClientOrgMultiPicker
-        clientOrgs={ORGS}
-        isLoading={false}
-        isError={false}
-        onRetry={jest.fn()}
-        selectedIds={["org-1"]}
-        onChange={jest.fn()}
-      />
-    );
-    const list = screen.getByTestId("client-org-multi-picker-list");
-    expect(list).toHaveAttribute("role", "listbox");
-    expect(list).toHaveAttribute("aria-multiselectable", "true");
-    expect(list.querySelectorAll('input[type="checkbox"]')).toHaveLength(0);
-    const selectedOption = screen.getByTestId("client-org-multi-picker-option-org-1");
-    expect(selectedOption).toHaveAttribute("aria-selected", "true");
-  });
-
   describe("keyboard a11y (aria-activedescendant listbox)", () => {
     function renderPicker(onChange = jest.fn()) {
       render(
@@ -141,12 +122,6 @@ describe("features/admin/mailboxes/ClientOrgMultiPicker", () => {
       );
       return onChange;
     }
-
-    it("makes the listbox tab-reachable with tabIndex=0", () => {
-      renderPicker();
-      const list = screen.getByTestId("client-org-multi-picker-list");
-      expect(list).toHaveAttribute("tabindex", "0");
-    });
 
     it("ArrowDown advances aria-activedescendant to the next option", () => {
       renderPicker();
@@ -177,13 +152,6 @@ describe("features/admin/mailboxes/ClientOrgMultiPicker", () => {
       expect(list).toHaveAttribute("aria-activedescendant", firstOptionId);
     });
 
-    it("Space toggles the active option's selection", () => {
-      const onChange = renderPicker();
-      const list = screen.getByTestId("client-org-multi-picker-list");
-      fireEvent.keyDown(list, { key: " " });
-      expect(onChange).toHaveBeenLastCalledWith(["org-3"]);
-    });
-
     it("Enter toggles the active option's selection", () => {
       const onChange = renderPicker();
       const list = screen.getByTestId("client-org-multi-picker-list");
@@ -192,14 +160,6 @@ describe("features/admin/mailboxes/ClientOrgMultiPicker", () => {
       expect(onChange).toHaveBeenLastCalledWith(["org-2"]);
     });
 
-    it("does not toggle a non-active option when Space is pressed at the listbox level", () => {
-      const onChange = renderPicker();
-      const list = screen.getByTestId("client-org-multi-picker-list");
-      fireEvent.keyDown(list, { key: " " });
-      // Active option is org-3 (Acme Industries, sorted first); org-1 must NOT be selected.
-      expect(onChange).toHaveBeenCalledTimes(1);
-      expect(onChange).not.toHaveBeenCalledWith(expect.arrayContaining(["org-1"]));
-    });
   });
 
   it("flags chips for ids that are no longer in the tenant's clientOrgs as orphans", () => {

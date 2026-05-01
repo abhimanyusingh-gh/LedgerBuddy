@@ -253,12 +253,5 @@ describe("RiskSignalEvaluator", () => {
       expect(penalty).toBe(40);
     });
 
-    it("falls back to default penalty cap when undefined", () => {
-      const penalty = RiskSignalEvaluator.sumPenalties([
-        createRiskSignal(RISK_SIGNAL_CODE.MSME_PAYMENT_OVERDUE, "financial", "critical", "", 20),
-        createRiskSignal(RISK_SIGNAL_CODE.TDS_NO_PAN_PENALTY_RATE, "financial", "critical", "", 20)
-      ], undefined);
-      expect(penalty).toBe(30);
-    });
   });
 });

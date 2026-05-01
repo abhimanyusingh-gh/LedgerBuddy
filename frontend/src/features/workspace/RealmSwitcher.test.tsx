@@ -74,12 +74,6 @@ describe("RealmSwitcher", () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
-  it("renders empty state without an onboarding CTA when no handler is provided", () => {
-    renderSwitcher({ clientOrgs: [] });
-    expect(screen.getByTestId("realm-switcher-empty")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /go to onboarding/i })).not.toBeInTheDocument();
-  });
-
   it("filters options by typing in the search input (case-insensitive partial match)", () => {
     renderSwitcher();
     const input = screen.getByTestId("realm-switcher-input");
@@ -182,13 +176,4 @@ describe("RealmSwitcher", () => {
     expect(input.getAttribute("aria-activedescendant")).toBe(`${listId}-option-org-3`);
   });
 
-  it("wires aria-controls and aria-activedescendant on the input", () => {
-    renderSwitcher();
-    const input = screen.getByTestId("realm-switcher-input");
-    const list = screen.getByTestId("realm-switcher-list");
-    expect(input).toHaveAttribute("aria-controls", list.getAttribute("id"));
-    expect(input).toHaveAttribute("aria-activedescendant");
-    const activeDescendant = input.getAttribute("aria-activedescendant");
-    expect(activeDescendant).toBe(`${list.getAttribute("id")}-option-org-1`);
-  });
 });

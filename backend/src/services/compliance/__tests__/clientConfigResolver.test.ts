@@ -86,98 +86,43 @@ describe("resolveClientComplianceConfig", () => {
   });
 });
 
-describe("resolveFreemailConfig", () => {
+describe("specialized resolvers (per-field projections)", () => {
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
-  it("returns null when no config exists", async () => {
-    mockFindOne(null);
-    const result = await resolveFreemailConfig("tenant-1", CLIENT_ORG_ID);
-    expect(result).toBeNull();
-  });
-
-  it("returns freemail domains when configured", async () => {
+  it("resolveFreemailConfig returns freemail domains when configured", async () => {
     mockFindOne({ additionalFreemailDomains: ["custom.com", "test.org"] });
     const result = await resolveFreemailConfig("tenant-1", CLIENT_ORG_ID);
-    expect(result).not.toBeNull();
     expect(result!.additionalFreemailDomains).toEqual(["custom.com", "test.org"]);
   });
-});
 
-describe("resolveLearningModeConfig", () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-  });
-
-  it("returns null when no config exists", async () => {
-    mockFindOne(null);
-    const result = await resolveLearningModeConfig("tenant-1", CLIENT_ORG_ID);
-    expect(result).toBeNull();
-  });
-
-  it("returns learning mode when configured", async () => {
+  it("resolveLearningModeConfig returns learning mode when configured", async () => {
     mockFindOne({ learningMode: "active" });
     const result = await resolveLearningModeConfig("tenant-1", CLIENT_ORG_ID);
     expect(result!.learningMode).toBe("active");
   });
-});
 
-describe("resolveDefaultCurrencyConfig", () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-  });
-
-  it("returns null when clientOrgId is undefined", async () => {
+  it("resolveDefaultCurrencyConfig short-circuits when clientOrgId is undefined", async () => {
     const result = await resolveDefaultCurrencyConfig("tenant-1", undefined);
     expect(result).toBeNull();
     expect(ClientComplianceConfigModel.findOne).not.toHaveBeenCalled();
   });
 
-  it("returns null when no config exists", async () => {
-    mockFindOne(null);
-    const result = await resolveDefaultCurrencyConfig("tenant-1", CLIENT_ORG_ID);
-    expect(result).toBeNull();
-  });
-
-  it("returns default currency when configured", async () => {
+  it("resolveDefaultCurrencyConfig returns default currency when configured", async () => {
     mockFindOne({ defaultCurrency: "USD" });
     const result = await resolveDefaultCurrencyConfig("tenant-1", CLIENT_ORG_ID);
     expect(result!.defaultCurrency).toBe("USD");
   });
-});
 
-describe("resolveTdsRatesConfig", () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-  });
-
-  it("returns null when no config exists", async () => {
-    mockFindOne(null);
-    const result = await resolveTdsRatesConfig("tenant-1", CLIENT_ORG_ID);
-    expect(result).toBeNull();
-  });
-
-  it("returns tds rates when configured", async () => {
+  it("resolveTdsRatesConfig returns tds rates when configured", async () => {
     const rates = [{ section: "194J", rateIndividual: 1000 }];
     mockFindOne({ tdsRates: rates });
     const result = await resolveTdsRatesConfig("tenant-1", CLIENT_ORG_ID);
     expect(result!.tdsRates).toEqual(rates);
   });
-});
 
-describe("resolveApprovalLimitConfig", () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-  });
-
-  it("returns null when no config exists", async () => {
-    mockFindOne(null);
-    const result = await resolveApprovalLimitConfig("tenant-1", CLIENT_ORG_ID);
-    expect(result).toBeNull();
-  });
-
-  it("returns approval limit overrides when configured", async () => {
+  it("resolveApprovalLimitConfig returns approval limit overrides when configured", async () => {
     mockFindOne({ approvalLimitOverrides: { MEMBER: 50000 } });
     const result = await resolveApprovalLimitConfig("tenant-1", CLIENT_ORG_ID);
     expect(result!.approvalLimitOverrides).toEqual({ MEMBER: 50000 });

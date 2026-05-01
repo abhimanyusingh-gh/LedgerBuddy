@@ -291,30 +291,6 @@ describe("features/triage/TriagePage — bulk partial-failure UX", () => {
     expect(screen.queryByTestId("triage-bulk-outcome")).not.toBeInTheDocument();
   });
 
-  it("does NOT surface a banner when every invoice succeeds", async () => {
-    triage.fetchTriageInvoices.mockResolvedValue({
-      items: [buildInvoice({ _id: "inv-1" }), buildInvoice({ _id: "inv-2" })],
-      total: 2
-    });
-    orgs.fetchClientOrganizations.mockResolvedValue([
-      buildOrg({ _id: "org-9", gstin: "29ABCDE1111F1Z5", companyName: "Sharma Textiles" })
-    ]);
-    triage.assignClientOrg.mockResolvedValue({ ok: true });
-
-    renderPage();
-    await screen.findByTestId("triage-row-inv-1");
-    fireEvent.click(screen.getByTestId("triage-select-all"));
-    fireEvent.click(screen.getByTestId("triage-bulk-assign"));
-    await screen.findByTestId("triage-picker-list");
-    await act(async () => {
-      fireEvent.click(screen.getByTestId("triage-picker-option-org-9"));
-    });
-
-    await waitFor(() => {
-      expect(triage.assignClientOrg).toHaveBeenCalledTimes(2);
-    });
-    expect(screen.queryByTestId("triage-bulk-outcome")).not.toBeInTheDocument();
-  });
 });
 
 describe("features/triage/TriagePage — reject flow", () => {

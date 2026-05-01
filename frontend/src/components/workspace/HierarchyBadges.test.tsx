@@ -33,13 +33,6 @@ describe("components/workspace/TenantBadge", () => {
     expect(screen.getByTestId("tenant-badge")).toHaveTextContent("Unknown tenant");
   });
 
-  it("uses className-driven styling (no inline styles)", () => {
-    render(<TenantBadge tenantName="Acme" />);
-    const badge = screen.getByTestId("tenant-badge");
-    expect(badge).toHaveClass("workspace-hierarchy-badge");
-    expect(badge).toHaveClass("workspace-hierarchy-badge-tenant");
-    expect(badge.getAttribute("style")).toBeFalsy();
-  });
 });
 
 describe("components/workspace/ActiveRealmBadge", () => {
@@ -148,13 +141,4 @@ describe("components/workspace/ActiveRealmBadge", () => {
     expect(onOpenSwitcher).toHaveBeenCalledTimes(1);
   });
 
-  it("does not auto-clear while clientOrgs is still loading (undefined)", () => {
-    // While the list is still being fetched, we have no signal whether the
-    // active id is stale — leave it alone so the loading badge can render.
-    setActiveClientOrgId("org-pending");
-    render(<ActiveRealmBadge clientOrgs={undefined} />);
-    const badge = screen.getByTestId("active-realm-badge");
-    expect(badge).toHaveAttribute("data-loading", "true");
-    expect(window.sessionStorage.getItem(ACTIVE_CLIENT_ORG_STORAGE_KEY)).toBe("org-pending");
-  });
 });

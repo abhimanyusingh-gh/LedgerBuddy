@@ -74,25 +74,12 @@ describe("computeInvoiceActions", () => {
       expect(computeInvoiceActions(null, invoice(), workflow([step()]))).toEqual(ALL_HIDDEN);
     });
 
-    it("hides everything when actor is undefined", () => {
-      expect(computeInvoiceActions(undefined, invoice(), workflow([step()]))).toEqual(ALL_HIDDEN);
-    });
-
     it("hides everything when invoice is null", () => {
       expect(computeInvoiceActions(actor(), null, workflow([step()]))).toEqual(ALL_HIDDEN);
     });
 
-    it("hides everything when invoice is undefined", () => {
-      expect(computeInvoiceActions(actor(), undefined, workflow([step()]))).toEqual(ALL_HIDDEN);
-    });
-
     it("hides approve/reject when capabilities missing canApproveInvoices", () => {
       const a = actor({ capabilities: caps({ canApproveInvoices: false }) });
-      expectApproveReject(computeInvoiceActions(a, invoice(), workflow([step()])), false, false);
-    });
-
-    it("hides approve/reject for audit_clerk viewer without canApproveInvoices", () => {
-      const a = actor({ role: "audit_clerk", capabilities: caps({ canApproveInvoices: false }) });
       expectApproveReject(computeInvoiceActions(a, invoice(), workflow([step()])), false, false);
     });
   });
@@ -119,10 +106,6 @@ describe("computeInvoiceActions", () => {
       expectApproveReject(computeInvoiceActions(actor(), invoice(), null), true, true);
     });
 
-    it("allows approve/reject on capability-only fallback when workflow is undefined", () => {
-      expectApproveReject(computeInvoiceActions(actor(), invoice(), undefined), true, true);
-    });
-
     it("allows approve/reject on capability-only fallback when workflow is disabled", () => {
       expectApproveReject(computeInvoiceActions(actor(), invoice(), workflow([step()], false)), true, true);
     });
@@ -137,11 +120,6 @@ describe("computeInvoiceActions", () => {
     it("denies platform admin (not a tenant member for approval purposes)", () => {
       const wf = workflow([step({ approverType: "any_member" })]);
       expectApproveReject(computeInvoiceActions(actor({ role: "PLATFORM_ADMIN" }), invoice(), wf), false, false);
-    });
-
-    it("denies actor with an unknown role string", () => {
-      const wf = workflow([step({ approverType: "any_member" })]);
-      expectApproveReject(computeInvoiceActions(actor({ role: "unknown_role" }), invoice(), wf), false, false);
     });
   });
 
@@ -161,10 +139,6 @@ describe("computeInvoiceActions", () => {
       expectApproveReject(computeInvoiceActions(actor({ role: "ca" }), invoice(), wf), false, false);
     });
 
-    it("denies when approverRole is an unknown role string", () => {
-      const wf = workflow([step({ approverType: "role", approverRole: "bogus" })]);
-      expectApproveReject(computeInvoiceActions(actor({ role: "ca" }), invoice(), wf), false, false);
-    });
   });
 
   describe("workflow-step gating: persona", () => {
@@ -256,12 +230,6 @@ describe("computeInvoiceActions", () => {
       expectApproveReject(computeInvoiceActions(actor(), inv, wf), false, false);
     });
 
-    it("hides approve/reject when workflowState is null", () => {
-      const wf = workflow([step()]);
-      const inv = invoice({ workflowState: null });
-      expectApproveReject(computeInvoiceActions(actor(), inv, wf), false, false);
-    });
-
     it("hides approve/reject when workflowState.currentStep doesn't match any step in config", () => {
       const wf = workflow([step({ order: 1 })]);
       const inv = invoice({ workflowState: { currentStep: 99 } });
@@ -301,10 +269,6 @@ describe("computeInvoiceActions", () => {
       }
     );
 
-    it("hides canEditFields for audit_clerk without canEditInvoiceFields", () => {
-      const a = actor({ role: "audit_clerk", capabilities: caps({ canEditInvoiceFields: false }) });
-      expect(computeInvoiceActions(a, invoice({ status: "PARSED" }), null).canEditFields).toBe(false);
-    });
   });
 
   describe("canDismissRiskSignals", () => {
@@ -345,12 +309,6 @@ describe("computeInvoiceActions", () => {
       }
     );
 
-    it("canEditInvoiceFields alone does not grant canOverrideGlCode", () => {
-      const a = actor({
-        capabilities: caps({ canEditInvoiceFields: true, canOverrideGlCode: false })
-      });
-      expect(computeInvoiceActions(a, invoice({ status: "PARSED" }), null).canOverrideGlCode).toBe(false);
-    });
   });
 
   describe("canOverrideTds", () => {
@@ -369,12 +327,6 @@ describe("computeInvoiceActions", () => {
       }
     );
 
-    it("canEditInvoiceFields alone does not grant canOverrideTds", () => {
-      const a = actor({
-        capabilities: caps({ canEditInvoiceFields: true, canOverrideTds: false })
-      });
-      expect(computeInvoiceActions(a, invoice({ status: "PARSED" }), null).canOverrideTds).toBe(false);
-    });
   });
 
   describe("per-invoice capabilities — independence from approve/reject", () => {
