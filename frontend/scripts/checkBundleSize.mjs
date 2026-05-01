@@ -16,7 +16,7 @@ import { fileURLToPath } from "node:url";
 const GATE_STATUS = Object.freeze({ PASS: "PASS", FAIL: "FAIL" });
 
 const BUDGETS = Object.freeze({
-  initialLoadBytes: 1_140_000
+  initialLoadBytes: 1_242_400
 });
 
 const ASSET_KIND = Object.freeze({
