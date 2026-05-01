@@ -22,7 +22,8 @@ export const LEGACY_QUERY_TABS = Object.keys(TAB_HASH_PATH) as TenantViewTab[];
 export const STANDALONE_HASH_PATH = {
   triage: "#/triage",
   mailboxes: "#/mailboxes",
-  reportsTds: "#/reports/tds"
+  reportsTds: "#/reports/tds",
+  vendors: "#/vendors"
 } as const;
 
 export type StandaloneHashRoute = keyof typeof STANDALONE_HASH_PATH;

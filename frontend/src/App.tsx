@@ -27,6 +27,9 @@ const MailboxesPage = lazy(() =>
 const TdsDashboardPage = lazy(() =>
   import("@/features/reports/TdsDashboardPage").then((m) => ({ default: m.TdsDashboardPage }))
 );
+const VendorListPage = lazy(() =>
+  import("@/features/vendors/VendorListPage").then((m) => ({ default: m.VendorListPage }))
+);
 import { readStandaloneHashRoute, STANDALONE_HASH_PATH, type StandaloneHashRoute } from "@/features/workspace/tabHashConfig";
 import { useTriageQueue } from "@/hooks/useTriageQueue";
 import { useActionRequiredQueue } from "@/hooks/useActionRequiredQueue";
@@ -347,6 +350,12 @@ export function App() {
         {standaloneRoute === "reportsTds" && (
           <Suspense fallback={<div role="status" aria-busy="true">Loading TDS dashboard…</div>}>
             <TdsDashboardPage />
+          </Suspense>
+        )}
+
+        {standaloneRoute === "vendors" && (
+          <Suspense fallback={<div role="status" aria-busy="true">Loading vendors…</div>}>
+            <VendorListPage />
           </Suspense>
         )}
 

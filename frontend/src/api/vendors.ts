@@ -1,5 +1,13 @@
 import { apiClient } from "@/api/client";
 import { complianceUrls } from "@/api/urls/complianceUrls";
+import {
+  VENDOR_SORT_DIRECTION,
+  VENDOR_SORT_FIELD,
+  type VendorListResponse,
+  type VendorSortDirection,
+  type VendorSortField,
+  type VendorStatus
+} from "@/types/vendor";
 
 export interface VendorListItem {
   _id: string;
@@ -24,4 +32,48 @@ export async function fetchVendors(params: { hasMsme?: boolean; page?: number; l
 
 export async function updateVendorMsme(id: string, agreedPaymentDays: number | null): Promise<unknown> {
   return (await apiClient.patch(complianceUrls.vendorUpdate(id), { msme: { agreedPaymentDays } })).data;
+}
+
+interface FetchVendorListParams {
+  search?: string;
+  status?: VendorStatus | null;
+  hasMsme?: boolean | null;
+  hasSection197Cert?: boolean | null;
+  sortField?: VendorSortField;
+  sortDirection?: VendorSortDirection;
+  page?: number;
+  limit?: number;
+}
+
+const TRI_BOOL_PARAM = {
+  TRUE: "true",
+  FALSE: "false"
+} as const;
+
+function triBool(value: boolean | null | undefined): string | undefined {
+  if (value === true) return TRI_BOOL_PARAM.TRUE;
+  if (value === false) return TRI_BOOL_PARAM.FALSE;
+  return undefined;
+}
+
+export async function fetchVendorList(params: FetchVendorListParams): Promise<VendorListResponse> {
+  const response = await apiClient.get<VendorListResponse>(complianceUrls.vendorsList(), {
+    params: {
+      search: params.search?.trim() ? params.search.trim() : undefined,
+      status: params.status ?? undefined,
+      hasMsme: triBool(params.hasMsme),
+      hasSection197Cert: triBool(params.hasSection197Cert),
+      sortField: params.sortField ?? VENDOR_SORT_FIELD.LAST_INVOICE_DATE,
+      sortDirection: params.sortDirection ?? VENDOR_SORT_DIRECTION.DESC,
+      page: params.page ?? 1,
+      limit: params.limit ?? 50
+    }
+  });
+  const data = response.data;
+  return {
+    items: Array.isArray(data?.items) ? data.items : [],
+    page: typeof data?.page === "number" ? data.page : 1,
+    limit: typeof data?.limit === "number" ? data.limit : 50,
+    total: typeof data?.total === "number" ? data.total : 0
+  };
 }

@@ -32,4 +32,9 @@ describe("features/workspace/tabHashConfig — standalone hash routes", () => {
     expect(readStandaloneHashRoute("#/reports/tds?fy=2025-26")).toBe("reportsTds");
     expect(readStandaloneHashRoute("#/reports/tds?fy=2025-26&quarter=Q1")).toBe("reportsTds");
   });
+
+  it("matches the registered vendors hash, with or without query params", () => {
+    expect(readStandaloneHashRoute("#/vendors")).toBe("vendors");
+    expect(readStandaloneHashRoute("#/vendors?q=acme&status=active")).toBe("vendors");
+  });
 });
