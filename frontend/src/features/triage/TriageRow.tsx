@@ -42,7 +42,7 @@ export function TriageRow({
           disabled={isMutating}
         />
       </td>
-      <td>{valueOrPlaceholder(invoice.invoiceNumber)}</td>
+      <td className="triage-cell-invoice-number">{valueOrPlaceholder(invoice.invoiceNumber)}</td>
       <td>
         <div className="triage-cell-stacked">
           <span>{valueOrPlaceholder(invoice.vendorName)}</span>
@@ -55,13 +55,13 @@ export function TriageRow({
           <small>{valueOrPlaceholder(invoice.customerGstin)}</small>
         </div>
       </td>
-      <td>
+      <td className="triage-cell-amount">
         {invoice.totalAmountMinor === null
           ? "—"
           : formatMinorAmountWithCurrency(invoice.totalAmountMinor, invoice.currency ?? undefined)}
       </td>
-      <td>{valueOrPlaceholder(invoice.sourceMailbox)}</td>
-      <td>{formatReceivedAt(invoice.receivedAt)}</td>
+      <td className="triage-cell-source">{valueOrPlaceholder(invoice.sourceMailbox)}</td>
+      <td className="triage-cell-received">{formatReceivedAt(invoice.receivedAt)}</td>
       <td className="triage-actions-cell">
         <button
           type="button"

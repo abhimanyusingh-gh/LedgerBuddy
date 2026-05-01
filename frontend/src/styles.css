@@ -4783,43 +4783,52 @@ pre {
   }
 }
 
-/* Triage queue (#166) */
+/* Triage queue (#166, design pass #343 — canvas n8_h7aKBNGVOF0FYt2xykw) */
 .triage-panel {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: var(--sp-4);
+  padding: var(--sp-5);
 }
 
 .triage-header {
   display: flex;
   justify-content: space-between;
   align-items: flex-end;
-  gap: 1rem;
+  gap: var(--sp-4);
   flex-wrap: wrap;
 }
 
+.triage-header h2 {
+  font: 700 var(--fs-xl)/var(--lh-tight) var(--font-sans);
+  letter-spacing: -0.01em;
+  color: var(--ink);
+  margin: 0;
+}
+
 .triage-subhead {
-  margin: 0.25rem 0 0;
+  margin: var(--sp-1) 0 0;
   color: var(--ink-soft);
-  font-size: 0.85rem;
+  font: 500 var(--fs-sm)/var(--lh-snug) var(--font-sans);
 }
 
 .triage-bulk-actions {
   display: flex;
-  gap: 0.5rem;
+  gap: var(--sp-2);
 }
 
 .triage-bulk-banner {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 1rem;
-  padding: 0.6rem 0.85rem;
-  border-radius: 6px;
-  background: var(--accent-soft-bg, #fef3c7);
-  border: 1px solid var(--line-soft, #e5e7eb);
-  color: var(--ink-soft, #1f2937);
-  font-size: 0.85rem;
+  gap: var(--sp-4);
+  padding: var(--sp-3) var(--sp-4);
+  border-radius: var(--radius-md);
+  background: var(--accent-soft-bg);
+  border: 1px solid var(--accent);
+  color: var(--ink);
+  font: 500 var(--fs-sm)/var(--lh-snug) var(--font-sans);
+  transition: background 150ms ease, border-color 150ms ease;
 }
 
 .triage-bulk-banner p {
@@ -4827,38 +4836,94 @@ pre {
   flex: 1;
 }
 
+.triage-bulk-banner[data-action="reject"] {
+  background: var(--warn-soft-bg);
+  border-color: var(--warn);
+}
+
 .triage-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.88rem;
+  font: 500 var(--fs-sm)/var(--lh-snug) var(--font-sans);
+  color: var(--ink);
 }
 
-.triage-table th,
-.triage-table td {
-  border-bottom: 1px solid var(--line-soft, #e5e7eb);
-  padding: 0.55rem 0.5rem;
+.triage-table thead th {
+  font: 800 var(--fs-xxs)/1 var(--font-sans);
+  text-transform: uppercase;
+  letter-spacing: 0.10em;
+  color: var(--ink-soft);
+  background: var(--bg-sunken);
+  border-bottom: 1px solid var(--line);
+  padding: var(--sp-3) var(--sp-3);
   text-align: left;
-  vertical-align: top;
+}
+
+.triage-table tbody td {
+  border-bottom: 1px solid var(--line-soft);
+  padding: var(--sp-3) var(--sp-3);
+  text-align: left;
+  vertical-align: middle;
+}
+
+.triage-table tbody tr {
+  transition: background 120ms ease;
+}
+
+.triage-table tbody tr:hover {
+  background: var(--accent-soft-bg);
 }
 
 .triage-table tbody tr[data-mutating="true"] {
   opacity: 0.55;
 }
 
+.triage-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
 .triage-cell-stacked {
   display: flex;
   flex-direction: column;
-  gap: 0.15rem;
+  gap: var(--sp-1);
+}
+
+.triage-cell-stacked > span {
+  font-weight: 600;
+  color: var(--ink);
 }
 
 .triage-cell-stacked small {
   color: var(--ink-soft);
-  font-size: 0.75rem;
+  font: 500 var(--fs-xxs)/1.2 var(--font-mono);
+  font-feature-settings: var(--num-features);
+}
+
+.triage-cell-invoice-number,
+.triage-cell-received,
+.triage-cell-amount {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums lining-nums;
+  font-feature-settings: var(--num-features);
+  color: var(--ink);
+}
+
+.triage-cell-amount {
+  font-weight: 600;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.triage-cell-source {
+  font-family: var(--font-mono);
+  font-feature-settings: var(--num-features);
+  color: var(--ink-soft);
+  font-size: var(--fs-xs);
 }
 
 .triage-actions-cell {
   display: flex;
-  gap: 0.4rem;
+  gap: var(--sp-1);
   justify-content: flex-end;
 }
 
