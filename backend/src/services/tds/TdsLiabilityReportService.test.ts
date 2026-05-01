@@ -197,33 +197,24 @@ describeHarness("TdsLiabilityReportService", ({ getHarness }) => {
   });
 
   describe("getReport — optional filters", () => {
-    it("filters all buckets by section when section is provided", async () => {
+    it.each([
+      {
+        label: "section",
+        filter: { section: "194J" },
+        expectedSection: { section: "194J", cumulativeBaseMinor: 5000_00 },
+        expectedVendor: { vendorFingerprint: VENDOR_ACME, section: "194J", cumulativeBaseMinor: 5000_00 }
+      },
+      {
+        label: "vendorFingerprint",
+        filter: { vendorFingerprint: VENDOR_BETA },
+        expectedSection: { section: "194C", cumulativeBaseMinor: 3000_00, invoiceCount: 1 },
+        expectedVendor: { vendorFingerprint: VENDOR_BETA, section: "194C" }
+      }
+    ])("filters all buckets by $label (doc-level path)", async ({ filter, expectedSection, expectedVendor }) => {
       const tenantId = await seedTenantA();
-      const report = await reportService.getReport({
-        tenantId,
-        financialYear: FY,
-        section: "194J"
-      });
-      expect(report.bySection).toEqual([
-        expect.objectContaining({ section: "194J", cumulativeBaseMinor: 5000_00 })
-      ]);
-      expect(report.byVendor.every((b) => b.section === "194J")).toBe(true);
-      expect(report.byQuarter.every((b) => b.section === "194J")).toBe(true);
-    });
-
-    it("filters by vendorFingerprint", async () => {
-      const tenantId = await seedTenantA();
-      const report = await reportService.getReport({
-        tenantId,
-        financialYear: FY,
-        vendorFingerprint: VENDOR_BETA
-      });
-      expect(report.byVendor).toEqual([
-        expect.objectContaining({ vendorFingerprint: VENDOR_BETA, section: "194C" })
-      ]);
-      expect(report.bySection).toEqual([
-        expect.objectContaining({ section: "194C", cumulativeBaseMinor: 3000_00, invoiceCount: 1 })
-      ]);
+      const report = await reportService.getReport({ tenantId, financialYear: FY, ...filter });
+      expect(report.bySection).toEqual([expect.objectContaining(expectedSection)]);
+      expect(report.byVendor).toEqual([expect.objectContaining(expectedVendor)]);
     });
 
     it("filters by quarter using entry-level aggregation", async () => {

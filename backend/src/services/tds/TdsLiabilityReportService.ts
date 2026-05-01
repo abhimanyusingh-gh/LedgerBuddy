@@ -79,6 +79,72 @@ interface FacetResult {
   byQuarter: QuarterBucketRaw[];
 }
 
+function quarterPrefix(quarter: TdsQuarter | undefined): PipelineStage.FacetPipelineStage[] {
+  if (!quarter) return [];
+  return [
+    { $unwind: "$entries" },
+    { $match: { "entries.quarter": quarter } }
+  ];
+}
+
+function buildBySection(quarter: TdsQuarter | undefined): PipelineStage.FacetPipelineStage[] {
+  const prefix = quarterPrefix(quarter);
+  const baseField = quarter ? "$entries.taxableAmountMinor" : "$cumulativeBaseMinor";
+  const tdsField = quarter ? "$entries.tdsAmountMinor" : "$cumulativeTdsMinor";
+  const countField = quarter ? 1 : "$invoiceCount";
+  return [
+    ...prefix,
+    {
+      $group: {
+        _id: "$section",
+        cumulativeBaseMinor: { $sum: baseField },
+        cumulativeTdsMinor: { $sum: tdsField },
+        invoiceCount: { $sum: countField },
+        thresholdCrossedAt: { $min: "$thresholdCrossedAt" }
+      }
+    },
+    { $sort: { _id: 1 } }
+  ];
+}
+
+function buildByVendor(quarter: TdsQuarter | undefined): PipelineStage.FacetPipelineStage[] {
+  const prefix = quarterPrefix(quarter);
+  const baseField = quarter ? "$entries.taxableAmountMinor" : "$cumulativeBaseMinor";
+  const tdsField = quarter ? "$entries.tdsAmountMinor" : "$cumulativeTdsMinor";
+  const countField = quarter ? 1 : "$invoiceCount";
+  return [
+    ...prefix,
+    {
+      $group: {
+        _id: { vendorFingerprint: "$vendorFingerprint", section: "$section" },
+        cumulativeBaseMinor: { $sum: baseField },
+        cumulativeTdsMinor: { $sum: tdsField },
+        invoiceCount: { $sum: countField },
+        thresholdCrossedAt: { $min: "$thresholdCrossedAt" }
+      }
+    },
+    { $sort: { "_id.vendorFingerprint": 1, "_id.section": 1 } }
+  ];
+}
+
+function buildByQuarter(quarter: TdsQuarter | undefined): PipelineStage.FacetPipelineStage[] {
+  const prefix: PipelineStage.FacetPipelineStage[] = quarter
+    ? quarterPrefix(quarter)
+    : [{ $unwind: "$entries" }];
+  return [
+    ...prefix,
+    {
+      $group: {
+        _id: { quarter: "$entries.quarter", section: "$section" },
+        cumulativeBaseMinor: { $sum: "$entries.taxableAmountMinor" },
+        cumulativeTdsMinor: { $sum: "$entries.tdsAmountMinor" },
+        invoiceCount: { $sum: 1 }
+      }
+    },
+    { $sort: { "_id.quarter": 1, "_id.section": 1 } }
+  ];
+}
+
 export class TdsLiabilityReportService {
   async getReport(filter: TdsLiabilityFilter): Promise<TdsLiabilityReport> {
     const match: Record<string, unknown> = {
@@ -88,93 +154,12 @@ export class TdsLiabilityReportService {
     if (filter.vendorFingerprint) match.vendorFingerprint = filter.vendorFingerprint;
     if (filter.section) match.section = filter.section;
 
-    const quarterFilter = filter.quarter;
-    const useEntryLevelAggregation = Boolean(quarterFilter);
-
-    const docLevelGroupStage: Record<string, PipelineStage.FacetPipelineStage[]> = {
-      bySection: [
-        {
-          $group: {
-            _id: "$section",
-            cumulativeBaseMinor: { $sum: "$cumulativeBaseMinor" },
-            cumulativeTdsMinor: { $sum: "$cumulativeTdsMinor" },
-            invoiceCount: { $sum: "$invoiceCount" },
-            thresholdCrossedAt: { $min: "$thresholdCrossedAt" }
-          }
-        },
-        { $sort: { _id: 1 } }
-      ],
-      byVendor: [
-        {
-          $group: {
-            _id: { vendorFingerprint: "$vendorFingerprint", section: "$section" },
-            cumulativeBaseMinor: { $sum: "$cumulativeBaseMinor" },
-            cumulativeTdsMinor: { $sum: "$cumulativeTdsMinor" },
-            invoiceCount: { $sum: "$invoiceCount" },
-            thresholdCrossedAt: { $min: "$thresholdCrossedAt" }
-          }
-        },
-        { $sort: { "_id.vendorFingerprint": 1, "_id.section": 1 } }
-      ],
-      byQuarter: [
-        { $unwind: "$entries" },
-        {
-          $group: {
-            _id: { quarter: "$entries.quarter", section: "$section" },
-            cumulativeBaseMinor: { $sum: "$entries.taxableAmountMinor" },
-            cumulativeTdsMinor: { $sum: "$entries.tdsAmountMinor" },
-            invoiceCount: { $sum: 1 }
-          }
-        },
-        { $sort: { "_id.quarter": 1, "_id.section": 1 } }
-      ]
+    const quarter = filter.quarter;
+    const facetStage: Record<string, PipelineStage.FacetPipelineStage[]> = {
+      bySection: buildBySection(quarter),
+      byVendor: buildByVendor(quarter),
+      byQuarter: buildByQuarter(quarter)
     };
-
-    const entryLevelGroupStage: Record<string, PipelineStage.FacetPipelineStage[]> = {
-      bySection: [
-        { $unwind: "$entries" },
-        { $match: { "entries.quarter": quarterFilter } },
-        {
-          $group: {
-            _id: "$section",
-            cumulativeBaseMinor: { $sum: "$entries.taxableAmountMinor" },
-            cumulativeTdsMinor: { $sum: "$entries.tdsAmountMinor" },
-            invoiceCount: { $sum: 1 },
-            thresholdCrossedAt: { $min: "$thresholdCrossedAt" }
-          }
-        },
-        { $sort: { _id: 1 } }
-      ],
-      byVendor: [
-        { $unwind: "$entries" },
-        { $match: { "entries.quarter": quarterFilter } },
-        {
-          $group: {
-            _id: { vendorFingerprint: "$vendorFingerprint", section: "$section" },
-            cumulativeBaseMinor: { $sum: "$entries.taxableAmountMinor" },
-            cumulativeTdsMinor: { $sum: "$entries.tdsAmountMinor" },
-            invoiceCount: { $sum: 1 },
-            thresholdCrossedAt: { $min: "$thresholdCrossedAt" }
-          }
-        },
-        { $sort: { "_id.vendorFingerprint": 1, "_id.section": 1 } }
-      ],
-      byQuarter: [
-        { $unwind: "$entries" },
-        { $match: { "entries.quarter": quarterFilter } },
-        {
-          $group: {
-            _id: { quarter: "$entries.quarter", section: "$section" },
-            cumulativeBaseMinor: { $sum: "$entries.taxableAmountMinor" },
-            cumulativeTdsMinor: { $sum: "$entries.tdsAmountMinor" },
-            invoiceCount: { $sum: 1 }
-          }
-        },
-        { $sort: { "_id.quarter": 1, "_id.section": 1 } }
-      ]
-    };
-
-    const facetStage = useEntryLevelAggregation ? entryLevelGroupStage : docLevelGroupStage;
 
     const [aggregate, tenant] = await Promise.all([
       TdsVendorLedgerModel.aggregate<FacetResult>([
