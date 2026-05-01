@@ -65,20 +65,25 @@ export function ClientOrgsTable({
           return (
             <tr key={item._id} data-testid="client-orgs-table-row" data-active={isActive ? "true" : undefined}>
               <td>
-                <strong>{item.companyName}</strong>
-                {isActive ? (
-                  <>
-                    {" "}
+                <span className="client-orgs-table-company">
+                  <strong>{item.companyName}</strong>
+                  {isActive ? (
                     <Badge tone="success" size="sm">
                       Active
                     </Badge>
-                  </>
-                ) : null}
+                  ) : null}
+                </span>
               </td>
               <td>
-                <code>{item.gstin}</code>
+                <code className="client-orgs-table-gstin">{item.gstin}</code>
               </td>
-              <td>{item.stateName ?? <span aria-hidden="true">—</span>}</td>
+              <td>
+                {item.stateName ?? (
+                  <span className="client-orgs-table-placeholder" aria-hidden="true">
+                    —
+                  </span>
+                )}
+              </td>
               <td>
                 {item.f12OverwriteByGuidVerified ? (
                   <Badge tone="success" size="sm">

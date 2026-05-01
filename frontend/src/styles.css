@@ -4761,7 +4761,7 @@ pre {
   color: var(--ink-soft);
 }
 
-/* Client Organization onboarding (#150) ----------------------------------- */
+/* Client Organization onboarding (#150, design pass #345 — canvas ClientOrgs.jsx) */
 
 .client-orgs-page {
   display: flex;
@@ -4773,22 +4773,23 @@ pre {
 .client-orgs-page-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  gap: var(--sp-3);
+  align-items: flex-end;
+  gap: var(--sp-4);
   flex-wrap: wrap;
 }
 
 .client-orgs-page-header h1 {
   margin: 0;
-  font-size: 1.25rem;
-  font-weight: 600;
+  font: 700 var(--fs-xl)/var(--lh-tight) var(--font-sans);
+  letter-spacing: -0.01em;
   color: var(--ink);
 }
 
 .client-orgs-page-header p {
-  margin: 0;
+  margin: var(--sp-1) 0 0;
   color: var(--ink-soft);
-  font-size: 0.875rem;
+  font: 500 var(--fs-sm)/var(--lh-snug) var(--font-sans);
+  max-width: 56ch;
 }
 
 .client-orgs-toolbar {
@@ -4806,7 +4807,23 @@ pre {
   border-radius: var(--radius-sm);
   background: var(--bg-panel);
   color: var(--ink);
-  font-size: 0.875rem;
+  font: 500 var(--fs-sm)/var(--lh-snug) var(--font-sans);
+  transition: border-color 120ms ease, box-shadow 120ms ease, background 120ms ease;
+}
+
+.client-orgs-search::placeholder {
+  color: var(--ink-muted);
+}
+
+.client-orgs-search:hover {
+  border-color: var(--ink-muted);
+}
+
+.client-orgs-search:focus,
+.client-orgs-search:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft-bg);
 }
 
 .client-orgs-state {
@@ -4825,7 +4842,7 @@ pre {
 
 .client-orgs-state-empty h2 {
   margin: 0;
-  font-size: 1rem;
+  font: 700 var(--fs-lg)/var(--lh-tight) var(--font-sans);
   color: var(--ink);
 }
 
@@ -4833,6 +4850,7 @@ pre {
   margin: 0;
   max-width: 32rem;
   color: var(--ink-soft);
+  font: 500 var(--fs-sm)/var(--lh-normal) var(--font-sans);
 }
 
 .client-orgs-table {
@@ -4842,28 +4860,64 @@ pre {
   border: 1px solid var(--line);
   border-radius: var(--radius-md);
   overflow: hidden;
+  font: 500 var(--fs-sm)/var(--lh-snug) var(--font-sans);
+  color: var(--ink);
 }
 
 .client-orgs-table th,
 .client-orgs-table td {
   padding: var(--sp-3);
   text-align: left;
-  border-bottom: 1px solid var(--line);
-  font-size: 0.875rem;
-  color: var(--ink);
+  border-bottom: 1px solid var(--line-soft);
+  vertical-align: middle;
 }
 
 .client-orgs-table thead th {
-  background: var(--bg-main);
+  background: var(--bg-sunken);
   color: var(--ink-soft);
-  font-weight: 600;
-  font-size: 0.75rem;
+  font: 800 var(--fs-xxs)/1 var(--font-sans);
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.10em;
+  border-bottom: 1px solid var(--line);
+}
+
+.client-orgs-table tbody tr {
+  transition: background 120ms ease;
+}
+
+.client-orgs-table tbody tr:hover {
+  background: var(--accent-soft-bg);
+}
+
+.client-orgs-table tbody tr[data-active="true"] {
+  background: var(--accent-soft-bg);
 }
 
 .client-orgs-table tbody tr:last-child td {
   border-bottom: none;
+}
+
+.client-orgs-table-company {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.client-orgs-table-gstin {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums lining-nums;
+  font-feature-settings: var(--num-features);
+  font-size: var(--fs-xs);
+  color: var(--ink-soft);
+  background: var(--bg-sunken);
+  padding: 2px var(--sp-2);
+  border-radius: var(--radius-sm);
+}
+
+.client-orgs-table-placeholder {
+  color: var(--ink-muted);
 }
 
 .client-orgs-table-actions {
@@ -4929,10 +4983,16 @@ pre {
   align-items: flex-start;
   justify-content: space-between;
   padding: var(--sp-3) var(--sp-4);
-  border: 1px solid var(--chart-emerald);
+  border: 1px solid var(--emerald);
   border-radius: var(--radius-md);
-  background: var(--badge-accent-soft-bg);
+  background: var(--emerald-soft-bg);
   color: var(--ink);
+  transition: background 150ms ease, border-color 150ms ease;
+}
+
+.client-orgs-archive-notice[data-status="deleted"] {
+  border-color: var(--accent);
+  background: var(--accent-soft-bg);
 }
 
 .client-orgs-archive-notice-body {
