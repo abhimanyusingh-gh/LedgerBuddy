@@ -47,6 +47,7 @@ import { IrnValidationService } from "@/services/compliance/IrnValidationService
 import { MsmeTrackingService } from "@/services/compliance/MsmeTrackingService.js";
 import { DuplicateInvoiceDetector } from "@/services/compliance/DuplicateInvoiceDetector.js";
 import { CostCenterService } from "@/services/compliance/CostCenterService.js";
+import { AuditLogService } from "@/services/core/AuditLogService.js";
 import { env } from "@/config/env.js";
 
 import {
@@ -72,6 +73,7 @@ interface Dependencies {
   keycloakAdmin: KeycloakAdminClient;
   approvalWorkflowService: ApprovalWorkflowService;
   triageService: TriageService;
+  auditLogService: AuditLogService;
   ocrProvider: OcrProvider;
   fieldVerifier: FieldVerifier;
 }
@@ -167,6 +169,7 @@ export async function buildDependencies(): Promise<Dependencies> {
     fileStore: storage.fileStore
   });
   const approvalWorkflowService = new ApprovalWorkflowService();
+  const auditLogService = new AuditLogService();
 
   return {
     ingestionService,
@@ -180,6 +183,7 @@ export async function buildDependencies(): Promise<Dependencies> {
     fileStore: storage.fileStore,
     approvalWorkflowService,
     triageService: new TriageService(),
+    auditLogService,
     ocrProvider: extraction.ocrProvider,
     fieldVerifier: extraction.fieldVerifier
   };

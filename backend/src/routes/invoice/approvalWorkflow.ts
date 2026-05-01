@@ -5,8 +5,8 @@ import { requireAuth } from "@/auth/requireAuth.js";
 import { requireCap } from "@/auth/requireCapability.js";
 import { TenantUserRoleModel, TenantAssignableRoles } from "@/models/core/TenantUserRole.js";
 import { getRoleDefaults } from "@/auth/personaDefaults.js";
-import { AuditLogModel } from "@/models/core/AuditLog.js";
-import { logger } from "@/utils/logger.js";
+import { AUDIT_ENTITY_TYPE } from "@/models/core/AuditLog.js";
+import type { AuditLogService } from "@/services/core/AuditLogService.js";
 import { INVOICE_URL_PATHS } from "@/routes/urls/invoiceUrls.js";
 
 const VALID_CONDITION_FIELDS = ["totalAmountMinor", "tdsAmountMinor", "riskSignalMaxSeverity", "glCodeSource"] as const;
@@ -57,7 +57,10 @@ export function validateStepCondition(condition: unknown): string | null {
   return null;
 }
 
-export function createApprovalWorkflowRouter(workflowService: ApprovalWorkflowService) {
+export function createApprovalWorkflowRouter(
+  workflowService: ApprovalWorkflowService,
+  auditLogService: AuditLogService
+) {
   const router = Router();
   router.use(requireAuth);
 
@@ -168,16 +171,15 @@ export function createApprovalWorkflowRouter(workflowService: ApprovalWorkflowSe
         context.userId
       );
 
-      AuditLogModel.create({
+      void auditLogService.record({
         tenantId: context.tenantId,
         userId: context.userId,
-        entityType: "config",
+        userEmail: context.email,
+        entityType: AUDIT_ENTITY_TYPE.CONFIG,
         entityId: context.tenantId,
         action: "approval_workflow_updated",
         previousValue: previousConfig,
-        newValue: result,
-      }).catch((err) => {
-        logger.error("audit_log.write_failed", { error: String(err), tenantId: context.tenantId });
+        newValue: result
       });
 
       res.json(result);

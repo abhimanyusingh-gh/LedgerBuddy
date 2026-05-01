@@ -96,7 +96,7 @@ export async function createApp(prebuiltDependencies?: Awaited<ReturnType<typeof
     createTenantLifecycleRouter(dependencies.tenantInviteService)
   );
   app.use("/api", requireNonPlatformAdmin, requireTenantSetupCompleted, createComplianceMetadataRouter());
-  app.use("/api", createTdsRatesRouter());
+  app.use("/api", createTdsRatesRouter(dependencies.auditLogService));
 
   const jobsRouter = createJobsRouter(
     dependencies.ingestionService,
@@ -132,7 +132,7 @@ export async function createApp(prebuiltDependencies?: Awaited<ReturnType<typeof
 
   clientOrgRouter.use(createInvoiceRouter(dependencies.invoiceService, dependencies.approvalWorkflowService, dependencies.fileStore));
   clientOrgRouter.use(createActionRequiredRouter());
-  clientOrgRouter.use(createApprovalWorkflowRouter(dependencies.approvalWorkflowService));
+  clientOrgRouter.use(createApprovalWorkflowRouter(dependencies.approvalWorkflowService, dependencies.auditLogService));
   tenantRouter.use(createTriageRouter(dependencies.triageService));
 
   clientOrgRouter.use(createNotificationConfigRouter());

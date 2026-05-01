@@ -101,6 +101,7 @@ export async function createIntegrationApp(overrides: AuthOverrides = {}): Promi
     keycloakAdmin: {} as never,
     approvalWorkflowService,
     triageService: new TriageService(),
+    auditLogService: { record: jest.fn().mockResolvedValue(undefined), retryDeadLetters: jest.fn() } as never,
     ocrProvider,
     fieldVerifier: new NoopFieldVerifier()
   });

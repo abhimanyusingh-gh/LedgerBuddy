@@ -58,6 +58,14 @@ async function runPollingTick(dependencies: Awaited<ReturnType<typeof buildDepen
     });
   }
 
+  try {
+    await dependencies.auditLogService.retryDeadLetters();
+  } catch (error) {
+    logger.error("polling.audit_log_retry.failed", {
+      error: error instanceof Error ? error.message : String(error)
+    });
+  }
+
   const eligible = await dependencies.gmailIntegrationService.getPollingEligibleIntegrations();
   if (eligible.length === 0) return;
 

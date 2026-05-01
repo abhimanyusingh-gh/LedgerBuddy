@@ -1,11 +1,13 @@
 import { Router } from "express";
 import { TdsRateTableModel } from "@/models/compliance/TdsRateTable.js";
-import { requirePlatformAdmin } from "@/auth/middleware.js";
+import { getAuth } from "@/types/auth.js";
 import { requireAuth } from "@/auth/requireAuth.js";
 import { requireCap } from "@/auth/requireCapability.js";
+import { AUDIT_ENTITY_TYPE } from "@/models/core/AuditLog.js";
+import type { AuditLogService } from "@/services/core/AuditLogService.js";
 import { PLATFORM_URL_PATHS } from "@/routes/urls/platformUrls.js";
 
-export function createTdsRatesRouter() {
+export function createTdsRatesRouter(auditLogService: AuditLogService) {
   const router = Router();
   router.use(requireAuth);
 
@@ -18,6 +20,7 @@ export function createTdsRatesRouter() {
 
   router.put(PLATFORM_URL_PATHS.complianceTdsRateBySection, requireCap("canConfigureTdsMappings"), async (req, res, next) => {
     try {
+      const auth = getAuth(req);
       const section = req.params.section;
       const now = new Date();
 
@@ -38,6 +41,17 @@ export function createTdsRatesRouter() {
         effectiveFrom: now,
         effectiveTo: null,
         isActive: true
+      });
+
+      void auditLogService.record({
+        tenantId: auth.tenantId,
+        userId: auth.userId,
+        userEmail: auth.email,
+        entityType: AUDIT_ENTITY_TYPE.CONFIG,
+        entityId: `tds_rate:${section}`,
+        action: "tds_rate_updated",
+        previousValue: current.toObject(),
+        newValue: newRate.toObject()
       });
 
       res.json(newRate.toObject());
