@@ -99,13 +99,46 @@ function LoginShell({ children, hideTopHelp }) {
   );
 }
 
+// ---------- Demo credentials ----------
+// Two demo identities baked into the kit. The signin form detects whether the
+// email matches the platform-ops domain and routes to PlatformAdmin.html;
+// everything else lands in the tenant workspace at index.html.
+const DEMO_CREDS = {
+  tenant: {
+    email: "reena@khan-ca.in",
+    password: "Demo-Pass-2026!",
+    role: "tenant",
+    label: "Tenant admin",
+    sub: "Reena Patel · Khan & Associates, CA",
+    icon: "business_center",
+  },
+  platform: {
+    email: "ops@ledgerbuddy.in",
+    password: "Platform-Ops-2026!",
+    role: "platform",
+    label: "Platform admin",
+    sub: "LedgerBuddy ops · super-admin scope",
+    icon: "admin_panel_settings",
+  },
+};
+function loginRoleFor(email) {
+  return /@ledgerbuddy\.in$/i.test((email || "").trim()) ? "platform" : "tenant";
+}
+
 // ---------- States ----------
 function LoginSignIn({ onAuthenticated, onSetState }) {
-  const [email, setEmail] = React.useState("reena@khan-ca.in");
-  const [pw, setPw] = React.useState("Demo-Pass-2026!");
+  const [email, setEmail] = React.useState(DEMO_CREDS.tenant.email);
+  const [pw, setPw] = React.useState(DEMO_CREDS.tenant.password);
   const [showPw, setShowPw] = React.useState(false);
   const [remember, setRemember] = React.useState(true);
-  const submit = (e) => { e?.preventDefault?.(); onAuthenticated(); };
+  const role = loginRoleFor(email);
+  const auth = (r) => onAuthenticated?.(r || role);
+  const submit = (e) => { e?.preventDefault?.(); auth(); };
+  const fillDemo = (which) => {
+    const c = DEMO_CREDS[which];
+    setEmail(c.email);
+    setPw(c.password);
+  };
 
   return (
     <LoginShell>
@@ -113,12 +146,46 @@ function LoginSignIn({ onAuthenticated, onSetState }) {
       <h1 className="auth-h">Sign in to LedgerBuddy</h1>
       <p className="auth-sub">Use your work account, or sign in with email &amp; password.</p>
 
+      <div className="demo-creds">
+        <div className="demo-creds-head">
+          <span className="demo-creds-eyebrow"><LoginMi name="key" style={{ fontSize: 14 }} /> Demo credentials</span>
+          <span className="demo-creds-sub">Click a card to autofill, then Sign in.</span>
+        </div>
+        <div className="demo-creds-grid">
+          {[DEMO_CREDS.tenant, DEMO_CREDS.platform].map((c) => {
+            const active = email.trim().toLowerCase() === c.email.toLowerCase();
+            return (
+              <button
+                key={c.role}
+                type="button"
+                className={"demo-card" + (active ? " active" : "") + (c.role === "platform" ? " platform" : "")}
+                onClick={() => fillDemo(c.role)}
+              >
+                <span className="demo-card-icon"><LoginMi name={c.icon} style={{ fontSize: 18 }} /></span>
+                <span className="demo-card-body">
+                  <span className="demo-card-row">
+                    <span className="demo-card-label">{c.label}</span>
+                    {c.role === "platform" ? <span className="demo-card-tag">super-admin</span> : null}
+                  </span>
+                  <span className="demo-card-sub">{c.sub}</span>
+                  <span className="demo-card-creds">
+                    <span className="k">email</span> <span className="v">{c.email}</span>
+                    <span className="k">pwd</span> <span className="v">{c.password}</span>
+                  </span>
+                </span>
+                <span className="demo-card-check"><LoginMi name={active ? "check_circle" : "radio_button_unchecked"} style={{ fontSize: 18 }} /></span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
       <div className="btn-stack">
-        <button className="btn" onClick={onAuthenticated}>
+        <button className="btn" onClick={() => auth()}>
           <svg width="18" height="18" viewBox="0 0 18 18"><path d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.71v2.26h2.92c1.71-1.57 2.69-3.89 2.69-6.61z" fill="#4285F4"/><path d="M9 18c2.43 0 4.47-.81 5.96-2.18l-2.92-2.27c-.81.54-1.84.86-3.04.86a5.27 5.27 0 0 1-4.96-3.66H.96v2.34A8.99 8.99 0 0 0 9 18z" fill="#34A853"/><path d="M4.04 10.75A5.4 5.4 0 0 1 3.74 9c0-.6.1-1.2.3-1.75V4.91H.96A8.99 8.99 0 0 0 0 9c0 1.45.35 2.83.96 4.09l3.08-2.34z" fill="#FBBC05"/><path d="M9 3.58c1.32 0 2.5.45 3.44 1.34l2.58-2.58A8.99 8.99 0 0 0 9 0 8.99 8.99 0 0 0 .96 4.91l3.08 2.34A5.27 5.27 0 0 1 9 3.58z" fill="#EA4335"/></svg>
           Continue with Google Workspace
         </button>
-        <button className="btn" onClick={onAuthenticated}>
+        <button className="btn" onClick={() => auth()}>
           <svg width="18" height="18" viewBox="0 0 18 18"><path fill="#F25022" d="M0 0h8.5v8.5H0z"/><path fill="#7FBA00" d="M9.5 0H18v8.5H9.5z"/><path fill="#00A4EF" d="M0 9.5h8.5V18H0z"/><path fill="#FFB900" d="M9.5 9.5H18V18H9.5z"/></svg>
           Continue with Microsoft 365
         </button>
@@ -132,6 +199,10 @@ function LoginSignIn({ onAuthenticated, onSetState }) {
           <div className="input-with-icon">
             <LoginMi name="alternate_email" style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "var(--ink-muted)", fontSize: 18 }} />
             <input className="input mono" style={{ paddingLeft: 38 }} value={email} onChange={e => setEmail(e.target.value)} autoFocus />
+            <span className={"role-pill " + role} title={role === "platform" ? "Platform admin scope" : "Tenant scope"}>
+              <LoginMi name={role === "platform" ? "admin_panel_settings" : "business_center"} style={{ fontSize: 13 }} />
+              {role === "platform" ? "Platform" : "Tenant"}
+            </span>
           </div>
         </div>
         <div className="field">

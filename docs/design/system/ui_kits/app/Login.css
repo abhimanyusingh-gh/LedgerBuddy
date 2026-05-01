@@ -318,9 +318,9 @@ body {
 .auth-left {
   position: relative;
   background:
-    radial-gradient(900px 600px at 80% 110%, rgba(17,82,212,.18), transparent 60%),
-    radial-gradient(700px 500px at 0% 0%, rgba(34,197,94,.10), transparent 55%),
-    linear-gradient(180deg, #0a1024 0%, #0f1a3a 100%);
+    radial-gradient(900px 600px at 80% 110%, rgba(180,140,90,.10), transparent 60%),
+    radial-gradient(700px 500px at 0% 0%, rgba(34,197,94,.06), transparent 55%),
+    linear-gradient(180deg, #1a1c22 0%, #16181d 100%);
   color: white;
   overflow: hidden;
   display: flex;
@@ -614,4 +614,158 @@ body {
 @media (max-width: 960px) {
   .auth-shell { grid-template-columns: 1fr; }
   .auth-left { display: none; }
+}
+
+/* ---------- Demo credentials ---------- */
+.demo-creds {
+  margin: -4px 0 22px;
+  padding: 14px;
+  border: 1px dashed var(--rule);
+  border-radius: 12px;
+  background: var(--bg-sunken);
+}
+.demo-creds-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+.demo-creds-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font: 700 10.5px var(--font-sans);
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  color: var(--ink);
+}
+.demo-creds-sub {
+  font: 500 11.5px var(--font-sans);
+  color: var(--ink-soft);
+}
+.demo-creds-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.demo-card {
+  position: relative;
+  display: grid;
+  grid-template-columns: 28px 1fr 18px;
+  gap: 10px;
+  align-items: start;
+  padding: 10px 12px 11px;
+  border-radius: 10px;
+  border: 1px solid var(--rule);
+  background: var(--bg);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color .12s, background .12s, box-shadow .12s;
+}
+.demo-card:hover { border-color: var(--ink-muted); }
+.demo-card.active {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--accent) 14%, transparent);
+}
+.demo-card.platform.active {
+  border-color: #b88a3e;
+  box-shadow: 0 0 0 3px rgba(184,138,62,.18);
+}
+.demo-card-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in oklab, var(--accent) 12%, transparent);
+  color: var(--accent);
+}
+.demo-card.platform .demo-card-icon {
+  background: rgba(184,138,62,.14);
+  color: #b88a3e;
+}
+.demo-card-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.demo-card-row { display: inline-flex; align-items: center; gap: 6px; }
+.demo-card-label {
+  font: 700 12.5px var(--font-sans);
+  color: var(--ink);
+  letter-spacing: -.005em;
+}
+.demo-card-tag {
+  font: 700 9px var(--font-sans);
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: #8a6526;
+  background: rgba(184,138,62,.16);
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+.demo-card-sub {
+  font: 500 11px var(--font-sans);
+  color: var(--ink-soft);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.demo-card-creds {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  column-gap: 6px;
+  row-gap: 1px;
+  margin-top: 4px;
+  font: 500 10.5px var(--font-mono);
+  color: var(--ink-soft);
+}
+.demo-card-creds .k {
+  color: var(--ink-muted);
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  font-size: 9.5px;
+  padding-top: 1px;
+}
+.demo-card-creds .v {
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.demo-card-check {
+  color: var(--ink-muted);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 4px;
+}
+.demo-card.active .demo-card-check { color: var(--accent); }
+.demo-card.platform.active .demo-card-check { color: #b88a3e; }
+
+/* role pill inside email field */
+.role-pill {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 999px;
+  font: 700 10px var(--font-sans);
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  pointer-events: none;
+}
+.role-pill.tenant {
+  color: var(--accent);
+  background: color-mix(in oklab, var(--accent) 12%, transparent);
+}
+.role-pill.platform {
+  color: #8a6526;
+  background: rgba(184,138,62,.16);
+}
+@media (max-width: 520px) {
+  .demo-creds-grid { grid-template-columns: 1fr; }
 }
