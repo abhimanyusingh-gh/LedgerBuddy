@@ -116,12 +116,29 @@ Shared primitives in the bundle: `DataTable.jsx`, `DateRange.jsx`, `data.jsx` (f
 
 > Tenant Config, Payments, and TeamMemberModal map to phase-aligned surfaces; their Pass 2 work lands inside the relevant phase issue (not a standalone W3 PR).
 
-### Wave 4 — Bundle-size cleanup (1 PR, CONDITIONAL)
+### Wave 4 — Cleanup (2 PRs)
 
-**W4-1 — Revert +100 KiB bundle-size headroom** (FE, ≤5 files)
+**W4-1 — Revert +100 KiB bundle-size headroom** (FE, ≤5 files, CONDITIONAL)
 - **CONDITIONAL** on cumulative bundle-size delta after W3 being **negative**.
 - If cumulative delta is positive or zero, the +100 KiB headroom **stays** and this PR is skipped (record the call in the wave wrap-up).
 - If cumulative delta is negative, revert the temporary headroom in `frontend/<bundle-budget-config>` (verify path at execution time).
+
+**W4-2 — Prune redundant design-system reference files** (docs-only, ≤10 file deletions, MANDATORY)
+- Issue: **#388**.
+- Once Wave 1-3 land, ~60 of the 64 imported reference files in `docs/design/system/` become redundant — JSX recreations have been translated into our typed React; prototype CSS mirrored in `frontend/src/styles.css`; preview HTML cards no longer needed for QA.
+- **Delete** (5 directories):
+  - `docs/design/system/ui_kits/` (33 JSX + `app.css` + `index.html` + `Login.html/css` + per-surface README)
+  - `docs/design/system/preview/` (16 token preview HTML cards + `ui-kit-action.png`)
+  - `docs/design/system/screenshots/` (3 PNG)
+  - `docs/design/system/uploads/` (2 PNG)
+  - `docs/design/system/assets/` (logo + favicon — duplicates of `frontend/public/`)
+- **Keep** (4 files, load-bearing forever):
+  - `docs/design/system/README.md` — design manifesto + content rules + visual foundations + hard rules (no-emoji, Indian numerals, Material Symbols only, 32px row default, light+dark parity, fixed status taxonomy)
+  - `docs/design/system/SKILL.md` — agent skill manifest
+  - `docs/design/system/colors_and_type.css` — canonical token reference for any future redesign
+  - `docs/design/system/IMPORT-MANIFEST.md` — provenance record (add `Pruned <YYYY-MM-DD>, see #388` header noting that the manifest now describes the original bundle, not the current state)
+- Update `feedback_design_system_fidelity.md` memory to note that bundle JSX kits no longer exist post-prune (token + manifesto refs still valid).
+- Verify no live code/docs reference deleted files: `git grep "docs/design/system/ui_kits\|docs/design/system/preview\|docs/design/system/screenshots\|docs/design/system/uploads"` should return zero hits.
 
 ## PR count summary
 
@@ -130,10 +147,10 @@ Shared primitives in the bundle: `DataTable.jsx`, `DateRange.jsx`, `data.jsx` (f
 | W1 | 1 |
 | W2 | 3 |
 | W3 | 12 (W3-1 … W3-8 + W3-7-pre + W3-9 + W3-10 + W3-11) |
-| W4 | 1 (conditional) |
-| **Total** | **17** |
+| W4 | 2 (W4-1 conditional, W4-2 mandatory) |
+| **Total** | **18** |
 
-Average files/PR: each ≤20 per `feedback_pr_workflow.md`. W3-7-pre and W4-1 are deliberately small (≤5 files each).
+Average files/PR: each ≤20 per `feedback_pr_workflow.md`. W3-7-pre, W4-1, and W4-2 are deliberately small (≤5-10 files each).
 
 ## Discipline reminders (apply to every Wave-2/3/4 PR)
 
