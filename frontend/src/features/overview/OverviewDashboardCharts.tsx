@@ -30,16 +30,16 @@ interface KpiCardProps {
 }
 
 export function KpiCard({ label, value, sub, accent, warn, icon, trend, sparkData }: KpiCardProps) {
-  const border = accent ? "3px solid var(--accent)" : warn ? "3px solid var(--warn)" : undefined;
+  const tone = accent ? "accent" : warn ? "warn" : undefined;
   return (
-    <div className="platform-stat-tile" style={border ? { borderTop: border } : {}}>
-      <div style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
-        {icon ? <span className="material-symbols-outlined" style={{ fontSize: "1.1rem", color: "var(--ink-soft)" }}>{icon}</span> : null}
+    <div className="platform-stat-tile" data-tone={tone}>
+      <div className="platform-stat-header">
+        {icon ? <span className="material-symbols-outlined platform-stat-icon">{icon}</span> : null}
         <span className="platform-stat-label">{label}</span>
       </div>
-      <span className="platform-stat-value">{value}</span>
+      <span className="platform-stat-value lb-num">{value}</span>
       {trend ? <span className={`kpi-trend kpi-trend-${trend.direction}`}>{trend.direction === "up" ? "\u2191" : trend.direction === "down" ? "\u2193" : "\u2014"} {trend.label}</span> : null}
-      {sub ? <span style={{ fontSize: "0.75rem", color: "var(--ink-soft)", marginTop: 2 }}>{sub}</span> : null}
+      {sub ? <span className="platform-stat-sub">{sub}</span> : null}
       {sparkData && sparkData.length > 1 ? (
         <div className="kpi-sparkline">
           <ResponsiveContainer width="100%" height={40}>
@@ -72,9 +72,9 @@ function ChartTooltip({ active, payload, label }: { active?: boolean; payload?: 
   );
 }
 
-export function ChartCard({ title, subtitle, children, style }: { title: string; subtitle: string; children: ReactNode; style?: React.CSSProperties }) {
+export function ChartCard({ title, subtitle, children, relative }: { title: string; subtitle: string; children: ReactNode; relative?: boolean }) {
   return (
-    <div className="overview-chart-card" style={style}>
+    <div className={`overview-chart-card${relative ? " overview-chart-card-relative" : ""}`}>
       <h4>{title}<span className="chart-subtitle">{subtitle}</span></h4>
       {children}
     </div>
@@ -119,7 +119,7 @@ export function VendorBarChart({ vendors, tooltipLabel }: { vendors: VendorStat[
 
 export function StatusDonut({ data, total, statusColors, statusLabels }: { data: Array<{ status: string; count: number }>; total: number; statusColors: Record<string, string>; statusLabels: Record<string, string> }) {
   return (
-    <div style={{ position: "relative" }}>
+    <div className="status-donut-wrap">
       <ResponsiveContainer width="100%" height={200}>
         <PieChart>
           <Pie data={data} dataKey="count" nameKey="status" cx="50%" cy="50%" innerRadius={50} outerRadius={80} paddingAngle={2} animationDuration={800}>

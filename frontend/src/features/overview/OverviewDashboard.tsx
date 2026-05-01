@@ -103,9 +103,9 @@ export function OverviewDashboard() {
     <div className="overview-dashboard">
       <div className="overview-date-bar">
         <AdminRealmSwitcher />
-        <span style={{ fontWeight: 600, fontSize: "0.85rem", color: "var(--ink-soft)" }}>Date range:</span>
+        <span className="overview-date-bar-label">Date range:</span>
         <input type="date" value={from} max={to} onChange={(e) => { setFrom(e.target.value); setActivePreset(null); }} />
-        <span style={{ color: "var(--ink-soft)" }}>{"\u2013"}</span>
+        <span className="overview-date-bar-sep">{"\u2013"}</span>
         <input type="date" value={to} min={from} onChange={(e) => { setTo(e.target.value); setActivePreset(null); }} />
         {PRESETS.map((preset) => (
           <button
@@ -122,7 +122,7 @@ export function OverviewDashboard() {
             {preset.label}
           </button>
         ))}
-        {loading ? <span style={{ fontSize: "0.8rem", color: "var(--ink-soft)" }}>Refreshing…</span> : null}
+        {loading ? <span className="overview-date-bar-loading">Refreshing…</span> : null}
         <div className="ds-segmented-group overview-scope-toggle" role="group" aria-label="Approval scope">
           {(["mine", "all"] as const).map((item) => (
             <button
@@ -146,16 +146,16 @@ export function OverviewDashboard() {
           <div className="platform-stats-grid">
             {Array.from({ length: 5 }, (_, i) => (
               <div key={i} className="platform-stat-tile">
-                <div className="skeleton skeleton-text" style={{ width: "50%" }} />
-                <div className="skeleton skeleton-value" style={{ marginTop: 6 }} />
-                <div className="skeleton skeleton-text" style={{ width: "35%", marginTop: 4 }} />
+                <div className="skeleton skeleton-text overview-skel-label" />
+                <div className="skeleton skeleton-value overview-skel-value" />
+                <div className="skeleton skeleton-text overview-skel-sub" />
               </div>
             ))}
           </div>
           <div className="overview-charts-grid">
             {Array.from({ length: 4 }, (_, i) => (
               <div key={i} className="overview-chart-card">
-                <div className="skeleton skeleton-text" style={{ width: "40%", height: "0.9rem", marginBottom: "0.75rem" }} />
+                <div className="skeleton skeleton-text overview-skel-chart-title" />
                 <div className="skeleton skeleton-chart" />
               </div>
             ))}
@@ -206,13 +206,13 @@ export function OverviewDashboard() {
               </ChartOrEmpty>
             </ChartCard>
 
-            <ChartCard title="Status Breakdown" subtitle="Current distribution by status" style={{ position: "relative" }}>
+            <ChartCard title="Status Breakdown" subtitle="Current distribution by status" relative>
               <ChartOrEmpty hasData={data.statusBreakdown.length > 0}>
                 <StatusDonut data={data.statusBreakdown} total={donutTotal} statusColors={STATUS_COLORS} statusLabels={STATUS_LABELS} />
                 <div className="donut-legend">
                   {data.statusBreakdown.map((entry) => (
                     <div key={entry.status} className="donut-legend-item">
-                      <span className="donut-legend-dot" style={{ background: STATUS_COLORS[entry.status] ?? "#94a3b8" }} />
+                      <span className="donut-legend-dot" data-status={entry.status} />
                       <span>{STATUS_LABELS[entry.status] ?? entry.status}</span>
                       <span className="donut-legend-count">{entry.count}</span>
                       <span className="donut-legend-pct">({donutTotal > 0 ? Math.round((entry.count / donutTotal) * 100) : 0}%)</span>
