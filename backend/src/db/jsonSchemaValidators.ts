@@ -111,6 +111,16 @@ export const MINOR_FIELD_REGISTRY: readonly CollectionValidatorSpec[] = [
         array: true
       }
     ]
+  },
+  {
+    modelName: "VendorMaster",
+    groups: [
+      {
+        prefix: "lowerDeductionCert",
+        fields: ["maxAmountMinor"],
+        nullable: false
+      }
+    ]
   }
 ] as const;
 

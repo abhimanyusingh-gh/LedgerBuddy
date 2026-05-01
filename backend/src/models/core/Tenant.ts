@@ -1,5 +1,6 @@
 import { Schema, model, type InferSchemaType } from "mongoose";
 import { ONBOARDING_STATUS, TENANT_MODE } from "@/types/onboarding.js";
+import { TAN_FORMAT, type TAN } from "@/types/tan.js";
 
 const TenantOnboardingStatuses = Object.values(ONBOARDING_STATUS);
 
@@ -14,7 +15,15 @@ const tenantSchema = new Schema(
     country: { type: String, enum: TenantCountries, required: true, default: "IN" },
     defaultCurrency: { type: String, required: true, default: "INR" },
     mode: { type: String, enum: TenantModes, required: true, default: TENANT_MODE.TEST },
-    enabled: { type: Boolean, required: true, default: true }
+    enabled: { type: Boolean, required: true, default: true },
+    tan: {
+      type: String,
+      default: null,
+      validate: {
+        validator: (value: string | null) => value === null || TAN_FORMAT.test(value),
+        message: "Tenant.tan must match the 10-character TAN format (e.g. ABCD12345E)"
+      }
+    }
   },
   {
     timestamps: true
@@ -23,6 +32,8 @@ const tenantSchema = new Schema(
 
 tenantSchema.index({ createdAt: 1 });
 
-type Tenant = InferSchemaType<typeof tenantSchema>;
+type RawTenant = InferSchemaType<typeof tenantSchema>;
+
+type Tenant = Omit<RawTenant, "tan"> & { tan: TAN | null };
 
 export const TenantModel = model<Tenant>("Tenant", tenantSchema);

@@ -15,6 +15,7 @@ import "@/models/compliance/TdsRateTable.js";
 import "@/models/compliance/TdsVendorLedger.js";
 import "@/models/compliance/TdsVendorLedgerArchive.js";
 import "@/models/compliance/TdsVendorLedgerEntryOverflow.js";
+import "@/models/compliance/VendorMaster.js";
 
 type CommandArg = {
   collMod: string;

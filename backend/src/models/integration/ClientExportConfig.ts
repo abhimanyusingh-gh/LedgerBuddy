@@ -21,6 +21,9 @@ const clientExportConfigSchema = new Schema(
     tallyCessLedger: { type: String },
     tallyTdsLedger: { type: String },
     tallyTcsLedger: { type: String },
+    tallyBankLedger: { type: String, default: null },
+    tallyEndpointUrl: { type: String, default: null },
+    autoCreateVendors: { type: Boolean, required: true, default: false },
     csvColumns: { type: [csvColumnSchema] }
   },
   { timestamps: true }

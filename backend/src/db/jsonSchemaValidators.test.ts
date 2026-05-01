@@ -15,6 +15,7 @@ import "@/models/compliance/TdsRateTable.js";
 import "@/models/compliance/TdsVendorLedger.js";
 import "@/models/compliance/TdsVendorLedgerArchive.js";
 import "@/models/compliance/TdsVendorLedgerEntryOverflow.js";
+import "@/models/compliance/VendorMaster.js";
 
 describe("buildMinorFieldRule", () => {
   it("accepts int, long, and double with multipleOf: 1 for non-nullable fields", () => {
@@ -134,7 +135,8 @@ describe("MINOR_FIELD_REGISTRY", () => {
         "TdsVendorLedger",
         "TdsVendorLedgerArchive",
         "TdsVendorLedgerEntryOverflow",
-        "TenantUserRole"
+        "TenantUserRole",
+        "VendorMaster"
       ].sort()
     );
   });
