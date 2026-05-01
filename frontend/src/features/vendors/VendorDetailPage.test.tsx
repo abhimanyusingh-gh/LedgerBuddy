@@ -34,11 +34,13 @@ const reportsApi = jest.requireMock("@/api/reports") as {
 
 const VENDOR_ID = "65a000000000000000000001" as VendorId;
 const SOURCE_ID = "65a000000000000000000002" as VendorId;
+const TARGET_FINGERPRINT = "fp-acme";
+const SOURCE_FINGERPRINT = "fp-acme-dup";
 
 function buildVendorDetail(overrides: Partial<VendorDetail> = {}): VendorDetail {
   return {
     _id: VENDOR_ID,
-    vendorFingerprint: "fp-acme",
+    vendorFingerprint: TARGET_FINGERPRINT,
     name: "Acme Trading Co",
     pan: "AABCM1234A",
     gstin: "29ABCDE1234F1Z5",
@@ -214,6 +216,7 @@ describe("features/vendors/VendorDetailPage — VendorMergeDialog", () => {
       items: [
         {
           _id: SOURCE_ID,
+          vendorFingerprint: SOURCE_FINGERPRINT,
           name: "Acme Tradng",
           pan: "AABCM1234A",
           gstin: "29ABCDE1234F1Z5",
@@ -292,6 +295,7 @@ describe("features/vendors/VendorDetailPage — VendorMergeDialog", () => {
       items: [
         {
           _id: SOURCE_ID,
+          vendorFingerprint: SOURCE_FINGERPRINT,
           name: "Acme Tradng",
           pan: "AABCM1234A",
           gstin: "29ABCDE1234F1Z5",
@@ -308,8 +312,19 @@ describe("features/vendors/VendorDetailPage — VendorMergeDialog", () => {
       limit: 25,
       total: 1
     });
+    const TARGET_TDS_MINOR = 4000000;
+    const SOURCE_TDS_MINOR = 2000000;
     reportsApi.fetchTdsLiabilityReport.mockImplementation(({ vendorFingerprint }: { vendorFingerprint: string }) => {
-      const isTarget = vendorFingerprint === "fp-acme";
+      if (vendorFingerprint !== TARGET_FINGERPRINT && vendorFingerprint !== SOURCE_FINGERPRINT) {
+        return Promise.resolve({
+          tan: null,
+          fy: "2026-27",
+          bySection: [],
+          byVendor: [],
+          byQuarter: []
+        });
+      }
+      const isTarget = vendorFingerprint === TARGET_FINGERPRINT;
       return Promise.resolve({
         tan: null,
         fy: "2026-27",
@@ -319,7 +334,7 @@ describe("features/vendors/VendorDetailPage — VendorMergeDialog", () => {
             vendorFingerprint,
             section: "194C",
             cumulativeBaseMinor: isTarget ? 200000000 : 100000000,
-            cumulativeTdsMinor: isTarget ? 4000000 : 2000000,
+            cumulativeTdsMinor: isTarget ? TARGET_TDS_MINOR : SOURCE_TDS_MINOR,
             invoiceCount: isTarget ? 4 : 2,
             thresholdCrossedAt: null
           }
@@ -340,5 +355,18 @@ describe("features/vendors/VendorDetailPage — VendorMergeDialog", () => {
     await screen.findByTestId("vendor-merge-preview");
     const row = screen.getByTestId("vendor-merge-preview-row");
     expect(row).toHaveTextContent("194C");
+
+    await waitFor(() =>
+      expect(reportsApi.fetchTdsLiabilityReport).toHaveBeenCalledWith(
+        expect.objectContaining({ vendorFingerprint: SOURCE_FINGERPRINT })
+      )
+    );
+    expect(reportsApi.fetchTdsLiabilityReport).toHaveBeenCalledWith(
+      expect.objectContaining({ vendorFingerprint: TARGET_FINGERPRINT })
+    );
+    const numericCells = row.querySelectorAll(".vendor-merge-preview-numeric");
+    expect(numericCells[0]).toHaveTextContent("40,000.00");
+    expect(numericCells[1]).toHaveTextContent("20,000.00");
+    expect(numericCells[2]).toHaveTextContent("60,000.00");
   });
 });

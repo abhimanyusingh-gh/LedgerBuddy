@@ -49,6 +49,7 @@ export function createVendorsRouter(
 
       const summaries = items.map(v => ({
         _id: v._id,
+        vendorFingerprint: v.vendorFingerprint,
         name: v.name,
         pan: v.pan ?? null,
         gstin: v.gstin ?? null,

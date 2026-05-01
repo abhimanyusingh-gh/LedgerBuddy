@@ -52,6 +52,7 @@ export interface VendorListSection197Summary {
 
 export interface VendorListItemSummary {
   _id: VendorId;
+  vendorFingerprint: string;
   name: string;
   pan: string | null;
   gstin: string | null;

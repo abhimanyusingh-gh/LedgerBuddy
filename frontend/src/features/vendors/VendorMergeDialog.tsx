@@ -50,14 +50,15 @@ export function VendorMergeDialog({ open, target, onClose, onMerged }: VendorMer
     [candidatesQuery.data, target]
   );
 
+  const selectedSourceFingerprint = useMemo(() => {
+    if (!selectedSourceId) return null;
+    return candidates.find((candidate) => candidate._id === selectedSourceId)?.vendorFingerprint ?? null;
+  }, [candidates, selectedSourceId]);
+
   const sourceLedgerQuery = useQuery<TdsLiabilityReport>({
-    enabled: open && selectedSourceId !== null,
-    queryKey: [TDS_LIABILITY_QUERY_KEY, "merge-source", fy, selectedSourceId],
-    queryFn: () => {
-      const source = candidates.find((candidate) => candidate._id === selectedSourceId);
-      const fingerprint = source?._id ?? "";
-      return fetchTdsLiabilityReport({ fy, vendorFingerprint: fingerprint });
-    }
+    enabled: open && selectedSourceFingerprint !== null,
+    queryKey: [TDS_LIABILITY_QUERY_KEY, "merge-source", fy, selectedSourceFingerprint],
+    queryFn: () => fetchTdsLiabilityReport({ fy, vendorFingerprint: selectedSourceFingerprint ?? "" })
   });
 
   const targetLedgerQuery = useQuery<TdsLiabilityReport>({
@@ -131,7 +132,6 @@ export function VendorMergeDialog({ open, target, onClose, onMerged }: VendorMer
 
         {selectedSourceId ? (
           <ConsolidationPreview
-            target={target}
             targetReport={targetLedgerQuery.data ?? null}
             sourceReport={sourceLedgerQuery.data ?? null}
             loading={sourceLedgerQuery.isPending || targetLedgerQuery.isPending}
@@ -266,7 +266,6 @@ function CandidateList({ loading, error, candidates, selectedId, onSelect, onRet
 }
 
 interface ConsolidationPreviewProps {
-  target: VendorDetail;
   targetReport: TdsLiabilityReport | null;
   sourceReport: TdsLiabilityReport | null;
   loading: boolean;
@@ -281,10 +280,10 @@ interface PreviewRow {
   consolidatedTdsMinor: number;
 }
 
-function ConsolidationPreview({ target, targetReport, sourceReport, loading, error }: ConsolidationPreviewProps) {
+function ConsolidationPreview({ targetReport, sourceReport, loading, error }: ConsolidationPreviewProps) {
   const rows = useMemo<PreviewRow[]>(
-    () => buildPreviewRows(target, targetReport, sourceReport),
-    [target, targetReport, sourceReport]
+    () => buildPreviewRows(targetReport, sourceReport),
+    [targetReport, sourceReport]
   );
 
   if (loading) {
@@ -369,12 +368,11 @@ function filterCandidates(items: VendorListItemSummary[], target: VendorDetail):
 }
 
 function buildPreviewRows(
-  target: VendorDetail,
   targetReport: TdsLiabilityReport | null,
   sourceReport: TdsLiabilityReport | null
 ): PreviewRow[] {
-  const targetMap = bucketsByFySection(targetReport, target.vendorFingerprint);
-  const sourceMap = bucketsByFySection(sourceReport, null);
+  const targetMap = bucketsByFySection(targetReport);
+  const sourceMap = bucketsByFySection(sourceReport);
   const fy = targetReport?.fy ?? sourceReport?.fy ?? "";
   const sections = new Set<string>([...targetMap.keys(), ...sourceMap.keys()]);
   const out: PreviewRow[] = [];
@@ -392,7 +390,7 @@ function buildPreviewRows(
   return out.sort((a, b) => a.section.localeCompare(b.section));
 }
 
-function bucketsByFySection(report: TdsLiabilityReport | null, _filterFingerprint: string | null): Map<string, number> {
+function bucketsByFySection(report: TdsLiabilityReport | null): Map<string, number> {
   const out = new Map<string, number>();
   if (!report) return out;
   for (const bucket of report.byVendor as TdsLiabilityVendorBucket[]) {
