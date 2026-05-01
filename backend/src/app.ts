@@ -30,6 +30,7 @@ import { createClientExportConfigRouter } from "@/routes/export/clientExportConf
 import { createBankStatementsRouter, createBankStatementsParseSseRouter } from "@/routes/bank/bankStatements.js";
 import { BankStatementParseProgress } from "@/ai/extractors/bank/BankStatementParseProgress.js";
 import { createTcsConfigRouter } from "@/routes/compliance/tcsConfig.js";
+import { createTdsLiabilityReportRouter } from "@/routes/reports/tdsLiability.js";
 import { createNotificationConfigRouter, createNotificationLogRouter } from "@/routes/tenant/notificationConfig.js";
 import {
   createAuthenticationMiddleware,
@@ -97,6 +98,7 @@ export async function createApp(prebuiltDependencies?: Awaited<ReturnType<typeof
   );
   app.use("/api", requireNonPlatformAdmin, requireTenantSetupCompleted, createComplianceMetadataRouter());
   app.use("/api", createTdsRatesRouter(dependencies.auditLogService));
+  app.use("/api", requireNonPlatformAdmin, requireTenantSetupCompleted, createTdsLiabilityReportRouter());
 
   const jobsRouter = createJobsRouter(
     dependencies.ingestionService,
