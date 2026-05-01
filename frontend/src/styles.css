@@ -1286,23 +1286,42 @@ select:focus {
 }
 
 .mailbox-banner {
-  border: 1px solid rgba(173, 47, 31, 0.45);
-  background: rgba(173, 47, 31, 0.08);
-  border-radius: 0.625rem;
-  padding: 0.65rem 0.8rem;
+  border: 1px solid var(--warn);
+  background: var(--warn-soft-bg);
+  border-radius: var(--radius-md);
+  padding: var(--sp-3) var(--sp-4);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 0.8rem;
+  gap: var(--sp-3);
+  font: 500 var(--fs-sm)/var(--lh-snug) var(--font-sans);
+  color: var(--ink);
+  margin-bottom: var(--sp-4);
+}
+
+.mailbox-banner strong {
+  font-weight: 700;
 }
 
 .mailbox-banner button {
-  border: 1px solid rgba(173, 47, 31, 0.45);
-  background: #fff4f0;
+  border: 1px solid var(--warn);
+  background: var(--bg-panel);
   color: var(--warn);
-  border-radius: 0.5rem;
-  padding: 0.4rem 0.75rem;
+  border-radius: var(--radius-sm);
+  padding: var(--sp-2) var(--sp-3);
+  font: 600 var(--fs-sm)/1 var(--font-sans);
   cursor: pointer;
+  transition: background 120ms ease, color 120ms ease;
+}
+
+.mailbox-banner button:hover {
+  background: var(--warn);
+  color: #fff;
+}
+
+.mailbox-banner button:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
 }
 
 .toolbar-filter-row {
@@ -1932,11 +1951,25 @@ tr:hover {
   color: var(--ink-soft);
 }
 
+/* Tenant Config (#346, design pass — canvas TenantConfig.jsx) */
 .editor-card {
-  border: 1px dashed rgba(31, 122, 108, 0.35);
-  border-radius: 0.75rem;
-  padding: 0.75rem;
-  background: rgba(31, 122, 108, 0.04);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  padding: var(--sp-4) var(--sp-5);
+  background: var(--bg-panel);
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+
+.editor-card:hover {
+  border-color: var(--line);
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.02);
+}
+
+.editor-card h3 {
+  font: 700 var(--fs-md)/var(--lh-snug) var(--font-sans);
+  letter-spacing: -0.005em;
+  color: var(--ink);
+  margin: 0 0 var(--sp-2);
 }
 
 .workflow-toggle-row {
@@ -2363,44 +2396,95 @@ tr:hover {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 0.75rem;
+  gap: var(--sp-3);
+}
+
+.editor-header h3 {
+  font: 700 var(--fs-md)/var(--lh-snug) var(--font-sans);
+  letter-spacing: -0.005em;
+  color: var(--ink);
+  margin: 0;
 }
 
 .editor-header button {
   border: 1px solid var(--line);
   background: var(--bg-panel);
   color: var(--ink);
-  border-radius: 0.5rem;
-  padding: 0.3rem 0.65rem;
+  border-radius: var(--radius-sm);
+  padding: var(--sp-1) var(--sp-3);
+  font: 600 var(--fs-sm)/1 var(--font-sans);
   cursor: pointer;
+  transition: background 120ms ease, border-color 120ms ease, color 120ms ease;
+}
+
+.editor-header button:hover {
+  background: var(--accent-soft-bg);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.editor-header button:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
 }
 
 .invite-row {
   display: flex;
   align-items: flex-end;
-  gap: 0.5rem;
+  gap: var(--sp-2);
 }
 
 .invite-label {
   flex: 1;
   display: grid;
-  gap: 0.35rem;
+  gap: var(--sp-1);
+  font: 500 var(--fs-xs)/1.2 var(--font-sans);
+  color: var(--ink-soft);
+}
+
+.invite-label input {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: var(--sp-2) var(--sp-3);
+  font: 500 var(--fs-sm)/1 var(--font-sans);
+  color: var(--ink);
+  background: var(--bg-panel);
+  transition: border-color 120ms ease, box-shadow 120ms ease;
+}
+
+.invite-label input:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: var(--shadow-focus);
 }
 
 .invite-send-button {
-  border: 1px solid var(--line);
-  background: var(--bg-panel);
-  color: var(--ink);
-  border-radius: 0.5rem;
-  padding: 0.3rem 0.65rem;
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: #fff;
+  border-radius: var(--radius-sm);
+  padding: var(--sp-2) var(--sp-4);
+  font: 600 var(--fs-sm)/1 var(--font-sans);
   cursor: pointer;
   width: fit-content;
   white-space: nowrap;
+  transition: background 120ms ease, border-color 120ms ease, opacity 120ms ease;
+}
+
+.invite-send-button:hover:not(:disabled) {
+  background: var(--accent-hover, var(--accent));
+  filter: brightness(0.95);
+}
+
+.invite-send-button:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
 }
 
 .invite-send-button:disabled {
-  opacity: 0.5;
+  opacity: 0.45;
   cursor: not-allowed;
+  filter: none;
 }
 
 .edit-grid {
@@ -2430,20 +2514,38 @@ tr:hover {
 .editor-card table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.82rem;
+  font: 500 var(--fs-sm)/var(--lh-snug) var(--font-sans);
+  color: var(--ink);
 }
 
 .editor-card th {
   text-align: left;
-  font-weight: 600;
+  font: 800 var(--fs-xxs)/1 var(--font-sans);
+  text-transform: uppercase;
+  letter-spacing: 0.10em;
   color: var(--ink-soft);
-  padding: 0.4rem 0.5rem;
+  background: var(--bg-sunken);
+  padding: var(--sp-3) var(--sp-3);
   border-bottom: 1px solid var(--line);
 }
 
 .editor-card td {
-  padding: 0.4rem 0.5rem;
-  border-bottom: 1px solid var(--line-faint, rgba(0,0,0,0.06));
+  padding: var(--sp-3) var(--sp-3);
+  border-bottom: 1px solid var(--line-soft);
+  vertical-align: middle;
+  transition: background 120ms ease;
+}
+
+.editor-card tbody tr {
+  transition: background 120ms ease;
+}
+
+.editor-card tbody tr:hover td {
+  background: var(--accent-soft-bg);
+}
+
+.editor-card tbody tr:last-child td {
+  border-bottom: 0;
 }
 
 .detail-grid {
@@ -4189,38 +4291,38 @@ pre {
 
 .reorderable-section {
   position: relative;
-  transition: opacity 0.15s ease;
-  margin-bottom: 1.25rem;
+  transition: opacity 150ms ease, transform 150ms ease;
+  margin-bottom: var(--sp-3);
 }
 
 .reorderable-section .editor-card {
-  padding-left: 2rem;
+  padding-left: var(--sp-8);
 }
 
 .section-drag-handle {
   position: absolute;
-  top: 0.6rem;
-  left: 0.4rem;
+  top: var(--sp-3);
+  left: var(--sp-2);
   cursor: grab;
   user-select: none;
   opacity: 0;
-  transition: opacity 0.15s ease;
+  transition: opacity 150ms ease, color 120ms ease, background 120ms ease;
   z-index: 2;
-  font-size: 1.25rem;
+  font-size: var(--fs-lg);
   line-height: 1;
-  color: var(--ink-soft, #999);
-  padding: 0.1rem;
-  border-radius: 0.25rem;
+  color: var(--ink-muted);
+  padding: var(--sp-1);
+  border-radius: var(--radius-sm);
 }
 
 .reorderable-section:hover .section-drag-handle {
-  opacity: 0.5;
+  opacity: 0.6;
 }
 
 .section-drag-handle:hover {
   opacity: 1 !important;
-  color: var(--accent, #4f46e5);
-  background: var(--surface-alt, #f3f4f6);
+  color: var(--accent);
+  background: var(--accent-soft-bg);
 }
 
 .section-drag-handle:active {
