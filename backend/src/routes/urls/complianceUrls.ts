@@ -7,5 +7,7 @@ export const COMPLIANCE_URL_PATHS = {
   tcsConfigRoles: "/admin/tcs-config/roles",
   tcsConfigHistory: "/admin/tcs-config/history",
   vendors: "/vendors",
-  vendorById: "/vendors/:id"
+  vendorById: "/vendors/:id",
+  vendorSection197Cert: "/vendors/:id/cert",
+  vendorMerge: "/vendors/:id/merge"
 } as const;

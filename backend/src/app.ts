@@ -127,7 +127,7 @@ export async function createApp(prebuiltDependencies?: Awaited<ReturnType<typeof
   clientOrgRouter.use(jobsRouter);
   tenantRouter.use(uploadsRouter);
 
-  clientOrgRouter.use(createVendorsRouter());
+  clientOrgRouter.use(createVendorsRouter(dependencies.vendorMasterService, dependencies.auditLogService));
   clientOrgRouter.use(createGlCodesRouter());
   clientOrgRouter.use(createTcsConfigRouter());
   clientOrgRouter.use(createClientComplianceConfigRouter());
