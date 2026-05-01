@@ -1263,14 +1263,14 @@ export function InvoiceView({
       {error ? <p className="error">{error}</p> : null}
       <main ref={contentRef} className={contentClassName} style={contentStyle}>
         <>
-          <section className="panel list-panel" data-density={tableDensity}>
+          <section className="panel list-panel invoice-list-panel" data-density={tableDensity}>
             <div className="panel-title">
               <h2>Invoices</h2>
-              {loading ? <span style={{ fontSize: "0.85rem", color: "var(--ink-soft)" }}>Loading...</span> : <span>{invoices.length} records</span>}
+              {loading ? <span className="invoice-list-meta">Loading...</span> : <span className="invoice-list-meta">{invoices.length} records</span>}
             </div>
 
             {loading && invoices.length === 0 ? (
-              <div style={{ padding: "1rem" }}>
+              <div className="invoice-list-skeleton">
                 {Array.from({ length: 8 }).map((_, i) => <div key={i} className="skeleton skeleton-row" />)}
               </div>
             ) : null}
@@ -1288,7 +1288,7 @@ export function InvoiceView({
 
             {invoices.length > 0 || loading ? (
             <div className={`list-scroll${loading && invoices.length > 0 ? " list-scroll-loading" : ""}`}>
-              <table>
+              <table className="invoice-list-table">
                 <thead>
                   <tr>
                     <th><input type="checkbox" aria-label="Select all visible invoices" checked={areAllVisibleSelectableSelected && selectableVisibleIds.length > 0} disabled={selectableVisibleIds.length === 0} onChange={toggleSelectAllVisible} /></th>
@@ -1420,7 +1420,7 @@ export function InvoiceView({
                           )}
                         </td>
                         <td className="muted">{formatTaxSummary(invoice)}</td>
-                        <td className="gl-code-cell" style={{ fontSize: "0.82rem" }} onClick={(e) => e.stopPropagation()}>
+                        <td className="gl-code-cell invoice-list-cell-compact" onClick={(e) => e.stopPropagation()}>
                           {glCodeEditingInvoiceId === invoice._id ? (
                             <div className="gl-code-inline-dropdown">
                               <GlCodeDropdown
@@ -1451,7 +1451,7 @@ export function InvoiceView({
                             </>
                           )}
                         </td>
-                        <td style={{ fontSize: "0.82rem" }}>
+                        <td className="invoice-list-cell-compact">
                           {invoice.complianceSummary?.tdsSection ?? invoice.compliance?.tds?.section
                             ? <span>{invoice.complianceSummary?.tdsSection ?? invoice.compliance?.tds?.section} {invoice.compliance?.tds?.rate ? `${invoice.compliance.tds.rate / 100}%` : ""}</span>
                             : <span className="muted">—</span>}
@@ -1486,8 +1486,8 @@ export function InvoiceView({
                             <span className="material-symbols-outlined duplicate-warning" title="Possible duplicate — another invoice has identical file contents">warning</span>
                           ) : null}
                         </td>
-                        <td style={{ fontSize: "0.82rem", color: "var(--ink-soft)" }} title={invoice.approval?.email ?? invoice.approval?.approvedBy ?? ""}>{formatApproverName(invoice.approval?.email ?? invoice.approval?.approvedBy)}</td>
-                        <td>{new Date(invoice.receivedAt).toLocaleString()}</td>
+                        <td className="invoice-list-cell-compact invoice-list-cell-muted" title={invoice.approval?.email ?? invoice.approval?.approvedBy ?? ""}>{formatApproverName(invoice.approval?.email ?? invoice.approval?.approvedBy)}</td>
+                        <td className="invoice-list-cell-mono">{new Date(invoice.receivedAt).toLocaleString()}</td>
                         <td onClick={(e) => e.stopPropagation()}>
                           {(() => {
                             const actions = getAvailableRowActions(invoice).filter((action) => {
@@ -1535,12 +1535,12 @@ export function InvoiceView({
                   </button>
                 ) : null}
                 {canExportToTally ? (
-                  <button type="button" className="app-button app-button-sm" style={{ background: "var(--chart-violet)", borderColor: "var(--chart-violet)", color: "#fff" }} disabled={selectedExportableIds.length === 0} onClick={() => void handleExport()}>
+                  <button type="button" className="app-button app-button-sm app-button-violet" disabled={selectedExportableIds.length === 0} onClick={() => void handleExport()}>
                     Export ({selectedExportableIds.length})
                   </button>
                 ) : null}
                 {canDeleteInvoices ? (
-                  <button type="button" className="app-button app-button-sm" style={{ background: "var(--warn)", borderColor: "var(--warn)", color: "#fff" }} onClick={handleDelete}>
+                  <button type="button" className="app-button app-button-sm app-button-danger" onClick={handleDelete}>
                     Delete ({selectedIds.length})
                   </button>
                 ) : null}
