@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useState } from "react";
 import { fetchExportHistory, downloadTallyXmlFile } from "@/api";
-import type { ExportBatchSummary } from "@/types";
+import { EXPORT_BATCH_ITEM_STATUS, type ExportBatchSummary } from "@/types";
 import { EmptyState } from "@/components/common/EmptyState";
 import { ExportBatchItemsList } from "@/features/exports/ExportBatchItemsList";
 import { ExportBatchRetryButton } from "@/features/exports/ExportBatchRetryButton";
@@ -151,7 +151,7 @@ export function ExportHistoryDashboard({ addToast }: ExportHistoryDashboardProps
               <tbody>
                 {displayed.map((batch) => {
                   const expanded = expandedBatchId === batch.batchId;
-                  const failureItems = (batch.items ?? []).filter((it) => it.status === "failure");
+                  const failureItems = (batch.items ?? []).filter((it) => it.status === EXPORT_BATCH_ITEM_STATUS.FAILURE);
                   const canRetry = failureItems.length > 0;
                   return (
                     <Fragment key={batch.batchId}>
